@@ -1,0 +1,409 @@
+import fs from "node:fs";
+import path from "node:path";
+import process from "node:process";
+import { defineCommand } from "citty";
+import * as p from "@clack/prompts";
+import { zodToJsonSchema } from "zod-to-json-schema";
+import { tryGetOriginFlake } from "@clawdbot/clawdlets-core/lib/git";
+import { ensureDir, writeFileAtomic } from "@clawdbot/clawdlets-core/lib/fs-safe";
+import { StackSchema, getStackLayout, loadStack, loadStackEnv, resolveStackBaseFlake } from "@clawdbot/clawdlets-core/stack";
+import { cancelFlow, navOnCancel, NAV_EXIT } from "../lib/wizard.js";
+
+function requireTty(): void {
+  if (!process.stdout.isTTY) throw new Error("requires a TTY (interactive)");
+}
+
+function getDefaultSshPubkeyFile(): string {
+  const home = process.env.HOME || "";
+  const candidates = [
+    path.join(home, ".ssh", "id_ed25519.pub"),
+    path.join(home, ".ssh", "id_rsa.pub"),
+  ];
+  for (const c of candidates) if (c && fs.existsSync(c)) return c;
+  return path.join(home, ".ssh", "id_ed25519.pub");
+}
+
+function readSshConfigHostAliases(): string[] {
+  const home = process.env.HOME || "";
+  const sshConfig = path.join(home, ".ssh", "config");
+  if (!home || !fs.existsSync(sshConfig)) return [];
+  const raw = fs.readFileSync(sshConfig, "utf8");
+  const out: string[] = [];
+  for (const line of raw.split("\n")) {
+    const m = line.match(/^\s*Host\s+(.+)\s*$/i);
+    if (!m) continue;
+    const parts = m[1]!.trim().split(/\s+/g);
+    for (const p0 of parts) {
+      const p1 = p0.trim();
+      if (!p1) continue;
+      if (p1 === "*" || p1.includes("*") || p1.includes("?") || p1.startsWith("!")) continue;
+      if (!out.includes(p1)) out.push(p1);
+      if (out.length >= 30) return out;
+    }
+  }
+  return out;
+}
+
+async function writeStackSchemaJson(outFile: string): Promise<void> {
+  const schema = zodToJsonSchema(StackSchema, {
+    name: "ClawdletsStack",
+    $refStrategy: "none",
+  });
+  await writeFileAtomic(outFile, `${JSON.stringify(schema, null, 2)}\n`);
+}
+
+const stackInit = defineCommand({
+  meta: {
+    name: "init",
+    description: "Create a new local stack in .clawdlets/ (gitignored).",
+  },
+  args: {
+    stackDir: {
+      type: "string",
+      description: "Stack directory (default: .clawdlets).",
+    },
+    host: {
+      type: "string",
+      description: "Host name (default: bots01).",
+      default: "bots01",
+    },
+    dryRun: {
+      type: "boolean",
+      description: "Print planned files without writing.",
+      default: false,
+    },
+  },
+  async run({ args }) {
+    requireTty();
+    const layout = getStackLayout({ cwd: process.cwd(), stackDir: args.stackDir });
+    const host = String(args.host || "bots01").trim() || "bots01";
+    const originFlakeFromGit = await tryGetOriginFlake(layout.repoRoot);
+    const originFlake = originFlakeFromGit ?? "github:<owner>/<repo>";
+
+    p.intro("clawdlets stack init");
+    p.note(
+      [
+        "HCLOUD_TOKEN: Hetzner Cloud Console → Security → API Tokens (https://console.hetzner.cloud/)",
+        "ADMIN_CIDR: your public IPv4 CIDR, usually <your-ip>/32 (example: 203.0.113.10/32)",
+        "Tip: curl -4 https://ifconfig.me  # then add /32",
+        "GITHUB_TOKEN: only if base flake repo is private. Create fine-grained PAT at https://github.com/settings/personal-access-tokens/new",
+        "- Repo access: only select the flake repo",
+        "- Repo permissions: Contents = Read-only",
+      ].join("\n"),
+      "Inputs",
+    );
+
+    const flow = "stack init";
+    const answers: {
+      baseFlake: string;
+      connectMode: string;
+      targetHost: string;
+      serverType: string;
+      adminCidr: string;
+      sshPubkeyFile: string;
+      hcloudToken: string;
+      githubToken: string;
+    } = {
+      baseFlake: "",
+      connectMode: "skip",
+      targetHost: "",
+      serverType: "cx43",
+      adminCidr: "",
+      sshPubkeyFile: getDefaultSshPubkeyFile(),
+      hcloudToken: "",
+      githubToken: "",
+    };
+
+    const steps: Array<{
+      key: keyof typeof answers;
+      prompt: () => Promise<unknown>;
+      normalize: (v: unknown) => string;
+    }> = [
+      {
+        key: "baseFlake",
+        prompt: () =>
+          p.text({
+            message: "Base flake (blank = current repo origin)",
+            placeholder: originFlake,
+            defaultValue: answers.baseFlake,
+          }),
+        normalize: (v) => String(v).trim(),
+      },
+      {
+        key: "connectMode",
+        prompt: () =>
+          p.select({
+            message: "SSH target (for post-install ops)",
+            initialValue: answers.connectMode,
+            options: [
+              { value: "skip", label: "Skip for now (recommended; set after bootstrap)" },
+              { value: "alias", label: "SSH config alias (recommended)" },
+              { value: "userhost", label: "user@host (advanced)" },
+            ],
+          }),
+        normalize: (v) => String(v).trim(),
+      },
+      {
+        key: "targetHost",
+        prompt: async () => {
+          const mode = String(answers.connectMode || "skip").trim();
+          if (mode === "skip") return "";
+          if (mode === "alias") {
+            const aliases = readSshConfigHostAliases();
+            if (aliases.length > 0) {
+              const selected = await p.select({
+                message: "Pick SSH alias from ~/.ssh/config",
+                options: [
+                  ...aliases.map((a) => ({ value: a, label: a })),
+                  { value: "__custom__", label: "Custom…" },
+                ],
+              });
+              if (p.isCancel(selected)) return selected;
+              if (selected === "__custom__") {
+                return p.text({
+                  message: "SSH alias (Host in ~/.ssh/config)",
+                  validate: (x) => (String(x).trim() ? undefined : "required"),
+                });
+              }
+              return selected;
+            }
+            return p.text({
+              message: "SSH alias (Host in ~/.ssh/config)",
+              validate: (x) => (String(x).trim() ? undefined : "required"),
+            });
+          }
+          return p.text({
+            message: "SSH target (what you pass to ssh)",
+            placeholder: "admin@100.64.0.1",
+            validate: (x) => (String(x).trim() ? undefined : "required"),
+          });
+        },
+        normalize: (v) => String(v).trim(),
+      },
+      {
+        key: "serverType",
+        prompt: () =>
+          p.text({
+            message: "Hetzner server type (default: cx43; see https://www.hetzner.com/de/cloud/)",
+            defaultValue: answers.serverType,
+            validate: (x) => {
+              const v = String(x).trim();
+              if (!v) return "required";
+              if (/^cax/i.test(v)) return "ARM (CAX) not supported (this repo builds x86_64-linux; use CX/CPX/CCX)";
+              return undefined;
+            },
+          }),
+        normalize: (v) => String(v).trim(),
+      },
+      {
+        key: "adminCidr",
+        prompt: () =>
+          p.text({
+            message: "ADMIN_CIDR (your public IP CIDR, e.g. 203.0.113.10/32)",
+            defaultValue: answers.adminCidr,
+            validate: (x) => (String(x).trim() ? undefined : "required"),
+          }),
+        normalize: (v) => String(v).trim(),
+      },
+      {
+        key: "sshPubkeyFile",
+        prompt: () =>
+          p.text({
+            message: "SSH public key file (SSH_PUBKEY_FILE)",
+            defaultValue: answers.sshPubkeyFile,
+            validate: (x) => (String(x).trim() ? undefined : "required"),
+          }),
+        normalize: (v) => String(v).trim(),
+      },
+      {
+        key: "hcloudToken",
+        prompt: () =>
+          p.password({
+            message: "HCLOUD_TOKEN (stored in .clawdlets/.env)",
+            validate: (x) => (String(x).trim() ? undefined : "required"),
+          }),
+        normalize: (v) => String(v).trim(),
+      },
+      {
+        key: "githubToken",
+        prompt: () =>
+          p.password({
+            message: "GITHUB_TOKEN (optional; only if base flake repo is private)",
+          }),
+        normalize: (v) => String(v).trim(),
+      },
+    ];
+
+    for (let i = 0; i < steps.length;) {
+      const step = steps[i]!;
+      const v = await step.prompt();
+      if (p.isCancel(v)) {
+        const nav = await navOnCancel({ flow, canBack: i > 0 });
+        if (nav === NAV_EXIT) {
+          cancelFlow();
+          return;
+        }
+        i = Math.max(0, i - 1);
+        continue;
+      }
+      answers[step.key] = step.normalize(v) as never;
+      i += 1;
+    }
+
+    const baseFlake = String(answers.baseFlake || "").trim();
+    const targetHostInput = String(answers.targetHost || "").trim();
+    const stack = {
+      schemaVersion: 1,
+      ...(baseFlake ? { base: { flake: baseFlake } } : {}),
+      envFile: ".env",
+      hosts: {
+        [host]: {
+          flakeHost: host,
+          ...(targetHostInput ? { targetHost: targetHostInput } : {}),
+          hetzner: { serverType: answers.serverType },
+          terraform: {
+            adminCidr: answers.adminCidr,
+            sshPubkeyFile: answers.sshPubkeyFile,
+          },
+          secrets: {
+            localFile: `secrets/hosts/${host}.yaml`,
+            remoteFile: `/var/lib/clawdlets/secrets/hosts/${host}.yaml`,
+          },
+        },
+      },
+    };
+
+    const envLines = [
+      `HCLOUD_TOKEN=${JSON.stringify(answers.hcloudToken)}`,
+      ...(answers.githubToken ? [`GITHUB_TOKEN=${JSON.stringify(answers.githubToken)}`] : []),
+      "",
+    ].join("\n");
+
+    const planned = [
+      layout.stackFile,
+      layout.envFile,
+      path.join(layout.distDir, "stack.schema.json"),
+    ];
+
+    if (args.dryRun) {
+      p.note(planned.map((f) => `- ${path.relative(layout.repoRoot, f)}`).join("\n"), "Planned files");
+      p.outro("dry-run");
+      return;
+    }
+
+    await ensureDir(layout.stackDir);
+    await ensureDir(layout.distDir);
+    await writeFileAtomic(layout.stackFile, `${JSON.stringify(stack, null, 2)}\n`);
+    await writeFileAtomic(layout.envFile, envLines, { mode: 0o600 });
+    await writeStackSchemaJson(path.join(layout.distDir, "stack.schema.json"));
+
+    if (!baseFlake && !originFlakeFromGit) {
+      p.note("No git origin found. Set stack.base.flake (or add git remote origin) before bootstrap.", "base flake");
+    }
+    if (!targetHostInput) {
+      p.note(`Set later with: clawdlets stack set-target-host --host ${host} --target-host <alias|user@host>`, "ssh target");
+    }
+
+    const nextLines: string[] = [];
+    nextLines.push(`- clawdlets secrets init --host ${host}`);
+    nextLines.push("- clawdlets doctor");
+    if (!baseFlake && !originFlakeFromGit) {
+      nextLines.push("- set git remote origin (so blank base flake works)");
+      nextLines.push("  - gh repo create <owner>/<repo> --private --source . --remote origin --push");
+    }
+    nextLines.push(`- clawdlets bootstrap --host ${host}`);
+    if (!targetHostInput) {
+      nextLines.push(`- clawdlets stack set-target-host --host ${host} --target-host <ssh-alias>`);
+    }
+    p.note(nextLines.join("\n"), "Next");
+    p.outro(`wrote ${path.relative(layout.repoRoot, layout.stackFile)}`);
+  },
+});
+
+const stackSetTargetHost = defineCommand({
+  meta: {
+    name: "set-target-host",
+    description: "Set hosts.<host>.targetHost in stack.json.",
+  },
+  args: {
+    stackDir: { type: "string", description: "Stack directory (default: .clawdlets)." },
+    host: { type: "string", description: "Host name (default: bots01).", default: "bots01" },
+    targetHost: { type: "string", description: "SSH target (alias or user@host)." },
+  },
+  async run({ args }) {
+    const { layout, stack } = loadStack({ cwd: process.cwd(), stackDir: args.stackDir });
+    const hostName = String(args.host || "bots01").trim() || "bots01";
+    const h = stack.hosts[hostName];
+    if (!h) throw new Error(`unknown host: ${hostName}`);
+    const targetHost = String(args.targetHost || "").trim();
+    if (!targetHost) throw new Error("missing --target-host");
+
+    const next = {
+      ...stack,
+      hosts: {
+        ...stack.hosts,
+        [hostName]: { ...h, targetHost },
+      },
+    };
+    await writeFileAtomic(layout.stackFile, `${JSON.stringify(next, null, 2)}\n`);
+    console.log(`ok: set ${hostName}.targetHost = ${targetHost}`);
+  },
+});
+
+const stackValidate = defineCommand({
+  meta: {
+    name: "validate",
+    description: "Validate stack.json + env presence.",
+  },
+  args: {
+    stackDir: {
+      type: "string",
+      description: "Stack directory (default: .clawdlets).",
+    },
+  },
+  async run({ args }) {
+    const { layout, stack } = loadStack({ cwd: process.cwd(), stackDir: args.stackDir });
+    const { envFile, env } = loadStackEnv({ cwd: process.cwd(), stackDir: args.stackDir, envFile: stack.envFile });
+    const resolved = await resolveStackBaseFlake({ repoRoot: layout.repoRoot, stack });
+
+    const missing: string[] = [];
+    if (!env.HCLOUD_TOKEN) missing.push("HCLOUD_TOKEN");
+
+    console.log(`ok: stack (${layout.stackFile})`);
+    console.log(`ok: base.flake (${resolved.flake ?? "(unset)"})`);
+    console.log(`ok: hosts (${Object.keys(stack.hosts).length})`);
+    console.log(`ok: envFile (${envFile ?? "(none)"})`);
+    for (const k of missing) console.log(`missing: ${k}`);
+    for (const [k, v] of Object.entries(stack.hosts)) {
+      if (!v.targetHost) console.log(`missing (recommended): hosts.${k}.targetHost`);
+    }
+    if (missing.length > 0) process.exitCode = 1;
+  },
+});
+
+const stackPrint = defineCommand({
+  meta: {
+    name: "print",
+    description: "Print the current stack.json.",
+  },
+  args: {
+    stackDir: { type: "string", description: "Stack directory (default: .clawdlets)." },
+  },
+  async run({ args }) {
+    const { stack } = loadStack({ cwd: process.cwd(), stackDir: args.stackDir });
+    console.log(JSON.stringify(stack, null, 2));
+  },
+});
+
+export const stack = defineCommand({
+  meta: {
+    name: "stack",
+    description: "Local stack management (.clawdlets).",
+  },
+  subCommands: {
+    init: stackInit,
+    "set-target-host": stackSetTargetHost,
+    validate: stackValidate,
+    print: stackPrint,
+  },
+});

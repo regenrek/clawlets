@@ -1,0 +1,43 @@
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+  test: {
+    environment: "node",
+    include: ["tests/**/*.test.ts"],
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "json-summary"],
+      all: true,
+      include: [
+        "src/doctor.ts",
+        "src/repo-layout.ts",
+        "src/setup.ts",
+        "src/stack.ts",
+        "src/lib/age.ts",
+        "src/lib/age-keygen.ts",
+        "src/lib/dotenv-file.ts",
+        "src/lib/fleet.ts",
+        "src/lib/fs-safe.ts",
+        "src/lib/mkpasswd.ts",
+        "src/lib/nix-host.ts",
+        "src/lib/path-expand.ts",
+        "src/lib/sops-config.ts",
+        "src/lib/ssh.ts",
+        "src/lib/wireguard.ts"
+      ],
+      exclude: ["src/index.ts"],
+      thresholds: {
+        lines: 80,
+        statements: 80,
+        functions: 80,
+        branches: 60,
+        "src/lib/**": {
+          lines: 80,
+          statements: 80,
+          functions: 80,
+          branches: 80
+        }
+      }
+    }
+  }
+});

@@ -1,0 +1,28 @@
+# sops (never commit in public repo)
+infra/secrets/**
+
+# local stack (never commit)
+.clawdlets/
+
+# nixos-anywhere extra-files (contains private key)
+infra/secrets/extra-files/
+
+# local env vars
+.env
+
+# terraform
+infra/terraform/.terraform/
+infra/terraform/*.tfstate
+infra/terraform/*.tfstate.*
+infra/terraform/*.tfplan
+terraform.tfstate
+terraform.tfstate.*
+
+# node
+node_modules/
+cli/node_modules/
+cli/dist/
+cli/coverage/
+packages/core/node_modules/
+packages/core/dist/
+packages/core/coverage/

@@ -1,46 +1,69 @@
-# clawdlets
+# Clawdlets
 
-clawdlets
+Clawdlets is the hetzner infrastructure companion for [clawdbot](https://github.com/clawdbot/clawdbot) and [nix-clawdbot](https://github.com/clawdbot/nix-clawdbot). It provides the tooling to deploy and manage secure, reproducible bot fleets on Hetzner Cloud using NixOS. We simply handle the deployment plumbing for these core products.
 
-![License](https://img.shields.io/badge/License-MIT-yellow?style=flat&colorA=18181B&colorB=28CF8D)
-[![Stars](https://img.shields.io/github/stars/regenrek/clawdlets.svg?style=flat&colorA=18181B&colorB=28CF8D)](https://github.com/regenrek/clawdlets/stargazers)
-[![npm](https://img.shields.io/npm/v/regenrek/clawdlets?logo=npm)](https://www.npmjs.com/package/regenrek/clawdlets)
-[![homebrew](https://img.shields.io/badge/homebrew-regenrek%2Ftap%2Fregenrek/clawdlets-2e933c?logo=homebrew)](https://github.com/regenrek/homebrew-tap)
-[![DeepWiki](https://img.shields.io/badge/DeepWiki-regenrek/clawdlets-blue.svg?logo=data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACwAAAAyCAYAAAAnWDnqAAAAAXNSR0IArs4c6QAAA05JREFUaEPtmUtyEzEQhtWTQyQLHNak2AB7ZnyXZMEjXMGeK/AIi+QuHrMnbChYY7MIh8g01fJoopFb0uhhEqqcbWTp06/uv1saEDv4O3n3dV60RfP947Mm9/SQc0ICFQgzfc4CYZoTPAswgSJCCUJUnAAoRHOAUOcATwbmVLWdGoH//PB8mnKqScAhsD0kYP3j/Yt5LPQe2KvcXmGvRHcDnpxfL2zOYJ1mFwrryWTz0advv1Ut4CJgf5uhDuDj5eUcAUoahrdY/56ebRWeraTjMt/00Sh3UDtjgHtQNHwcRGOC98BJEAEymycmYcWwOprTgcB6VZ5JK5TAJ+fXGLBm3FDAmn6oPPjR4rKCAoJCal2eAiQp2x0vxTPB3ALO2CRkwmDy5WohzBDwSEFKRwPbknEggCPB/imwrycgxX2NzoMCHhPkDwqYMr9tRcP5qNrMZHkVnOjRMWwLCcr8ohBVb1OMjxLwGCvjTikrsBOiA6fNyCrm8V1rP93iVPpwaE+gO0SsWmPiXB+jikdf6SizrT5qKasx5j8ABbHpFTx+vFXp9EnYQmLx02h1QTTrl6eDqxLnGjporxl3NL3agEvXdT0WmEost648sQOYAeJS9Q7bfUVoMGnjo4AZdUMQku50McDcMWcBPvr0SzbTAFDfvJqwLzgxwATnCgnp4wDl6Aa+Ax283gghmj+vj7feE2KBBRMW3FzOpLOADl0Isb5587h/U4gGvkt5v60Z1VLG8BhYjbzRwyQZemwAd6cCR5/XFWLYZRIMpX39AR0tjaGGiGzLVyhse5C9RKC6ai42ppWPKiBagOvaYk8lO7DajerabOZP46Lby5wKjw1HCRx7p9sVMOWGzb/vA1hwiWc6jm3MvQDTogQkiqIhJV0nBQBTU+3okKCFDy9WwferkHjtxib7t3xIUQtHxnIwtx4mpg26/HfwVNVDb4oI9RHmx5WGelRVlrtiw43zboCLaxv46AZeB3IlTkwouebTr1y2NjSpHz68WNFjHvupy3q8TFn3Hos2IAk4Ju5dCo8B3wP7VPr/FGaKiG+T+v+TQqIrOqMTL1VdWV1DdmcbO8KXBz6esmYWYKPwDL5b5FA1a0hwapHiom0r/cKaoqr+27/XcrS5UwSMbQAAAABJRU5ErkJggg==)](https://deepwiki.com/regenrek/clawdlets)
+Looking for official AWS Deploy? ()[https://github.com/clawdbot/clawdinators)
 
+![Clawdlets Banner](public/clawdlets-banner.webp)
 
 ## Features
 
-- {EMOJI} - {FEATURE 1}
-- {EMOJI} - {FEATURE 2}
-- {EMOJI} - {FEATURE 3}
-.
-.
-.
+- **Discord bot fleet** – deploy multiple bots from one repo.
+- **Secure by default** – WireGuard/Tailscale, lockdown, sops/age secrets.
+- **Hetzner + NixOS** – immutable infra + reproducible deploys.
+- **CLI-first** – bootstrap, deploy, ops, troubleshooting.
+- **Atomic updates** – rollbacks via NixOS generations.
 
-## Quick Start
+## Quickstart
 
-### Install
+Ready to ship? Check out the [Quickstart Guide](docs/quickstart.md) to get your fleet running in minutes.
 
-TODO: Add installation instructions.
+## Ask an agent (copy/paste prompt)
 
-### Usage
+```text
+Goal: deploy a fresh Hetzner server with this repo (no leaked secrets).
 
-TODO: Add usage examples.
+Constraints:
+- do not commit any instance data; keep everything in .clawdlets/ (gitignored)
+- do not run live actions unless I confirm (bootstrap/lockdown/terraform apply)
+- no shims/workarounds; fix root cause; single source of truth
 
+What I want:
+1) exact local commands (macOS) for: pnpm install, clawdlets stack init, clawdlets secrets init, doctor
+2) exact deploy steps: infra apply -> bootstrap -> connect via Tailscale -> lockdown
+3) exact ops commands: server status/logs/restart; rebuild pinned by full git SHA
+4) if something fails: ask for the exact error output and propose the next command
 
- 
-NOTE FOR THE AGENT:
-... add here more which is relevant for the repo ...
-END NOTE
+Start by reading docs/README.md, then tell me the minimal command sequence for one host.
+```
 
+## Documentation
 
-## Links
+- Start here: `docs/README.md`
+- [Overview](docs/overview.md) – Mental model + lifecycle.
+- [CLI Cookbook](docs/cli.md) – Common commands and patterns.
+- [Stack Config](docs/stack.md) – `.clawdlets/stack.json` reference.
+- [Installation Guide](docs/install.md) – Prerequisites and setup.
+- [Deployment & Updates](docs/deploy.md) – How to ship changes.
+- [Agent Configuration](docs/agent-config.md) – Routing, skills, and workspaces.
+- [Secrets Management](docs/secrets.md) – Handling keys safely with sops/age.
+- [Security Model](docs/security.md) – Threat model + boundaries.
+- [Operations Manual](docs/operations.md) – Day-to-day maintenance.
+- [Troubleshooting](docs/troubleshooting.md) – Common failures and fixes.
+- [Going Public](docs/publicing.md) – Checklist for OSS-safe publishing.
+- [Upstream & Tracking](docs/upstream.md) – Keeping your fork in sync.
 
-- X/Twitter: [@kregenrek](https://x.com/kregenrek)
+## Powered By
 
+Clawdlets is strictly an infrastructure wrapper. All credit for the AI assistant and Nix packaging goes to the core projects:
 
-## See my other projects:
+- [nix-clawdbot](https://github.com/clawdbot/nix-clawdbot) by [joshp123](https://github.com/joshp123)
+- [clawdbot](https://github.com/clawdbot/clawdbot) by [steipete](https://x.com/steipete)
 
-* [Personal GH](https://github.com/regenrek) - Building AI tools to driving my coding agent to the max.
-* [Instructa GH](https://github.com/orgs/instructa/repositories) - Instructa Projects
+## License
+
+MIT
+
+## Find me
+
+[@kevinkernx](https://x.com/kevinkern)

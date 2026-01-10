@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+bin_dir="${CLAWDLETS_BIN_DIR:-"$HOME/bin"}"
+wrapper="$bin_dir/clawdlets"
+
+mkdir -p "$bin_dir"
+
+pnpm -C "$repo_root/cli" build >/dev/null
+
+cat >"$wrapper" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+node "$repo_root/cli/dist/main.js" "\$@"
+EOF
+
+chmod +x "$wrapper"
+echo "ok: $wrapper"
+

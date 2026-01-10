@@ -1,0 +1,20 @@
+{
+  "name": "clawdbot-nix-hetzner-macherjek",
+  "private": true,
+  "scripts": {
+    "postinstall": "pnpm -r build",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "clawdlets:build": "pnpm --filter clawdlets build",
+    "clawdlets:doctor": "pnpm --filter clawdlets doctor",
+    "clawdlets:bootstrap": "pnpm --filter clawdlets bootstrap",
+    "clawdlets:lockdown": "pnpm --filter clawdlets lockdown",
+    "clawdlets:server": "pnpm --filter clawdlets server",
+    "clawdlets:stack": "pnpm --filter clawdlets stack",
+    "clawdlets:secrets": "pnpm --filter clawdlets secrets",
+    "clawdlets:infra": "pnpm --filter clawdlets infra",
+    "clawdlets:help": "pnpm --filter clawdlets help"
+  },
+  "packageManager": "pnpm@10.25.0"
+}

@@ -1,0 +1,82 @@
+set shell := ["zsh", "-lc"]
+
+default:
+  @just --list
+
+install:
+  cd {{justfile_directory()}} && pnpm install
+
+build:
+  cd {{justfile_directory()}} && pnpm run build
+
+test:
+  cd {{justfile_directory()}} && pnpm run test
+
+typecheck:
+  cd {{justfile_directory()}} && pnpm run typecheck
+
+clawdlets-build:
+  cd {{justfile_directory()}} && pnpm run clawdlets:build
+
+clawdlets-setup:
+  cd {{justfile_directory()}} && pnpm run clawdlets:stack -- init
+
+doctor:
+  cd {{justfile_directory()}} && pnpm run clawdlets:doctor
+
+bootstrap +args="":
+  cd {{justfile_directory()}} && pnpm run clawdlets:bootstrap -- {{args}}
+
+clawdlets-lockdown +args="":
+  cd {{justfile_directory()}} && pnpm run clawdlets:lockdown -- {{args}}
+
+terraform-lockdown:
+  cd {{justfile_directory()}} && pnpm run clawdlets:infra -- apply --bootstrap-ssh=false
+
+stack-validate:
+  cd {{justfile_directory()}} && pnpm run clawdlets:stack -- validate
+
+stack-print:
+  cd {{justfile_directory()}} && pnpm run clawdlets:stack -- print
+
+secrets-init host="bots01":
+  cd {{justfile_directory()}} && pnpm run clawdlets:secrets -- init --host {{host}}
+
+secrets-sync host="bots01":
+  cd {{justfile_directory()}} && pnpm run clawdlets:secrets -- sync --host {{host}}
+
+infra-apply host="bots01" bootstrap_ssh="true":
+  cd {{justfile_directory()}} && pnpm run clawdlets:infra -- apply --host {{host}} --bootstrap-ssh={{bootstrap_ssh}}
+
+server-units target_host:
+  cd {{justfile_directory()}} && pnpm run clawdlets:server -- status --target-host {{target_host}}
+
+server-health target_host since="15m":
+  cd {{justfile_directory()}} && pnpm run clawdlets:server -- logs --target-host {{target_host}} --since {{since}}
+
+server-logs target_host args="":
+  cd {{justfile_directory()}} && pnpm run clawdlets:server -- logs --target-host {{target_host}} {{args}}
+
+server-restart target_host args="":
+  cd {{justfile_directory()}} && pnpm run clawdlets:server -- restart --target-host {{target_host}} {{args}}
+
+server-rebuild target_host args="":
+  cd {{justfile_directory()}} && pnpm run clawdlets:server -- rebuild --target-host {{target_host}} {{args}}
+
+server-rebuild-rev target_host rev="HEAD":
+  cd {{justfile_directory()}} && pnpm run clawdlets:server -- rebuild --target-host {{target_host}} --rev {{rev}}
+
+server-rebuild-ref target_host ref="main":
+  cd {{justfile_directory()}} && pnpm run clawdlets:server -- rebuild --target-host {{target_host}} --ref {{ref}}
+
+nix-daemon-restart:
+  ps -axo pid,command | rg 'nix-daemon' || true
+  pids=$(ps -axo pid,command | rg 'nix-daemon' | awk '{print $1}' | tr '\n' ' ') && [ -n "$pids" ] && sudo kill $pids || true
+  sleep 1
+  ps -axo pid,command | rg 'nix-daemon' || true
+
+clawdlets-help:
+  cd {{justfile_directory()}} && pnpm run clawdlets:help
+
+clawdlets-dev-install:
+  cd {{justfile_directory()}} && ./scripts/dev-install-clawdlets-wrapper.sh

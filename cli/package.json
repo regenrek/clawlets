@@ -1,0 +1,37 @@
+{
+  "name": "clawdlets",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "clawdlets": "dist/main.js"
+  },
+  "scripts": {
+    "dev": "tsc -w --preserveWatchOutput",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "help": "node dist/main.js --help",
+    "bootstrap": "node dist/main.js bootstrap",
+    "doctor": "node dist/main.js doctor",
+    "lockdown": "node dist/main.js lockdown",
+    "server": "node dist/main.js server",
+    "stack": "node dist/main.js stack",
+    "secrets": "node dist/main.js secrets",
+    "infra": "node dist/main.js infra"
+  },
+  "dependencies": {
+    "@clack/prompts": "^0.11.0",
+    "@clawdbot/clawdlets-core": "workspace:*",
+    "@clawdlets/template": "workspace:*",
+    "citty": "^0.1.6",
+    "zod-to-json-schema": "^3.24.6"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "typescript": "^5.6.3"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@10.25.0"
+}
