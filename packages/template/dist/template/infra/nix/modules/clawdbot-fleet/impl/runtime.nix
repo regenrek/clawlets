@@ -102,6 +102,23 @@ let
       env = profile.env or {};
       envSecrets = profile.envSecrets or {};
       envDupes = lib.intersectLists (builtins.attrNames env) (builtins.attrNames envSecrets);
+      botResources = profile.resources or {};
+      memoryMax =
+        if (botResources.memoryMax or null) != null
+        then botResources.memoryMax
+        else cfg.resources.memoryMax;
+      cpuQuota =
+        if (botResources.cpuQuota or null) != null
+        then botResources.cpuQuota
+        else cfg.resources.cpuQuota;
+      tasksMax =
+        if (botResources.tasksMax or null) != null
+        then botResources.tasksMax
+        else cfg.resources.tasksMax;
+      ioWeight =
+        if (botResources.ioWeight or null) != null
+        then botResources.ioWeight
+        else cfg.resources.ioWeight;
       gh = profile.github or {};
       ghEnabled =
         (gh.appId or null) != null
@@ -112,27 +129,6 @@ let
         if envSecrets == {}
         then null
         else "/run/secrets/rendered/clawdbot-${b}.env";
-      seedWorkspaceScript =
-        if seedDir != null
-        then pkgs.writeShellScript "clawdbot-seed-workspace-${b}" ''
-          set -euo pipefail
-          ws='${workspace}'
-          if [ -z "$(ls -A "$ws" 2>/dev/null || true)" ]; then
-            cp -a '${seedDir}/.' "$ws/"
-
-            tools_md='/etc/clawdlets/tools.md'
-            if [ -f "$ws/TOOLS.md" ] && [ -r "$tools_md" ]; then
-              if ! grep -q 'clawdlets-tools:begin' "$ws/TOOLS.md"; then
-                {
-                  printf '\n<!-- clawdlets-tools:begin -->\n'
-                  cat "$tools_md"
-                  printf '\n<!-- clawdlets-tools:end -->\n'
-                } >>"$ws/TOOLS.md"
-              fi
-            fi
-          fi
-        ''
-        else null;
     in
       {
         name = "clawdbot-${b}";
@@ -150,7 +146,14 @@ let
               CLAWDBOT_STATE_DIR = stateDir;
               CLAWDBOT_CONFIG_PATH = cfgPath;
               HOME = stateDir;
-            } // lib.optionalAttrs cfg.disableBonjour { CLAWDBOT_DISABLE_BONJOUR = "1"; }
+            }
+            // lib.optionalAttrs cfg.disableBonjour { CLAWDBOT_DISABLE_BONJOUR = "1"; }
+            // lib.optionalAttrs (cfg.hardening.nodeExecMem == "jitless") { NODE_OPTIONS = "--jitless"; }
+            // lib.optionalAttrs (seedDir != null) {
+              CLAWDLETS_WORKSPACE_DIR = workspace;
+              CLAWDLETS_SEED_DIR = toString seedDir;
+              CLAWDLETS_TOOLS_MD = "/etc/clawdlets/tools.md";
+            }
             // env;
 
           serviceConfig = {
@@ -158,7 +161,7 @@ let
             Group = "bot-${b}";
             WorkingDirectory = stateDir;
 
-            ExecStartPre = lib.optional (seedWorkspaceScript != null) seedWorkspaceScript;
+            ExecStartPre = lib.optional (seedDir != null) "/etc/clawdlets/bin/seed-workspace";
             ExecStart = "${clawPkg}/bin/clawdbot gateway";
 
             Restart = "always";
@@ -180,10 +183,14 @@ let
             AmbientCapabilities = "";
             LockPersonality = true;
             # Node/V8 JIT needs to toggle executable memory permissions.
-            MemoryDenyWriteExecute = false;
+            MemoryDenyWriteExecute = cfg.hardening.nodeExecMem != "jit";
             RestrictAddressFamilies = [ "AF_INET" "AF_INET6" "AF_NETLINK" "AF_UNIX" ];
             SystemCallArchitectures = "native";
-          };
+          }
+          // lib.optionalAttrs (memoryMax != null) { MemoryMax = memoryMax; }
+          // lib.optionalAttrs (cpuQuota != null) { CPUQuota = cpuQuota; }
+          // lib.optionalAttrs (tasksMax != null) { TasksMax = tasksMax; }
+          // lib.optionalAttrs (ioWeight != null) { IOWeight = ioWeight; };
         };
       };
 
@@ -203,4 +210,3 @@ in
     perBotTemplates
     perBotEnvTemplates;
 }
-

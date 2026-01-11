@@ -24,7 +24,7 @@ let
           if envDupes != [] then
             throw "services.clawdbotFleet.botProfiles.${b}.skills.entries has duplicate env keys: ${lib.concatStringsSep "," envDupes}"
           else
-            base // (entry.extraConfig or {});
+            lib.recursiveUpdate base (entry.passthrough or {});
     in
       if entries == {} then null else builtins.mapAttrs mkEntry entries;
 
@@ -45,7 +45,7 @@ let
       profile = getBotProfile b;
       workspace = resolveBotWorkspace b;
       skipBootstrap =
-        if (profile.agent.skipBootstrap or null) != null then profile.agent.skipBootstrap
+        if (profile.skipBootstrap or null) != null then profile.skipBootstrap
         else (profile.workspace.seedDir or null) != null;
       modelPrimary = cfg.agentModelPrimary;
       modelEntries =
@@ -66,24 +66,14 @@ let
           };
         };
       };
-      discordConfig = lib.recursiveUpdate discordBase cfg.discord.extraConfig;
+      discordConfig = discordBase;
       hooksTokenSecret = profile.hooks.tokenSecret or null;
       hooksGmailPushTokenSecret = profile.hooks.gmailPushTokenSecret or null;
       hooksEnabled = profile.hooks.enabled or null;
-      hooksExtraConfig = profile.hooks.config or {};
       hooksConfig =
-        let
-          hooksBase =
-            lib.optionalAttrs (hooksEnabled != null) { enabled = hooksEnabled; }
-            // lib.optionalAttrs (hooksTokenSecret != null) { token = config.sops.placeholder.${hooksTokenSecret}; }
-            // lib.optionalAttrs (hooksGmailPushTokenSecret != null) { gmail.pushToken = config.sops.placeholder.${hooksGmailPushTokenSecret}; };
-        in
-          if hooksTokenSecret != null && lib.hasAttrByPath [ "token" ] hooksExtraConfig then
-            throw "services.clawdbotFleet.botProfiles.${b}.hooks.config must not set hooks.token when hooks.tokenSecret is set"
-          else if hooksGmailPushTokenSecret != null && lib.hasAttrByPath [ "gmail" "pushToken" ] hooksExtraConfig then
-            throw "services.clawdbotFleet.botProfiles.${b}.hooks.config must not set hooks.gmail.pushToken when hooks.gmailPushTokenSecret is set"
-          else
-            lib.recursiveUpdate hooksBase hooksExtraConfig;
+        lib.optionalAttrs (hooksEnabled != null) { enabled = hooksEnabled; }
+        // lib.optionalAttrs (hooksTokenSecret != null) { token = config.sops.placeholder.${hooksTokenSecret}; }
+        // lib.optionalAttrs (hooksGmailPushTokenSecret != null) { gmail.pushToken = config.sops.placeholder.${hooksGmailPushTokenSecret}; };
       identityList =
         if cfg.identity != null
         then [
@@ -126,7 +116,7 @@ let
         // lib.optionalAttrs (hooksConfig != {}) { hooks = hooksConfig; }
         // lib.optionalAttrs ((mkSkillsConfig b) != {}) { skills = mkSkillsConfig b; }
         )
-        (profile.extraConfig or {});
+        (profile.passthrough or {});
 in
 {
   inherit mkSkillEntries mkSkillsConfig mkBotConfig;

@@ -19,7 +19,7 @@ let
       entries = { };
     };
     gatewayPort = null;
-    extraConfig = { };
+    passthrough = { };
   };
 
   mkBot = overrides: lib.recursiveUpdate baseBot overrides;

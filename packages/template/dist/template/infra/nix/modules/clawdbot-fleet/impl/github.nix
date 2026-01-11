@@ -19,77 +19,26 @@ let
       privateKeyPath = config.sops.secrets.${gh.privateKeySecret}.path;
       appId = toString gh.appId;
       installationId = toString gh.installationId;
-      mintScript = pkgs.writeShellScript "clawdbot-gh-token-${b}" ''
-        set -euo pipefail
-
-        b64url() {
-          ${pkgs.coreutils}/bin/base64 -w0 | tr '+/' '-_' | tr -d '='
-        }
-
-        now="$(${pkgs.coreutils}/bin/date +%s)"
-        iat="$((now - 30))"
-        exp="$((now + 540))" # GitHub requires exp within 10 minutes
-
-        header='{"alg":"RS256","typ":"JWT"}'
-        payload="{\"iat\":$iat,\"exp\":$exp,\"iss\":\"${appId}\"}"
-
-        h64="$(printf '%s' "$header" | b64url)"
-        p64="$(printf '%s' "$payload" | b64url)"
-        signing_input="$h64.$p64"
-        sig="$(
-          printf '%s' "$signing_input" \
-            | ${pkgs.openssl}/bin/openssl dgst -sha256 -sign '${privateKeyPath}' -binary \
-            | b64url
-        )"
-        jwt="$signing_input.$sig"
-
-        token_json="$(
-          ${pkgs.curl}/bin/curl -fsS \
-            -X POST \
-            -H "Authorization: Bearer $jwt" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/app/installations/${installationId}/access_tokens"
-        )"
-
-        token="$(printf '%s' "$token_json" | ${pkgs.jq}/bin/jq -r '.token')"
-        if [ -z "$token" ] || [ "$token" = "null" ]; then
-          echo "failed to mint GitHub installation token (no .token field)" >&2
-          printf '%s\n' "$token_json" >&2
-          exit 1
-        fi
-
-        umask 077
-
-        tmp_env="$(${pkgs.coreutils}/bin/mktemp)"
-        printf 'GH_TOKEN=%s\n' "$token" > "$tmp_env"
-        ${pkgs.coreutils}/bin/chown "bot-${b}:bot-${b}" "$tmp_env"
-        ${pkgs.coreutils}/bin/chmod 0400 "$tmp_env"
-        ${pkgs.coreutils}/bin/mv "$tmp_env" '${envFile}'
-
-        tmp_creds="$(${pkgs.coreutils}/bin/mktemp)"
-        printf 'https://x-access-token:%s@github.com\n' "$token" > "$tmp_creds"
-        ${pkgs.coreutils}/bin/chown "bot-${b}:bot-${b}" "$tmp_creds"
-        ${pkgs.coreutils}/bin/chmod 0600 "$tmp_creds"
-        ${pkgs.coreutils}/bin/mv "$tmp_creds" '${gitCredsFile}'
-
-        tmp_gitcfg="$(${pkgs.coreutils}/bin/mktemp)"
-        cat > "$tmp_gitcfg" <<EOF
-[credential]
-	helper = store --file ${gitCredsFile}
-EOF
-        ${pkgs.coreutils}/bin/chown "bot-${b}:bot-${b}" "$tmp_gitcfg"
-        ${pkgs.coreutils}/bin/chmod 0600 "$tmp_gitcfg"
-        ${pkgs.coreutils}/bin/mv "$tmp_gitcfg" '${gitConfigFile}'
-      '';
     in
       lib.optionalAttrs enabled {
         "clawdbot-gh-token-${b}" = {
           description = "Mint GitHub App installation token for bot ${b}";
           after = [ "network-online.target" "sops-nix.service" ];
           wants = [ "network-online.target" "sops-nix.service" ];
+          path = [ pkgs.coreutils pkgs.curl pkgs.openssl pkgs.jq ];
+          environment = {
+            CLAWDLETS_GH_APP_ID = appId;
+            CLAWDLETS_GH_INSTALLATION_ID = installationId;
+            CLAWDLETS_GH_PRIVATE_KEY_PATH = privateKeyPath;
+            CLAWDLETS_GH_ENV_FILE = envFile;
+            CLAWDLETS_GH_GIT_CREDENTIALS_FILE = gitCredsFile;
+            CLAWDLETS_GH_GITCONFIG_FILE = gitConfigFile;
+            CLAWDLETS_BOT_USER = "bot-${b}";
+            CLAWDLETS_BOT_GROUP = "bot-${b}";
+          };
           serviceConfig = {
             Type = "oneshot";
-            ExecStart = mintScript;
+            ExecStart = "/etc/clawdlets/bin/gh-mint-app-token";
 
             User = "root";
             Group = "root";
@@ -215,4 +164,3 @@ in
 {
   inherit mkGithubTokenService mkGithubTokenTimer mkGithubSyncService mkGithubSyncTimer;
 }
-

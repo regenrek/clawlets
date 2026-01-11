@@ -142,8 +142,18 @@ in
       mode = "0755";
     };
 
+    environment.etc."clawdlets/bin/gh-mint-app-token" = {
+      source = ../../../../scripts/gh-mint-app-token.sh;
+      mode = "0755";
+    };
+
     environment.etc."clawdlets/bin/ops-snapshot" = {
       source = ../../../../scripts/ops-snapshot.sh;
+      mode = "0755";
+    };
+
+    environment.etc."clawdlets/bin/seed-workspace" = {
+      source = ../../../../scripts/seed-workspace.sh;
       mode = "0755";
     };
 

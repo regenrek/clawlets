@@ -22,12 +22,8 @@ let
     { addr = "::"; port = null; }
   ];
 
-  mkSopsSecret = secretName: {
-    owner = "root";
-    group = "root";
-    mode = "0400";
-    sopsFile = "${hostSecretsDir}/${secretName}.yaml";
-  };
+  sopsSecrets = import ../lib/sops-secrets.nix { };
+  mkSopsSecret = secretName: (sopsSecrets.mkSopsSecretFor { hostDir = hostSecretsDir; }) secretName;
 in
 {
   options.clawdlets = {

@@ -79,7 +79,7 @@ function main() {
   copyTree(path.join(repoRoot, "infra"), path.join(outDir, "infra"));
 
   ensureDir(path.join(outDir, "scripts"));
-  for (const f of ["gh-sync.sh", "gh-sync-read.sh", "ops-snapshot.sh", "secleak-check.sh"]) {
+  for (const f of ["gh-sync.sh", "gh-sync-read.sh", "gh-mint-app-token.sh", "ops-snapshot.sh", "seed-workspace.sh", "secleak-check.sh"]) {
     copyFile(path.join(repoRoot, "scripts", f), path.join(outDir, "scripts", f));
   }
 
@@ -94,4 +94,3 @@ function main() {
 }
 
 main();
-

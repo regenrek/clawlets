@@ -12,13 +12,8 @@ let
     then config.clawdlets.secrets.hostDir
     else defaultHostSecretsDir;
 
-  mkSopsSecret = {
-    owner = "root";
-    group = "root";
-    mode = "0400";
-  };
-
-  mkSopsSecretFor = secretName: mkSopsSecret // { sopsFile = "${resolvedSopsDir}/${secretName}.yaml"; };
+  sopsSecrets = import ../../../../lib/sops-secrets.nix { };
+  mkSopsSecretFor = sopsSecrets.mkSopsSecretFor { hostDir = resolvedSopsDir; };
 
   resticPaths =
     if cfg.backups.restic.paths != []
@@ -35,12 +30,13 @@ let
     }) channels);
 
   getBotProfile = b: cfg.botProfiles.${b} or {
-    agent = {};
-    workspace = {};
+    skipBootstrap = null;
+    workspace = { dir = null; seedDir = null; };
     skills = {};
     hooks = {};
     github = {};
-    extraConfig = {};
+    passthrough = {};
+    resources = {};
   };
 
   resolveBotWorkspace = b:
@@ -48,7 +44,7 @@ let
       profile = getBotProfile b;
       stateDir = "${cfg.stateDirBase}/${b}";
     in
-      if (profile.agent.workspace or null) != null then profile.agent.workspace else "${stateDir}/workspace";
+      if (profile.workspace.dir or null) != null then profile.workspace.dir else "${stateDir}/workspace";
 
   resolveBotCredsDir = b: "${cfg.stateDirBase}/${b}/credentials";
 

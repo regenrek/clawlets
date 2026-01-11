@@ -62,13 +62,13 @@ clawdlets host set --agent-model-primary zai/glm-4.7
 Optional extra model entries (per-bot):
 
 ```bash
-clawdlets config set --path fleet.botOverrides.melinda.extraConfig.agents.models.fast --value zai/glm-4.2
+clawdlets config set --path fleet.botOverrides.melinda.passthrough.agents.models.fast --value zai/glm-4.2
 ```
 
 Per-bot override:
 
 ```bash
-clawdlets config set --path fleet.botOverrides.melinda.extraConfig.agents.defaults.modelPrimary --value zai/glm-4.7
+clawdlets config set --path fleet.botOverrides.melinda.passthrough.agents.defaults.modelPrimary --value zai/glm-4.7
 ```
 
 Provider API keys (via sops secret name):

@@ -5,6 +5,8 @@ let
   clawdbotPkgs =
     nix-clawdbot.packages.${system} or
       (throw "nix-clawdbot.packages.${system} missing (must consume flake outputs, not outPath internals)");
+
+  normalizeJson = v: builtins.fromJSON (builtins.toJSON v);
 in {
   options.services.clawdbotFleet = {
     enable = lib.mkEnableOption "Clawdbot fleet";
@@ -185,12 +187,6 @@ in {
           description = "Discord DM policy.";
         };
       };
-
-      extraConfig = lib.mkOption {
-        type = lib.types.attrs;
-        default = {};
-        description = "Extra Discord config merged into each bot config.";
-      };
     };
 
     disableBonjour = lib.mkOption {
@@ -199,20 +195,49 @@ in {
       description = "Disable Bonjour/mDNS discovery (sets CLAWDBOT_DISABLE_BONJOUR=1).";
     };
 
+    hardening = {
+      nodeExecMem = lib.mkOption {
+        type = lib.types.enum [ "jit" "jitless" ];
+        default = "jit";
+        description = ''
+          Node/V8 execution mode.
+
+          - jit: allows W^X violations (required for default Node JIT); sets MemoryDenyWriteExecute=false.
+          - jitless: sets MemoryDenyWriteExecute=true and sets NODE_OPTIONS=--jitless (may impact performance/compat).
+        '';
+      };
+    };
+
+    resources = {
+      memoryMax = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = "4G";
+        description = "systemd MemoryMax default for bot services (null disables).";
+      };
+      cpuQuota = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = "200%";
+        description = "systemd CPUQuota default for bot services (null disables).";
+      };
+      tasksMax = lib.mkOption {
+        type = lib.types.nullOr lib.types.int;
+        default = 4096;
+        description = "systemd TasksMax default for bot services (null disables).";
+      };
+      ioWeight = lib.mkOption {
+        type = lib.types.nullOr lib.types.int;
+        default = null;
+        description = "systemd IOWeight default for bot services (null disables).";
+      };
+    };
+
     botProfiles = lib.mkOption {
       type = lib.types.attrsOf (lib.types.submodule ({ ... }: {
         options = {
-          agent = {
-            workspace = lib.mkOption {
-              type = lib.types.nullOr lib.types.str;
-              default = null;
-              description = "Override agent.workspace for this bot (defaults to <stateDir>/workspace).";
-            };
-            skipBootstrap = lib.mkOption {
-              type = lib.types.nullOr lib.types.bool;
-              default = null;
-              description = "Override agent.skipBootstrap for this bot (defaults true when workspace.seedDir is set).";
-            };
+          skipBootstrap = lib.mkOption {
+            type = lib.types.nullOr lib.types.bool;
+            default = null;
+            description = "Override agents.defaults.skipBootstrap for this bot (defaults true when workspace.seedDir is set).";
           };
 
           env = lib.mkOption {
@@ -228,6 +253,11 @@ in {
           };
 
           workspace = {
+            dir = lib.mkOption {
+              type = lib.types.nullOr lib.types.str;
+              default = null;
+              description = "Workspace directory (defaults to <stateDir>/workspace).";
+            };
             seedDir = lib.mkOption {
               type = lib.types.nullOr lib.types.path;
               default = null;
@@ -276,10 +306,11 @@ in {
                     default = {};
                     description = "Map of env var name -> sops secret name (injected into skills.entries.<skill>.env).";
                   };
-                  extraConfig = lib.mkOption {
+                  passthrough = lib.mkOption {
                     type = lib.types.attrs;
                     default = {};
-                    description = "Additional per-skill config (Clawdbot passthrough).";
+                    apply = normalizeJson;
+                    description = "Additional per-skill config (passthrough; forward-compat).";
                   };
                 };
               }));
@@ -303,11 +334,6 @@ in {
               type = lib.types.nullOr lib.types.str;
               default = null;
               description = "Sops secret name used as hooks.gmail.pushToken.";
-            };
-            config = lib.mkOption {
-              type = lib.types.attrs;
-              default = {};
-              description = "Extra hooks config merged into hooks (gmail/topic/subscription/hookUrl/etc).";
             };
           };
 
@@ -334,10 +360,11 @@ in {
             };
           };
 
-          extraConfig = lib.mkOption {
+          passthrough = lib.mkOption {
             type = lib.types.attrs;
             default = {};
-            description = "Extra Clawdbot config merged into this bot's root config.";
+            apply = normalizeJson;
+            description = "Extra Clawdbot config merged into this bot's root config (passthrough; forward-compat).";
           };
 
           gatewayPort = lib.mkOption {
@@ -345,10 +372,33 @@ in {
             default = null;
             description = "Optional per-bot gateway port override (otherwise computed from gatewayPortBase/Stride).";
           };
+
+          resources = {
+            memoryMax = lib.mkOption {
+              type = lib.types.nullOr lib.types.str;
+              default = null;
+              description = "Per-bot override for MemoryMax (null uses global default).";
+            };
+            cpuQuota = lib.mkOption {
+              type = lib.types.nullOr lib.types.str;
+              default = null;
+              description = "Per-bot override for CPUQuota (null uses global default).";
+            };
+            tasksMax = lib.mkOption {
+              type = lib.types.nullOr lib.types.int;
+              default = null;
+              description = "Per-bot override for TasksMax (null uses global default).";
+            };
+            ioWeight = lib.mkOption {
+              type = lib.types.nullOr lib.types.int;
+              default = null;
+              description = "Per-bot override for IOWeight (null uses global default).";
+            };
+          };
         };
       }));
       default = {};
-      description = "Per-bot profile config (skills/workspace/agent overrides).";
+      description = "Per-bot profile config (service/runtime + secret injection + passthrough).";
     };
 
     backups = {
