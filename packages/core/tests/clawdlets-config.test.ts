@@ -1,58 +1,85 @@
 import { describe, it, expect } from "vitest";
-import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { createDefaultClawdletsConfig, loadClawdletsConfig } from "../src/lib/clawdlets-config";
 
-describe("clawdlets-config", () => {
-  it("creates a default config", () => {
-    const cfg = createDefaultClawdletsConfig({ host: "clawdbot-fleet-host", bots: ["alpha", "beta"] });
-    expect(cfg.schemaVersion).toBe(1);
-    expect(cfg.fleet.bots).toEqual(["alpha", "beta"]);
-    expect(cfg.hosts["clawdbot-fleet-host"]).toBeDefined();
+describe("clawdlets config schema", () => {
+  it("assertSafeHostName rejects invalid names", async () => {
+    const { assertSafeHostName } = await import("../src/lib/clawdlets-config");
+    expect(() => assertSafeHostName("../pwn")).toThrow(/invalid host name/i);
   });
 
-  it("throws when config file is missing", () => {
-    expect(() => loadClawdletsConfig({ repoRoot: "/definitely/does/not/exist" })).toThrow(/missing clawdlets config/i);
+  it("assertSafeHostName accepts valid names", async () => {
+    const { assertSafeHostName } = await import("../src/lib/clawdlets-config");
+    expect(() => assertSafeHostName("clawdbot-fleet-host")).not.toThrow();
   });
 
-  it("throws when JSON is invalid", async () => {
-    const repoRoot = await mkdtemp(path.join(tmpdir(), "clawdlets-config-"));
-    await mkdir(path.join(repoRoot, "infra", "configs"), { recursive: true });
-    await writeFile(path.join(repoRoot, "infra", "configs", "clawdlets.json"), "{", "utf8");
-    expect(() => loadClawdletsConfig({ repoRoot })).toThrow(/invalid JSON/i);
-  });
-
-  it("throws when schema is invalid", async () => {
-    const repoRoot = await mkdtemp(path.join(tmpdir(), "clawdlets-config-"));
-    await mkdir(path.join(repoRoot, "infra", "configs"), { recursive: true });
-    await writeFile(
-      path.join(repoRoot, "infra", "configs", "clawdlets.json"),
-      JSON.stringify({ schemaVersion: 1, fleet: {}, hosts: {} }, null, 2),
-      "utf8",
-    );
-    expect(() => loadClawdletsConfig({ repoRoot })).toThrow();
-  });
-
-  it("loads a valid config", async () => {
-    const repoRoot = await mkdtemp(path.join(tmpdir(), "clawdlets-config-"));
-    await mkdir(path.join(repoRoot, "infra", "configs"), { recursive: true });
-    await writeFile(
-      path.join(repoRoot, "infra", "configs", "clawdlets.json"),
-      JSON.stringify(
-        {
-          schemaVersion: 1,
-          fleet: { guildId: "", bots: ["alpha"], botOverrides: {}, routingOverrides: {}, codex: { enable: false, bots: [] }, backups: { restic: { enable: false, repository: "" } } },
-          hosts: { "clawdbot-fleet-host": { enable: false, bootstrapSsh: true, diskDevice: "/dev/disk/by-id/TEST", sshAuthorizedKeys: [], tailnet: { mode: "none", wireguardAdminPeers: [] }, agentModelPrimary: "zai/glm-4.7" } },
+  it("rejects unsafe host names (path traversal)", async () => {
+    const { ClawdletsConfigSchema } = await import("../src/lib/clawdlets-config");
+    expect(() =>
+      ClawdletsConfigSchema.parse({
+        schemaVersion: 1,
+        fleet: { bots: ["maren"] },
+        hosts: {
+          "../pwn": {
+            enable: false,
+            bootstrapSsh: true,
+            diskDevice: "/dev/disk/by-id/CHANGE_ME",
+            sshAuthorizedKeys: [],
+            tailnet: { mode: "none", wireguardAdminPeers: [] },
+            agentModelPrimary: "zai/glm-4.7",
+          },
         },
-        null,
-        2,
-      ),
-      "utf8",
-    );
-    const { config } = loadClawdletsConfig({ repoRoot });
-    expect(config.schemaVersion).toBe(1);
-    expect(config.fleet.bots).toEqual(["alpha"]);
+      }),
+    ).toThrow(/invalid host name/i);
+  });
+
+  it("rejects duplicate bot ids", async () => {
+    const { ClawdletsConfigSchema } = await import("../src/lib/clawdlets-config");
+    expect(() =>
+      ClawdletsConfigSchema.parse({
+        schemaVersion: 1,
+        fleet: { bots: ["maren", "maren"] },
+        hosts: {
+          "clawdbot-fleet-host": {
+            enable: false,
+            bootstrapSsh: true,
+            diskDevice: "/dev/disk/by-id/CHANGE_ME",
+            sshAuthorizedKeys: [],
+            tailnet: { mode: "none", wireguardAdminPeers: [] },
+            agentModelPrimary: "zai/glm-4.7",
+          },
+        },
+      }),
+    ).toThrow(/duplicate bot id/i);
+  });
+
+  it("createDefaultClawdletsConfig trims and defaults", async () => {
+    const { createDefaultClawdletsConfig } = await import("../src/lib/clawdlets-config");
+    const cfg = createDefaultClawdletsConfig({ host: "   ", bots: [" maren ", "", "sonja"] });
+    expect(Object.keys(cfg.hosts)).toEqual(["clawdbot-fleet-host"]);
+    expect(cfg.fleet.bots).toEqual(["maren", "sonja"]);
+  });
+
+  it("loadClawdletsConfig throws for missing config file", async () => {
+    const { loadClawdletsConfig } = await import("../src/lib/clawdlets-config");
+    const repoRoot = await mkdtemp(path.join(tmpdir(), "clawdlets-config-missing-"));
+    try {
+      expect(() => loadClawdletsConfig({ repoRoot })).toThrow(/missing clawdlets config/i);
+    } finally {
+      await rm(repoRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("loadClawdletsConfig throws for invalid JSON", async () => {
+    const { loadClawdletsConfig } = await import("../src/lib/clawdlets-config");
+    const repoRoot = await mkdtemp(path.join(tmpdir(), "clawdlets-config-badjson-"));
+    try {
+      await mkdir(path.join(repoRoot, "infra", "configs"), { recursive: true });
+      await writeFile(path.join(repoRoot, "infra", "configs", "clawdlets.json"), "{", "utf8");
+      expect(() => loadClawdletsConfig({ repoRoot })).toThrow(/invalid JSON/i);
+    } finally {
+      await rm(repoRoot, { recursive: true, force: true });
+    }
   });
 });
-
