@@ -36,3 +36,7 @@ Default breakglass path:
 
 - console login as `breakglass` (wheel user) then `sudo -i`
 - `admin` is intentionally not wheel
+
+## Egress posture (honesty)
+
+The built-in nftables ruleset only blocks outbound SMTP ports. Treat it as anti-spam, not egress control.

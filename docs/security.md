@@ -37,6 +37,18 @@ Therefore:
 - Confirm NixOS firewall only allows SSH via `tailscale0` when `publicSsh.enable=false`.
 - Keep `.clawdlets/` gitignored (required).
 
+## Egress policy (current)
+
+`infra/nix/nftables/egress-block.nft` is **anti-spam only**:
+
+- It drops outbound TCP ports `{ 25, 465, 587, 2525 }` (SMTP variants).
+- It does **not** restrict HTTPS/API egress, Discord, GitHub, model providers, etc.
+
+If you want “real egress control”, pick a concrete model first:
+
+- **Proxy + domain allowlist** (most practical): force bot traffic through a local proxy; allowlist SNI/HTTP hostnames.
+- **IP allowlist** (least forgiving): allowlist IP/CIDRs per provider and keep it updated (breakage risk).
+
 ## Supply chain (CI)
 
 - GitHub Actions are pinned to commit SHAs (avoid tag drift).
