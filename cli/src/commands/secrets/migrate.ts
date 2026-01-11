@@ -5,10 +5,11 @@ import { defineCommand } from "citty";
 import YAML from "yaml";
 import { parseAgeKeyFile } from "@clawdbot/clawdlets-core/lib/age";
 import { assertSafeHostName } from "@clawdbot/clawdlets-core/lib/clawdlets-config";
+import { sanitizeOperatorId } from "@clawdbot/clawdlets-core/lib/identifiers";
 import { ensureDir, writeFileAtomic } from "@clawdbot/clawdlets-core/lib/fs-safe";
 import { removeSopsCreationRule, sopsPathRegexForDirFiles, sopsPathRegexForPathSuffix, upsertSopsCreationRule } from "@clawdbot/clawdlets-core/lib/sops-config";
 import { sopsDecryptYamlFile, sopsEncryptYamlToFile } from "@clawdbot/clawdlets-core/lib/sops";
-import { readDotenvFile, nextBackupPath, resolveRepoRootFromStackDir, sanitizeOperatorId } from "./common.js";
+import { readDotenvFile, nextBackupPath, resolveRepoRootFromStackDir } from "./common.js";
 
 export const secretsMigrate = defineCommand({
   meta: {

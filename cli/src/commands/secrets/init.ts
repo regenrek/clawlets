@@ -11,24 +11,19 @@ import { mkpasswdYescryptHash } from "@clawdbot/clawdlets-core/lib/mkpasswd";
 import { sopsPathRegexForDirFiles, upsertSopsCreationRule } from "@clawdbot/clawdlets-core/lib/sops-config";
 import { sopsDecryptYamlFile, sopsEncryptYamlToFile } from "@clawdbot/clawdlets-core/lib/sops";
 import { wgGenKey } from "@clawdbot/clawdlets-core/lib/wireguard";
+import { sanitizeOperatorId } from "@clawdbot/clawdlets-core/lib/identifiers";
+import { parseSecretsInitJson, validateSecretsInitNonInteractive, type SecretsInitJson } from "@clawdbot/clawdlets-core/lib/secrets-init";
 import { loadStack, loadStackEnv } from "@clawdbot/clawdlets-core/stack";
 import { assertSafeHostName, loadClawdletsConfig } from "@clawdbot/clawdlets-core/lib/clawdlets-config";
 import { readYamlScalarFromMapping } from "@clawdbot/clawdlets-core/lib/yaml-scalar";
 import { cancelFlow, navOnCancel, NAV_EXIT } from "../../lib/wizard.js";
-import { sanitizeOperatorId, upsertYamlScalarLine } from "./common.js";
+import { upsertYamlScalarLine } from "./common.js";
 
 function wantsInteractive(flag: boolean | undefined): boolean {
   if (flag) return true;
   const env = String(process.env["CLAWDLETS_INTERACTIVE"] || "").trim();
   return env === "1" || env.toLowerCase() === "true";
 }
-
-type SecretsInitJson = {
-  adminPasswordHash: string;
-  wgPrivateKey?: string;
-  zAiApiKey?: string;
-  discordTokens: Record<string, string>;
-};
 
 function readSecretsInitJson(fromJson: string): SecretsInitJson {
   const src = String(fromJson || "").trim();
@@ -43,32 +38,7 @@ function readSecretsInitJson(fromJson: string): SecretsInitJson {
     raw = fs.readFileSync(jsonPath, "utf8");
   }
 
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    throw new Error("invalid --from-json (expected valid JSON)");
-  }
-
-  if (!parsed || typeof parsed !== "object") throw new Error("invalid --from-json (expected JSON object)");
-
-  const obj = parsed as any;
-  const adminPasswordHash = typeof obj.adminPasswordHash === "string" ? obj.adminPasswordHash.trim() : "";
-  if (!adminPasswordHash) throw new Error("invalid --from-json (missing adminPasswordHash)");
-
-  const discordTokens: Record<string, string> = {};
-  if (!obj.discordTokens || typeof obj.discordTokens !== "object") throw new Error("invalid --from-json (missing discordTokens object)");
-  for (const [k, v] of Object.entries(obj.discordTokens)) {
-    if (typeof v !== "string") continue;
-    const token = v.trim();
-    if (!token) continue;
-    discordTokens[String(k)] = token;
-  }
-
-  const wgPrivateKey = typeof obj.wgPrivateKey === "string" ? obj.wgPrivateKey.trim() : undefined;
-  const zAiApiKey = typeof obj.zAiApiKey === "string" ? obj.zAiApiKey.trim() : undefined;
-
-  return { adminPasswordHash, wgPrivateKey, zAiApiKey, discordTokens };
+  return parseSecretsInitJson(raw);
 }
 
 export const secretsInit = defineCommand({
@@ -111,6 +81,14 @@ export const secretsInit = defineCommand({
     const extraFilesSecretsDir = path.join(layout.stackDir, "extra-files", hostName, "var/lib/clawdlets/secrets/hosts", hostName);
 
     const localSecretsDir = path.join(layout.stackDir, host.secrets.localDir);
+
+    validateSecretsInitNonInteractive({
+      interactive,
+      fromJson: args.fromJson ? String(args.fromJson) : undefined,
+      yes: Boolean(args.yes),
+      dryRun: Boolean(args.dryRun),
+      localSecretsDirExists: fs.existsSync(localSecretsDir),
+    });
 
     if (interactive && fs.existsSync(localSecretsDir) && !args.yes) {
       const ok = await p.confirm({ message: `Update existing secrets dir? (${localSecretsDir})`, initialValue: true });
@@ -228,9 +206,6 @@ export const secretsInit = defineCommand({
         i += 1;
       }
     } else {
-      if (!args.fromJson) {
-        throw new Error("non-interactive secrets init requires --from-json <path|->");
-      }
       const input = readSecretsInitJson(String(args.fromJson));
       values.adminPasswordHash = input.adminPasswordHash;
       values.wgPrivateKey = input.wgPrivateKey || "";
@@ -271,7 +246,7 @@ export const secretsInit = defineCommand({
         if (vv) resolvedValues[secretName] = vv;
         else if (existing) resolvedValues[secretName] = existing;
         else if (args.allowPlaceholders) resolvedValues[secretName] = "<FILL_ME>";
-        else throw new Error(`missing discord token for ${bot} (use --discord-token ${bot}=... or --allow-placeholders)`);
+        else throw new Error(`missing discord token for ${bot} (provide it in --from-json.discordTokens or pass --allow-placeholders)`);
         continue;
       }
 

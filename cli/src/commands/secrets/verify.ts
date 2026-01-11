@@ -4,9 +4,10 @@ import process from "node:process";
 import { defineCommand } from "citty";
 import YAML from "yaml";
 import { sopsDecryptYamlFile } from "@clawdbot/clawdlets-core/lib/sops";
-import { evalFleetConfig } from "@clawdbot/clawdlets-core/lib/fleet-nix-eval";
+import { sanitizeOperatorId } from "@clawdbot/clawdlets-core/lib/identifiers";
+import { loadClawdletsConfig } from "@clawdbot/clawdlets-core/lib/clawdlets-config";
 import { loadStack } from "@clawdbot/clawdlets-core/stack";
-import { isPlaceholder, readDotenvFile, sanitizeOperatorId } from "./common.js";
+import { isPlaceholder, readDotenvFile } from "./common.js";
 
 export const secretsVerify = defineCommand({
   meta: {
@@ -42,8 +43,8 @@ export const secretsVerify = defineCommand({
     const nix = { nixBin: String(env.NIX_BIN || process.env.NIX_BIN || "nix").trim() || "nix", cwd: layout.repoRoot, dryRun: false } as const;
 
     const localDir = path.join(layout.stackDir, host.secrets.localDir);
-    const fleetPath = path.join(layout.repoRoot, "infra", "configs", "fleet.nix");
-    const bots = fs.existsSync(fleetPath) ? (await evalFleetConfig({ repoRoot: layout.repoRoot, fleetFilePath: fleetPath, nixBin: nix.nixBin })).bots : [];
+    const { config } = loadClawdletsConfig({ repoRoot: layout.repoRoot, stackDir: args.stackDir });
+    const bots = config.fleet.bots;
 
     const requiredSecrets = ["wg_private_key", "admin_password_hash", ...bots.map((b) => `discord_token_${b}`)];
     const optionalSecrets = ["z_ai_api_key", "root_password_hash"];
