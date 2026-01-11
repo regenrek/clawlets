@@ -32,9 +32,12 @@ clawdlets --help
 
 0) (optional) create a fresh project repo:
 ```bash
+export CLAWDLETS_INTERACTIVE=1
 clawdlets project init --dir ./clawdlets-myproject
 cd ./clawdlets-myproject
 ```
+
+Note: `project init` already includes `infra/configs/clawdlets.json`. Don’t run `clawdlets config init` unless you want to reset it (`--force`).
 
 1) Configure fleet + host (CLI-first):
 - set guild id: `clawdlets fleet set --guild-id <discord-guild-id>`

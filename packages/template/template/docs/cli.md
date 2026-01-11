@@ -5,6 +5,7 @@ Canonical source: `clawdlets --help`.
 ## Core workflow
 
 - project scaffold: `clawdlets project init --dir ./clawdlets-myproject`
+- note: `project init` already includes `infra/configs/clawdlets.json` (skip `clawdlets config init` unless resetting with `--force`)
 - set fleet guild id: `clawdlets fleet set --guild-id <id>`
 - add bots: `clawdlets bot add --bot <id>`
 - set host basics: `clawdlets host set --add-ssh-key-file ~/.ssh/id_ed25519.pub --disk-device /dev/disk/by-id/... --enable true`
