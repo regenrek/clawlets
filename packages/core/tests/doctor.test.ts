@@ -12,7 +12,7 @@ vi.mock("../src/lib/run.js", () => ({
     if (args.includes("--version")) return "nix (mock) 2.0";
     if (args[0] === "eval" || args.includes("eval")) {
       const joined = args.join(" ");
-      const isTemplate = joined.includes("packages/template/template/infra/configs/fleet.nix");
+      const isTemplate = joined.includes("packages/template/dist/template/infra/configs/fleet.nix");
       return JSON.stringify(isTemplate ? mockFleetTemplate : mockFleetMain);
     }
     return "";
@@ -42,9 +42,9 @@ describe("doctor", () => {
     await writeFile(path.join(repoRoot, "flake.nix"), "{ }", "utf8");
     await mkdir(path.join(repoRoot, "scripts"), { recursive: true });
     await mkdir(path.join(repoRoot, "docs"), { recursive: true });
-    await mkdir(path.join(repoRoot, "packages", "template", "template", "docs"), { recursive: true });
-    await mkdir(path.join(repoRoot, "packages", "template", "template", "infra", "configs"), { recursive: true });
-    await mkdir(path.join(repoRoot, "packages", "template", "template", "infra", "nix", "hosts"), { recursive: true });
+    await mkdir(path.join(repoRoot, "packages", "template", "dist", "template", "docs"), { recursive: true });
+    await mkdir(path.join(repoRoot, "packages", "template", "dist", "template", "infra", "configs"), { recursive: true });
+    await mkdir(path.join(repoRoot, "packages", "template", "dist", "template", "infra", "nix", "hosts"), { recursive: true });
     await mkdir(path.join(repoRoot, "infra", "terraform"), { recursive: true });
     await mkdir(path.join(repoRoot, "infra", "configs"), { recursive: true });
     await mkdir(path.join(repoRoot, "infra", "nix", "hosts"), { recursive: true });
@@ -53,7 +53,7 @@ describe("doctor", () => {
     const bundledSkillsText = ["[", '  "github",', '  "brave-search",', '  "coding-agent"', "]", ""].join("\n");
     await writeFile(path.join(repoRoot, "infra", "configs", "bundled-skills.json"), bundledSkillsText, "utf8");
     await writeFile(
-      path.join(repoRoot, "packages", "template", "template", "infra", "configs", "bundled-skills.json"),
+      path.join(repoRoot, "packages", "template", "dist", "template", "infra", "configs", "bundled-skills.json"),
       bundledSkillsText,
       "utf8",
     );
@@ -71,9 +71,9 @@ describe("doctor", () => {
       "utf8",
     );
 
-    await writeFile(path.join(repoRoot, "packages", "template", "template", "docs", "overview.md"), "# overview\n", "utf8");
+    await writeFile(path.join(repoRoot, "packages", "template", "dist", "template", "docs", "overview.md"), "# overview\n", "utf8");
     await writeFile(
-      path.join(repoRoot, "packages", "template", "template", "docs", "docs.yaml"),
+      path.join(repoRoot, "packages", "template", "dist", "template", "docs", "docs.yaml"),
       [
         "docs:",
         "  - path: docs/overview.md",
@@ -155,7 +155,7 @@ describe("doctor", () => {
 
     await writeFile(path.join(repoRoot, "infra", "configs", "clawdlets.json"), JSON.stringify(clawdletsConfig, null, 2) + "\n", "utf8");
     await writeFile(
-      path.join(repoRoot, "packages", "template", "template", "infra", "configs", "clawdlets.json"),
+      path.join(repoRoot, "packages", "template", "dist", "template", "infra", "configs", "clawdlets.json"),
       JSON.stringify(clawdletsConfig, null, 2) + "\n",
       "utf8",
     );
@@ -180,7 +180,7 @@ describe("doctor", () => {
     );
 
     await writeFile(
-      path.join(repoRoot, "packages", "template", "template", "infra", "configs", "fleet.nix"),
+      path.join(repoRoot, "packages", "template", "dist", "template", "infra", "configs", "fleet.nix"),
       [
         "{ lib }:",
         "let",
@@ -250,7 +250,7 @@ describe("doctor", () => {
     );
 
     await writeFile(
-      path.join(repoRoot, "packages", "template", "template", "infra", "nix", "hosts", "clawdlets-host.nix"),
+      path.join(repoRoot, "packages", "template", "dist", "template", "infra", "nix", "hosts", "clawdlets-host.nix"),
       [
         "{ config, lib, ... }:",
         "let",

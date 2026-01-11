@@ -71,7 +71,7 @@ export async function addRepoChecks(params: {
   }
 
   {
-    const templateSecretsDir = path.join(repoRoot, "packages", "template", "template", "infra", "secrets");
+    const templateSecretsDir = path.join(repoRoot, "packages", "template", "dist", "template", "infra", "secrets");
     const repoSecretsDir = path.join(repoRoot, "infra", "secrets");
 
     if (dirHasAnyFile(repoSecretsDir) || dirHasAnyFile(templateSecretsDir)) {
@@ -89,8 +89,8 @@ export async function addRepoChecks(params: {
         const trackedSecrets = tracked.filter((p) =>
           p === "infra/secrets" ||
           p.startsWith("infra/secrets/") ||
-          p === "packages/template/template/infra/secrets" ||
-          p.startsWith("packages/template/template/infra/secrets/"),
+          p === "packages/template/dist/template/infra/secrets" ||
+          p.startsWith("packages/template/dist/template/infra/secrets/"),
         );
 
         if (trackedClawdlets.length > 0 || trackedSecrets.length > 0) {
@@ -167,7 +167,7 @@ export async function addRepoChecks(params: {
       }
     }
 
-    const templateConfigPath = path.join(repoRoot, "packages", "template", "template", "infra", "configs", "clawdlets.json");
+    const templateConfigPath = path.join(repoRoot, "packages", "template", "dist", "template", "infra", "configs", "clawdlets.json");
     if (!fs.existsSync(templateConfigPath)) {
       params.push({ scope: "repo", status: "missing", label: "template clawdlets config", detail: templateConfigPath });
     } else {
@@ -230,7 +230,7 @@ export async function addRepoChecks(params: {
       }
 
       {
-        const templateFleetPath = path.join(repoRoot, "packages", "template", "template", "infra", "configs", "fleet.nix");
+        const templateFleetPath = path.join(repoRoot, "packages", "template", "dist", "template", "infra", "configs", "fleet.nix");
         if (!fs.existsSync(templateFleetPath)) {
           params.push({ scope: "repo", status: "missing", label: "template fleet config", detail: templateFleetPath });
         } else {
@@ -320,7 +320,7 @@ export async function addRepoChecks(params: {
   }
 
   {
-    const templateHostNix = path.join(repoRoot, "packages", "template", "template", "infra", "nix", "hosts", "clawdlets-host.nix");
+    const templateHostNix = path.join(repoRoot, "packages", "template", "dist", "template", "infra", "nix", "hosts", "clawdlets-host.nix");
     if (!fs.existsSync(templateHostNix)) {
       params.push({ scope: "repo", status: "missing", label: "template host nix config", detail: templateHostNix });
     } else {

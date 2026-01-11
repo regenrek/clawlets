@@ -2,6 +2,8 @@
 
 ## Install clawdlets (CLI)
 
+If you’re using clawdlets as intended (CLI-first; no need to clone this repo):
+
 ```bash
 npm install -g clawdlets
 clawdlets --help
@@ -74,6 +76,39 @@ services.clawdbotFleet.tools.enable = true;
 })
 ```
 
+## Getting required values
+
+### Hetzner API token (HCLOUD_TOKEN)
+
+Create a token in the Hetzner Cloud Console:
+
+- https://console.hetzner.cloud/ → Security → API Tokens
+
+### Admin CIDR (ADMIN_CIDR)
+
+Your public IPv4 CIDR allowed to SSH during bootstrap (typically `<your-ip>/32`).
+
+Example helper:
+
+```bash
+curl -4 https://ifconfig.me
+```
+
+Then append `/32`.
+
+### GitHub token (GITHUB_TOKEN) (only for private flake repos)
+
+Only needed if `base.flake` points to a private GitHub repo (so the server can fetch it).
+
+Create a fine-grained personal access token:
+
+- https://github.com/settings/personal-access-tokens/new
+
+Recommended settings:
+
+- Repository access: Only select repositories → select your infra repo
+- Repository permissions: Contents → Read-only
+
 ## Admin password (required)
 
 Goal: after every reinstall, `admin` can log in on console and can run the allowlisted `sudo` commands needed for ops, while SSH stays key-only.
@@ -112,6 +147,13 @@ clawdlets bootstrap
 ```
 
 `clawdlets` reads `.clawdlets/stack.json` and `.clawdlets/.env` (no `source` needed).
+
+Local dev note (working inside this monorepo): install a local wrapper into `~/bin`:
+
+```bash
+just clawdlets-dev-install
+clawdlets --help
+```
 
 Note: Terraform in nixpkgs is unfree (bsl11). `clawdlets bootstrap` automatically runs
 terraform with `NIXPKGS_ALLOW_UNFREE=1` + `--impure`.
@@ -159,6 +201,10 @@ when Node/pnpm-heavy packages are in the closure.
 
 This repo installs `x86_64-linux` NixOS. Use Intel/AMD types (`CX*`, `CPX*`, `CCX*`), not ARM (`CAX*`),
 unless you also change the flake system to `aarch64-linux`.
+
+Reference:
+
+- Server types/pricing: https://www.hetzner.com/de/cloud/
 
 ## macOS (Determinate Nix): fix “restricted setting / not a trusted user”
 

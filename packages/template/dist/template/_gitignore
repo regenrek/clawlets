@@ -1,0 +1,18 @@
+.clawdlets/
+.DS_Store
+Thumbs.db
+node_modules/
+
+# terraform
+infra/terraform/.terraform/
+infra/terraform/terraform.tfstate
+infra/terraform/terraform.tfstate.backup
+infra/terraform/*.tfstate
+infra/terraform/*.tfstate.backup
+terraform.tfstate
+terraform.tfstate.backup
+*.tfstate
+*.tfstate.backup
+
+# never in git (if you create it)
+

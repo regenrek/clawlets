@@ -24,7 +24,7 @@ Host entry (`hosts.<name>`):
 
 - `flakeHost`: nixosConfiguration name (often same as host key)
 - `targetHost` (optional): SSH target (e.g. `botsmj` or `admin@100.x`). You can skip this until after bootstrap.
-- `hetzner.serverType`: e.g. `cx43`
+- `hetzner.serverType`: e.g. `cx43` (x86_64 only: use `CX*`/`CPX*`/`CCX*`, not `CAX*`). See https://www.hetzner.com/de/cloud/
 - `terraform.adminCidr`: CIDR allowed for bootstrap SSH rule (e.g. `203.0.113.10/32`)
 - `terraform.sshPubkeyFile`: local path to `.pub`
 - `secrets.localDir`: relative to `.clawdlets/` (directory of encrypted sops YAML files)

@@ -1,5 +1,5 @@
 {
-  description = "clawdlets-myproject";
+  description = "__PROJECT_NAME__";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
@@ -11,6 +11,7 @@
     sops-nix.inputs.nixpkgs.follows = "nixpkgs";
 
     nix-clawdbot.url = "github:clawdbot/nix-clawdbot";
+    nix-clawdbot.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   outputs = { self, nixpkgs, disko, sops-nix, nix-clawdbot, ... }:

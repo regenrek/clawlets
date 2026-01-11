@@ -19,6 +19,8 @@ npm install -g clawdlets
 clawdlets --help
 ```
 
+If you’re developing inside this monorepo, use the pnpm wrappers (example): `pnpm run clawdlets:stack -- init` == `clawdlets stack init`.
+
 - `clawdlets stack init`: create `.clawdlets/stack.json` + `.clawdlets/.env` (use `--interactive` or set `CLAWDLETS_INTERACTIVE=1` for prompts).
 - `clawdlets doctor --scope deploy`: deploy preflight (fails on missing).
 - `clawdlets doctor --scope deploy --strict`: lockdown gate (fails on warn/missing).

@@ -63,7 +63,7 @@ export function validateDocsIndexIntegrity(params: { repoRoot: string }): { ok: 
   const repoRoot = params.repoRoot;
 
   const repoIndexPath = path.join(repoRoot, "docs", "docs.yaml");
-  const templateIndexPath = path.join(repoRoot, "packages", "template", "template", "docs", "docs.yaml");
+  const templateIndexPath = path.join(repoRoot, "packages", "template", "dist", "template", "docs", "docs.yaml");
 
   const errors: string[] = [];
 
@@ -83,21 +83,20 @@ export function validateDocsIndexIntegrity(params: { repoRoot: string }): { ok: 
   }
 
   errors.push(...ensureUniquePaths(repoEntries, "docs/docs.yaml"));
-  errors.push(...ensureUniquePaths(templateEntries, "packages/template/template/docs/docs.yaml"));
+  errors.push(...ensureUniquePaths(templateEntries, "packages/template/dist/template/docs/docs.yaml"));
 
   for (const e of repoEntries) {
     const abs = path.join(repoRoot, e.path);
     if (!fs.existsSync(abs)) errors.push(`docs/docs.yaml references missing file: ${e.path}`);
   }
   for (const e of templateEntries) {
-    const abs = path.join(repoRoot, "packages", "template", "template", e.path);
+    const abs = path.join(repoRoot, "packages", "template", "dist", "template", e.path);
     if (!fs.existsSync(abs)) errors.push(`template docs.yaml references missing file: ${e.path}`);
   }
 
   if (repoEntries.length > 0 && templateEntries.length > 0 && !entriesEqual(repoEntries, templateEntries)) {
-    errors.push("docs index mismatch: docs/docs.yaml must match packages/template/template/docs/docs.yaml (paths + metadata + order)");
+    errors.push("docs index mismatch: docs/docs.yaml must match packages/template/dist/template/docs/docs.yaml (paths + metadata + order)");
   }
 
   return { ok: errors.length === 0, errors };
 }
-

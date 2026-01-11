@@ -81,6 +81,17 @@ mkdir -p .clawdlets/extra-files/clawdbot-fleet-host/var/lib/sops-nix
 cp .clawdlets/secrets/hosts/clawdbot-fleet-host.agekey .clawdlets/extra-files/clawdbot-fleet-host/var/lib/sops-nix/key.txt
 ```
 
+## Troubleshooting
+
+If you see:
+
+```text
+error loading config: no matching creation rules found
+```
+
+Your `.clawdlets/secrets/.sops.yaml` rule did not match the file path you are encrypting.
+Fast fix: re-run `clawdlets secrets init` (it regenerates/upgrades `.sops.yaml`).
+
 ## Common keys
 
 - `tailscale_auth_key` (required when using Tailscale auto-join)

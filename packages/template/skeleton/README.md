@@ -1,4 +1,4 @@
-# clawdlets-myproject
+# __PROJECT_NAME__
 
 This repo is your fleet config (public-safe). Instance data lives in `.clawdlets/` (gitignored).
 
@@ -12,3 +12,4 @@ Quickstart
 7) join tailnet, then `clawdlets lockdown`
 
 Docs: `docs/README.md`
+

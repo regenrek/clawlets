@@ -19,7 +19,7 @@ export function dirHasAnyFile(dirPath: string): boolean {
 
 export function loadKnownBundledSkills(repoRoot: string): { ok: boolean; skills: string[]; errors: string[] } {
   const repoPath = path.join(repoRoot, "infra", "configs", "bundled-skills.json");
-  const tplPath = path.join(repoRoot, "packages", "template", "template", "infra", "configs", "bundled-skills.json");
+  const tplPath = path.join(repoRoot, "packages", "template", "dist", "template", "infra", "configs", "bundled-skills.json");
 
   const errors: string[] = [];
 
@@ -42,7 +42,7 @@ export function loadKnownBundledSkills(repoRoot: string): { ok: boolean; skills:
 
   if (repoText && tplText && repoText.trim() !== tplText.trim()) {
     errors.push(
-      "bundled skills mismatch: infra/configs/bundled-skills.json must match packages/template/template/infra/configs/bundled-skills.json",
+      "bundled skills mismatch: infra/configs/bundled-skills.json must match packages/template/dist/template/infra/configs/bundled-skills.json",
     );
   }
 
@@ -64,4 +64,3 @@ export function loadKnownBundledSkills(repoRoot: string): { ok: boolean; skills:
     return { ok: false, skills: [], errors };
   }
 }
-

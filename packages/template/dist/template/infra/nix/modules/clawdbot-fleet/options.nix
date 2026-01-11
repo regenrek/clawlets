@@ -1,23 +1,17 @@
 { lib, pkgs, nix-clawdbot, ... }:
 
 let
-  sourceInfo = import ../../sources/clawdbot-source.nix;
-  steipetePkgs =
-    if nix-clawdbot ? inputs && nix-clawdbot.inputs ? nix-steipete-tools
-       && nix-clawdbot.inputs.nix-steipete-tools ? packages
-       && builtins.hasAttr pkgs.system nix-clawdbot.inputs.nix-steipete-tools.packages
-    then nix-clawdbot.inputs.nix-steipete-tools.packages.${pkgs.system}
-    else {};
-  clawdbotPackages = import "${nix-clawdbot.outPath}/nix/packages" {
-    inherit pkgs sourceInfo steipetePkgs;
-  };
+  system = pkgs.system;
+  clawdbotPkgs =
+    nix-clawdbot.packages.${system} or
+      (throw "nix-clawdbot.packages.${system} missing (must consume flake outputs, not outPath internals)");
 in {
   options.services.clawdbotFleet = {
     enable = lib.mkEnableOption "Clawdbot fleet";
 
     package = lib.mkOption {
       type = lib.types.package;
-      default = clawdbotPackages.clawdbot-gateway;
+      default = clawdbotPkgs.clawdbot-gateway;
       description = "Clawdbot package used by fleet services.";
     };
 
@@ -29,7 +23,7 @@ in {
       };
       package = lib.mkOption {
         type = lib.types.package;
-        default = clawdbotPackages.clawdbot-tools;
+        default = clawdbotPkgs.clawdbot-tools;
         description = "Clawdbot tools package installed when tools.enable is true.";
       };
     };

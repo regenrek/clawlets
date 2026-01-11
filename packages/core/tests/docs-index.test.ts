@@ -14,7 +14,7 @@ describe("docs index integrity", () => {
   it("reports missing indexes", async () => {
     const repoRoot = await mkdtemp(path.join(tmpdir(), "clawdlets-docs-index-"));
     await mkdir(path.join(repoRoot, "docs"), { recursive: true });
-    await mkdir(path.join(repoRoot, "packages", "template", "template", "docs"), { recursive: true });
+    await mkdir(path.join(repoRoot, "packages", "template", "dist", "template", "docs"), { recursive: true });
     const r = validateDocsIndexIntegrity({ repoRoot });
     expect(r.ok).toBe(false);
     expect(r.errors.some((e) => e.includes("missing docs index"))).toBe(true);
@@ -23,10 +23,10 @@ describe("docs index integrity", () => {
   it("reports mismatch, duplicates, and missing referenced files", async () => {
     const repoRoot = await mkdtemp(path.join(tmpdir(), "clawdlets-docs-index-"));
     await mkdir(path.join(repoRoot, "docs"), { recursive: true });
-    await mkdir(path.join(repoRoot, "packages", "template", "template", "docs"), { recursive: true });
+    await mkdir(path.join(repoRoot, "packages", "template", "dist", "template", "docs"), { recursive: true });
 
     await writeFile(path.join(repoRoot, "docs", "overview.md"), "# overview\n", "utf8");
-    await writeFile(path.join(repoRoot, "packages", "template", "template", "docs", "overview.md"), "# overview\n", "utf8");
+    await writeFile(path.join(repoRoot, "packages", "template", "dist", "template", "docs", "overview.md"), "# overview\n", "utf8");
 
     await writeFile(
       path.join(repoRoot, "docs", "docs.yaml"),
@@ -34,7 +34,7 @@ describe("docs index integrity", () => {
       "utf8",
     );
     await writeFile(
-      path.join(repoRoot, "packages", "template", "template", "docs", "docs.yaml"),
+      path.join(repoRoot, "packages", "template", "dist", "template", "docs", "docs.yaml"),
       ["docs:", "  - path: docs/overview.md", "    when: seed", "    summary: different", ""].join("\n"),
       "utf8",
     );
@@ -49,7 +49,7 @@ describe("docs index integrity", () => {
       "utf8",
     );
     await writeFile(
-      path.join(repoRoot, "packages", "template", "template", "docs", "docs.yaml"),
+      path.join(repoRoot, "packages", "template", "dist", "template", "docs", "docs.yaml"),
       ["docs:", "  - path: docs/missing.md", "    when: seed", "    summary: seed", ""].join("\n"),
       "utf8",
     );
@@ -63,11 +63,11 @@ describe("docs index integrity", () => {
   it("rejects invalid docs index structure", async () => {
     const repoRoot = await mkdtemp(path.join(tmpdir(), "clawdlets-docs-index-"));
     await mkdir(path.join(repoRoot, "docs"), { recursive: true });
-    await mkdir(path.join(repoRoot, "packages", "template", "template", "docs"), { recursive: true });
+    await mkdir(path.join(repoRoot, "packages", "template", "dist", "template", "docs"), { recursive: true });
 
     await writeFile(path.join(repoRoot, "docs", "docs.yaml"), "foo\n", "utf8");
     await writeFile(
-      path.join(repoRoot, "packages", "template", "template", "docs", "docs.yaml"),
+      path.join(repoRoot, "packages", "template", "dist", "template", "docs", "docs.yaml"),
       ["docs:", "  - path: docs/overview.md", ""].join("\n"),
       "utf8",
     );
@@ -80,7 +80,7 @@ describe("docs index integrity", () => {
   it("rejects unsafe docs entry paths", async () => {
     const repoRoot = await mkdtemp(path.join(tmpdir(), "clawdlets-docs-index-"));
     await mkdir(path.join(repoRoot, "docs"), { recursive: true });
-    await mkdir(path.join(repoRoot, "packages", "template", "template", "docs"), { recursive: true });
+    await mkdir(path.join(repoRoot, "packages", "template", "dist", "template", "docs"), { recursive: true });
 
     await writeFile(
       path.join(repoRoot, "docs", "docs.yaml"),
@@ -88,7 +88,7 @@ describe("docs index integrity", () => {
       "utf8",
     );
     await writeFile(
-      path.join(repoRoot, "packages", "template", "template", "docs", "docs.yaml"),
+      path.join(repoRoot, "packages", "template", "dist", "template", "docs", "docs.yaml"),
       ["docs:", "  - path: docs/overview.md", ""].join("\n"),
       "utf8",
     );
