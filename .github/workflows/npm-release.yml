@@ -1,0 +1,82 @@
+name: npm Release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to publish (e.g., v0.1.0)"
+        required: true
+        type: string
+      prerelease:
+        description: "Publish with dist-tag next"
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: npm-release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Resolve release context
+        id: release
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+            if [ "${{ inputs.prerelease }}" = "true" ]; then
+              echo "dist=next" >> "$GITHUB_OUTPUT"
+            else
+              echo "dist=latest" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+            if [ "${{ github.event.release.prerelease }}" = "true" ]; then
+              echo "dist=next" >> "$GITHUB_OUTPUT"
+            else
+              echo "dist=latest" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
+      - name: Checkout release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.release.outputs.tag }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Update npm
+        run: npm install -g npm@11.5.1
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm -r build
+
+      - name: Prepare publish dir
+        run: node scripts/prepare-package.mjs --out dist/npm/clawdlets
+
+      - name: Publish to npm (OIDC)
+        working-directory: dist/npm/clawdlets
+        run: npm publish --access public --provenance --tag ${{ steps.release.outputs.dist }}
+        env:
+          NODE_AUTH_TOKEN: ""
+

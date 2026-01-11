@@ -1,0 +1,74 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (vX.Y.Z)"
+        required: true
+        type: string
+
+concurrency:
+  group: release-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Update npm
+        run: npm install -g npm@11.5.1
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Test
+        run: pnpm -r test
+
+      - name: Build
+        run: pnpm -r build
+
+      - name: Coverage gate
+        run: pnpm -C packages/core run coverage
+
+      - name: Secleak gate
+        run: scripts/secleak-check.sh
+
+      - name: Extract release notes
+        id: notes
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          node scripts/extract-changelog.mjs "$version" > release-notes.md
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@c95fd4d8f0a39d8b12a9c1f4de62f53d8b6a0f74
+        with:
+          tag_name: ${{ env.TAG }}
+          name: clawdlets v${{ steps.notes.outputs.version }}
+          body_path: release-notes.md
+          prerelease: ${{ contains(env.TAG, '-') }}
+
