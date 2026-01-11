@@ -1,11 +1,17 @@
 {
   "name": "clawdlets",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
   "type": "module",
+  "description": "CLI for clawdlets (NixOS fleet + bot operations)",
   "bin": {
     "clawdlets": "dist/main.js"
   },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "dev": "tsc -w --preserveWatchOutput",
     "build": "tsc -p tsconfig.json",
@@ -34,5 +40,17 @@
   "engines": {
     "node": ">=22"
   },
-  "packageManager": "pnpm@10.25.0"
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/clawdbot/clawdlets.git"
+  },
+  "license": "MIT",
+  "packageManager": "pnpm@10.25.0",
+  "bundledDependencies": [
+    "@clawdbot/clawdlets-core",
+    "@clawdlets/template"
+  ]
 }

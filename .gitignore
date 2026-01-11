@@ -24,3 +24,6 @@ packages/template/node_modules/
 packages/template/dist/
 packages/template/coverage/
 *.tsbuildinfo
+
+# packaging (generated)
+dist/
