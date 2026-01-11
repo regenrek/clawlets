@@ -27,11 +27,3 @@ export function upsertAdminAuthorizedKey(params: {
 
   return params.hostNix.replace(rx, `${m[1]}${bodyNext}${m[3]}`);
 }
-
-export function setBootstrapSsh(params: { hostNix: string; enabled: boolean }): string {
-  return params.hostNix.replace(
-    /bootstrapSsh\s*=\s*(true|false)\s*;/,
-    `bootstrapSsh = ${params.enabled ? "true" : "false"};`,
-  );
-}
-

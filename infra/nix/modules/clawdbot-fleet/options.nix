@@ -345,6 +345,12 @@ in {
             default = {};
             description = "Extra Clawdbot config merged into this bot's root config.";
           };
+
+          gatewayPort = lib.mkOption {
+            type = lib.types.nullOr lib.types.int;
+            default = null;
+            description = "Optional per-bot gateway port override (otherwise computed from gatewayPortBase/Stride).";
+          };
         };
       }));
       default = {};
@@ -403,44 +409,6 @@ in {
 
         If null, defaults to /var/lib/clawdlets/secrets/hosts/<host>/ (derived from networking.hostName).
       '';
-    };
-
-    sopsAgeKeyFile = lib.mkOption {
-      type = lib.types.str;
-      default = "/var/lib/sops-nix/key.txt";
-      description = "Path to the age key on the host.";
-    };
-
-    bootstrapSsh = lib.mkOption {
-      type = lib.types.bool;
-      default = true;
-      description = "Allow public SSH during initial bootstrap.";
-    };
-
-    tailscale = {
-      enable = lib.mkOption {
-        type = lib.types.bool;
-        default = false;
-        description = "Enable Tailscale on the host (recommended for admin access).";
-      };
-
-      openFirewall = lib.mkOption {
-        type = lib.types.bool;
-        default = true;
-        description = "Allow Tailscale UDP/DERP ports via firewall (services.tailscale.openFirewall).";
-      };
-
-      ssh = lib.mkOption {
-        type = lib.types.bool;
-        default = false;
-        description = "Enable Tailscale SSH (tailscale up --ssh).";
-      };
-
-      authKeySecret = lib.mkOption {
-        type = lib.types.nullOr lib.types.str;
-        default = null;
-        description = "Sops secret name containing a Tailscale auth key for non-interactive login.";
-      };
     };
   };
 }

@@ -8,16 +8,8 @@ let
     Z_AI_API_KEY = "z_ai_api_key";
   };
 
-  baseGatewayPort = 18789;
-  gatewayPortStride = 10;
-
   # Single source of truth for bot instances.
   bots = fleetCfg.bots or [ "maren" "sonja" "gunnar" "melinda" ];
-
-  gatewayPorts = builtins.listToAttrs (lib.lists.imap0 (i: b: {
-    name = b;
-    value = baseGatewayPort + (i * gatewayPortStride);
-  }) bots);
 
   baseBot = {
     envSecrets = zaiEnv;
@@ -26,6 +18,7 @@ let
       allowBundled = [ ];
       entries = { };
     };
+    gatewayPort = null;
     extraConfig = { };
   };
 
@@ -33,11 +26,7 @@ let
 
   botOverrides = fleetCfg.botOverrides or { };
 
-  mkBotProfile = b: mkBot (lib.recursiveUpdate {
-    extraConfig = {
-      gateway.port = gatewayPorts.${b};
-    };
-  } (botOverrides.${b} or { }));
+  mkBotProfile = b: mkBot (botOverrides.${b} or { });
 
   defaultRouting = {
     channels = [ ];

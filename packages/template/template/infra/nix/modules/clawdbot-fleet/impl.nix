@@ -7,11 +7,6 @@ let
   github = import ./impl/github.nix { inherit config lib pkgs defs; };
 
   cfg = defs.cfg;
-
-  sshListen = [
-    { addr = "0.0.0.0"; port = null; }
-    { addr = "::"; port = null; }
-  ];
 in
 {
   config = lib.mkIf cfg.enable {
@@ -103,100 +98,20 @@ in
           || (cfg.backups.restic.repository != "" && cfg.backups.restic.passwordSecret != "");
         message = "services.clawdbotFleet.backups.restic requires repository + passwordSecret when enabled.";
       }
-      {
-        assertion =
-          (!cfg.tailscale.enable)
-          || (cfg.tailscale.authKeySecret != null && cfg.tailscale.authKeySecret != "");
-        message = "services.clawdbotFleet.tailscale.authKeySecret must be set when tailscale is enabled.";
-      }
     ];
 
-    system.configurationRevision = lib.mkDefault (flakeInfo.clawdlets.rev or null);
-
-    swapDevices = lib.mkDefault [
-      {
-        device = "/var/lib/swapfile";
-        size = 16384;
-      }
+    sops.secrets = lib.mkMerge [
+      runtime.perBotSecrets
+      runtime.perBotSkillSecrets
+      (lib.optionalAttrs (cfg.backups.restic.enable && cfg.backups.restic.passwordSecret != "") {
+        "${cfg.backups.restic.passwordSecret}" = defs.mkSopsSecretFor cfg.backups.restic.passwordSecret;
+      })
+      (lib.optionalAttrs (cfg.backups.restic.enable && cfg.backups.restic.environmentSecret != null && cfg.backups.restic.environmentSecret != "") {
+        "${cfg.backups.restic.environmentSecret}" = defs.mkSopsSecretFor cfg.backups.restic.environmentSecret;
+      })
     ];
 
-    nix.settings = {
-      max-jobs = lib.mkDefault 1;
-      cores = lib.mkDefault 2;
-
-      extra-substituters = lib.mkDefault [ "https://cache.garnix.io" ];
-      extra-trusted-public-keys = lib.mkDefault [
-        "cache.garnix.io:CTFPyKSLcx5RMJKfLo5EEPUObbA78b0YQ2DTCJXqr9g="
-      ];
-    };
-
-    boot.loader.grub = {
-      enable = true;
-      efiSupport = false;
-      useOSProber = false;
-    };
-
-    boot.initrd.availableKernelModules = [
-      "virtio_pci"
-      "virtio_scsi"
-      "virtio_blk"
-      "virtio_net"
-    ];
-
-    services.qemuGuest.enable = true;
-
-    services.openssh = {
-      enable = true;
-      openFirewall = false;
-      settings = {
-        PasswordAuthentication = false;
-        KbdInteractiveAuthentication = false;
-        PermitRootLogin = "no";
-        AllowUsers = [ "admin" ];
-      };
-      listenAddresses = sshListen;
-    };
-
-    security.sudo.wheelNeedsPassword = true;
-
-    networking.firewall = {
-      enable = true;
-      allowedTCPPorts = lib.mkIf cfg.bootstrapSsh [ 22 ];
-      interfaces.tailscale0.allowedTCPPorts =
-        lib.mkIf (!cfg.bootstrapSsh && cfg.tailscale.enable) [ 22 ];
-    };
-
-    networking.nftables.enable = true;
-    networking.nftables.ruleset = builtins.readFile ../../nftables/egress-block.nft;
-
-    services.tailscale = lib.mkIf cfg.tailscale.enable {
-      enable = true;
-      openFirewall = cfg.tailscale.openFirewall;
-      authKeyFile = lib.mkIf (cfg.tailscale.authKeySecret != null)
-        config.sops.secrets.${cfg.tailscale.authKeySecret}.path;
-      extraUpFlags = lib.optional cfg.tailscale.ssh "--ssh";
-    };
-
-    sops = {
-      age.keyFile = cfg.sopsAgeKeyFile;
-      validateSopsFiles = false;
-
-      secrets = lib.mkMerge [
-        runtime.perBotSecrets
-        runtime.perBotSkillSecrets
-        (lib.optionalAttrs (cfg.tailscale.enable && cfg.tailscale.authKeySecret != null) {
-          "${cfg.tailscale.authKeySecret}" = defs.mkSopsSecretFor cfg.tailscale.authKeySecret;
-        })
-        (lib.optionalAttrs (cfg.backups.restic.enable && cfg.backups.restic.passwordSecret != "") {
-          "${cfg.backups.restic.passwordSecret}" = defs.mkSopsSecretFor cfg.backups.restic.passwordSecret;
-        })
-        (lib.optionalAttrs (cfg.backups.restic.enable && cfg.backups.restic.environmentSecret != null && cfg.backups.restic.environmentSecret != "") {
-          "${cfg.backups.restic.environmentSecret}" = defs.mkSopsSecretFor cfg.backups.restic.environmentSecret;
-        })
-      ];
-
-      templates = lib.mkMerge [ runtime.perBotTemplates runtime.perBotEnvTemplates ];
-    };
+    sops.templates = lib.mkMerge [ runtime.perBotTemplates runtime.perBotEnvTemplates ];
 
     users.users = builtins.listToAttrs (map runtime.mkBotUser cfg.bots);
     users.groups = builtins.listToAttrs (map runtime.mkBotGroup cfg.bots);
@@ -240,7 +155,7 @@ in
       ++ lib.optionals defs.hasGitHubAppAuth [ pkgs.curl pkgs.openssl ]
       ++ lib.optional defs.hasGh pkgs.gh
       ++ lib.optional defs.hasCodingAgent pkgs.glab
-      ++ lib.optional cfg.tailscale.enable pkgs.tailscale;
+      ;
 
     systemd.services = lib.mkMerge [
       (builtins.listToAttrs (map runtime.mkService cfg.bots))
@@ -320,4 +235,3 @@ in
     };
   };
 }
-

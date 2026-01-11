@@ -28,6 +28,9 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      - name: Template sync check (nix + scripts)
+        run: ./scripts/sync-template-nix.sh --check
+
       - name: Build
         run: pnpm -r build
 

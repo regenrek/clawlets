@@ -94,35 +94,40 @@ let
           }
         ]
         else [];
+      gatewayPort =
+        if (profile.gatewayPort or null) != null
+        then profile.gatewayPort
+        else botGatewayPort b;
     in
-      {
-        discord = discordConfig;
-        gateway = {
-          mode = "local";
-          bind = "loopback";
-          port = botGatewayPort b;
-        };
-        messages = {
-          queue = {
-            mode = cfg.routingQueue.mode;
-            byProvider = cfg.routingQueue.byProvider;
+      lib.recursiveUpdate
+        ({
+          discord = discordConfig;
+          gateway = {
+            mode = "local";
+            bind = "loopback";
+            port = gatewayPort;
           };
-        };
-        agents = {
-          defaults = {
-            workspace = workspace;
-            skipBootstrap = skipBootstrap;
+          messages = {
+            queue = {
+              mode = cfg.routingQueue.mode;
+              byProvider = cfg.routingQueue.byProvider;
+            };
+          };
+          agents = {
+            defaults = {
+              workspace = workspace;
+              skipBootstrap = skipBootstrap;
+            }
+            // lib.optionalAttrs (modelPrimary != null) { model.primary = modelPrimary; }
+            // lib.optionalAttrs (modelEntries != {}) { models = modelEntries; };
           }
-          // lib.optionalAttrs (modelPrimary != null) { model.primary = modelPrimary; }
-          // lib.optionalAttrs (modelEntries != {}) { models = modelEntries; };
+          // lib.optionalAttrs (identityList != []) { list = identityList; };
         }
-        // lib.optionalAttrs (identityList != []) { list = identityList; };
-      }
-      // lib.optionalAttrs (hooksConfig != {}) { hooks = hooksConfig; }
-      // lib.optionalAttrs ((mkSkillsConfig b) != {}) { skills = mkSkillsConfig b; }
-      // (profile.extraConfig or {});
+        // lib.optionalAttrs (hooksConfig != {}) { hooks = hooksConfig; }
+        // lib.optionalAttrs ((mkSkillsConfig b) != {}) { skills = mkSkillsConfig b; }
+        )
+        (profile.extraConfig or {});
 in
 {
   inherit mkSkillEntries mkSkillsConfig mkBotConfig;
 }
-

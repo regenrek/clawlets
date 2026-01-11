@@ -85,9 +85,16 @@ const serverAudit = defineCommand({
       return await opt(`nixos-option ${name}`, cmd);
     };
 
-    const bootstrap = await nixosOption("services.clawdbotFleet.bootstrapSsh");
-    if (bootstrap.includes("Value: false")) add({ status: "ok", label: "bootstrapSsh", detail: "(false)" });
-    else if (bootstrap.includes("Value: true")) add({ status: "missing", label: "bootstrapSsh", detail: "(true; public SSH firewall open)" });
+    const provisioning = await nixosOption("clawdlets.provisioning.enable");
+    const provisioningPublic = await nixosOption("clawdlets.provisioning.publicSsh");
+
+    const provisioningEnabled = provisioning.includes("Value: true");
+    const provisioningDisabled = provisioning.includes("Value: false");
+    const provisioningPublicSsh = provisioningPublic.includes("Value: true");
+
+    if (provisioningDisabled) add({ status: "ok", label: "bootstrapSsh", detail: "(false)" });
+    else if (provisioningEnabled && provisioningPublicSsh) add({ status: "missing", label: "bootstrapSsh", detail: "(true; public SSH firewall open)" });
+    else if (provisioningEnabled && !provisioningPublicSsh) add({ status: "warn", label: "bootstrapSsh", detail: "(true; public SSH closed)" });
     else add({ status: "warn", label: "bootstrapSsh", detail: "(unknown; nixos-option not available?)" });
 
     const tailscaleEnabled = (await nixosOption("services.tailscale.enable")).includes("Value: true");
@@ -165,9 +172,9 @@ const serverAudit = defineCommand({
         ),
       ].join(" "),
     );
-    if (bootstrap.includes("Value: false") && firewall.trim().length === 0) {
+    if (provisioningDisabled && firewall.trim().length === 0) {
       add({ status: "ok", label: "firewall port 22 (public)", detail: "(no public dport 22 rule found)" });
-    } else if (bootstrap.includes("Value: false") && firewall.trim().length > 0) {
+    } else if (provisioningDisabled && firewall.trim().length > 0) {
       add({ status: "missing", label: "firewall port 22 (public)", detail: firewall.trim() });
     }
 

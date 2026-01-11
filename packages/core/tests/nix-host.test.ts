@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { setBootstrapSsh, upsertAdminAuthorizedKey } from "../src/lib/nix-host";
+import { upsertAdminAuthorizedKey } from "../src/lib/nix-host";
 
 describe("nix-host", () => {
   it("upserts admin authorized key", () => {
@@ -57,13 +57,4 @@ users.users.admin = {
     expect(out).toBe(hostNix);
   });
 
-  it("sets bootstrapSsh", () => {
-    const hostNix = "bootstrapSsh = false;";
-    expect(setBootstrapSsh({ hostNix, enabled: true })).toBe("bootstrapSsh = true;");
-  });
-
-  it("sets bootstrapSsh to false", () => {
-    const hostNix = "bootstrapSsh = true;";
-    expect(setBootstrapSsh({ hostNix, enabled: false })).toBe("bootstrapSsh = false;");
-  });
 });

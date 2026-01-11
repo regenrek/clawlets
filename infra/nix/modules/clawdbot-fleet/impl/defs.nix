@@ -4,10 +4,11 @@ let
   cfg = config.services.clawdbotFleet;
   knownBundledSkills = builtins.fromJSON (builtins.readFile ../../../../configs/bundled-skills.json);
 
+  defaultHostSecretsDir = "/var/lib/clawdlets/secrets/hosts/${config.networking.hostName}";
   resolvedSopsDir =
     if (cfg.sopsDir or null) != null
     then cfg.sopsDir
-    else "/var/lib/clawdlets/secrets/hosts/${config.networking.hostName}";
+    else defaultHostSecretsDir;
 
   mkSopsSecret = {
     owner = "root";
@@ -149,4 +150,3 @@ in
     buildInfoJson
     botGatewayPort;
 }
-

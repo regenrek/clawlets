@@ -48,7 +48,7 @@ Gateway ports are auto-assigned from the `bots` list.
 Per-bot override (example):
 
 ```bash
-clawdlets config set --path fleet.botOverrides.melinda.extraConfig.gateway.port --value 18819
+clawdlets config set --path fleet.botOverrides.melinda.gatewayPort --value 18819
 ```
 
 ## Model defaults (provider/model)

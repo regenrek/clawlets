@@ -7,19 +7,24 @@ let
   tailnetMode = tailnet.mode or "none";
   fleet = import ../../configs/fleet.nix { inherit lib; };
   enableRootPassword = false;
-  hostSecretsDir = "/var/lib/clawdlets/secrets/hosts/${config.clawdlets.hostName}";
 in {
   imports = [
+    ../modules/clawdlets-host-baseline.nix
     ../modules/clawdbot-fleet.nix
     ../modules/clawdlets-host-meta.nix
   ];
 
   clawdlets.diskDevice = hostCfg.diskDevice or "/dev/disk/by-id/CHANGE_ME";
 
-  # Required for sops-nix assertions. Key + encrypted secrets are installed via nixos-anywhere extra-files at first boot.
-  sops.age.keyFile = "/var/lib/sops-nix/key.txt";
-  sops.validateSopsFiles = false;
+  clawdlets.provisioning.enable = hostCfg.bootstrapSsh or true;
+  clawdlets.provisioning.publicSsh = hostCfg.bootstrapSsh or true;
 
+  clawdlets.tailnet.mode = tailnetMode;
+  clawdlets.tailnet.tailscale.authKeySecret =
+    if tailnetMode == "tailscale" then "tailscale_auth_key" else null;
+
+  # Set these in your own repo (or via a host-specific module).
+  # Defaults are provided for Hetzner, but hostName must be set.
   networking.hostName = config.clawdlets.hostName;
   networking.nameservers = config.clawdlets.nameservers;
 
@@ -44,7 +49,7 @@ in {
     group = "root";
     mode = "0400";
     neededForUsers = true;
-    sopsFile = "${hostSecretsDir}/admin_password_hash.yaml";
+    sopsFile = "${config.clawdlets.secrets.hostDir}/admin_password_hash.yaml";
   };
 
   sops.secrets.root_password_hash = lib.mkIf enableRootPassword {
@@ -52,7 +57,7 @@ in {
     group = "root";
     mode = "0400";
     neededForUsers = true;
-    sopsFile = "${hostSecretsDir}/root_password_hash.yaml";
+    sopsFile = "${config.clawdlets.secrets.hostDir}/root_password_hash.yaml";
   };
 
   users.users.admin = {
@@ -112,6 +117,7 @@ in {
 
   services.clawdbotFleet = {
     enable = hostCfg.enable or false;
+    sopsDir = config.clawdlets.secrets.hostDir;
     bots = fleet.bots;
     guildId = fleet.guildId;
     routing = fleet.routing;
@@ -120,10 +126,7 @@ in {
     documentsDir = fleet.documentsDir;
     identity = fleet.identity;
     codex = fleet.codex;
-    tailscale.enable = tailnetMode == "tailscale";
-    tailscale.authKeySecret = lib.mkIf (tailnetMode == "tailscale") "tailscale_auth_key";
     opsSnapshot.enable = true;
-    bootstrapSsh = hostCfg.bootstrapSsh or true;
     disableBonjour = true;
     agentModelPrimary = hostCfg.agentModelPrimary or "zai/glm-4.7";
   };

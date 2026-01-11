@@ -40,6 +40,9 @@ let
         owner = "bot-${b}";
         group = "bot-${b}";
         mode = "0400";
+        # Important: keep template content pure at eval time.
+        # `builtins.readFile (pkgs.formats.json.generate ...)` forces a local build/eval-store write,
+        # which breaks remote-build workflows on hosts that reject unsigned local store paths.
         content = builtins.toJSON (mkBotConfig b);
       };
     };
@@ -176,6 +179,7 @@ let
             CapabilityBoundingSet = "";
             AmbientCapabilities = "";
             LockPersonality = true;
+            # Node/V8 JIT needs to toggle executable memory permissions.
             MemoryDenyWriteExecute = false;
             RestrictAddressFamilies = [ "AF_INET" "AF_INET6" "AF_NETLINK" "AF_UNIX" ];
             SystemCallArchitectures = "native";
