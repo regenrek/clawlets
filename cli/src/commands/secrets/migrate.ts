@@ -4,6 +4,7 @@ import process from "node:process";
 import { defineCommand } from "citty";
 import YAML from "yaml";
 import { parseAgeKeyFile } from "@clawdbot/clawdlets-core/lib/age";
+import { assertSafeHostName } from "@clawdbot/clawdlets-core/lib/clawdlets-config";
 import { ensureDir, writeFileAtomic } from "@clawdbot/clawdlets-core/lib/fs-safe";
 import { removeSopsCreationRule, sopsPathRegexForDirFiles, sopsPathRegexForPathSuffix, upsertSopsCreationRule } from "@clawdbot/clawdlets-core/lib/sops-config";
 import { sopsDecryptYamlFile, sopsEncryptYamlToFile } from "@clawdbot/clawdlets-core/lib/sops";
@@ -31,6 +32,7 @@ export const secretsMigrate = defineCommand({
     if (!fs.existsSync(stackFile)) throw new Error(`missing stack file: ${stackFile}`);
 
     const hostName = String(args.host || "clawdbot-fleet-host").trim() || "clawdbot-fleet-host";
+    assertSafeHostName(hostName);
 
     let stackRaw: unknown;
     try {
