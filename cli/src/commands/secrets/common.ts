@@ -1,14 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
 
-export function sanitizeOperatorId(raw: string): string {
-  return (
-    String(raw || "operator")
-      .trim()
-      .replace(/[^a-zA-Z0-9._-]+/g, "_") || "operator"
-  );
-}
-
 export function needsSudo(targetHost: string): boolean {
   return !/^root@/i.test(targetHost.trim());
 }
@@ -75,4 +67,3 @@ export function isPlaceholder(v: string): boolean {
 export function resolveRepoRootFromStackDir(stackDir: string): string {
   return path.resolve(stackDir, "..");
 }
-
