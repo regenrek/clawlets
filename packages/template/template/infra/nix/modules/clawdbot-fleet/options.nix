@@ -103,6 +103,57 @@ in {
       };
     };
 
+    githubSync = {
+      enable = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+        description = "Periodically sync GitHub PRs/issues into each bot workspace memory dir (pure IO inventory).";
+      };
+      schedule = lib.mkOption {
+        type = lib.types.str;
+        default = "*:0/15";
+        description = "systemd OnCalendar schedule for GitHub sync (default: every 15 minutes).";
+      };
+      org = lib.mkOption {
+        type = lib.types.str;
+        default = "clawdbot";
+        description = "GitHub org to sync when repos is empty.";
+      };
+      repos = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = [];
+        description = "Optional explicit repo list (owner/repo). When set, org listing is skipped.";
+      };
+    };
+
+    opsSnapshot = {
+      enable = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+        description = "Write periodic host ops snapshots to disk (no secrets; for debugging and drift detection).";
+      };
+      schedule = lib.mkOption {
+        type = lib.types.str;
+        default = "daily";
+        description = "systemd OnCalendar schedule for ops snapshot.";
+      };
+      outDir = lib.mkOption {
+        type = lib.types.str;
+        default = "/var/lib/clawdlets/ops/snapshots";
+        description = "Directory holding JSON snapshots (latest.json + timestamped files).";
+      };
+      keepDays = lib.mkOption {
+        type = lib.types.int;
+        default = 30;
+        description = "Retention: delete snapshot files older than this many days (0 disables).";
+      };
+      keepLast = lib.mkOption {
+        type = lib.types.int;
+        default = 200;
+        description = "Retention: keep at most this many snapshot files (0 disables).";
+      };
+    };
+
     agentModelPrimary = lib.mkOption {
       type = lib.types.nullOr lib.types.str;
       default = null;
@@ -341,16 +392,16 @@ in {
       description = "Base directory for per-bot state dirs.";
     };
 
-    sopsFile = lib.mkOption {
+    sopsDir = lib.mkOption {
       type = lib.types.nullOr lib.types.str;
       default = null;
       description = ''
-        Path to the sops YAML file on the host filesystem.
+        Directory containing encrypted sops YAML files on the host filesystem (one secret per file).
 
         Recommended (keeps secrets out of the Nix store):
-        - /var/lib/clawdlets/secrets/hosts/<host>.yaml
+        - /var/lib/clawdlets/secrets/hosts/<host>/
 
-        If null, defaults to /var/lib/clawdlets/secrets/hosts/<host>.yaml (derived from networking.hostName).
+        If null, defaults to /var/lib/clawdlets/secrets/hosts/<host>/ (derived from networking.hostName).
       '';
     };
 
