@@ -1,9 +1,9 @@
-{ ... }:
+{ config, ... }:
 {
+  # Example disk layout (Hetzner). Override `clawdlets.diskDevice` if needed.
   disko.devices = {
     disk.main = {
-      # replace with your disk (e.g. /dev/disk/by-id/<id>)
-      device = "/dev/disk/by-id/CHANGE_ME";
+      device = config.clawdlets.diskDevice;
       type = "disk";
       content = {
         type = "gpt";

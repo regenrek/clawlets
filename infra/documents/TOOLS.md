@@ -1,3 +1,18 @@
 # TOOLS.md
 
-This file is managed by Nix. Add tool references in repo docs.
+Workspace-local operator notes (no secrets). This file is seeded by Nix on first boot.
+
+## Skills (bundled) allowlist
+
+Bundled skills are an attack surface. Keep an explicit allowlist per bot:
+
+- `infra/configs/fleet.nix` → `botProfiles.<bot>.skills.allowBundled = [ ... ];`
+- Avoid `null` on servers (typically means “allow all bundled skills”).
+
+## Tool inventory (generated)
+
+The host writes a generated tool inventory to:
+
+- `/etc/clawdlets/tools.md`
+
+This workspace may also include an appended copy of that inventory below on first seed.

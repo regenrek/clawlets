@@ -1,20 +1,29 @@
 { config, lib, ... }:
 
 let
+  cfg = builtins.fromJSON (builtins.readFile ../../configs/clawdlets.json);
+  hostCfg = (cfg.hosts.${config.clawdlets.hostName} or { });
+  tailnet = (hostCfg.tailnet or { });
+  tailnetMode = tailnet.mode or "none";
   fleet = import ../../configs/fleet.nix { inherit lib; };
   enableRootPassword = false;
+  hostSecretsDir = "/var/lib/clawdlets/secrets/hosts/${config.clawdlets.hostName}";
 in {
   imports = [
     ../modules/clawdbot-fleet.nix
+    ../modules/clawdlets-host-meta.nix
   ];
 
-  networking.hostName = "bots01";
-  networking.nameservers = [
-    "1.1.1.1"
-    "1.0.0.1"
-    "2606:4700:4700::1111"
-    "2606:4700:4700::1001"
-  ];
+  clawdlets.diskDevice = hostCfg.diskDevice or "/dev/disk/by-id/CHANGE_ME";
+
+  # Required for sops-nix assertions. Key + encrypted secrets are installed via nixos-anywhere extra-files at first boot.
+  sops.age.keyFile = "/var/lib/sops-nix/key.txt";
+  sops.validateSopsFiles = false;
+
+  # Set these in your own repo (or via a host-specific module).
+  # Defaults are provided for Hetzner, but hostName must be set.
+  networking.hostName = config.clawdlets.hostName;
+  networking.nameservers = config.clawdlets.nameservers;
 
   networking.useDHCP = false;
   networking.useNetworkd = true;
@@ -37,6 +46,7 @@ in {
     group = "root";
     mode = "0400";
     neededForUsers = true;
+    sopsFile = "${hostSecretsDir}/admin_password_hash.yaml";
   };
 
   sops.secrets.root_password_hash = lib.mkIf enableRootPassword {
@@ -44,13 +54,22 @@ in {
     group = "root";
     mode = "0400";
     neededForUsers = true;
+    sopsFile = "${hostSecretsDir}/root_password_hash.yaml";
   };
 
   users.users.admin = {
     isNormalUser = true;
+    extraGroups = [ ];
+    hashedPasswordFile = config.sops.secrets.admin_password_hash.path;
+    openssh.authorizedKeys.keys = hostCfg.sshAuthorizedKeys or [ ];
+  };
+
+  # Breakglass: console-only sudo/root access.
+  # SSH password auth is disabled, so this user is not reachable over SSH unless you explicitly change SSH settings.
+  users.users.breakglass = {
+    isNormalUser = true;
     extraGroups = [ "wheel" ];
     hashedPasswordFile = config.sops.secrets.admin_password_hash.path;
-    openssh.authorizedKeys.keys = [];
   };
 
   users.users.root.hashedPasswordFile =
@@ -68,6 +87,9 @@ in {
       /run/current-system/sw/bin/systemctl stop clawdbot-*.service, \
       /run/current-system/sw/bin/systemctl restart clawdbot-*, \
       /run/current-system/sw/bin/systemctl restart clawdbot-*.service, \
+      /run/current-system/sw/bin/systemctl list-timers clawdbot-*, \
+      /run/current-system/sw/bin/systemctl list-timers clawdbot-* --all, \
+      /run/current-system/sw/bin/systemctl list-timers clawdbot-* --all --no-pager, \
       /run/current-system/sw/bin/systemctl list-units clawdbot-*, \
       /run/current-system/sw/bin/systemctl list-units clawdbot-* --no-pager, \
       /run/current-system/sw/bin/systemctl list-units clawdbot-*.service, \
@@ -80,17 +102,18 @@ in {
       /run/current-system/sw/bin/journalctl -u clawdbot-* --no-pager, \
       /run/current-system/sw/bin/journalctl -u clawdbot-* -n * --no-pager
     Cmnd_Alias CLAWDBOT_SS = /run/current-system/sw/bin/ss -ltnp
+    Cmnd_Alias CLAWDBOT_GH_SYNC_READ = /etc/clawdlets/bin/gh-sync-read *
     Cmnd_Alias CLAWDBOT_REBUILD = \
       /run/current-system/sw/bin/nixos-rebuild, \
       /run/current-system/sw/bin/env /run/current-system/sw/bin/nixos-rebuild switch --flake *, \
       /run/current-system/sw/bin/env NIX_CONFIG=access-tokens\ =\ github.com=* /run/current-system/sw/bin/nixos-rebuild switch --flake *, \
       /run/current-system/sw/bin/env nixos-rebuild switch --flake *, \
       /run/current-system/sw/bin/env NIX_CONFIG=access-tokens\ =\ github.com=* nixos-rebuild switch --flake *
-    admin ALL=(root) NOPASSWD: CLAWDBOT_SYSTEMCTL, CLAWDBOT_JOURNAL, CLAWDBOT_SS, CLAWDBOT_REBUILD
+    admin ALL=(root) NOPASSWD: CLAWDBOT_SYSTEMCTL, CLAWDBOT_JOURNAL, CLAWDBOT_SS, CLAWDBOT_GH_SYNC_READ, CLAWDBOT_REBUILD
   '';
 
   services.clawdbotFleet = {
-    enable = false;
+    enable = hostCfg.enable or false;
     bots = fleet.bots;
     guildId = fleet.guildId;
     routing = fleet.routing;
@@ -99,9 +122,11 @@ in {
     documentsDir = fleet.documentsDir;
     identity = fleet.identity;
     codex = fleet.codex;
-    tailscale.enable = false;
-    bootstrapSsh = false;
+    tailscale.enable = tailnetMode == "tailscale";
+    opsSnapshot.enable = true;
+    bootstrapSsh = hostCfg.bootstrapSsh or true;
     disableBonjour = true;
-    agentModelPrimary = "zai/glm-4.7";
+    agentModelPrimary = hostCfg.agentModelPrimary or "zai/glm-4.7";
+    wireguard.adminPeers = tailnet.wireguardAdminPeers or [ ];
   };
 }

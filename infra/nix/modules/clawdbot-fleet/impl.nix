@@ -1,7 +1,13 @@
-{ config, lib, pkgs, ... }:
+{ config, lib, pkgs, flakeInfo ? {}, ... }:
 
 let
   cfg = config.services.clawdbotFleet;
+  knownBundledSkills = builtins.fromJSON (builtins.readFile ../../../configs/bundled-skills.json);
+
+  resolvedSopsDir =
+    if (cfg.sopsDir or null) != null
+    then cfg.sopsDir
+    else "/var/lib/clawdlets/secrets/hosts/${config.networking.hostName}";
 
   mkSopsSecret = {
     owner = "root";
@@ -9,10 +15,12 @@ let
     mode = "0400";
   };
 
+  mkSopsSecretFor = secretName: mkSopsSecret // { sopsFile = "${resolvedSopsDir}/${secretName}.yaml"; };
+
   resticPaths =
     if cfg.backups.restic.paths != []
     then cfg.backups.restic.paths
-    else [ cfg.stateDirBase ];
+    else [ cfg.stateDirBase ] ++ lib.optional cfg.opsSnapshot.enable cfg.opsSnapshot.outDir;
 
   mkChannels = channels: requireMention:
     lib.listToAttrs (map (ch: {
@@ -59,10 +67,63 @@ let
         allowBundled != null && lib.elem "coding-agent" allowBundled
     ) cfg.bots;
 
+  hasGithubSkill =
+    lib.any (b:
+      let
+        allowBundled = ((getBotProfile b).skills.allowBundled or null);
+      in
+        allowBundled != null && lib.elem "github" allowBundled
+    ) cfg.bots;
+
+  hasGh = hasGithubSkill || hasCodingAgent || cfg.githubSync.enable;
+
   hasCodex =
     cfg.codex.enable
     || cfg.codex.bots != []
     || hasCodingAgent;
+
+  toolsInventoryMd = pkgs.runCommand "clawdlets-tools.md" {} ''
+    set -euo pipefail
+
+    cat >"$out" <<'MD'
+## Installed tools (generated)
+
+Do not edit. Generated from NixOS config.
+
+- Base: `clawdbot` (gateway) + `git` + `jq`
+MD
+
+    ${lib.optionalString cfg.tools.enable ''
+    cat >>"$out" <<'MD'
+
+### Tool bundle binaries
+MD
+    if [ -d "${cfg.tools.package}/bin" ]; then
+      ls -1 "${cfg.tools.package}/bin" | LC_ALL=C sort | sed 's/^/- `/' | sed 's/$/`/' >>"$out"
+    else
+      echo "- (missing \`bin/\`)" >>"$out"
+    fi
+    ''}
+
+    ${lib.optionalString (!cfg.tools.enable) ''
+    cat >>"$out" <<'MD'
+
+- Tool bundle: disabled (`services.clawdbotFleet.tools.enable = false`)
+MD
+    ''}
+
+    ${lib.optionalString hasCodex ''
+    cat >>"$out" <<MD
+
+### Codex CLI (headless)
+
+- Installed: \`codex\`
+- Login (one-time): \`sudo -u bot-<bot> env HOME=${cfg.stateDirBase}/<bot> codex login --device-auth\`
+MD
+    ''}
+  '';
+
+  buildInfoJson = pkgs.writeText "clawdlets-build-info.json" (builtins.toJSON flakeInfo);
 
   botIndexByName = lib.listToAttrs (lib.imap0 (i: name: { name = name; value = i; }) cfg.bots);
 
@@ -190,7 +251,7 @@ let
 
   mkBotSecret = b: {
     "discord_token_${b}" = {
-      inherit (mkSopsSecret) owner group mode;
+      inherit (mkSopsSecretFor "discord_token_${b}") owner group mode sopsFile;
     };
   };
 
@@ -210,7 +271,7 @@ let
       ) entries);
       allSecrets = lib.unique (lib.filter (s: s != null && s != "") (hooksSecrets ++ githubSecrets ++ perEntrySecrets ++ botEnvSecrets));
     in
-      builtins.listToAttrs (map (secretName: { name = secretName; value = mkSopsSecret; }) allSecrets);
+      builtins.listToAttrs (map (secretName: { name = secretName; value = mkSopsSecretFor secretName; }) allSecrets);
 
   mkTemplate = b:
     {
@@ -243,13 +304,16 @@ let
 
   mkBotUser = b: {
     name = "bot-${b}";
-    value = {
-      isSystemUser = true;
-      group = "bot-${b}";
-      home = "/var/lib/bot-${b}";
-      createHome = true;
-      shell = pkgs.bashInteractive;
-    };
+    value =
+      let
+        stateDir = "${cfg.stateDirBase}/${b}";
+      in {
+        isSystemUser = true;
+        group = "bot-${b}";
+        home = stateDir;
+        createHome = false;
+        shell = pkgs.bashInteractive;
+      };
   };
 
   mkBotGroup = b: { name = "bot-${b}"; value = {}; };
@@ -397,6 +461,83 @@ EOF
         };
       };
 
+  mkGithubSyncService = b:
+    let
+      profile = getBotProfile b;
+      gh = profile.github or {};
+      ghEnabled =
+        (gh.appId or null) != null
+        && (gh.installationId or null) != null
+        && (gh.privateKeySecret or null) != null;
+      stateDir = "${cfg.stateDirBase}/${b}";
+      workspace = resolveBotWorkspace b;
+      credsDir = resolveBotCredsDir b;
+      ghEnvFile = "${credsDir}/gh.env";
+      reposEnv = lib.concatStringsSep " " cfg.githubSync.repos;
+      enabled = cfg.githubSync.enable && ghEnabled;
+    in
+      lib.optionalAttrs enabled {
+        "clawdbot-gh-sync-${b}" = {
+          description = "Sync GitHub PRs/issues into bot workspace memory (${b})";
+          after = [ "network-online.target" ] ++ lib.optional ghEnabled "clawdbot-gh-token-${b}.service";
+          wants = [ "network-online.target" ] ++ lib.optional ghEnabled "clawdbot-gh-token-${b}.service";
+          serviceConfig = {
+            Type = "oneshot";
+            User = "bot-${b}";
+            Group = "bot-${b}";
+            WorkingDirectory = stateDir;
+            EnvironmentFile = lib.optional ghEnabled "-${ghEnvFile}";
+
+            NoNewPrivileges = true;
+            PrivateTmp = true;
+            ProtectSystem = "strict";
+            ProtectHome = true;
+            ReadWritePaths = lib.unique [ stateDir workspace ];
+            UMask = "0077";
+
+            CapabilityBoundingSet = "";
+            AmbientCapabilities = "";
+            LockPersonality = true;
+            MemoryDenyWriteExecute = true;
+            RestrictAddressFamilies = [ "AF_INET" "AF_INET6" "AF_NETLINK" "AF_UNIX" ];
+            SystemCallArchitectures = "native";
+          };
+          path = [ pkgs.bash pkgs.coreutils pkgs.gh pkgs.jq ];
+          environment = {
+            GH_PAGER = "cat";
+            GIT_PAGER = "cat";
+            MEMORY_DIR = "${workspace}/memory";
+            ORG = cfg.githubSync.org;
+          } // lib.optionalAttrs (cfg.githubSync.repos != []) { REPOS = reposEnv; };
+          script = ''
+            exec /etc/clawdlets/bin/gh-sync
+          '';
+        };
+      };
+
+  mkGithubSyncTimer = b:
+    let
+      profile = getBotProfile b;
+      gh = profile.github or {};
+      ghEnabled =
+        (gh.appId or null) != null
+        && (gh.installationId or null) != null
+        && (gh.privateKeySecret or null) != null;
+      enabled = cfg.githubSync.enable && ghEnabled;
+    in
+      lib.optionalAttrs enabled {
+        "clawdbot-gh-sync-${b}" = {
+          description = "Periodic GitHub sync for bot ${b}";
+          wantedBy = [ "timers.target" ];
+          timerConfig = {
+            OnCalendar = cfg.githubSync.schedule;
+            RandomizedDelaySec = "2m";
+            Persistent = true;
+            Unit = "clawdbot-gh-sync-${b}.service";
+          };
+        };
+      };
+
   mkService = b:
     let
       stateDir = "${cfg.stateDirBase}/${b}";
@@ -426,6 +567,17 @@ EOF
           ws='${workspace}'
           if [ -z "$(ls -A "$ws" 2>/dev/null || true)" ]; then
             cp -a '${seedDir}/.' "$ws/"
+
+            tools_md='/etc/clawdlets/tools.md'
+            if [ -f "$ws/TOOLS.md" ] && [ -r "$tools_md" ]; then
+              if ! grep -q 'clawdlets-tools:begin' "$ws/TOOLS.md"; then
+                {
+                  printf '\n<!-- clawdlets-tools:begin -->\n'
+                  cat "$tools_md"
+                  printf '\n<!-- clawdlets-tools:end -->\n'
+                } >>"$ws/TOOLS.md"
+              fi
+            fi
           fi
         ''
         else null;
@@ -488,7 +640,7 @@ EOF
   perBotEnvTemplates = lib.mkMerge (map mkEnvTemplate cfg.bots);
   wgSecret = {
     wg_private_key = {
-      inherit (mkSopsSecret) owner group mode;
+      inherit (mkSopsSecretFor "wg_private_key") owner group mode sopsFile;
     };
   };
   wgIf = cfg.wireguard.interface;
@@ -502,6 +654,10 @@ EOF
 in {
   config = lib.mkIf cfg.enable {
     assertions = [
+      {
+        assertion = builtins.isList knownBundledSkills && lib.all builtins.isString knownBundledSkills;
+        message = "infra/configs/bundled-skills.json must be a JSON list of strings.";
+      }
       {
         assertion = cfg.guildId != "";
         message = "services.clawdbotFleet.guildId must be set.";
@@ -521,6 +677,63 @@ in {
       {
         assertion = lib.all (b: lib.elem b cfg.bots) cfg.codex.bots;
         message = "services.clawdbotFleet.codex.bots must be a subset of services.clawdbotFleet.bots.";
+      }
+      {
+        assertion = lib.all (b: ((getBotProfile b).skills.allowBundled or null) != null) cfg.bots;
+        message = "services.clawdbotFleet.botProfiles.<bot>.skills.allowBundled must be set (no null allow-all).";
+      }
+      {
+        assertion = (!cfg.githubSync.enable) || (cfg.githubSync.org != "" || cfg.githubSync.repos != []);
+        message = "services.clawdbotFleet.githubSync requires githubSync.org or githubSync.repos.";
+      }
+      {
+        assertion =
+          (!cfg.githubSync.enable)
+          || lib.any (b:
+            let
+              gh = (getBotProfile b).github or {};
+            in
+              (gh.appId or null) != null
+              && (gh.installationId or null) != null
+              && (gh.privateKeySecret or null) != null
+          ) cfg.bots;
+        message = "services.clawdbotFleet.githubSync.enable requires at least one botProfiles.<bot>.github App config.";
+      }
+      {
+        assertion =
+          lib.all (b:
+            let
+              allow = (getBotProfile b).skills.allowBundled or null;
+            in
+              allow == null || lib.all (s: lib.elem s knownBundledSkills) allow
+          ) cfg.bots;
+        message = "services.clawdbotFleet.botProfiles.<bot>.skills.allowBundled contains unknown skills (see infra/configs/bundled-skills.json).";
+      }
+      {
+        assertion =
+          lib.all (b:
+            let
+              allow = (getBotProfile b).skills.allowBundled or null;
+              gh = (getBotProfile b).github or {};
+            in
+              !(allow != null && lib.elem "github" allow)
+              || ((gh.appId or null) != null && (gh.installationId or null) != null && (gh.privateKeySecret or null) != null && (gh.privateKeySecret or "") != "")
+          ) cfg.bots;
+        message = "bundled skill \"github\" requires botProfiles.<bot>.github.{ appId, installationId, privateKeySecret }.";
+      }
+      {
+        assertion =
+          lib.all (b:
+            let
+              allow = (getBotProfile b).skills.allowBundled or null;
+              brave = (getBotProfile b).skills.entries."brave-search" or {};
+              apiKeySecret = brave.apiKeySecret or null;
+              envSecrets = brave.envSecrets or {};
+            in
+              !(allow != null && lib.elem "brave-search" allow)
+              || ((apiKeySecret != null && apiKeySecret != "") || envSecrets != {})
+          ) cfg.bots;
+        message = "bundled skill \"brave-search\" requires botProfiles.<bot>.skills.entries.\"brave-search\".{ apiKeySecret or envSecrets }.";
       }
       {
         assertion =
@@ -613,36 +826,61 @@ in {
       extraUpFlags = lib.optional cfg.tailscale.ssh "--ssh";
     };
 
-    sops = let
-      resolvedSopsFile =
-        if cfg.sopsFile != null
-        then cfg.sopsFile
-        else "/var/lib/clawdlets/secrets/hosts/${config.networking.hostName}.yaml";
-    in {
-      defaultSopsFile = resolvedSopsFile;
+    sops = {
       age.keyFile = cfg.sopsAgeKeyFile;
-    };
+      validateSopsFiles = false;
 
-    sops.secrets = lib.mkMerge [
-      wgSecret
-      perBotSecrets
-      perBotSkillSecrets
-      (lib.optionalAttrs (cfg.tailscale.enable && cfg.tailscale.authKeySecret != null) {
-        "${cfg.tailscale.authKeySecret}" = mkSopsSecret;
-      })
-      (lib.optionalAttrs (cfg.backups.restic.enable && cfg.backups.restic.passwordSecret != "") {
-        "${cfg.backups.restic.passwordSecret}" = mkSopsSecret;
-      })
-      (lib.optionalAttrs (cfg.backups.restic.enable && cfg.backups.restic.environmentSecret != null && cfg.backups.restic.environmentSecret != "") {
-        "${cfg.backups.restic.environmentSecret}" = mkSopsSecret;
-      })
-    ];
-    sops.templates = lib.mkMerge [ perBotTemplates perBotEnvTemplates ];
+      secrets = lib.mkMerge [
+        wgSecret
+        perBotSecrets
+        perBotSkillSecrets
+        (lib.optionalAttrs (cfg.tailscale.enable && cfg.tailscale.authKeySecret != null) {
+          "${cfg.tailscale.authKeySecret}" = mkSopsSecretFor cfg.tailscale.authKeySecret;
+        })
+        (lib.optionalAttrs (cfg.backups.restic.enable && cfg.backups.restic.passwordSecret != "") {
+          "${cfg.backups.restic.passwordSecret}" = mkSopsSecretFor cfg.backups.restic.passwordSecret;
+        })
+        (lib.optionalAttrs (cfg.backups.restic.enable && cfg.backups.restic.environmentSecret != null && cfg.backups.restic.environmentSecret != "") {
+          "${cfg.backups.restic.environmentSecret}" = mkSopsSecretFor cfg.backups.restic.environmentSecret;
+        })
+      ];
+
+      templates = lib.mkMerge [ perBotTemplates perBotEnvTemplates ];
+    };
 
     users.users = builtins.listToAttrs (map mkBotUser cfg.bots);
     users.groups = builtins.listToAttrs (map mkBotGroup cfg.bots);
 
-    systemd.tmpfiles.rules = lib.concatLists (map mkStateDir cfg.bots);
+    systemd.tmpfiles.rules =
+      (lib.concatLists (map mkStateDir cfg.bots))
+      ++ lib.optionals cfg.opsSnapshot.enable [
+        "d ${cfg.opsSnapshot.outDir} 0750 root root - -"
+      ];
+
+    environment.etc."clawdlets/tools.md" = {
+      source = toolsInventoryMd;
+      mode = "0444";
+    };
+
+    environment.etc."clawdlets/build-info.json" = {
+      source = buildInfoJson;
+      mode = "0444";
+    };
+
+    environment.etc."clawdlets/bin/gh-sync" = {
+      source = ../../../../scripts/gh-sync.sh;
+      mode = "0755";
+    };
+
+    environment.etc."clawdlets/bin/gh-sync-read" = {
+      source = ../../../../scripts/gh-sync-read.sh;
+      mode = "0755";
+    };
+
+    environment.etc."clawdlets/bin/ops-snapshot" = {
+      source = ../../../../scripts/ops-snapshot.sh;
+      mode = "0755";
+    };
 
     environment.systemPackages =
       [ cfg.package pkgs.git pkgs.jq ]
@@ -650,15 +888,68 @@ in {
       ++ lib.optional hasCodex pkgs.codex
       ++ lib.optional cfg.backups.restic.enable pkgs.restic
       ++ lib.optionals hasGitHubAppAuth [ pkgs.curl pkgs.openssl ]
-      ++ lib.optionals hasCodingAgent [ pkgs.gh pkgs.glab ]
+      ++ lib.optional hasGh pkgs.gh
+      ++ lib.optional hasCodingAgent pkgs.glab
       ++ lib.optional cfg.tailscale.enable pkgs.tailscale;
 
     systemd.services = lib.mkMerge [
       (builtins.listToAttrs (map mkService cfg.bots))
       (lib.mkMerge (map mkGithubTokenService cfg.bots))
+      (lib.mkMerge (map mkGithubSyncService cfg.bots))
+      (lib.optionalAttrs cfg.opsSnapshot.enable {
+        clawdlets-ops-snapshot = {
+          description = "Clawdlets ops snapshot (no secrets)";
+          after = [ "network-online.target" ];
+          wants = [ "network-online.target" ];
+          serviceConfig = {
+            Type = "oneshot";
+            User = "root";
+            Group = "root";
+            WorkingDirectory = "/";
+
+            NoNewPrivileges = true;
+            PrivateTmp = true;
+            ProtectSystem = "strict";
+            ProtectHome = true;
+            ReadWritePaths = [ cfg.opsSnapshot.outDir ];
+            UMask = "0077";
+
+            CapabilityBoundingSet = "";
+            AmbientCapabilities = "";
+            LockPersonality = true;
+            MemoryDenyWriteExecute = true;
+            RestrictAddressFamilies = [ "AF_INET" "AF_INET6" "AF_NETLINK" "AF_UNIX" ];
+            SystemCallArchitectures = "native";
+          };
+          path = [ pkgs.bash pkgs.coreutils pkgs.findutils pkgs.gawk pkgs.jq ];
+          environment = {
+            OUT_DIR = cfg.opsSnapshot.outDir;
+            KEEP_DAYS = toString cfg.opsSnapshot.keepDays;
+            KEEP_LAST = toString cfg.opsSnapshot.keepLast;
+          };
+          script = ''
+            exec /etc/clawdlets/bin/ops-snapshot
+          '';
+        };
+      })
     ];
 
-    systemd.timers = lib.mkMerge (map mkGithubTokenTimer cfg.bots);
+    systemd.timers = lib.mkMerge [
+      (lib.mkMerge (map mkGithubTokenTimer cfg.bots))
+      (lib.mkMerge (map mkGithubSyncTimer cfg.bots))
+      (lib.optionalAttrs cfg.opsSnapshot.enable {
+        clawdlets-ops-snapshot = {
+          description = "Periodic clawdlets ops snapshot";
+          wantedBy = [ "timers.target" ];
+          timerConfig = {
+            OnCalendar = cfg.opsSnapshot.schedule;
+            RandomizedDelaySec = "5m";
+            Persistent = true;
+            Unit = "clawdlets-ops-snapshot.service";
+          };
+        };
+      })
+    ];
 
     services.restic.backups = lib.mkIf cfg.backups.restic.enable {
       clawdbotFleet = {

@@ -1,148 +1,76 @@
 { lib }:
 let
+  cfg = builtins.fromJSON (builtins.readFile ./clawdlets.json);
+  fleetCfg = cfg.fleet or { };
+
   zaiEnv = {
     ZAI_API_KEY = "z_ai_api_key";
     Z_AI_API_KEY = "z_ai_api_key";
   };
-  gatewayPorts = {
-    maren = 18789;
-    sonja = 18799;
-    gunnar = 18809;
-    melinda = 18819;
-  };
+
+  baseGatewayPort = 18789;
+  gatewayPortStride = 10;
+
+  # Single source of truth for bot instances.
+  bots = fleetCfg.bots or [ "maren" "sonja" "gunnar" "melinda" ];
+
+  gatewayPorts = builtins.listToAttrs (lib.lists.imap0 (i: b: {
+    name = b;
+    value = baseGatewayPort + (i * gatewayPortStride);
+  }) bots);
+
   baseBot = {
     envSecrets = zaiEnv;
     skills = {
-      allowBundled = null;
-      entries = {};
+      # Explicit allowlist required on servers. Avoid null (typically means “allow all bundled skills”).
+      allowBundled = [ ];
+      entries = { };
     };
-    extraConfig = {};
+    extraConfig = { };
   };
-  mkBot = overrides: lib.recursiveUpdate baseBot overrides;
-in {
-  bots = [
-    "maren"
-    "sonja"
-    "gunnar"
-    "melinda"
-  ];
 
-  guildId = null;
+  mkBot = overrides: lib.recursiveUpdate baseBot overrides;
+
+  botOverrides = fleetCfg.botOverrides or { };
+
+  mkBotProfile = b: mkBot (lib.recursiveUpdate {
+    extraConfig = {
+      gateway.port = gatewayPorts.${b};
+    };
+  } (botOverrides.${b} or { }));
+
+  defaultRouting = {
+    channels = [ ];
+    requireMention = true;
+  };
+
+  routingOverrides = fleetCfg.routingOverrides or { };
+in {
+  inherit bots;
+
+  # set this to your Discord guild/server id
+  guildId = fleetCfg.guildId or "";
 
   documentsDir = ./documents;
   identity = null;
 
   codex = {
-    enable = true;
-    bots = [ "gunnar" "maren" ];
+    enable = (fleetCfg.codex or { }).enable or false;
+    bots = (fleetCfg.codex or { }).bots or [ ];
   };
 
-  # Per-bot profile config:
-  # - skills: bundled allowlist + per-skill env/apiKey secret wiring (sops secret names)
-  # - workspace: optional seed dir (copied into empty workspace on first start)
-  botProfiles = {
-    maren = mkBot {
-      extraConfig = {
-        gateway.port = gatewayPorts.maren;
-      };
-      skills = {
-        # Keep bootstrap builds small by default. Enabling "coding-agent" pulls in
-        # heavy packages (codex/oracle) and can OOM small build machines.
-        allowBundled = [ "github" "brave-search" "coding-agent" ];
-        entries = {
-          # Example: inject an API key as a skill env var, backed by sops.
-          # "brave-search" = {
-          #   envSecrets = { BRAVE_API_KEY = "brave_api_key_maren"; };
-          # };
-        };
-      };
-
-      # GitHub App auth for gh/git (minted + refreshed on-host; no PATs).
-      # github = {
-      #   appId = 123456;
-      #   installationId = 12345678;
-      #   privateKeySecret = "gh_app_private_key_maren";
-      #   refreshMinutes = 45;
-      # };
-
-      # Example: enable webhooks + keep tokens in sops.
-      # hooks = {
-      #   enabled = true;
-      #   tokenSecret = "clawdbot_hook_token_maren";
-      #   gmailPushTokenSecret = "gog_push_token_maren";
-      #   config = {
-      #     path = "/hooks";
-      #     presets = [ "gmail" ];
-      #     gmail = {
-      #       account = "maren@example.com";
-      #       topic = "projects/<project-id>/topics/gog-gmail-watch";
-      #       subscription = "gog-gmail-watch-push";
-      #       hookUrl = "http://127.0.0.1:18789/hooks/gmail";
-      #     };
-      #   };
-      # };
-      # workspace.seedDir = ./workspaces/maren;
-    };
-
-    sonja = mkBot {
-      extraConfig = {
-        gateway.port = gatewayPorts.sonja;
-      };
-      skills = {
-        allowBundled = [ "notion" ];
-      };
-    };
-
-    gunnar = mkBot {
-      extraConfig = {
-        gateway.port = gatewayPorts.gunnar;
-      };
-      skills = {
-        allowBundled = [ "github" "coding-agent" ];
-      };
-    };
-
-    melinda = mkBot {
-      extraConfig = {
-        gateway.port = gatewayPorts.melinda;
-      };
-      skills = {
-        allowBundled = [ "brave-search" ];
-      };
-    };
-  };
+  botProfiles = lib.genAttrs bots mkBotProfile;
 
   backups = {
     restic = {
-      enable = false;
-      repository = "";
+      enable = ((fleetCfg.backups or { }).restic or { }).enable or false;
+      repository = ((fleetCfg.backups or { }).restic or { }).repository or "";
       passwordSecret = "restic_password";
       environmentSecret = null;
-      # paths = [ "/srv/clawdbot" ];
-      # timerConfig = { OnCalendar = "daily"; RandomizedDelaySec = "1h"; Persistent = "true"; };
     };
   };
 
-  routing = {
-    # dev
-    maren = {
-      channels = [ "dev" ];
-      requireMention = true;
-    };
-    # accounting
-    sonja = {
-      channels = [ "accounting" ];
-      requireMention = true;
-    };
-    # devops
-    gunnar = {
-      channels = [ "devops" ];
-      requireMention = true;
-    };
-    # staff
-    melinda = {
-      channels = [ "help" ];
-      requireMention = true;
-    };
-  };
+  routing = lib.recursiveUpdate
+    (lib.genAttrs bots (_: defaultRouting))
+    routingOverrides;
 }

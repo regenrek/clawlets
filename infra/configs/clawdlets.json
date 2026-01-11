@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "fleet": {
+    "guildId": "",
+    "bots": ["maren", "sonja", "gunnar", "melinda"],
+    "botOverrides": {},
+    "routingOverrides": {},
+    "codex": { "enable": false, "bots": [] },
+    "backups": { "restic": { "enable": false, "repository": "" } }
+  },
+  "hosts": {
+    "clawdbot-fleet-host": {
+      "enable": false,
+      "bootstrapSsh": true,
+      "diskDevice": "/dev/disk/by-id/CHANGE_ME",
+      "sshAuthorizedKeys": [],
+      "tailnet": { "mode": "none", "wireguardAdminPeers": [] },
+      "agentModelPrimary": "zai/glm-4.7"
+    }
+  }
+}
+

@@ -1,3 +1,3 @@
 output "ipv4" {
-  value = module.bots01.ipv4
+  value = module.clawdbot_fleet_host.ipv4
 }

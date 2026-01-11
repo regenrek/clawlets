@@ -55,9 +55,9 @@ provider "hcloud" {
   token = var.hcloud_token
 }
 
-module "bots01" {
+module "clawdbot_fleet_host" {
   source        = "./modules/bot_host"
-  name          = "bots01"
+  name          = "clawdbot-fleet-host"
   admin_cidr    = var.admin_cidr
   ssh_key_id    = var.ssh_key_id
   bootstrap_ssh = var.bootstrap_ssh
