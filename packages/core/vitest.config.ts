@@ -17,6 +17,7 @@ export default defineConfig({
         "src/lib/age.ts",
         "src/lib/age-keygen.ts",
         "src/lib/clawdlets-config.ts",
+        "src/lib/dot-path.ts",
         "src/lib/docs-index.ts",
         "src/lib/dotenv-file.ts",
         "src/lib/env.ts",
