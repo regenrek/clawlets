@@ -11,7 +11,7 @@ import { mkpasswdYescryptHash } from "@clawdbot/clawdlets-core/lib/mkpasswd";
 import { sopsPathRegexForDirFiles, upsertSopsCreationRule } from "@clawdbot/clawdlets-core/lib/sops-config";
 import { sopsDecryptYamlFile, sopsEncryptYamlToFile } from "@clawdbot/clawdlets-core/lib/sops";
 import { sanitizeOperatorId } from "@clawdbot/clawdlets-core/lib/identifiers";
-import { buildSecretsInitTemplate, parseSecretsInitJson, validateSecretsInitNonInteractive, type SecretsInitJson } from "@clawdbot/clawdlets-core/lib/secrets-init";
+import { buildSecretsInitTemplate, isPlaceholderSecretValue, listSecretsInitPlaceholders, parseSecretsInitJson, validateSecretsInitNonInteractive, type SecretsInitJson } from "@clawdbot/clawdlets-core/lib/secrets-init";
 import { loadStack, loadStackEnv } from "@clawdbot/clawdlets-core/stack";
 import { assertSafeHostName, loadClawdletsConfig } from "@clawdbot/clawdlets-core/lib/clawdlets-config";
 import { readYamlScalarFromMapping } from "@clawdbot/clawdlets-core/lib/yaml-scalar";
@@ -103,8 +103,11 @@ export const secretsInit = defineCommand({
         fromJson = defaultSecretsJsonPath;
         if (!args.allowPlaceholders) {
           const raw = fs.readFileSync(defaultSecretsJsonPath, "utf8");
-          if (raw.includes("<")) {
+          const parsed = parseSecretsInitJson(raw);
+          const placeholders = listSecretsInitPlaceholders({ input: parsed, bots, requiresTailscaleAuthKey });
+          if (placeholders.length > 0) {
             console.error(`error: placeholders found in ${defaultSecretsJsonDisplay} (fill it or pass --allow-placeholders)`);
+            for (const p0 of placeholders) console.error(`- ${p0}`);
             process.exitCode = 1;
             return;
           }
@@ -119,7 +122,7 @@ export const secretsInit = defineCommand({
 
         console.error(`${args.dryRun ? "would write" : "wrote"} secrets template: ${defaultSecretsJsonDisplay}`);
         if (args.dryRun) console.error("run without --dry-run to write it");
-        else console.error(`fill it, then run: clawdlets secrets init --host ${hostName} --from-json ${defaultSecretsJsonDisplay}`);
+        else console.error(`fill it, then run: clawdlets secrets init --from-json ${defaultSecretsJsonDisplay}`);
         process.exitCode = 1;
         return;
       }
@@ -273,7 +276,7 @@ export const secretsInit = defineCommand({
       const existing = await readExistingScalar(secretName);
       if (secretName === "tailscale_auth_key") {
         if (values.tailscaleAuthKey.trim()) resolvedValues[secretName] = values.tailscaleAuthKey.trim();
-        else if (existing && !existing.includes("<")) resolvedValues[secretName] = existing;
+        else if (existing && !isPlaceholderSecretValue(existing)) resolvedValues[secretName] = existing;
         else if (args.allowPlaceholders) resolvedValues[secretName] = "<FILL_ME>";
         else throw new Error("missing tailscale auth key (tailscale_auth_key); pass --allow-placeholders only if you intend to set it later");
         continue;

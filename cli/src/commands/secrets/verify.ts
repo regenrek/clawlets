@@ -6,8 +6,9 @@ import YAML from "yaml";
 import { sopsDecryptYamlFile } from "@clawdbot/clawdlets-core/lib/sops";
 import { sanitizeOperatorId } from "@clawdbot/clawdlets-core/lib/identifiers";
 import { loadClawdletsConfig } from "@clawdbot/clawdlets-core/lib/clawdlets-config";
+import { isPlaceholderSecretValue } from "@clawdbot/clawdlets-core/lib/secrets-init";
 import { loadStack } from "@clawdbot/clawdlets-core/stack";
-import { isPlaceholder, readDotenvFile } from "./common.js";
+import { readDotenvFile } from "./common.js";
 import { requireStackHostOrExit, resolveHostNameOrExit } from "../../lib/host-resolve.js";
 
 export const secretsVerify = defineCommand({
@@ -79,11 +80,11 @@ export const secretsVerify = defineCommand({
         }
         const v = parsed[secretName];
         const value = typeof v === "string" ? v : v == null ? "" : String(v);
-        if (!optional && isPlaceholder(value)) {
+        if (!optional && isPlaceholderSecretValue(value)) {
           results.push({ secret: secretName, status: "missing", detail: `(placeholder: ${value.trim()})` });
           return;
         }
-        if (optional && isPlaceholder(value) && value.trim() !== "<OPTIONAL>") {
+        if (optional && isPlaceholderSecretValue(value)) {
           results.push({ secret: secretName, status: "missing", detail: `(placeholder: ${value.trim()})` });
           return;
         }
