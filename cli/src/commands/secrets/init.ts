@@ -8,7 +8,7 @@ import { parseAgeKeyFile } from "@clawdbot/clawdlets-core/lib/age";
 import { upsertDotenv } from "@clawdbot/clawdlets-core/lib/dotenv-file";
 import { ensureDir, writeFileAtomic } from "@clawdbot/clawdlets-core/lib/fs-safe";
 import { mkpasswdYescryptHash } from "@clawdbot/clawdlets-core/lib/mkpasswd";
-import { sopsPathRegexForDirFiles, upsertSopsCreationRule } from "@clawdbot/clawdlets-core/lib/sops-config";
+import { removeSopsCreationRule, sopsPathRegexForDirFiles, upsertSopsCreationRule } from "@clawdbot/clawdlets-core/lib/sops-config";
 import { sopsDecryptYamlFile, sopsEncryptYamlToFile } from "@clawdbot/clawdlets-core/lib/sops";
 import { sanitizeOperatorId } from "@clawdbot/clawdlets-core/lib/identifiers";
 import { buildSecretsInitTemplate, isPlaceholderSecretValue, listSecretsInitPlaceholders, parseSecretsInitJson, validateSecretsInitNonInteractive, type SecretsInitJson } from "@clawdbot/clawdlets-core/lib/secrets-init";
@@ -171,9 +171,18 @@ export const secretsInit = defineCommand({
     const hostKeys = await ensureAgePair(hostKeyPath, hostPubPath);
 
     const existingSops = fs.existsSync(sopsConfigPath) ? fs.readFileSync(sopsConfigPath, "utf8") : undefined;
+    const localSecretsDirRelToSopsConfigDir = path
+      .relative(secretsDir, localSecretsDir)
+      .replace(/\\/g, "/");
+
+    const legacySopsPathRegex = sopsPathRegexForDirFiles(`secrets/hosts/${hostName}`, "yaml");
+    const withoutLegacy = removeSopsCreationRule({ existingYaml: existingSops, pathRegex: legacySopsPathRegex });
+    const withoutStdin = removeSopsCreationRule({ existingYaml: withoutLegacy, pathRegex: "^/dev/stdin$" });
+
     const nextSops = upsertSopsCreationRule({
-      existingYaml: existingSops,
-      pathRegex: sopsPathRegexForDirFiles(`secrets/hosts/${hostName}`, "yaml"),
+      existingYaml: withoutStdin,
+      // sops matches against a path relative to the config dir; our config lives at <stackDir>/secrets/.sops.yaml.
+      pathRegex: sopsPathRegexForDirFiles(localSecretsDirRelToSopsConfigDir, "yaml"),
       ageRecipients: [hostKeys.publicKey, operatorKeys.publicKey],
     });
     if (!args.dryRun) {
