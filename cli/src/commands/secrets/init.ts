@@ -95,7 +95,7 @@ export const secretsInit = defineCommand({
     const localSecretsDir = getHostSecretsDir(layout, hostName);
 
     const bots = clawdletsConfig.fleet.bots;
-    if (bots.length === 0) throw new Error("fleet.bots is empty (set bots in infra/configs/clawdlets.json)");
+    if (bots.length === 0) throw new Error("fleet.bots is empty (set bots in fleet/clawdlets.json)");
 
     const tailnetMode = String(hostCfg.tailnet?.mode || "none");
     const requiresTailscaleAuthKey = tailnetMode === "tailscale";

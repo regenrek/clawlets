@@ -163,8 +163,8 @@ describe("clawdlets config schema", () => {
     const { loadClawdletsConfig } = await import("../src/lib/clawdlets-config");
     const repoRoot = await mkdtemp(path.join(tmpdir(), "clawdlets-config-badjson-"));
     try {
-      await mkdir(path.join(repoRoot, "infra", "configs"), { recursive: true });
-      await writeFile(path.join(repoRoot, "infra", "configs", "clawdlets.json"), "{", "utf8");
+      await mkdir(path.join(repoRoot, "fleet"), { recursive: true });
+      await writeFile(path.join(repoRoot, "fleet", "clawdlets.json"), "{", "utf8");
       expect(() => loadClawdletsConfig({ repoRoot })).toThrow(/invalid JSON/i);
     } finally {
       await rm(repoRoot, { recursive: true, force: true });

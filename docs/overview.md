@@ -5,8 +5,9 @@ This repo = **public-safe infra + fleet config + encrypted secrets**.
 ## What lives where
 
 **In git**
-- `infra/`: NixOS + OpenTofu + fleet module
-- `infra/configs/clawdlets.json`: canonical fleet/host config
+- `infra/`: NixOS + OpenTofu + host plumbing + fleet module
+- `fleet/`: bot roster + routing/skills + workspace docs (app layer)
+- `fleet/clawdlets.json`: canonical fleet/host config
 - `secrets/`: sops-encrypted secrets (safe to commit)
 - `docs/`: operating manual
 - `cli/`: `clawdlets` (single entrypoint)
@@ -26,7 +27,7 @@ clawdlets project init --dir ./clawdlets-myproject
 cd ./clawdlets-myproject
 ```
 
-Note: `project init` already includes `infra/configs/clawdlets.json`. Don’t run `clawdlets config init` unless you want to reset it (`--force`).
+Note: `project init` already includes `fleet/clawdlets.json`. Don’t run `clawdlets config init` unless you want to reset it (`--force`).
 
 1) **Configure canonical config (bots/host)**
 

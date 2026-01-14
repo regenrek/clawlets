@@ -44,7 +44,7 @@ function toStringArray(v: unknown): string[] {
 }
 
 const add = defineCommand({
-  meta: { name: "add", description: "Add a host entry to infra/configs/clawdlets.json." },
+  meta: { name: "add", description: "Add a host entry to fleet/clawdlets.json." },
   args: {
     host: { type: "string", description: "Host name." },
   },
@@ -104,7 +104,7 @@ const setDefault = defineCommand({
 });
 
 const set = defineCommand({
-  meta: { name: "set", description: "Set host config fields (in infra/configs/clawdlets.json)." },
+  meta: { name: "set", description: "Set host config fields (in fleet/clawdlets.json)." },
   args: {
     host: { type: "string", description: "Host name (defaults to clawdlets.json defaultHost / sole host)." },
     enable: { type: "string", description: "Enable fleet services (true/false)." },
@@ -204,6 +204,6 @@ const set = defineCommand({
 });
 
 export const host = defineCommand({
-  meta: { name: "host", description: "Manage host config (infra/configs/clawdlets.json)." },
+  meta: { name: "host", description: "Manage host config (fleet/clawdlets.json)." },
   subCommands: { add, "set-default": setDefault, set },
 });

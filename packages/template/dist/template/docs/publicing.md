@@ -9,7 +9,7 @@ Goal: publish repo without leaking:
 
 - `.clawdlets/` must never be tracked.
 - Don’t commit plaintext tokens or private keys. Encrypted secrets live under `secrets/` (sops+age); local operator private keys stay in `.clawdlets/`.
-- Keep host-specific values out of `infra/nix/hosts/*.nix` and `infra/configs/clawdlets.json` before publishing (ship placeholders).
+- Keep host-specific values out of `infra/nix/hosts/*.nix` and `fleet/clawdlets.json` before publishing (ship placeholders).
 
 ## Recommended process (no history)
 

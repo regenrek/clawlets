@@ -2,8 +2,8 @@
 
 Single source of truth:
 
-- `infra/configs/clawdlets.json` (canonical fleet + host config)
-- `infra/configs/bundled-skills.json` (canonical allowlist used by Nix assertions + doctor)
+- `fleet/clawdlets.json` (canonical fleet + host config)
+- `fleet/bundled-skills.json` (canonical allowlist used by Nix assertions + doctor)
 
 Rendered per-bot Clawdbot config:
 
@@ -21,14 +21,32 @@ If you change `bots`, update `secrets/hosts/<host>/discord_token_<name>.yaml`, s
 
 ## Documents (AGENTS / SOUL / TOOLS / IDENTITY)
 
-Seed workspace docs from:
+Workspace docs (prompt/policy) live in:
+
+- `fleet/workspaces/common/` (shared)
+- `fleet/workspaces/bots/<bot>/` (overrides; overlay on top of common)
+  - example: `fleet/workspaces/bots/_example/` (copy to a real bot id)
+
+Fleet config points Nix at the workspace seed root:
 
 ```nix
-documentsDir = ./documents;
+documentsDir = ./workspaces;
 ```
 
-This uses the existing workspace seed mechanism and only copies when the workspace is empty.
-Keep `infra/documents/` as the canonical source.
+On every bot service start:
+
+- if workspace empty: seed common then bot overlay
+- always: sync a managed allowlist (AGENTS/SOUL/IDENTITY/TOOLS/USER/HEARTBEAT) into the workspace
+- always: sync `skills/` into the workspace (custom/local skills)
+
+### Custom/local skills (clawdinator-style)
+
+Put skill definitions under:
+
+- shared: `fleet/workspaces/common/skills/<skill>/SKILL.md`
+- per-bot: `fleet/workspaces/bots/<bot>/skills/<skill>/SKILL.md`
+
+The bot config always includes `skills.load.extraDirs = ["<workspace>/skills"]`, so skills in that folder are discoverable without extra per-bot config.
 
 ## Identity (optional)
 

@@ -18,11 +18,11 @@
     let
       system = "x86_64-linux";
       pkgs = import nixpkgs { inherit system; };
-      cfg = builtins.fromJSON (builtins.readFile ./infra/configs/clawdlets.json);
+      cfg = builtins.fromJSON (builtins.readFile ./fleet/clawdlets.json);
       hostNamesRaw = builtins.attrNames (cfg.hosts or { });
       hostNames =
         if hostNamesRaw == [ ] then
-          throw "infra/configs/clawdlets.json must define at least one host under .hosts"
+          throw "fleet/clawdlets.json must define at least one host under .hosts"
         else
           hostNamesRaw;
       flakeInfo = {

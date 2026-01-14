@@ -6,7 +6,7 @@ Workspace-local operator notes (no secrets). This file is seeded by Nix on first
 
 Bundled skills are an attack surface. Keep an explicit allowlist per bot:
 
-- `infra/configs/fleet.nix` → `botProfiles.<bot>.skills.allowBundled = [ ... ];`
+- `fleet/clawdlets.json` → `fleet.botOverrides.<bot>.skills.allowBundled = [ ... ];`
 - Avoid `null` on servers (typically means “allow all bundled skills”).
 
 ## Tool inventory (generated)

@@ -1,0 +1,9 @@
+pre-commit:
+  jobs:
+    - name: block-forbidden-files
+      run: node scripts/hooks/block-forbidden-staged-files.mjs
+
+pre-push:
+  jobs:
+    - name: block-forbidden-files
+      run: node scripts/hooks/block-forbidden-staged-files.mjs

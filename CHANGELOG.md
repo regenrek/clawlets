@@ -6,9 +6,9 @@ The format is based on Keep a Changelog and this project follows SemVer for npm 
 ## Unreleased
 
 ### Added
-- Base flake resolution: `infra/configs/clawdlets.json.baseFlake` (fallback: `git remote origin`) used by deploy commands (`bootstrap`, `lockdown`, `server rebuild`).
+- Base flake resolution: `fleet/clawdlets.json.baseFlake` (fallback: `git remote origin`) used by deploy commands (`bootstrap`, `lockdown`, `server rebuild`).
 - Non-interactive secrets provisioning: `clawdlets secrets init --from-json <path|->`.
-- Fleet-level secret env wiring: `infra/configs/clawdlets.json.fleet.envSecrets` (env var → sops secret name), used for LLM API keys.
+- Fleet-level secret env wiring: `fleet/clawdlets.json.fleet.envSecrets` (env var → sops secret name), used for LLM API keys.
 - New docs: `docs/config.md` (canonical config + host knobs).
 - Doctor check: `discord routing` now verifies `fleet.guildId` and per-bot `fleet.routingOverrides.<bot>.channels` to prevent “silent” bots.
 - `clawdlets bootstrap --force` skips doctor preflight gate (advanced usage).
@@ -18,7 +18,7 @@ The format is based on Keep a Changelog and this project follows SemVer for npm 
 ### Changed
 - Workflow automation: `nix-clawdbot` bump PRs are created using a GitHub App token (so normal PR checks run) and are compatible with strict branch protection.
 - Repo layout: runtime state is `.clawdlets/` (gitignored); repo-canonical secrets are sops-encrypted in `secrets/`.
-- Config schema bump: `infra/configs/clawdlets.json` schemaVersion `4` (adds `fleet.envSecrets` and removes baked-in provider keys).
+- Config schema bump: `fleet/clawdlets.json` schemaVersion `4` (adds `fleet.envSecrets` and removes baked-in provider keys).
 - CLI flag rename: `--stack-dir` → `--runtime-dir`.
 - Secrets init JSON: replaces `zAiApiKey` with `secrets.<secretName>` map.
 - Doctor UX: output grouped by scope/category with status coloring; add `clawdlets doctor --show-ok` to include ok checks.
@@ -32,14 +32,14 @@ The format is based on Keep a Changelog and this project follows SemVer for npm 
 
 ## [0.1.0] - 2026-01-11
 ### Added
-- Canonical config: `infra/configs/clawdlets.json` (single source of truth) + CLI subcommands (`config`, `host`, `fleet`).
+- Canonical config: `fleet/clawdlets.json` (single source of truth) + CLI subcommands (`config`, `host`, `fleet`).
 - CLI-first project scaffolding (`clawdlets project init`) using the embedded template package.
 - Supply-chain hardening: Dependabot (npm + GitHub Actions), pinned GitHub Actions by SHA, TruffleHog secret scanning workflow.
 - Local security gate: `scripts/secleak-check.sh` (gitleaks + trivy).
 - npm publishing via GitHub Actions Trusted Publishing (OIDC) + release automation docs/scripts.
 
 ### Changed
-- Nix flake now derives `nixosConfigurations` from `infra/configs/clawdlets.json` hosts list (multi-host ready).
+- Nix flake now derives `nixosConfigurations` from `fleet/clawdlets.json` hosts list (multi-host ready).
 - Default UX: non-interactive unless `--interactive` / `CLAWDLETS_INTERACTIVE=1`.
 - Docs updated to be CLI-first (no manual Nix edits; `fleet.nix` treated as derived output).
 
@@ -49,7 +49,7 @@ The format is based on Keep a Changelog and this project follows SemVer for npm 
 
 ## [0.0.0] - 2026-01-10
 ### Added
-- ai-stack alignment: seeded `infra/documents/` (AGENTS/SOUL/TOOLS/IDENTITY) and documented usage.
+- ai-stack alignment: seeded `fleet/workspaces/common/` (AGENTS/SOUL/TOOLS/IDENTITY) and documented usage.
 - Codex CLI support on server with per-bot headless login docs (gunnar + maren).
 - Upstream tracking doc for `nix-clawdbot` updates.
 

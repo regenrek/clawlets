@@ -46,7 +46,7 @@ export const lockdown = defineCommand({
     if (!hostName) return;
     const { layout, config: clawdletsConfig } = loadClawdletsConfig({ repoRoot, runtimeDir: (args as any).runtimeDir });
     const hostCfg = clawdletsConfig.hosts[hostName];
-    if (!hostCfg) throw new Error(`missing host in infra/configs/clawdlets.json: ${hostName}`);
+    if (!hostCfg) throw new Error(`missing host in fleet/clawdlets.json: ${hostName}`);
 
     await requireDeployGate({ runtimeDir: (args as any).runtimeDir, envFile: (args as any).envFile, host: hostName, scope: "deploy", strict: true });
 
@@ -61,7 +61,7 @@ export const lockdown = defineCommand({
 
     const baseResolved = await resolveBaseFlake({ repoRoot, config: clawdletsConfig });
     const flakeBase = String(args.flake || baseResolved.flake || "").trim();
-    if (!flakeBase) throw new Error("missing base flake (set baseFlake in infra/configs/clawdlets.json, set git origin, or pass --flake)");
+    if (!flakeBase) throw new Error("missing base flake (set baseFlake in fleet/clawdlets.json, set git origin, or pass --flake)");
 
     const rev = String(args.rev || "").trim();
     const ref = String(args.ref || "").trim();

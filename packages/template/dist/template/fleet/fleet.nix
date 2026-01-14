@@ -35,7 +35,8 @@ in {
   # set this to your Discord guild/server id
   guildId = fleetCfg.guildId or "";
 
-  documentsDir = ./documents;
+  # Workspace seed root (common + per-bot overlay). See fleet/workspaces/.
+  documentsDir = ./workspaces;
   identity = null;
 
   codex = {

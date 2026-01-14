@@ -2,7 +2,7 @@
 
 ## Update routing / profiles
 
-1) Update `infra/configs/clawdlets.json` via CLI (example: routing override):
+1) Update `fleet/clawdlets.json` via CLI (example: routing override):
 
 ```bash
 clawdlets config set --path fleet.routingOverrides.maren --value-json '{"channels":["dev"],"requireMention":true}'
@@ -46,7 +46,7 @@ Note: `admin@...` rebuild requires `clawdlets.operator.rebuild` enabled on-host 
 
 ## Add/enable a skill
 
-1) If bundled: add id to `infra/configs/bundled-skills.json`
+1) If bundled: add id to `fleet/bundled-skills.json`
 2) Allow per-bot (example):
 ```bash
 clawdlets config set --path fleet.botOverrides.maren.skills.allowBundled --value-json '["github","brave-search"]'

@@ -12,7 +12,7 @@ docs:
     when: you need the right command
     summary: clawdlets and just cookbook
   - path: docs/config.md
-    when: editing infra/configs/clawdlets.json
+    when: editing fleet/clawdlets.json
     summary: schema/fields/example
   - path: docs/agent-config.md
     when: routing, skills, workspaces

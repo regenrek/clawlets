@@ -12,7 +12,7 @@ vi.mock("../src/lib/run.js", () => ({
     if (args.includes("--version")) return "nix (mock) 2.0";
     if (args[0] === "eval" || args.includes("eval")) {
       const joined = args.join(" ");
-      const isTemplate = joined.includes("packages/template/dist/template/infra/configs/fleet.nix");
+      const isTemplate = joined.includes("packages/template/dist/template/fleet/fleet.nix");
       return JSON.stringify(isTemplate ? mockFleetTemplate : mockFleetMain);
     }
     return "";
@@ -42,21 +42,36 @@ describe("doctor", () => {
     await writeFile(path.join(repoRoot, "flake.nix"), "{ }", "utf8");
     await mkdir(path.join(repoRoot, "scripts"), { recursive: true });
     await mkdir(path.join(repoRoot, "docs"), { recursive: true });
+    await mkdir(path.join(repoRoot, "fleet", "workspaces", "common"), { recursive: true });
     await mkdir(path.join(repoRoot, "packages", "template", "dist", "template", "docs"), { recursive: true });
-    await mkdir(path.join(repoRoot, "packages", "template", "dist", "template", "infra", "configs"), { recursive: true });
+    await mkdir(path.join(repoRoot, "packages", "template", "dist", "template", "fleet"), { recursive: true });
+    await mkdir(path.join(repoRoot, "packages", "template", "dist", "template", "fleet", "workspaces", "common"), { recursive: true });
     await mkdir(path.join(repoRoot, "packages", "template", "dist", "template", "infra", "nix", "hosts"), { recursive: true });
     await mkdir(path.join(repoRoot, "infra", "opentofu"), { recursive: true });
-    await mkdir(path.join(repoRoot, "infra", "configs"), { recursive: true });
+    await mkdir(path.join(repoRoot, "fleet"), { recursive: true });
     await mkdir(path.join(repoRoot, "infra", "nix", "hosts"), { recursive: true });
     await mkdir(path.join(repoRoot, ".clawdlets", "extra-files", "clawdbot-fleet-host", "var", "lib", "sops-nix"), { recursive: true });
 
     const bundledSkillsText = ["[", '  "github",', '  "brave-search",', '  "coding-agent"', "]", ""].join("\n");
-    await writeFile(path.join(repoRoot, "infra", "configs", "bundled-skills.json"), bundledSkillsText, "utf8");
+    await writeFile(path.join(repoRoot, "fleet", "bundled-skills.json"), bundledSkillsText, "utf8");
     await writeFile(
-      path.join(repoRoot, "packages", "template", "dist", "template", "infra", "configs", "bundled-skills.json"),
+      path.join(repoRoot, "packages", "template", "dist", "template", "fleet", "bundled-skills.json"),
       bundledSkillsText,
       "utf8",
     );
+
+    const workspaceDocs = {
+      "AGENTS.md": "# agents\n",
+      "SOUL.md": "# soul\n",
+      "IDENTITY.md": "# identity\n",
+      "TOOLS.md": "# tools\n",
+      "USER.md": "# user\n",
+      "HEARTBEAT.md": "# heartbeat\n",
+    };
+    for (const [name, text] of Object.entries(workspaceDocs)) {
+      await writeFile(path.join(repoRoot, "fleet", "workspaces", "common", name), text, "utf8");
+      await writeFile(path.join(repoRoot, "packages", "template", "dist", "template", "fleet", "workspaces", "common", name), text, "utf8");
+    }
 
     await writeFile(path.join(repoRoot, "docs", "overview.md"), "# overview\n", "utf8");
     await writeFile(
@@ -123,15 +138,15 @@ describe("doctor", () => {
       },
     };
 
-    await writeFile(path.join(repoRoot, "infra", "configs", "clawdlets.json"), JSON.stringify(clawdletsConfig, null, 2) + "\n", "utf8");
+    await writeFile(path.join(repoRoot, "fleet", "clawdlets.json"), JSON.stringify(clawdletsConfig, null, 2) + "\n", "utf8");
     await writeFile(
-      path.join(repoRoot, "packages", "template", "dist", "template", "infra", "configs", "clawdlets.json"),
+      path.join(repoRoot, "packages", "template", "dist", "template", "fleet", "clawdlets.json"),
       JSON.stringify(clawdletsConfig, null, 2) + "\n",
       "utf8",
     );
 
     await writeFile(
-      path.join(repoRoot, "infra", "configs", "fleet.nix"),
+      path.join(repoRoot, "fleet", "fleet.nix"),
       [
         "{ lib }:",
         "let",
@@ -150,7 +165,7 @@ describe("doctor", () => {
     );
 
     await writeFile(
-      path.join(repoRoot, "packages", "template", "dist", "template", "infra", "configs", "fleet.nix"),
+      path.join(repoRoot, "packages", "template", "dist", "template", "fleet", "fleet.nix"),
       [
         "{ lib }:",
         "let",
@@ -274,7 +289,7 @@ describe("doctor", () => {
   });
 
   it("requires discord routing config (guildId + channels)", async () => {
-    const configPath = path.join(repoRoot, "infra", "configs", "clawdlets.json");
+    const configPath = path.join(repoRoot, "fleet", "clawdlets.json");
     const original = await readFile(configPath, "utf8");
 
     const raw = JSON.parse(original) as any;
@@ -344,7 +359,7 @@ describe("doctor", () => {
   });
 
 	  it("flags opentofu ssh pubkey file contents as invalid", async () => {
-	    const configPath = path.join(repoRoot, "infra", "configs", "clawdlets.json");
+	    const configPath = path.join(repoRoot, "fleet", "clawdlets.json");
 	    const original = await readFile(configPath, "utf8");
 
 	    const raw = JSON.parse(original) as any;

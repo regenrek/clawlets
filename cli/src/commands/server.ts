@@ -279,7 +279,7 @@ const serverRebuild = defineCommand({
 
     const baseResolved = await resolveBaseFlake({ repoRoot, config });
     const flakeBase = String(args.flake || baseResolved.flake || "").trim();
-    if (!flakeBase) throw new Error("missing base flake (set baseFlake in infra/configs/clawdlets.json, set git origin, or pass --flake)");
+    if (!flakeBase) throw new Error("missing base flake (set baseFlake in fleet/clawdlets.json, set git origin, or pass --flake)");
 
     const requestedHost = String(hostCfg.flakeHost || hostName).trim() || hostName;
     const hostFromFlake = resolveHostFromFlake(flakeBase);

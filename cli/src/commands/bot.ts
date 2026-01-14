@@ -13,7 +13,7 @@ function validateBotId(value: string): string | undefined {
 }
 
 const list = defineCommand({
-  meta: { name: "list", description: "List bots (from infra/configs/clawdlets.json)." },
+  meta: { name: "list", description: "List bots (from fleet/clawdlets.json)." },
   args: {},
   async run({ args }) {
     const repoRoot = findRepoRoot(process.cwd());
@@ -24,7 +24,7 @@ const list = defineCommand({
 });
 
 const add = defineCommand({
-  meta: { name: "add", description: "Add a bot id to infra/configs/clawdlets.json." },
+  meta: { name: "add", description: "Add a bot id to fleet/clawdlets.json." },
   args: {
     bot: { type: "string", description: "Bot id (e.g. maren)." },
     interactive: { type: "boolean", description: "Prompt for missing inputs (requires TTY).", default: false },
@@ -67,7 +67,7 @@ const add = defineCommand({
 });
 
 const rm = defineCommand({
-  meta: { name: "rm", description: "Remove a bot id from infra/configs/clawdlets.json." },
+  meta: { name: "rm", description: "Remove a bot id from fleet/clawdlets.json." },
   args: {
     bot: { type: "string", description: "Bot id to remove.", },
   },

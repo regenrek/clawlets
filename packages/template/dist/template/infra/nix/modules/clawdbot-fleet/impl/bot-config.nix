@@ -32,11 +32,13 @@ let
     let
       profile = getBotProfile b;
       allowBundled = profile.skills.allowBundled or null;
+      workspace = resolveBotWorkspace b;
       extraDirs = (profile.skills.load or {}).extraDirs or [];
+      effectiveExtraDirs = lib.unique ([ "${workspace}/skills" ] ++ extraDirs);
       entries = mkSkillEntries b;
     in
       lib.optionalAttrs (allowBundled != null) { allowBundled = allowBundled; }
-      // lib.optionalAttrs (extraDirs != []) { load.extraDirs = extraDirs; }
+      // lib.optionalAttrs (effectiveExtraDirs != []) { load.extraDirs = effectiveExtraDirs; }
       // lib.optionalAttrs (entries != null) { entries = entries; };
 
   mkBotConfig = b:

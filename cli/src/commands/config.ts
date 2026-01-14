@@ -47,7 +47,7 @@ function deleteAtPath(obj: any, parts: string[]): boolean {
 }
 
 const init = defineCommand({
-  meta: { name: "init", description: "Initialize infra/configs/clawdlets.json (canonical config)." },
+  meta: { name: "init", description: "Initialize fleet/clawdlets.json (canonical config)." },
   args: {
     host: { type: "string", description: "Initial host name.", default: "clawdbot-fleet-host" },
     force: { type: "boolean", description: "Overwrite existing clawdlets.json.", default: false },
@@ -76,7 +76,7 @@ const init = defineCommand({
 });
 
 const show = defineCommand({
-  meta: { name: "show", description: "Print infra/configs/clawdlets.json." },
+  meta: { name: "show", description: "Print fleet/clawdlets.json." },
   args: {
     pretty: { type: "boolean", description: "Pretty-print JSON.", default: true },
   },
@@ -88,7 +88,7 @@ const show = defineCommand({
 });
 
 const validate = defineCommand({
-  meta: { name: "validate", description: "Validate infra/configs/clawdlets.json schema." },
+  meta: { name: "validate", description: "Validate fleet/clawdlets.json schema." },
   args: {},
   async run() {
     const repoRoot = findRepoRoot(process.cwd());
@@ -98,7 +98,7 @@ const validate = defineCommand({
 });
 
 const get = defineCommand({
-  meta: { name: "get", description: "Get a value from infra/configs/clawdlets.json (dot path)." },
+  meta: { name: "get", description: "Get a value from fleet/clawdlets.json (dot path)." },
   args: {
     path: { type: "string", description: "Dot path (e.g. fleet.guildId)." },
     json: { type: "boolean", description: "JSON output.", default: false },
@@ -114,7 +114,7 @@ const get = defineCommand({
 });
 
 const set = defineCommand({
-  meta: { name: "set", description: "Set a value in infra/configs/clawdlets.json (dot path)." },
+  meta: { name: "set", description: "Set a value in fleet/clawdlets.json (dot path)." },
   args: {
     path: { type: "string", description: "Dot path (e.g. fleet.guildId)." },
     value: { type: "string", description: "String value." },
@@ -152,6 +152,6 @@ const set = defineCommand({
 });
 
 export const config = defineCommand({
-  meta: { name: "config", description: "Canonical config (infra/configs/clawdlets.json)." },
+  meta: { name: "config", description: "Canonical config (fleet/clawdlets.json)." },
   subCommands: { init, show, validate, get, set },
 });

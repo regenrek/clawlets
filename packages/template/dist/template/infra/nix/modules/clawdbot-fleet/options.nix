@@ -165,7 +165,17 @@ in {
     documentsDir = lib.mkOption {
       type = lib.types.nullOr lib.types.path;
       default = null;
-      description = "Optional documents directory (AGENTS.md, SOUL.md, TOOLS.md, IDENTITY.md) seeded into bot workspaces.";
+      description = ''
+        Optional workspace seed root for docs and prompt policy.
+
+        Expected structure:
+        - common/<files> (shared)
+        - bots/<bot>/<files> (per-bot overrides; overlay on common)
+
+        On start:
+        - seeds empty workspaces (common then bot overlay)
+        - syncs a managed allowlist (AGENTS.md, SOUL.md, IDENTITY.md, TOOLS.md, USER.md, HEARTBEAT.md) into the workspace
+      '';
     };
 
     identity = lib.mkOption {
@@ -261,7 +271,7 @@ in {
             seedDir = lib.mkOption {
               type = lib.types.nullOr lib.types.path;
               default = null;
-              description = "Optional workspace seed directory copied into an empty workspace before first start.";
+              description = "Optional per-bot workspace seed root (same overlay structure as services.clawdbotFleet.documentsDir); also enables managed-docs sync on each start.";
             };
           };
 
