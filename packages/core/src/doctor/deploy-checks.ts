@@ -118,7 +118,7 @@ export async function addDeployChecks(params: {
   } catch {}
 
   if (!clawdletsHostCfg) {
-    params.push({ scope: "deploy", status: "warn", label: "host config", detail: `(missing host in infra/configs/clawdlets.json: ${host})` });
+    params.push({ scope: "deploy", status: "warn", label: "host config", detail: `(missing host in fleet/clawdlets.json: ${host})` });
   } else {
     params.push({
       scope: "deploy",

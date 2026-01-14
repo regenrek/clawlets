@@ -11,7 +11,7 @@
 
 **Public-safe repo**
 - Nix module + OpenTofu + docs + CLI
-- `infra/configs/clawdlets.json` (no secrets)
+- `fleet/clawdlets.json` (no secrets)
 - `secrets/` (sops-encrypted; safe to commit)
 
 **Local runtime dir (gitignored)**

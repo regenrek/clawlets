@@ -11,12 +11,12 @@ clawdlets --help
 
 ## Inputs
 
-- `infra/configs/clawdlets.json` (canonical config: bots, guildId, host settings)
-- `infra/configs/fleet.nix` (derived fleet config; reads `clawdlets.json`; don’t edit)
+- `fleet/clawdlets.json` (canonical config: bots, guildId, host settings)
+- `fleet/fleet.nix` (derived fleet config; reads `clawdlets.json`; don’t edit)
 - `secrets/` (committed; sops-encrypted secrets + sops rules)
 - `.clawdlets/` (gitignored runtime: operator keys + nixos-anywhere extra-files)
 - `infra/disko/example.nix` (disk layout; device via `clawdlets.diskDevice`)
-- `infra/documents/*` (AGENTS/SOUL/TOOLS/IDENTITY seeded into workspaces)
+- `fleet/workspaces/` (AGENTS/SOUL/TOOLS/IDENTITY/USER/HEARTBEAT seeded into workspaces)
 - `infra/opentofu/terraform.tfstate` (gitignored; keep single-operator policy)
 
 ## Hetzner Cloud specifics (non-negotiable)
@@ -48,7 +48,7 @@ services.clawdbotFleet.tools.enable = true;
 
 ## 0) Prefill checklist
 
-- `infra/configs/clawdlets.json`
+- `fleet/clawdlets.json`
   - `fleet.guildId`
   - `fleet.bots`
   - `hosts.<host>.sshAuthorizedKeys`
@@ -70,7 +70,7 @@ services.clawdbotFleet.tools.enable = true;
 
 ## Disk device (required)
 
-`infra/disko/example.nix` uses `config.clawdlets.diskDevice`. Before the first install, set it in `infra/configs/clawdlets.json` (or via `clawdlets host set --disk-device ...`):
+`infra/disko/example.nix` uses `config.clawdlets.diskDevice`. Before the first install, set it in `fleet/clawdlets.json` (or via `clawdlets host set --disk-device ...`):
 
 ```nix
 ({ ... }: {

@@ -17,7 +17,7 @@ in
       }
       {
         assertion = builtins.isList defs.knownBundledSkills && lib.all builtins.isString defs.knownBundledSkills;
-        message = "infra/configs/bundled-skills.json must be a JSON list of strings.";
+        message = "fleet/bundled-skills.json must be a JSON list of strings.";
       }
       {
         assertion = cfg.guildId != "";
@@ -64,7 +64,7 @@ in
             in
               allow == null || lib.all (s: lib.elem s defs.knownBundledSkills) allow
           ) cfg.bots;
-        message = "services.clawdbotFleet.botProfiles.<bot>.skills.allowBundled contains unknown skills (see infra/configs/bundled-skills.json).";
+        message = "services.clawdbotFleet.botProfiles.<bot>.skills.allowBundled contains unknown skills (see fleet/bundled-skills.json).";
       }
       {
         assertion =
@@ -154,6 +154,11 @@ in
 
     environment.etc."clawdlets/bin/seed-workspace" = {
       source = ../../../../scripts/seed-workspace.sh;
+      mode = "0755";
+    };
+
+    environment.etc."clawdlets/bin/sync-managed-docs" = {
+      source = ../../../../scripts/sync-managed-docs.sh;
       mode = "0755";
     };
 

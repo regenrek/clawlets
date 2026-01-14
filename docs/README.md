@@ -4,7 +4,7 @@
 - `docs/quickstart.md`: “do these commands” walkthrough
 - `docs/poc.md`: acceptance criteria (“done”)
 - `docs/cli.md`: command cookbook
-- `docs/config.md`: `infra/configs/clawdlets.json` reference
+- `docs/config.md`: `fleet/clawdlets.json` reference
 - `docs/agent-config.md`: routing + skills + workspaces
 - `docs/runtime-layout.md`: canonical on-host paths
 - `docs/install.md`: prerequisites + install details

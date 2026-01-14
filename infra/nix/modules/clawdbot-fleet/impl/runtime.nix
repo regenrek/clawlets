@@ -165,6 +165,7 @@ let
             // lib.optionalAttrs cfg.disableBonjour { CLAWDBOT_DISABLE_BONJOUR = "1"; }
             // lib.optionalAttrs (cfg.hardening.nodeExecMem == "jitless") { NODE_OPTIONS = "--jitless"; }
             // lib.optionalAttrs (seedDir != null) {
+              CLAWDLETS_BOT_ID = b;
               CLAWDLETS_WORKSPACE_DIR = workspace;
               CLAWDLETS_SEED_DIR = toString seedDir;
               CLAWDLETS_TOOLS_MD = "/etc/clawdlets/tools.md";
@@ -186,7 +187,10 @@ let
             Group = "bot-${b}";
             WorkingDirectory = stateDir;
 
-            ExecStartPre = lib.optional (seedDir != null) "/etc/clawdlets/bin/seed-workspace";
+            ExecStartPre = lib.optionals (seedDir != null) [
+              "/etc/clawdlets/bin/seed-workspace"
+              "/etc/clawdlets/bin/sync-managed-docs"
+            ];
             ExecStart = "${clawPkg}/bin/clawdbot gateway";
 
             Restart = "always";

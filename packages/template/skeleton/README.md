@@ -2,7 +2,7 @@
 
 This repo is your fleet config (public-safe).
 
-- Config: `infra/configs/clawdlets.json`
+- Config: `fleet/clawdlets.json`
 - Secrets: `secrets/` (sops-encrypted; safe to commit)
 - Runtime: `.clawdlets/` (gitignored; operator keys + nixos-anywhere extra-files)
 

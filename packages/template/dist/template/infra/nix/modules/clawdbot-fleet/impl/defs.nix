@@ -2,7 +2,7 @@
 
 let
   cfg = config.services.clawdbotFleet;
-  knownBundledSkills = builtins.fromJSON (builtins.readFile ../../../../configs/bundled-skills.json);
+  knownBundledSkills = builtins.fromJSON (builtins.readFile ../../../../../fleet/bundled-skills.json);
 
   defaultHostSecretsDir = "/var/lib/clawdlets/secrets/hosts/${config.networking.hostName}";
   resolvedSopsDir =

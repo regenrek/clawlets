@@ -12,9 +12,12 @@ export type RepoLayout = {
 
   infraDir: string;
   opentofuDir: string;
-  configsDir: string;
+
+  // Fleet (app layer): bot roster, routing, skills, workspace docs.
+  fleetDir: string;
   clawdletsConfigPath: string;
   fleetConfigPath: string;
+  bundledSkillsPath: string;
 
   nixDir: string;
   nixHostsDir: string;
@@ -38,9 +41,10 @@ export function getRepoLayout(repoRoot: string, runtimeDir?: string): RepoLayout
   const envFilePath = path.join(resolvedRuntimeDir, "env");
   const infraDir = path.join(repoRoot, "infra");
   const opentofuDir = path.join(infraDir, "opentofu");
-  const configsDir = path.join(infraDir, "configs");
-  const clawdletsConfigPath = path.join(configsDir, "clawdlets.json");
-  const fleetConfigPath = path.join(configsDir, "fleet.nix");
+  const fleetDir = path.join(repoRoot, "fleet");
+  const clawdletsConfigPath = path.join(fleetDir, "clawdlets.json");
+  const fleetConfigPath = path.join(fleetDir, "fleet.nix");
+  const bundledSkillsPath = path.join(fleetDir, "bundled-skills.json");
   const nixDir = path.join(infraDir, "nix");
   const nixHostsDir = path.join(nixDir, "hosts");
   const nixHostModulePath = path.join(nixHostsDir, "clawdlets-host.nix");
@@ -59,9 +63,10 @@ export function getRepoLayout(repoRoot: string, runtimeDir?: string): RepoLayout
     envFilePath,
     infraDir,
     opentofuDir,
-    configsDir,
+    fleetDir,
     clawdletsConfigPath,
     fleetConfigPath,
+    bundledSkillsPath,
     nixDir,
     nixHostsDir,
     nixHostModulePath,

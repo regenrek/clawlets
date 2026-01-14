@@ -1,4 +1,4 @@
-# Config (`infra/configs/clawdlets.json`)
+# Config (`fleet/clawdlets.json`)
 
 Single source of truth for fleet + host settings.
 
@@ -6,7 +6,7 @@ This file is **committed to git**. Secrets are not stored here (see `docs/secret
 
 ## Related dirs
 
-- `infra/configs/clawdlets.json`: canonical config (validated)
+- `fleet/clawdlets.json`: canonical config (validated)
 - `secrets/`: canonical encrypted secrets (sops + age; safe to commit)
 - `.clawdlets/`: local runtime dir (gitignored)
   - local operator age keys (`.clawdlets/keys/operators/`)

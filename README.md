@@ -20,6 +20,11 @@ Looking for official AWS Deploy? [clawdbot/clawdinators](https://github.com/claw
 
 Ready to ship? Check out the [Quickstart Guide](docs/quickstart.md) to get your fleet running in minutes.
 
+## Local hooks (recommended)
+
+- Install git hooks: `nix run nixpkgs#lefthook -- install -f`
+- Policy is in `.forbidden-paths.regex` (blocks committing local runtime + credential files).
+
 ## Ask an agent (copy/paste prompt)
 
 ```text
@@ -48,7 +53,7 @@ Start by reading docs/README.md, then tell me the minimal command sequence for o
 - Start here: `docs/README.md`
 - [Overview](docs/overview.md) – Mental model + lifecycle.
 - [CLI Cookbook](docs/cli.md) – Common commands and patterns.
-- [Config Reference](docs/config.md) – `infra/configs/clawdlets.json` reference.
+- [Config Reference](docs/config.md) – `fleet/clawdlets.json` reference.
 - [Installation Guide](docs/install.md) – Prerequisites and setup.
 - [Deployment & Updates](docs/deploy.md) – How to ship changes.
 - [Agent Configuration](docs/agent-config.md) – Routing, skills, and workspaces.

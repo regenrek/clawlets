@@ -40,7 +40,7 @@ function parseArgs(argv) {
 function findProjectRoot(startDir) {
   let dir = startDir;
   for (;;) {
-    const cfg = path.join(dir, "infra", "configs", "clawdlets.json");
+    const cfg = path.join(dir, "fleet", "clawdlets.json");
     if (fs.existsSync(cfg)) return dir;
     const parent = path.dirname(dir);
     if (parent === dir) return null;
@@ -266,12 +266,12 @@ function validateInput(input) {
 }
 
 function loadConfigIfExists(repoRoot) {
-  const cfgPath = path.join(repoRoot, "infra", "configs", "clawdlets.json");
+  const cfgPath = path.join(repoRoot, "fleet", "clawdlets.json");
   if (!fs.existsSync(cfgPath)) return null;
   try {
     return JSON.parse(fs.readFileSync(cfgPath, "utf8"));
   } catch {
-    die(`failed to parse infra/configs/clawdlets.json (invalid JSON): ${cfgPath}`);
+    die(`failed to parse fleet/clawdlets.json (invalid JSON): ${cfgPath}`);
   }
 }
 
@@ -282,7 +282,7 @@ export function main(argv = process.argv.slice(2)) {
   if (!cmd || (cmd !== "init" && cmd !== "apply")) return usage();
 
   const repoRoot = findProjectRoot(process.cwd());
-  if (!repoRoot) die("not in a clawdlets project (missing infra/configs/clawdlets.json)");
+  if (!repoRoot) die("not in a clawdlets project (missing fleet/clawdlets.json)");
 
   const relDefault = path.join(".clawdlets", "day0.json");
   const filePath = args.file ? path.resolve(process.cwd(), String(args.file)) : path.join(repoRoot, relDefault);
@@ -442,4 +442,3 @@ const argv1 = process.argv[1] ? path.resolve(process.argv[1]) : "";
 if (argv1 && argv1 === selfPath) {
   main(process.argv.slice(2));
 }
-

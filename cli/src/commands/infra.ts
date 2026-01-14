@@ -33,7 +33,7 @@ const infraApply = defineCommand({
     if (!hostName) return;
     const { layout, config: clawdletsConfig } = loadClawdletsConfig({ repoRoot, runtimeDir: (args as any).runtimeDir });
     const hostCfg = clawdletsConfig.hosts[hostName];
-    if (!hostCfg) throw new Error(`missing host in infra/configs/clawdlets.json: ${hostName}`);
+    if (!hostCfg) throw new Error(`missing host in fleet/clawdlets.json: ${hostName}`);
 
     const deployCreds = loadDeployCreds({ cwd, runtimeDir: (args as any).runtimeDir, envFile: (args as any).envFile });
     if (deployCreds.envFile?.status === "invalid") throw new Error(`deploy env file rejected: ${deployCreds.envFile.path} (${deployCreds.envFile.error || "invalid"})`);
@@ -91,7 +91,7 @@ const infraDestroy = defineCommand({
     if (!hostName) return;
     const { layout, config: clawdletsConfig } = loadClawdletsConfig({ repoRoot, runtimeDir: (args as any).runtimeDir });
     const hostCfg = clawdletsConfig.hosts[hostName];
-    if (!hostCfg) throw new Error(`missing host in infra/configs/clawdlets.json: ${hostName}`);
+    if (!hostCfg) throw new Error(`missing host in fleet/clawdlets.json: ${hostName}`);
 
     const deployCreds = loadDeployCreds({ cwd, runtimeDir: (args as any).runtimeDir, envFile: (args as any).envFile });
     if (deployCreds.envFile?.status === "invalid") throw new Error(`deploy env file rejected: ${deployCreds.envFile.path} (${deployCreds.envFile.error || "invalid"})`);

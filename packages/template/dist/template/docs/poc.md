@@ -6,7 +6,7 @@ Goal: prove clawdlets can provision + operate a single Hetzner host end-to-end w
 
 ### Provision + install
 
-- `infra/configs/clawdlets.json` exists (schemaVersion 4) and is the single source of truth for fleet + hosts.
+- `fleet/clawdlets.json` exists (schemaVersion 4) and is the single source of truth for fleet + hosts.
 - `clawdlets env init` created `.clawdlets/env` and `HCLOUD_TOKEN` is set (local-only; never committed).
 - `CLAWDLETS_INTERACTIVE=1 clawdlets secrets init` created/updated:
   - `secrets/.sops.yaml`
@@ -26,7 +26,7 @@ Goal: prove clawdlets can provision + operate a single Hetzner host end-to-end w
   - decrypted runtime material exists under `/run/secrets/`
 - Services are healthy:
   - `systemctl status 'clawdbot-*' --no-pager`
-  - expected bots are running (per `infra/configs/clawdlets.json`).
+  - expected bots are running (per `fleet/clawdlets.json`).
 - Discord routing works (bots respond in expected channels).
 
 ### Lockdown (no public SSH)

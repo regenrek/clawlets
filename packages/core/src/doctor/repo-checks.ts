@@ -17,6 +17,11 @@ export type RepoDoctorResult = {
   fleetBots: string[] | null;
 };
 
+function allExist(paths: string[]): { ok: boolean; missing: string[] } {
+  const missing = paths.filter((p) => !fs.existsSync(p));
+  return { ok: missing.length === 0, missing };
+}
+
 function nixUserHasWheel(params: { hostText: string; user: string }): boolean {
   const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const rx = new RegExp(`users\\.users\\.${escapeRegex(params.user)}\\s*=\\s*\\{([\\s\\S]*?)\\};`, "g");
@@ -148,6 +153,36 @@ export async function addRepoChecks(params: {
   }
 
   {
+    const commonDir = path.join(repoRoot, "fleet", "workspaces", "common");
+    const required = [
+      path.join(commonDir, "AGENTS.md"),
+      path.join(commonDir, "SOUL.md"),
+      path.join(commonDir, "IDENTITY.md"),
+      path.join(commonDir, "TOOLS.md"),
+      path.join(commonDir, "USER.md"),
+      path.join(commonDir, "HEARTBEAT.md"),
+    ];
+
+    const r = allExist(required);
+    params.push({
+      scope: "repo",
+      status: r.ok ? "ok" : "missing",
+      label: "fleet workspaces",
+      detail: r.ok ? "(common docs present)" : `missing: ${r.missing.map((p) => path.relative(repoRoot, p)).join(", ")}`,
+    });
+
+    const templateCommonDir = path.join(repoRoot, "packages", "template", "dist", "template", "fleet", "workspaces", "common");
+    const templateRequired = required.map((p) => path.join(templateCommonDir, path.basename(p)));
+    const rt = allExist(templateRequired);
+    params.push({
+      scope: "repo",
+      status: rt.ok ? "ok" : "missing",
+      label: "template fleet workspaces",
+      detail: rt.ok ? "(common docs present)" : `missing: ${rt.missing.map((p) => path.relative(repoRoot, p)).join(", ")}`,
+    });
+  }
+
+  {
     const configPath = layout.clawdletsConfigPath;
     if (!fs.existsSync(configPath)) {
       params.push({ scope: "repo", status: "missing", label: "clawdlets config", detail: configPath });
@@ -162,7 +197,7 @@ export async function addRepoChecks(params: {
       }
     }
 
-    const templateConfigPath = path.join(repoRoot, "packages", "template", "dist", "template", "infra", "configs", "clawdlets.json");
+    const templateConfigPath = path.join(repoRoot, "packages", "template", "dist", "template", "fleet", "clawdlets.json");
     if (!fs.existsSync(templateConfigPath)) {
       params.push({ scope: "repo", status: "missing", label: "template clawdlets config", detail: templateConfigPath });
     } else {
@@ -184,7 +219,7 @@ export async function addRepoChecks(params: {
         scope: "repo",
         status: ok ? "ok" : "missing",
         label: "fleet reads clawdlets.json",
-        detail: ok ? "(ok)" : `(expected ${path.relative(repoRoot, fleetNixPath)} to read infra/configs/clawdlets.json)`,
+        detail: ok ? "(ok)" : `(expected ${path.relative(repoRoot, fleetNixPath)} to read fleet/clawdlets.json)`,
       });
     }
   }
@@ -225,7 +260,7 @@ export async function addRepoChecks(params: {
       }
 
       {
-        const templateFleetPath = path.join(repoRoot, "packages", "template", "dist", "template", "infra", "configs", "fleet.nix");
+        const templateFleetPath = path.join(repoRoot, "packages", "template", "dist", "template", "fleet", "fleet.nix");
         if (!fs.existsSync(templateFleetPath)) {
           params.push({ scope: "repo", status: "missing", label: "template fleet config", detail: templateFleetPath });
         } else {
@@ -274,7 +309,7 @@ export async function addRepoChecks(params: {
           scope: "repo",
           status: ok ? "ok" : "warn",
           label: "host reads clawdlets.json",
-          detail: ok ? "(ok)" : `(expected ${path.relative(repoRoot, hostNixFile)} to read infra/configs/clawdlets.json)`,
+          detail: ok ? "(ok)" : `(expected ${path.relative(repoRoot, hostNixFile)} to read fleet/clawdlets.json)`,
         });
       }
 
@@ -325,7 +360,7 @@ export async function addRepoChecks(params: {
         scope: "repo",
         status: ok ? "ok" : "missing",
         label: "template host reads clawdlets.json",
-        detail: ok ? "(ok)" : "(expected template host config to read infra/configs/clawdlets.json)",
+        detail: ok ? "(ok)" : "(expected template host config to read fleet/clawdlets.json)",
       });
     }
   }

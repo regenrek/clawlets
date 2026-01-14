@@ -25,6 +25,6 @@ export function loadHostContextOrExit(params: { cwd: string; runtimeDir?: string
   if (!hostName) return null;
   const { repoRoot, layout, config } = loadRepoContext({ cwd: params.cwd, runtimeDir: params.runtimeDir });
   const hostCfg = config.hosts[hostName];
-  if (!hostCfg) throw new Error(`missing host in infra/configs/clawdlets.json: ${hostName}`);
+  if (!hostCfg) throw new Error(`missing host in fleet/clawdlets.json: ${hostName}`);
   return { repoRoot, layout, config, hostName, hostCfg };
 }

@@ -18,8 +18,8 @@ export function dirHasAnyFile(dirPath: string): boolean {
 }
 
 export function loadKnownBundledSkills(repoRoot: string): { ok: boolean; skills: string[]; errors: string[] } {
-  const repoPath = path.join(repoRoot, "infra", "configs", "bundled-skills.json");
-  const tplPath = path.join(repoRoot, "packages", "template", "dist", "template", "infra", "configs", "bundled-skills.json");
+  const repoPath = path.join(repoRoot, "fleet", "bundled-skills.json");
+  const tplPath = path.join(repoRoot, "packages", "template", "dist", "template", "fleet", "bundled-skills.json");
 
   const errors: string[] = [];
 
@@ -42,7 +42,7 @@ export function loadKnownBundledSkills(repoRoot: string): { ok: boolean; skills:
 
   if (repoText && tplText && repoText.trim() !== tplText.trim()) {
     errors.push(
-      "bundled skills mismatch: infra/configs/bundled-skills.json must match packages/template/dist/template/infra/configs/bundled-skills.json",
+      "bundled skills mismatch: fleet/bundled-skills.json must match packages/template/dist/template/fleet/bundled-skills.json",
     );
   }
 
@@ -51,16 +51,16 @@ export function loadKnownBundledSkills(repoRoot: string): { ok: boolean; skills:
   try {
     const parsed = JSON.parse(repoText) as unknown;
     if (!Array.isArray(parsed) || !parsed.every((x) => typeof x === "string")) {
-      errors.push("infra/configs/bundled-skills.json must be a JSON array of strings");
+      errors.push("fleet/bundled-skills.json must be a JSON array of strings");
       return { ok: false, skills: [], errors };
     }
 
     const cleaned = parsed.map((s) => s.trim()).filter(Boolean);
     const uniq = Array.from(new Set(cleaned));
-    if (uniq.length === 0) errors.push("infra/configs/bundled-skills.json must not be empty");
+    if (uniq.length === 0) errors.push("fleet/bundled-skills.json must not be empty");
     return { ok: errors.length === 0, skills: uniq, errors };
   } catch (e) {
-    errors.push(`invalid JSON: infra/configs/bundled-skills.json (${String((e as Error)?.message || e)})`);
+    errors.push(`invalid JSON: fleet/bundled-skills.json (${String((e as Error)?.message || e)})`);
     return { ok: false, skills: [], errors };
   }
 }

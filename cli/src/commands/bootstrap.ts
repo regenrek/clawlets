@@ -59,7 +59,7 @@ export const bootstrap = defineCommand({
 	    if (!hostName) return;
 	    const { layout, config: clawdletsConfig } = loadClawdletsConfig({ repoRoot, runtimeDir: (args as any).runtimeDir });
 	    const hostCfg = clawdletsConfig.hosts[hostName];
-	    if (!hostCfg) throw new Error(`missing host in infra/configs/clawdlets.json: ${hostName}`);
+	    if (!hostCfg) throw new Error(`missing host in fleet/clawdlets.json: ${hostName}`);
 
 	    if (Boolean((args as any).force)) {
 	      console.error("warn: skipping doctor gate (--force)");
@@ -126,7 +126,7 @@ export const bootstrap = defineCommand({
 
 	    const baseResolved = await resolveBaseFlake({ repoRoot, config: clawdletsConfig });
 	    const flakeBase = String(args.flake || baseResolved.flake || "").trim();
-	    if (!flakeBase) throw new Error("missing base flake (set baseFlake in infra/configs/clawdlets.json, set git origin, or pass --flake)");
+	    if (!flakeBase) throw new Error("missing base flake (set baseFlake in fleet/clawdlets.json, set git origin, or pass --flake)");
 
     const rev = String(args.rev || "").trim();
     const ref = String(args.ref || "").trim();

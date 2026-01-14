@@ -4,7 +4,7 @@ import { findRepoRoot } from "@clawdbot/clawdlets-core/lib/repo";
 import { ClawdletsConfigSchema, loadClawdletsConfig, writeClawdletsConfig } from "@clawdbot/clawdlets-core/lib/clawdlets-config";
 
 const show = defineCommand({
-  meta: { name: "show", description: "Print fleet config (from infra/configs/clawdlets.json)." },
+  meta: { name: "show", description: "Print fleet config (from fleet/clawdlets.json)." },
   args: {},
   async run() {
     const repoRoot = findRepoRoot(process.cwd());
@@ -14,7 +14,7 @@ const show = defineCommand({
 });
 
 const set = defineCommand({
-  meta: { name: "set", description: "Set fleet config fields (in infra/configs/clawdlets.json)." },
+  meta: { name: "set", description: "Set fleet config fields (in fleet/clawdlets.json)." },
   args: {
     "guild-id": { type: "string", description: "Discord guild/server id." },
     "codex-enable": { type: "string", description: "Enable codex (true/false)." },
@@ -56,6 +56,6 @@ const set = defineCommand({
 });
 
 export const fleet = defineCommand({
-  meta: { name: "fleet", description: "Manage fleet config (infra/configs/clawdlets.json)." },
+  meta: { name: "fleet", description: "Manage fleet config (fleet/clawdlets.json)." },
   subCommands: { show, set },
 });

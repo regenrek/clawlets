@@ -77,12 +77,13 @@ function main() {
 
   copyTree(path.join(repoRoot, "docs"), path.join(outDir, "docs"));
   copyTree(path.join(repoRoot, "infra"), path.join(outDir, "infra"));
+  copyTree(path.join(repoRoot, "fleet"), path.join(outDir, "fleet"));
   if (fs.existsSync(path.join(repoRoot, "agent-playbooks"))) {
     copyTree(path.join(repoRoot, "agent-playbooks"), path.join(outDir, "agent-playbooks"));
   }
 
   ensureDir(path.join(outDir, "scripts"));
-  for (const f of ["agent-bootstrap-server.mjs", "gh-sync.sh", "gh-sync-read.sh", "gh-mint-app-token.sh", "ops-snapshot.sh", "rebuild-host.sh", "seed-workspace.sh", "secleak-check.sh"]) {
+  for (const f of ["agent-bootstrap-server.mjs", "gh-sync.sh", "gh-sync-read.sh", "gh-mint-app-token.sh", "ops-snapshot.sh", "rebuild-host.sh", "seed-workspace.sh", "sync-managed-docs.sh", "secleak-check.sh"]) {
     copyFile(path.join(repoRoot, "scripts", f), path.join(outDir, "scripts", f));
   }
 

@@ -1,0 +1,31 @@
+# Forbidden staged paths (regex; matched against git paths).
+# Keep conservative; GitHub push protection is the hard gate.
+#
+# Local runtime + plaintext secrets
+(^|/)\\.clawdlets/
+(^|/)\\.env($|/)
+(^|/)\\.env\\.
+
+# Note: encrypted secrets live under `secrets/` in many clawdlets projects.
+# Don't blanket-block `secrets/` here; rely on other patterns (and push protection)
+# to prevent plaintext creds from being committed.
+
+# Common credential files
+(^|/)\\.aws/credentials$
+(^|/)\\.npmrc$
+(^|/)\\.netrc$
+(^|/)\\.git-credentials$
+
+# Terraform/OpenTofu state/plan
+\\.tfstate($|\\.|/)
+\\.tfplan$
+
+# Private keys / keystores
+\\.pem$
+\\.key$
+\\.p12$
+\\.jks$
+\\.keystore$
+(^|/)id_rsa$
+(^|/)id_ed25519$
+\\.agekey$

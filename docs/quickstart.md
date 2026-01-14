@@ -40,7 +40,7 @@ clawdlets project init --dir ./clawdlets-myproject
 cd ./clawdlets-myproject
 ```
 
-Note: `project init` already includes `infra/configs/clawdlets.json`. Don’t run `clawdlets config init` unless you want to reset it (`--force`).
+Note: `project init` already includes `fleet/clawdlets.json`. Don’t run `clawdlets config init` unless you want to reset it (`--force`).
 
 1) Configure fleet + host (CLI-first):
 - set guild id: `clawdlets fleet set --guild-id <discord-guild-id>`
@@ -51,7 +51,7 @@ Note: `project init` already includes `infra/configs/clawdlets.json`. Don’t ru
   - enable fleet: `clawdlets host set --enable true`
   - tailnet defaults to Tailscale (change via `clawdlets host set --tailnet none|tailscale` if needed)
 
-Canonical config lives in `infra/configs/clawdlets.json` (don’t edit Nix files directly).
+Canonical config lives in `fleet/clawdlets.json` (don’t edit Nix files directly).
 
 2) Create secrets + preflight:
 ```bash
@@ -64,7 +64,7 @@ Edit `.clawdlets/env` and set `HCLOUD_TOKEN` (required). Set `GITHUB_TOKEN` only
 
 Non-interactive: keep inputs in `.clawdlets/secrets.json` and run `clawdlets secrets init --from-json .clawdlets/secrets.json` (if the file is missing, `secrets init` will write a template and exit).
 
-LLM API keys are provided via `secrets.<secretName>` in that JSON (e.g. `secrets.z_ai_api_key`) and wired to env via `fleet.envSecrets` in `infra/configs/clawdlets.json`.
+LLM API keys are provided via `secrets.<secretName>` in that JSON (e.g. `secrets.z_ai_api_key`) and wired to env via `fleet.envSecrets` in `fleet/clawdlets.json`.
 
 3) Provision + install:
 ```bash
@@ -104,7 +104,7 @@ clawdlets server logs --target-host admin@<ipv4> --unit clawdbot-maren.service -
 - Change tokens/passwords: edit `secrets/hosts/<host>/*.yaml` with sops, sync, rebuild.
 - Add a bot: `clawdlets bot add --bot <id>` → re-run `clawdlets secrets init` → rebuild.
 - Add/enable a skill:
-  - add it to `infra/configs/bundled-skills.json` (if bundled)
+  - add it to `fleet/bundled-skills.json` (if bundled)
   - allow it per-bot via canonical config:
     - `clawdlets config set --path fleet.botOverrides.<bot>.skills.allowBundled --value-json '["github","brave-search"]'`
   - if it needs secrets: add `secrets/hosts/<host>/<secret>.yaml`, then `clawdlets secrets sync` → rebuild
