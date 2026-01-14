@@ -5,7 +5,7 @@ let
   hostCfg = (cfg.hosts.${config.clawdlets.hostName} or { });
   tailnet = (hostCfg.tailnet or { });
   tailnetMode = tailnet.mode or "none";
-  fleet = import ../../../fleet/fleet.nix { inherit lib; };
+  fleet = import ../../configs/fleet.nix { inherit lib; };
   enableRootPassword = false;
 in {
   imports = [

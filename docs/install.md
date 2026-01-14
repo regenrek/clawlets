@@ -12,7 +12,7 @@ clawdlets --help
 ## Inputs
 
 - `fleet/clawdlets.json` (canonical config: bots, guildId, host settings)
-- `fleet/fleet.nix` (derived fleet config; reads `clawdlets.json`; don’t edit)
+- `infra/configs/fleet.nix` (derived fleet config; reads `clawdlets.json`; don’t edit)
 - `secrets/` (committed; sops-encrypted secrets + sops rules)
 - `.clawdlets/` (gitignored runtime: operator keys + nixos-anywhere extra-files)
 - `infra/disko/example.nix` (disk layout; device via `clawdlets.diskDevice`)

@@ -12,7 +12,7 @@ vi.mock("../src/lib/run.js", () => ({
     if (args.includes("--version")) return "nix (mock) 2.0";
     if (args[0] === "eval" || args.includes("eval")) {
       const joined = args.join(" ");
-      const isTemplate = joined.includes("packages/template/dist/template/fleet/fleet.nix");
+      const isTemplate = joined.includes("packages/template/dist/template/infra/configs/fleet.nix");
       return JSON.stringify(isTemplate ? mockFleetTemplate : mockFleetMain);
     }
     return "";
@@ -46,9 +46,11 @@ describe("doctor", () => {
     await mkdir(path.join(repoRoot, "packages", "template", "dist", "template", "docs"), { recursive: true });
     await mkdir(path.join(repoRoot, "packages", "template", "dist", "template", "fleet"), { recursive: true });
     await mkdir(path.join(repoRoot, "packages", "template", "dist", "template", "fleet", "workspaces", "common"), { recursive: true });
+    await mkdir(path.join(repoRoot, "packages", "template", "dist", "template", "infra", "configs"), { recursive: true });
     await mkdir(path.join(repoRoot, "packages", "template", "dist", "template", "infra", "nix", "hosts"), { recursive: true });
     await mkdir(path.join(repoRoot, "infra", "opentofu"), { recursive: true });
     await mkdir(path.join(repoRoot, "fleet"), { recursive: true });
+    await mkdir(path.join(repoRoot, "infra", "configs"), { recursive: true });
     await mkdir(path.join(repoRoot, "infra", "nix", "hosts"), { recursive: true });
     await mkdir(path.join(repoRoot, ".clawdlets", "extra-files", "clawdbot-fleet-host", "var", "lib", "sops-nix"), { recursive: true });
 
@@ -146,11 +148,11 @@ describe("doctor", () => {
     );
 
     await writeFile(
-      path.join(repoRoot, "fleet", "fleet.nix"),
+      path.join(repoRoot, "infra", "configs", "fleet.nix"),
       [
         "{ lib }:",
         "let",
-        "  cfg = builtins.fromJSON (builtins.readFile ./clawdlets.json);",
+        "  cfg = builtins.fromJSON (builtins.readFile ../../fleet/clawdlets.json);",
         "  fleetCfg = cfg.fleet or { };",
         "in {",
         "  bots = fleetCfg.bots or [ \"alpha\" \"beta\" ];",
@@ -165,11 +167,11 @@ describe("doctor", () => {
     );
 
     await writeFile(
-      path.join(repoRoot, "packages", "template", "dist", "template", "fleet", "fleet.nix"),
+      path.join(repoRoot, "packages", "template", "dist", "template", "infra", "configs", "fleet.nix"),
       [
         "{ lib }:",
         "let",
-        "  cfg = builtins.fromJSON (builtins.readFile ./clawdlets.json);",
+        "  cfg = builtins.fromJSON (builtins.readFile ../../fleet/clawdlets.json);",
         "  fleetCfg = cfg.fleet or { };",
         "in {",
         "  bots = fleetCfg.bots or [ \"alpha\" \"beta\" ];",
