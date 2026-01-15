@@ -22,8 +22,9 @@ let
   flake = builtins.getFlake (toString ./.);
   system = "x86_64-linux";
   hostName = "clawdbot-fleet-host";
-  pkgs = import flake.inputs.nixpkgs { inherit system; };
-  cfg = (pkgs.lib.nixosSystem {
+  nixpkgs = flake.inputs.nixpkgs;
+  pkgs = import nixpkgs { inherit system; };
+  cfg = (nixpkgs.lib.nixosSystem {
     inherit system;
     specialArgs = {
       inherit (flake.inputs) nix-clawdbot;

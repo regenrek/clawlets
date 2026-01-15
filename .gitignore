@@ -18,3 +18,4 @@ packages/core/tests/.template/
 # packaging (generated)
 /dist/
 .plan
+.cache/
