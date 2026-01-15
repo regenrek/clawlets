@@ -59,6 +59,8 @@ async function ensureTemplate() {
   const lib = await loadTemplateLib(repoRoot);
   const safeDestRoot = lib.resolveTemplateTestDir({ repoRoot, destRoot });
   const source = await loadTemplateSource(repoRoot, lib);
+  const tarCacheDir = path.join(repoRoot, ".cache", "template");
+  const tarCachePath = path.join(tarCacheDir, `${source.ref}.tar.gz`);
   const existing = await readMetadata(safeDestRoot);
   if (existing && existing.repo === source.repo && existing.path === source.path && existing.ref === source.ref) {
     return;
@@ -71,12 +73,33 @@ async function ensureTemplate() {
   try {
     const tarPath = path.join(tempDir, "template.tar.gz");
     const tarUrl = `https://codeload.github.com/${source.repo}/tar.gz/${source.ref}`;
-    const res = await fetch(tarUrl);
-    if (!res.ok) {
-      throw new Error(`template download failed (${res.status} ${res.statusText})`);
+
+    const useCache = await fs.stat(tarCachePath).then(() => true).catch(() => false);
+    if (useCache) {
+      await fs.copyFile(tarCachePath, tarPath);
+    } else {
+      let lastErr = null;
+      for (let attempt = 1; attempt <= 3; attempt += 1) {
+        try {
+          const res = await fetch(tarUrl, { signal: AbortSignal.timeout(30_000) });
+          if (!res.ok) {
+            throw new Error(`template download failed (${res.status} ${res.statusText})`);
+          }
+          if (!res.body) throw new Error("template download failed (empty body)");
+          await pipeline(Readable.fromWeb(res.body), createWriteStream(tarPath));
+          await fs.mkdir(tarCacheDir, { recursive: true });
+          await fs.copyFile(tarPath, tarCachePath);
+          lastErr = null;
+          break;
+        } catch (err) {
+          lastErr = err;
+          if (attempt < 3) {
+            await new Promise((r) => setTimeout(r, 500 * attempt));
+          }
+        }
+      }
+      if (lastErr) throw lastErr;
     }
-    if (!res.body) throw new Error("template download failed (empty body)");
-    await pipeline(Readable.fromWeb(res.body), createWriteStream(tarPath));
 
     const { stdout } = await exec("tar", ["-tzf", tarPath]);
     const firstLine = stdout.split("\n").find((line) => line.trim().length > 0);

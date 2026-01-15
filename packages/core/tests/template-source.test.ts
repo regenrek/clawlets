@@ -24,12 +24,12 @@ describe("template source validation", () => {
   });
 
   it("validates ref format", () => {
-    expect(normalizeTemplateRef("main")).toBe("main");
-    expect(normalizeTemplateRef("feature/test-1")).toBe("feature/test-1");
+    expect(normalizeTemplateRef("0123456789abcdef0123456789abcdef01234567")).toBe(
+      "0123456789abcdef0123456789abcdef01234567",
+    );
     expect(() => normalizeTemplateRef("")).toThrow(/missing/);
-    expect(() => normalizeTemplateRef("main dev")).toThrow(/whitespace/);
-    expect(() => normalizeTemplateRef("bad..ref")).toThrow(/invalid/);
-    expect(() => normalizeTemplateRef("bad^ref")).toThrow(/invalid/);
+    expect(() => normalizeTemplateRef("main")).toThrow(/40-hex/);
+    expect(() => normalizeTemplateRef("bad^ref")).toThrow(/40-hex/);
   });
 });
 

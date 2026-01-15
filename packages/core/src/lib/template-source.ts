@@ -37,12 +37,8 @@ export function normalizeTemplatePath(input: string): string {
 
 export function normalizeTemplateRef(input: string): string {
   const trimmed = requireValue("template ref", input);
-  if (/\s/.test(trimmed)) throw new Error(`template ref must not contain whitespace (got: ${trimmed})`);
-  if (trimmed.startsWith("/") || trimmed.endsWith("/")) {
-    throw new Error(`template ref must not start/end with '/' (got: ${trimmed})`);
-  }
-  if (trimmed.includes("..") || /[~^:]/.test(trimmed)) {
-    throw new Error(`template ref contains invalid characters (got: ${trimmed})`);
+  if (!/^[0-9a-f]{40}$/.test(trimmed)) {
+    throw new Error(`template ref must be full 40-hex sha (got: ${trimmed})`);
   }
   return trimmed;
 }
