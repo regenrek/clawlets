@@ -15,20 +15,23 @@ function readJson(filePath) {
 }
 
 async function loadTemplateLib(repoRoot) {
-  const libPath = path.join(repoRoot, "packages", "core", "dist", "lib", "template-source.js");
-  if (!await fs.stat(libPath).then(() => true).catch(() => false)) {
-    throw new Error("missing packages/core/dist (run pnpm -r build)");
-  }
-  return await import(pathToFileURL(libPath).href);
+  const libDir = path.join(repoRoot, "packages", "core", "dist", "lib");
+  const sourcePath = path.join(libDir, "template-source.js");
+  const testDirPath = path.join(libDir, "template-test-dir.js");
+  const ok = await fs.stat(sourcePath).then(() => true).catch(() => false);
+  const ok2 = await fs.stat(testDirPath).then(() => true).catch(() => false);
+  if (!ok || !ok2) throw new Error("missing packages/core/dist (run pnpm -r build)");
+  const source = await import(pathToFileURL(sourcePath).href);
+  const testDir = await import(pathToFileURL(testDirPath).href);
+  return { ...source, ...testDir };
 }
 
-async function loadTemplateSource(repoRoot) {
+async function loadTemplateSource(repoRoot, lib) {
   const configPath = path.join(repoRoot, "config", "template-source.json");
   const cfg = await readJson(configPath);
   const repo = process.env.CLAWDLETS_TEMPLATE_REPO || cfg.repo;
   const tplPath = process.env.CLAWDLETS_TEMPLATE_PATH || cfg.path;
   const ref = process.env.CLAWDLETS_TEMPLATE_REF || cfg.ref;
-  const lib = await loadTemplateLib(repoRoot);
   return lib.normalizeTemplateSource({ repo, path: tplPath, ref });
 }
 
@@ -53,14 +56,16 @@ async function ensureTemplate() {
   const destRoot = path.resolve(
     String(process.env.CLAWDLETS_TEMPLATE_TEST_DIR || path.join(repoRoot, "packages", "core", "tests", ".template")),
   );
-  const source = await loadTemplateSource(repoRoot);
-  const existing = await readMetadata(destRoot);
+  const lib = await loadTemplateLib(repoRoot);
+  const safeDestRoot = lib.resolveTemplateTestDir({ repoRoot, destRoot });
+  const source = await loadTemplateSource(repoRoot, lib);
+  const existing = await readMetadata(safeDestRoot);
   if (existing && existing.repo === source.repo && existing.path === source.path && existing.ref === source.ref) {
     return;
   }
 
-  await fs.rm(destRoot, { recursive: true, force: true });
-  await fs.mkdir(destRoot, { recursive: true });
+  await fs.rm(safeDestRoot, { recursive: true, force: true });
+  await fs.mkdir(safeDestRoot, { recursive: true });
 
   const tempDir = await fs.mkdtemp(path.join(tmpdir(), "clawdlets-template-"));
   try {
@@ -84,11 +89,11 @@ async function ensureTemplate() {
     const strip = 1 + pathParts.length;
     const archivePath = `${rootDir}/${pathParts.join("/")}`;
 
-    await exec("tar", ["-xzf", tarPath, "-C", destRoot, "--strip-components", String(strip), archivePath]);
+    await exec("tar", ["-xzf", tarPath, "-C", safeDestRoot, "--strip-components", String(strip), archivePath]);
 
-    const marker = path.join(destRoot, "fleet", "clawdlets.json");
+    const marker = path.join(safeDestRoot, "fleet", "clawdlets.json");
     await fs.access(marker);
-    await writeMetadata(destRoot, source);
+    await writeMetadata(safeDestRoot, source);
   } finally {
     await fs.rm(tempDir, { recursive: true, force: true });
   }
