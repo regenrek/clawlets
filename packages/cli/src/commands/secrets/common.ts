@@ -3,7 +3,12 @@ import { needsSudo, requireTargetHost } from "../ssh-target.js";
 export { needsSudo, requireTargetHost };
 
 function quoteYamlString(value: string): string {
-  return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+  return `"${value
+    .replace(/\\/g, "\\\\")
+    .replace(/\r/g, "\\r")
+    .replace(/\n/g, "\\n")
+    .replace(/\t/g, "\\t")
+    .replace(/"/g, '\\"')}"`;
 }
 
 export function upsertYamlScalarLine(params: { text: string; key: string; value: string }): string {
