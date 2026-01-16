@@ -37,7 +37,7 @@ jobs:
       - name: CLI tests
         env:
           CI: "1"
-        run: pnpm -C cli test
+        run: pnpm -C packages/cli test
 
       - name: Tests
         env:
@@ -91,7 +91,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build CLI
-        run: pnpm -C cli build
+        run: pnpm -C packages/cli build
 
       - uses: cachix/install-nix-action@4e002c8ec80594ecd40e759629461e26c8abed15 # v31.9.0
         with:
@@ -110,10 +110,10 @@ jobs:
         run: |
           set -euo pipefail
           tmpdir="$(mktemp -d)"
-          node "${GITHUB_WORKSPACE}/cli/dist/main.js" project init \
+          node "${GITHUB_WORKSPACE}/packages/cli/dist/main.js" project init \
             --dir "${tmpdir}/clawdlets-project" \
             --git-init false \
             --template "${{ steps.template.outputs.repo }}" \
             --template-path "${{ steps.template.outputs.path }}" \
             --template-ref "${{ steps.template.outputs.ref }}"
-          (cd "${tmpdir}/clawdlets-project" && node "${GITHUB_WORKSPACE}/cli/dist/main.js" doctor --scope repo)
+          (cd "${tmpdir}/clawdlets-project" && node "${GITHUB_WORKSPACE}/packages/cli/dist/main.js" doctor --scope repo)
