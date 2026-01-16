@@ -16,6 +16,7 @@ import { getRecommendedSecretNameForEnvVar } from "@clawdlets/core/lib/llm-provi
 import { buildSecretsInitTemplate, isPlaceholderSecretValue, listSecretsInitPlaceholders, parseSecretsInitJson, resolveSecretsInitFromJsonArg, validateSecretsInitNonInteractive, type SecretsInitJson } from "@clawdlets/core/lib/secrets-init";
 import { readYamlScalarFromMapping } from "@clawdlets/core/lib/yaml-scalar";
 import { getHostEncryptedAgeKeyFile, getHostExtraFilesKeyPath, getHostExtraFilesSecretsDir, getHostSecretsDir, getLocalOperatorAgeKeyPath } from "@clawdlets/core/repo-layout";
+import { expandPath } from "@clawdlets/core/lib/path-expand";
 import { cancelFlow, navOnCancel, NAV_EXIT } from "../../lib/wizard.js";
 import { loadHostContextOrExit } from "../../lib/context.js";
 import { upsertYamlScalarLine } from "./common.js";
@@ -100,6 +101,12 @@ export const secretsInit = defineCommand({
     const tailnetMode = String(hostCfg.tailnet?.mode || "none");
     const requiresTailscaleAuthKey = tailnetMode === "tailscale";
 
+    const garnixPrivate = hostCfg.cache?.garnix?.private;
+    const garnixPrivateEnabled = Boolean(garnixPrivate?.enable);
+    const garnixNetrcSecretName = garnixPrivateEnabled ? String(garnixPrivate?.netrcSecret || "garnix_netrc").trim() : "";
+    const garnixNetrcPath = garnixPrivateEnabled ? String(garnixPrivate?.netrcPath || "/etc/nix/netrc").trim() : "";
+    if (garnixPrivateEnabled && !garnixNetrcSecretName) throw new Error("cache.garnix.private.netrcSecret must be set when private cache is enabled");
+
     const envPlan = buildFleetEnvSecretsPlan({ config: clawdletsConfig, hostName });
     if (envPlan.missingEnvSecretMappings.length > 0) {
       const first = envPlan.missingEnvSecretMappings[0]!;
@@ -111,10 +118,17 @@ export const secretsInit = defineCommand({
 
     const requiredEnvSecretNames = new Set<string>(envPlan.secretNamesRequired);
     const envVarsBySecretName = envPlan.envVarsBySecretName;
+    const requiredExtraSecretNames = new Set<string>([
+      ...requiredEnvSecretNames,
+      ...(garnixPrivateEnabled ? [garnixNetrcSecretName] : []),
+    ]);
 
     const templateExtraSecrets: Record<string, string> = {};
     for (const secretName of envPlan.secretNamesAll) {
       templateExtraSecrets[secretName] = requiredEnvSecretNames.has(secretName) ? "<REPLACE_WITH_API_KEY>" : "<OPTIONAL>";
+    }
+    if (garnixPrivateEnabled) {
+      templateExtraSecrets[garnixNetrcSecretName] = "<REPLACE_WITH_NETRC>";
     }
 
     const defaultSecretsJsonPath = path.join(layout.runtimeDir, "secrets.json");
@@ -282,15 +296,20 @@ export const secretsInit = defineCommand({
       type Step =
         | { kind: "adminPassword" }
         | { kind: "tailscaleAuthKey" }
+        | { kind: "garnixNetrcFile"; secretName: string; netrcPath: string }
         | { kind: "secret"; secretName: string }
         | { kind: "discordToken"; bot: string };
 
-      const requiredExtraSecrets = Array.from(requiredEnvSecretNames).sort();
+      const requiredExtraSecrets = Array.from(requiredExtraSecretNames).sort();
 
       const allSteps: Step[] = [
         { kind: "adminPassword" },
         ...(requiresTailscaleAuthKey ? ([{ kind: "tailscaleAuthKey" }] as const) : []),
-        ...requiredExtraSecrets.map((secretName) => ({ kind: "secret", secretName }) as const),
+        ...requiredExtraSecrets.map((secretName) =>
+          garnixPrivateEnabled && secretName === garnixNetrcSecretName
+            ? ({ kind: "garnixNetrcFile", secretName, netrcPath: garnixNetrcPath || "/etc/nix/netrc" } as const)
+            : ({ kind: "secret", secretName } as const),
+        ),
         ...bots.map((b) => ({ kind: "discordToken", bot: b }) as const),
       ];
 
@@ -303,6 +322,11 @@ export const secretsInit = defineCommand({
           });
         } else if (step.kind === "tailscaleAuthKey") {
           v = await p.password({ message: "Tailscale auth key (tailscale_auth_key) (required for non-interactive tailnet bootstrap)" });
+        } else if (step.kind === "garnixNetrcFile") {
+          v = await p.text({
+            message: `Path to netrc file for private Garnix cache (${step.secretName} → ${step.netrcPath}) (required)`,
+            placeholder: `${layout.runtimeDir}/garnix.netrc`,
+          });
         } else if (step.kind === "secret") {
           const envVars = envVarsBySecretName[step.secretName] || [];
           const hint = envVars.length > 0 ? ` (env: ${envVars.join(", ")})` : "";
@@ -324,6 +348,20 @@ export const secretsInit = defineCommand({
         const s = String(v ?? "");
         if (step.kind === "adminPassword") values.adminPassword = s;
         else if (step.kind === "tailscaleAuthKey") values.tailscaleAuthKey = s;
+        else if (step.kind === "garnixNetrcFile") {
+          const rawPath = s.trim();
+          if (!rawPath) values.secrets[step.secretName] = "";
+          else {
+            const expanded = expandPath(rawPath);
+            const abs = path.isAbsolute(expanded) ? expanded : path.resolve(layout.repoRoot, expanded);
+            const stat = fs.statSync(abs);
+            if (!stat.isFile()) throw new Error(`not a file: ${abs}`);
+            if (stat.size > 64 * 1024) throw new Error(`netrc file too large (>64KB): ${abs}`);
+            const netrc = fs.readFileSync(abs, "utf8").trimEnd();
+            if (!netrc) throw new Error(`netrc file is empty: ${abs}`);
+            values.secrets[step.secretName] = netrc;
+          }
+        }
         else if (step.kind === "secret") values.secrets[step.secretName] = s;
         else values.discordTokens[step.bot] = s;
         i += 1;
@@ -340,6 +378,7 @@ export const secretsInit = defineCommand({
     const requiredSecrets = Array.from(new Set([
       ...(requiresTailscaleAuthKey ? ["tailscale_auth_key"] : []),
       "admin_password_hash",
+      ...(garnixPrivateEnabled ? [garnixNetrcSecretName] : []),
       ...envSecretsToWrite,
       ...bots.map((b) => `discord_token_${b}`),
     ]));
@@ -379,7 +418,7 @@ export const secretsInit = defineCommand({
       }
 
       const vv = values.secrets?.[secretName]?.trim() || "";
-      const required = requiredEnvSecretNames.has(secretName);
+      const required = requiredExtraSecretNames.has(secretName);
       if (vv && !(required && isOptionalMarker(vv))) {
         resolvedValues[secretName] = vv;
         continue;
