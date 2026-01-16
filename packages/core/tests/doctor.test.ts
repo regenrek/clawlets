@@ -397,7 +397,7 @@ describe("doctor", () => {
     const original = await readFile(configPath, "utf8");
 
     const raw = JSON.parse(original) as any;
-    raw.hosts["clawdbot-fleet-host"].diskDevice = "/dev/disk/by-id/CHANGE_ME";
+    raw.hosts["clawdbot-fleet-host"].diskDevice = "/dev/sda-CHANGE_ME";
     await writeFile(configPath, `${JSON.stringify(raw, null, 2)}\n`, "utf8");
 
     process.env.HCLOUD_TOKEN = "abc";

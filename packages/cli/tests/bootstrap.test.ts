@@ -71,7 +71,7 @@ vi.mock("@clawdlets/core/lib/clawdlets-config", async () => {
 const hostName = "clawdbot-beta-3";
 const baseHost = {
   enable: false,
-  diskDevice: "/dev/disk/by-id/CHANGE_ME",
+  diskDevice: "/dev/sda",
   sshAuthorizedKeys: [],
   flakeHost: "",
   hetzner: { serverType: "cx43" },
