@@ -74,7 +74,7 @@ const add = defineCommand({
 
     const nextHost: ClawdletsHostConfig = {
       enable: false,
-      diskDevice: "/dev/disk/by-id/CHANGE_ME",
+      diskDevice: "/dev/sda",
       sshAuthorizedKeys: [],
       sshKnownHosts: [],
       flakeHost: "",
@@ -137,7 +137,7 @@ const set = defineCommand({
     host: { type: "string", description: "Host name (defaults to clawdlets.json defaultHost / sole host)." },
     enable: { type: "string", description: "Enable fleet services (true/false)." },
     "ssh-exposure": { type: "string", description: "SSH exposure mode: tailnet|bootstrap|public." },
-    "disk-device": { type: "string", description: "Disk device (e.g. /dev/disk/by-id/...).", },
+    "disk-device": { type: "string", description: "Disk device (Hetzner Cloud: /dev/sda).", },
     "agent-model-primary": { type: "string", description: "Primary agent model (e.g. zai/glm-4.7)." },
     tailnet: { type: "string", description: "Tailnet mode: none|tailscale." },
     "flake-host": { type: "string", description: "Flake output host name override (default: same as host name)." },

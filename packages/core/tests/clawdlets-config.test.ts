@@ -23,7 +23,7 @@ describe("clawdlets config schema", () => {
         hosts: {
           "../pwn": {
             enable: false,
-            diskDevice: "/dev/disk/by-id/CHANGE_ME",
+            diskDevice: "/dev/sda",
             sshAuthorizedKeys: [],
             sshExposure: { mode: "tailnet" },
             tailnet: { mode: "none" },
@@ -43,7 +43,7 @@ describe("clawdlets config schema", () => {
         hosts: {
           "clawdbot-fleet-host": {
             enable: false,
-            diskDevice: "/dev/disk/by-id/CHANGE_ME",
+            diskDevice: "/dev/sda",
             sshAuthorizedKeys: [],
             sshExposure: { mode: "tailnet" },
             tailnet: { mode: "none" },
@@ -73,7 +73,7 @@ describe("clawdlets config schema", () => {
         hosts: {
           "clawdbot-fleet-host": {
             enable: false,
-            diskDevice: "/dev/disk/by-id/CHANGE_ME",
+            diskDevice: "/dev/sda",
             sshAuthorizedKeys: [],
             sshExposure: { mode: "tailnet" },
             tailnet: { mode: "none" },
@@ -88,7 +88,7 @@ describe("clawdlets config schema", () => {
     const { resolveHostName } = await import("../src/lib/clawdlets-config");
     const baseHost = {
       enable: false,
-      diskDevice: "/dev/disk/by-id/CHANGE_ME",
+      diskDevice: "/dev/sda",
       sshAuthorizedKeys: [],
       sshExposure: { mode: "tailnet" },
       tailnet: { mode: "none" },
@@ -131,7 +131,7 @@ describe("clawdlets config schema", () => {
     const { resolveHostName } = await import("../src/lib/clawdlets-config");
     const baseHost = {
       enable: false,
-      diskDevice: "/dev/disk/by-id/CHANGE_ME",
+      diskDevice: "/dev/sda",
       sshAuthorizedKeys: [],
       sshExposure: { mode: "tailnet" },
       tailnet: { mode: "none" },
@@ -177,7 +177,7 @@ describe("clawdlets config schema", () => {
         hosts: {
           "clawdbot-fleet-host": {
             enable: false,
-            diskDevice: "/dev/disk/by-id/CHANGE_ME",
+            diskDevice: "/dev/sda",
             sshAuthorizedKeys: [],
             publicSsh: { enable: false },
             provisioning: { enable: false },

@@ -88,7 +88,7 @@ const FleetSchema = z.object({
 
 const HostSchema = z.object({
   enable: z.boolean().default(false),
-  diskDevice: z.string().trim().default("/dev/disk/by-id/CHANGE_ME"),
+  diskDevice: z.string().trim().default("/dev/sda"),
   sshAuthorizedKeys: z.array(z.string().trim().min(1)).default([]),
   sshKnownHosts: z.array(z.string().trim().min(1)).default([]),
   flakeHost: z.string().trim().default(""),
@@ -260,7 +260,7 @@ export function createDefaultClawdletsConfig(params: { host: string; bots?: stri
     hosts: {
       [host]: {
         enable: false,
-        diskDevice: "/dev/disk/by-id/CHANGE_ME",
+        diskDevice: "/dev/sda",
         sshAuthorizedKeys: [],
         sshKnownHosts: [],
         flakeHost: "",
