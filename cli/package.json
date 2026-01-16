@@ -14,7 +14,7 @@
   ],
   "scripts": {
     "dev": "tsc -w --preserveWatchOutput",
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && node ../scripts/copy-cli-config.mjs",
     "typecheck": "tsc -b --pretty false",
     "test": "vitest run",
     "help": "node dist/main.js --help",

@@ -39,8 +39,8 @@ cd ./clawdlets-myproject
 ```
 
 Note: `project init` already includes `fleet/clawdlets.json`. Don’t run `clawdlets config init` unless you want to reset it (`--force`).
-Template source defaults to `regenrek/clawdlets-template` (`templates/default`). Override with:
-`--template`, `--template-path`, or `--template-ref` (or env `CLAWDLETS_TEMPLATE_*`).
+Template source defaults to the pinned config in `config/template-source.json` (repo + path + 40-hex ref).
+Override with `--template`, `--template-path`, or `--template-ref` (or env `CLAWDLETS_TEMPLATE_*`).
 
 0.5) Enable Garnix for the project repo (private cache) and add the netrc secret:
 - turn on Garnix for the repo and set the cache to private

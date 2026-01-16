@@ -51,10 +51,11 @@ export async function verifyManifestSignature(params: {
       redact: [],
     });
   } catch (e) {
-    const msg = String((e as Error)?.message || e);
-    if (msg.includes("ENOENT") || msg.includes("minisign")) {
-      throw new Error(`minisign verification failed (${msg}). Install minisign and retry.`);
+    const err = e as NodeJS.ErrnoException;
+    const msg = String(err?.message || e);
+    if (err?.code === "ENOENT" || msg.includes("spawn minisign ENOENT")) {
+      throw new Error(`minisign not found (${msg}). Install minisign and retry.`);
     }
-    throw e;
+    throw new Error(`manifest signature invalid (${msg}). See minisign output above.`);
   }
 }

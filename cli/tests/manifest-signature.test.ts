@@ -1,20 +1,24 @@
 import fs from "node:fs";
 import path from "node:path";
 import { tmpdir } from "node:os";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   resolveManifestPublicKey,
   resolveManifestSignaturePath,
   verifyManifestSignature,
 } from "../src/lib/manifest-signature";
 
-const runMock = vi.fn().mockResolvedValue(undefined);
+const runMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 
 vi.mock("@clawdbot/clawdlets-core/lib/run", () => ({
   run: runMock,
 }));
 
 describe("manifest signature helpers", () => {
+  beforeEach(() => {
+    runMock.mockReset();
+    runMock.mockResolvedValue(undefined);
+  });
   it("defaults signature path to <manifest>.minisig", () => {
     const dir = fs.mkdtempSync(path.join(tmpdir(), "clawdlets-manifest-"));
     const manifest = path.join(dir, "deploy.json");
@@ -38,10 +42,18 @@ describe("manifest signature helpers", () => {
     expect(resolveManifestPublicKey({ hostPublicKey: "FROMCFG" })).toBe("FROMCFG");
   });
 
-  it("fails verification when minisign fails", async () => {
-    runMock.mockRejectedValueOnce(new Error("minisign failed"));
+  it("fails verification when minisign is missing", async () => {
+    const err = Object.assign(new Error("spawn minisign ENOENT"), { code: "ENOENT" });
+    runMock.mockRejectedValueOnce(err);
     await expect(
       verifyManifestSignature({ manifestPath: "m.json", signaturePath: "m.json.minisig", publicKey: "PUB" }),
-    ).rejects.toThrow(/minisign verification failed/);
+    ).rejects.toThrow(/minisign not found/);
+  });
+
+  it("fails verification on invalid signature", async () => {
+    runMock.mockRejectedValueOnce(new Error("minisign exited with code 1"));
+    await expect(
+      verifyManifestSignature({ manifestPath: "m.json", signaturePath: "m.json.minisig", publicKey: "PUB" }),
+    ).rejects.toThrow(/manifest signature invalid/);
   });
 });

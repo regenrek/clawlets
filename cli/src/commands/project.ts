@@ -8,7 +8,7 @@ import { downloadTemplate } from "giget";
 import { ensureDir, writeFileAtomic } from "@clawdbot/clawdlets-core/lib/fs-safe";
 import { capture, run } from "@clawdbot/clawdlets-core/lib/run";
 import { assertSafeHostName } from "@clawdbot/clawdlets-core/lib/clawdlets-config";
-import { normalizeTemplateSource } from "@clawdbot/clawdlets-core/lib/template-source";
+import { resolveTemplateSpec } from "../lib/template-spec.js";
 import { cancelFlow, navOnCancel, NAV_EXIT } from "../lib/wizard.js";
 
 function wantsInteractive(flag: boolean | undefined): boolean {
@@ -108,13 +108,6 @@ async function findTemplateRoot(dir: string): Promise<string> {
   throw new Error(`template root missing fleet/clawdlets.json (searched: ${dir})`);
 }
 
-function resolveTemplateSpec(args: { template?: string; templatePath?: string; templateRef?: string }) {
-  const repo = String(args.template || process.env["CLAWDLETS_TEMPLATE_REPO"] || "regenrek/clawdlets-template");
-  const tplPath = String(args.templatePath || process.env["CLAWDLETS_TEMPLATE_PATH"] || "templates/default");
-  const ref = String(args.templateRef || process.env["CLAWDLETS_TEMPLATE_REF"] || "main");
-  return normalizeTemplateSource({ repo, path: tplPath, ref });
-}
-
 const projectInit = defineCommand({
   meta: { name: "init", description: "Scaffold a new clawdlets infra repo (from clawdlets-template)." },
   args: {
@@ -123,9 +116,9 @@ const projectInit = defineCommand({
     gitInit: { type: "boolean", description: "Run `git init` in the new directory.", default: true },
     interactive: { type: "boolean", description: "Prompt for confirmation (requires TTY).", default: false },
     dryRun: { type: "boolean", description: "Print planned files without writing.", default: false },
-    template: { type: "string", description: "Template repo (default: regenrek/clawdlets-template)." },
-    templatePath: { type: "string", description: "Template path inside repo (default: templates/default)." },
-    templateRef: { type: "string", description: "Template git ref (default: main)." },
+    template: { type: "string", description: "Template repo (default: config/template-source.json)." },
+    templatePath: { type: "string", description: "Template path inside repo (default: config/template-source.json)." },
+    templateRef: { type: "string", description: "Template git ref (default: config/template-source.json)." },
   },
   async run({ args }) {
     const interactive = wantsInteractive(Boolean(args.interactive));
