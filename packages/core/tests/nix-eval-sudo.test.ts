@@ -3,6 +3,8 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
+const NIX_EVAL_TIMEOUT_MS = 120_000;
+
 function resolveRepoRoot(): string {
   return path.resolve(process.env.CLAWDLETS_TEMPLATE_DIR || path.join(__dirname, ".template"));
 }
@@ -56,13 +58,21 @@ in cfg.security.sudo.extraConfig
 describe("sudo deploy allowlist", () => {
   const testIt = hasNix() && fs.existsSync(resolveRepoRoot()) ? it : it.skip;
 
-  testIt("omits deploy sudo alias when disabled", () => {
-    const extra = evalSudoExtraConfig(false);
-    expect(extra).not.toContain("CLAWDLETS_DEPLOY");
-  });
+  testIt(
+    "omits deploy sudo alias when disabled",
+    () => {
+      const extra = evalSudoExtraConfig(false);
+      expect(extra).not.toContain("CLAWDLETS_DEPLOY");
+    },
+    NIX_EVAL_TIMEOUT_MS,
+  );
 
-  testIt("includes deploy sudo alias when enabled", () => {
-    const extra = evalSudoExtraConfig(true);
-    expect(extra).toContain("CLAWDLETS_DEPLOY");
-  });
+  testIt(
+    "includes deploy sudo alias when enabled",
+    () => {
+      const extra = evalSudoExtraConfig(true);
+      expect(extra).toContain("CLAWDLETS_DEPLOY");
+    },
+    NIX_EVAL_TIMEOUT_MS,
+  );
 });
