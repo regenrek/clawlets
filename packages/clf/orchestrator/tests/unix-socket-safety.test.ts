@@ -5,7 +5,7 @@ import http from "node:http";
 import { describe, it, expect } from "vitest";
 
 describe("unix socket safety", () => {
-  it("rejects world-accessible sockets and world-writable dirs", async () => {
+  it("rejects world-accessible sockets and writable dirs", async () => {
     if (process.platform === "win32") return;
 
     const { assertSafeUnixSocketPath } = await import("../src/unix-socket-safety");
@@ -38,7 +38,7 @@ describe("unix socket safety", () => {
     await new Promise<void>((resolve) => server2.listen(badSocket, resolve));
     try {
       fs.chmodSync(badSocket, 0o660);
-      expect(() => assertSafeUnixSocketPath(badSocket)).toThrow(/world-writable/i);
+      expect(() => assertSafeUnixSocketPath(badSocket)).toThrow(/writable by non-owner/i);
     } finally {
       await new Promise<void>((resolve) => server2.close(() => resolve()));
       try {
@@ -47,6 +47,23 @@ describe("unix socket safety", () => {
         // ignore
       }
     }
+
+    const groupWritableDir = path.join(dir, "group-writable");
+    fs.mkdirSync(groupWritableDir);
+    fs.chmodSync(groupWritableDir, 0o770);
+    const groupWritableSocket = path.join(groupWritableDir, "orchestrator.sock");
+    const server3 = http.createServer((_req, res) => res.end("ok"));
+    await new Promise<void>((resolve) => server3.listen(groupWritableSocket, resolve));
+    try {
+      fs.chmodSync(groupWritableSocket, 0o660);
+      expect(() => assertSafeUnixSocketPath(groupWritableSocket)).toThrow(/writable by non-owner/i);
+    } finally {
+      await new Promise<void>((resolve) => server3.close(() => resolve()));
+      try {
+        fs.unlinkSync(groupWritableSocket);
+      } catch {
+        // ignore
+      }
+    }
   });
 });
-

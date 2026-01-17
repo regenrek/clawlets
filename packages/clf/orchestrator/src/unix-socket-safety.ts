@@ -14,8 +14,8 @@ export function assertSafeUnixSocketPath(socketPath: string): void {
   const dirSt = fs.statSync(dir);
   if (!dirSt.isDirectory()) throw new Error(`socket directory is not a directory: ${dir}`);
   const dirMode = dirSt.mode & 0o777;
-  if ((dirMode & 0o002) !== 0) {
-    throw new Error(`socket directory is world-writable (refusing): ${dir} (${octal(dirMode)})`);
+  if ((dirMode & 0o022) !== 0) {
+    throw new Error(`socket directory is writable by non-owner (refusing): ${dir} (${octal(dirMode)})`);
   }
 
   const st = fs.lstatSync(p);
@@ -38,4 +38,3 @@ export function tryChmodUnixSocket(socketPath: string, mode: number): void {
     // best-effort: systemd-owned sockets may not be chmod-able by the service user.
   }
 }
-
