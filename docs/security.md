@@ -23,6 +23,14 @@
 - `/var/lib/clawdlets/secrets/hosts/<host>/`: encrypted secrets files (sops)
 - `/run/secrets/**`: decrypted materialized secrets at runtime (owned by service users)
 
+**Hetzner Cloud user_data (cattle)**
+- Cattle uses cloud-init `user_data` to bootstrap:
+  - `TAILSCALE_AUTH_KEY` (written to tmpfs) so the VM can join tailnet
+  - one-time bootstrap token + baseUrl so the VM can fetch runtime env from `clf-orchestrator`
+- Threat model MUST assume `user_data` can be read by anyone with Hetzner project/API access.
+  - Treat `TAILSCALE_AUTH_KEY` as a **tailnet-join capability**: use tag-scoped + ephemeral keys, rotate regularly.
+  - Keep bootstrap tokens short-lived + one-time (clamped to 30s..1h; default minutes).
+
 ## “Secrets out of store”
 
 The Nix store is not a secrets vault. Design assumes store paths are widely readable on the host.

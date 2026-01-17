@@ -49,6 +49,7 @@ Notes
 - Host secrets include:
   - `tailscale_auth_key` (for the cattle VM to join tailnet)
     - Recommended: tag-scoped + short-lived/ephemeral preauth key; rotate regularly (it’s a tailnet-join capability).
+    - Threat model: Hetzner `user_data` must be assumed readable by Hetzner project/API access; this key + the one-time bootstrap token live there briefly.
   - provider keys for the chosen model (`fleet.envSecrets` -> secret files under `secrets/hosts/<host>/`)
 
 Build + upload (Linux/CI recommended)
