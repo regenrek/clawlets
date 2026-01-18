@@ -165,19 +165,7 @@ const projectInit = defineCommand({
       }
     }
 
-    let enableGarnixPrivate = false;
-    if (interactive) {
-      const v = await p.confirm({
-        message: "Enable private Garnix cache? (optional; requires garnix_netrc secret)",
-        initialValue: false,
-      });
-      if (p.isCancel(v)) {
-        const nav = await navOnCancel({ flow: "project init", canBack: false });
-        if (nav === NAV_EXIT) cancelFlow();
-        return;
-      }
-      enableGarnixPrivate = Boolean(v);
-    }
+    const enableGarnixPrivate = false;
 
     const templateSpec = resolveTemplateSpec({
       template: args.template,
@@ -238,7 +226,7 @@ const projectInit = defineCommand({
     await fs.promises.rm(tempDir, { recursive: true, force: true });
     const hasHooks = await ensureHookExecutables(destDir);
 
-    if (interactive && !enableGarnixPrivate) {
+    if (!enableGarnixPrivate) {
       const configPath = path.join(destDir, "fleet", "clawdlets.json");
       const raw = await fs.promises.readFile(configPath, "utf8");
       const parsed = JSON.parse(raw) as any;
