@@ -6,9 +6,10 @@ describe("fleet envSecrets plan", () => {
     const { buildFleetEnvSecretsPlan } = await import("../src/lib/fleet-env-secrets");
 
     const cfg = ClawdletsConfigSchema.parse({
-      schemaVersion: 6,
+      schemaVersion: 7,
       fleet: {
-        bots: ["maren"],
+        botOrder: ["maren"],
+        bots: { maren: {} },
         envSecrets: {
           ZAI_API_KEY: "z_ai_api_key",
           Z_AI_API_KEY: "z_ai_api_key",
@@ -31,9 +32,10 @@ describe("fleet envSecrets plan", () => {
     const { buildFleetEnvSecretsPlan } = await import("../src/lib/fleet-env-secrets");
 
     const cfg = ClawdletsConfigSchema.parse({
-      schemaVersion: 6,
+      schemaVersion: 7,
       fleet: {
-        bots: ["maren"],
+        botOrder: ["maren"],
+        bots: { maren: {} },
         envSecrets: {
           OPENAI_API_KEY: "openai_api_key",
         },
@@ -53,18 +55,17 @@ describe("fleet envSecrets plan", () => {
     const { buildFleetEnvSecretsPlan } = await import("../src/lib/fleet-env-secrets");
 
     const cfg = ClawdletsConfigSchema.parse({
-      schemaVersion: 6,
+      schemaVersion: 7,
       fleet: {
-        bots: ["alpha", "beta"],
+        botOrder: ["alpha", "beta"],
+        bots: {
+          alpha: { clawdbot: { agents: { defaults: { model: { primary: "anthropic/claude-3-5-sonnet" } } } } },
+          beta: {},
+        },
         envSecrets: {
           ZAI_API_KEY: "z_ai_api_key",
           Z_AI_API_KEY: "z_ai_api_key",
           ANTHROPIC_API_KEY: "anthropic_api_key",
-        },
-        botOverrides: {
-          alpha: {
-            passthrough: { agents: { defaults: { modelPrimary: "anthropic/claude-3-5-sonnet" } } },
-          },
         },
       },
       hosts: {

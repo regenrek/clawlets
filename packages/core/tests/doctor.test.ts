@@ -111,18 +111,13 @@ describe("doctor", () => {
     await writeFile(operatorKey, "AGE-SECRET-KEY-TEST\n", "utf8");
 
     const clawdletsConfig = {
-      schemaVersion: 6,
+      schemaVersion: 7,
       defaultHost: "clawdbot-fleet-host",
       baseFlake: "",
       fleet: {
-        guildId: "123",
         envSecrets: { ZAI_API_KEY: "z_ai_api_key", Z_AI_API_KEY: "z_ai_api_key" },
-        bots: ["alpha", "beta"],
-        botOverrides: {},
-        routingOverrides: {
-          alpha: { channels: ["bots"], requireMention: true },
-          beta: { channels: ["bots"], requireMention: true },
-        },
+        botOrder: ["alpha", "beta"],
+        bots: { alpha: {}, beta: {} },
         codex: { enable: false, bots: [] },
         backups: { restic: { enable: false, repository: "" } },
       },
@@ -152,7 +147,7 @@ describe("doctor", () => {
         "  cfg = builtins.fromJSON (builtins.readFile ../../fleet/clawdlets.json);",
         "  fleetCfg = cfg.fleet or { };",
         "in {",
-        "  bots = fleetCfg.bots or [ \"alpha\" \"beta\" ];",
+        "  bots = fleetCfg.botOrder or [ \"alpha\" \"beta\" ];",
         "  botProfiles = {",
         "    alpha = { skills = { allowBundled = [ ]; entries = { }; }; github = { }; };",
         "    beta = { skills = { allowBundled = [ ]; entries = { }; }; github = { }; };",
@@ -171,7 +166,7 @@ describe("doctor", () => {
         "  cfg = builtins.fromJSON (builtins.readFile ../../fleet/clawdlets.json);",
         "  fleetCfg = cfg.fleet or { };",
         "in {",
-        "  bots = fleetCfg.bots or [ \"alpha\" \"beta\" ];",
+        "  bots = fleetCfg.botOrder or [ \"alpha\" \"beta\" ];",
         "  botProfiles = {",
         "    alpha = { skills = { allowBundled = [ ]; entries = { }; }; github = { }; };",
         "    beta = { skills = { allowBundled = [ ]; entries = { }; }; github = { }; };",
@@ -296,24 +291,6 @@ describe("doctor", () => {
     const checks = await collectDoctorChecks({ cwd: repoRoot, host: "clawdbot-fleet-host", scope: "server-deploy" });
     const check = checks.find((c) => c.label === "clawdlets config");
     expect(check?.status).toBe("warn");
-
-    await writeFile(configPath, original, "utf8");
-  });
-
-  it("requires discord routing config (guildId + channels)", async () => {
-    const configPath = path.join(repoRoot, "fleet", "clawdlets.json");
-    const original = await readFile(configPath, "utf8");
-
-    const raw = JSON.parse(original) as any;
-    raw.fleet.guildId = "";
-    raw.fleet.routingOverrides = {};
-    await writeFile(configPath, `${JSON.stringify(raw, null, 2)}\n`, "utf8");
-
-    process.env.HCLOUD_TOKEN = "abc";
-    const { collectDoctorChecks } = await import("../src/doctor");
-    const checks = await collectDoctorChecks({ cwd: repoRoot, host: "clawdbot-fleet-host", scope: "server-deploy" });
-    const check = checks.find((c) => c.label === "discord routing");
-    expect(check?.status).toBe("missing");
 
     await writeFile(configPath, original, "utf8");
   });
