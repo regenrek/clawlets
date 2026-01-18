@@ -22,9 +22,9 @@
     "citty": "^0.1.6"
   },
   "devDependencies": {
-    "@types/node": "^24.10.0",
+    "@types/node": "^25.0.9",
     "typescript": "^5.6.3",
-    "vitest": "^4.0.13"
+    "vitest": "^4.0.17"
   },
   "engines": {
     "node": ">=22"
