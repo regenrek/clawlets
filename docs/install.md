@@ -13,7 +13,7 @@ clawdlets --help
 
 These paths live in the project repo created by `clawdlets project init`.
 
-- `fleet/clawdlets.json` (canonical config: bots, guildId, host settings)
+- `fleet/clawdlets.json` (canonical config: hosts + fleet/bots + optional clawdbot config passthrough)
 - `infra/configs/fleet.nix` (derived fleet config; reads `clawdlets.json`; don’t edit)
 - `secrets/` (committed; sops-encrypted secrets + sops rules)
 - `.clawdlets/` (gitignored runtime: operator keys + nixos-anywhere extra-files + image outputs)
@@ -59,8 +59,10 @@ go install github.com/apricote/hcloud-upload-image@latest
 ## 0) Prefill checklist
 
 - `fleet/clawdlets.json`
-  - `fleet.guildId`
-  - `fleet.bots`
+  - `fleet.botOrder`
+  - `fleet.bots.<bot>.profile` (skills, github, envSecrets, ...)
+  - `fleet.bots.<bot>.clawdbot` (raw clawdbot config; routing/channels live here)
+  - optional (recommended for large configs): `fleet/workspaces/bots/<bot>/clawdbot.json5`
   - `hosts.<host>.sshAuthorizedKeys`
   - `hosts.<host>.diskDevice`
   - `hosts.<host>.tailnet`
@@ -71,7 +73,7 @@ go install github.com/apricote/hcloud-upload-image@latest
 - `secrets/hosts/clawdbot-fleet-host/`
   - `tailscale_auth_key.yaml` (required when `hosts.<host>.tailnet.mode = "tailscale"`)
   - `admin_password_hash.yaml` (required; for `sudo` on admin user)
-  - `discord_token_<bot>.yaml`
+  - per-bot channel tokens referenced via `fleet.bots.<bot>.profile.envSecrets` (template uses `discord_token_<bot>`)
   - optional: skill secrets / hook tokens / GitHub App key / restic secrets
   - optional: `root_password_hash` (console-only; keep root SSH disabled; requires `enableRootPassword = true`)
 - `.clawdlets/extra-files/clawdbot-fleet-host/var/lib/sops-nix/key.txt`
@@ -298,7 +300,7 @@ ran out of RAM (OOM killer).
 Fix (pick one):
 
 - Reduce closure size: don’t enable `"coding-agent"` / Codex during bootstrap (it pulls in heavy Node deps).
-  Example: `clawdlets config set --path fleet.botOverrides.maren.skills.allowBundled --value-json '["github","brave-search"]'`
+  Example: `clawdlets config set --path fleet.bots.maren.profile.skills.allowBundled --value-json '["github","brave-search"]'`
 - Use a bigger Hetzner server type for bootstrap (`SERVER_TYPE=...` in `.env`).
 - Add swap on the target (best long-term anyway). If you want swap during install/bootstrap, add a swap
   partition in `infra/disko/example.nix` (so it’s available in the installer environment too).
