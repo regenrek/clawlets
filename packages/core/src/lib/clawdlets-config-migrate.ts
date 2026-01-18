@@ -11,6 +11,24 @@ function asStringArray(v: unknown): string[] {
   return v.map((x) => String(x ?? "").trim()).filter(Boolean);
 }
 
+const POLLUTION_KEYS = new Set(["__proto__", "constructor", "prototype"]);
+
+function assertSafeKey(key: string, path: string): void {
+  if (POLLUTION_KEYS.has(key)) {
+    const where = path ? `${path}.${key}` : key;
+    throw new Error(`blocked prototype pollution key "${key}" at ${where}`);
+  }
+}
+
+function copySafeRecord(obj: Record<string, unknown>, path: string): Record<string, unknown> {
+  const out: Record<string, unknown> = Object.create(null);
+  for (const [k, v] of Object.entries(obj)) {
+    assertSafeKey(k, path);
+    out[k] = v;
+  }
+  return out;
+}
+
 function readBotRoutingV6(v: unknown): { channels: string[]; requireMention: boolean } {
   const o = asRecord(v);
   const channels = asStringArray(o.channels);
@@ -18,12 +36,13 @@ function readBotRoutingV6(v: unknown): { channels: string[]; requireMention: boo
   return { channels: Array.from(new Set(channels)), requireMention };
 }
 
-function recursiveMerge(base: any, override: any): any {
+function recursiveMerge(base: any, override: any, path: string): any {
   if (!isPlainObject(base) || !isPlainObject(override)) return override;
-  const out: Record<string, unknown> = { ...base };
+  const out = copySafeRecord(base, path);
   for (const [k, v] of Object.entries(override)) {
+    assertSafeKey(k, path);
     const bv = (out as any)[k];
-    if (isPlainObject(bv) && isPlainObject(v)) out[k] = recursiveMerge(bv, v);
+    if (isPlainObject(bv) && isPlainObject(v)) out[k] = recursiveMerge(bv, v, `${path}.${k}`);
     else out[k] = v;
   }
   return out;
@@ -54,17 +73,23 @@ export function migrateClawdletsConfigV6ToV7(raw: unknown): unknown {
     seen.add(b);
   }
 
-  const bots7: Record<string, unknown> = {};
+  const bots7: Record<string, unknown> = Object.create(null);
   for (const bot of botOrder) {
+    assertSafeKey(bot, "fleet.botOverrides");
     const override = asRecord((botOverrides6 as any)[bot]);
 
-    const passthrough = asRecord((override as any).passthrough);
-    const profile: Record<string, unknown> = { ...override };
+    const passthrough = copySafeRecord(asRecord((override as any).passthrough), `fleet.botOverrides.${bot}.passthrough`);
+    const profile: Record<string, unknown> = copySafeRecord(override, `fleet.botOverrides.${bot}`);
     delete (profile as any).passthrough;
 
     const routing = readBotRoutingV6((routingOverrides6 as any)[bot]);
+    if (guildId) assertSafeKey(guildId, "fleet.guildId");
+    const safeChannels = routing.channels.map((ch) => {
+      assertSafeKey(ch, `fleet.routingOverrides.${bot}.channels`);
+      return ch;
+    });
     const derivedDiscord =
-      guildId && routing.channels.length > 0
+      guildId && safeChannels.length > 0
         ? {
             channels: {
               discord: {
@@ -74,7 +99,7 @@ export function migrateClawdletsConfigV6ToV7(raw: unknown): unknown {
                   [guildId]: {
                     requireMention: routing.requireMention,
                     channels: Object.fromEntries(
-                      routing.channels.map((ch) => [ch, { allow: true, requireMention: routing.requireMention }]),
+                      safeChannels.map((ch) => [ch, { allow: true, requireMention: routing.requireMention }]),
                     ),
                   },
                 },
@@ -83,7 +108,7 @@ export function migrateClawdletsConfigV6ToV7(raw: unknown): unknown {
           }
         : {};
 
-    const clawdbot = recursiveMerge(derivedDiscord, passthrough);
+    const clawdbot = recursiveMerge(derivedDiscord, passthrough, "fleet.bots.<bot>.clawdbot");
 
     bots7[bot] = {
       ...(Object.keys(profile).length > 0 ? { profile } : {}),
@@ -105,4 +130,3 @@ export function migrateClawdletsConfigV6ToV7(raw: unknown): unknown {
     fleet: fleet7,
   };
 }
-

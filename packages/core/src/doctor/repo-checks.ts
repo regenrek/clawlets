@@ -23,6 +23,43 @@ function allExist(paths: string[]): { ok: boolean; missing: string[] } {
   return { ok: missing.length === 0, missing };
 }
 
+const CLAWDBOT_SECRET_PATTERNS: { label: string; regex: RegExp }[] = [
+  { label: "openai sk- token", regex: /\bsk-[A-Za-z0-9]{16,}\b/ },
+  { label: "github token", regex: /\bghp_[A-Za-z0-9]{20,}\b/ },
+  { label: "github fine-grained token", regex: /\bgithub_pat_[A-Za-z0-9_]{20,}\b/ },
+  { label: "slack token", regex: /\bxox[baprs]-[A-Za-z0-9-]{10,}\b/ },
+  { label: "google api key", regex: /\bAIza[0-9A-Za-z_-]{20,}\b/ },
+  { label: "literal token assignment", regex: /\"token\"\\s*:\\s*\"(?!\\$\\{)(?!CHANGE_ME)(?!REDACTED)[^\"]{16,}\"/ },
+];
+
+function listClawdbotConfigFiles(root: string): string[] {
+  const botsDir = path.join(root, "fleet", "workspaces", "bots");
+  if (!fs.existsSync(botsDir)) return [];
+  const entries = fs.readdirSync(botsDir, { withFileTypes: true });
+  const files: string[] = [];
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const cfgPath = path.join(botsDir, entry.name, "clawdbot.json5");
+    if (fs.existsSync(cfgPath)) files.push(cfgPath);
+  }
+  return files;
+}
+
+function findClawdbotSecretViolations(root: string): { files: string[]; violations: { file: string; label: string }[] } {
+  const files = listClawdbotConfigFiles(root);
+  const violations: { file: string; label: string }[] = [];
+  for (const filePath of files) {
+    const raw = fs.readFileSync(filePath, "utf8");
+    for (const pattern of CLAWDBOT_SECRET_PATTERNS) {
+      if (pattern.regex.test(raw)) {
+        violations.push({ file: filePath, label: pattern.label });
+        break;
+      }
+    }
+  }
+  return { files, violations };
+}
+
 async function evalWheelAccess(params: { repoRoot: string; nixBin: string; host: string }): Promise<{
   adminHasWheel: boolean;
   breakglassHasWheel: boolean;
@@ -207,6 +244,47 @@ export async function addRepoChecks(params: {
         label: "template fleet workspaces",
         detail: rt.ok ? "(common docs present)" : `missing: ${rt.missing.map((p) => path.relative(repoRoot, p)).join(", ")}`,
       });
+    }
+  }
+
+  {
+    const scan = findClawdbotSecretViolations(repoRoot);
+    if (scan.violations.length > 0) {
+      const first = scan.violations[0]!;
+      params.push({
+        scope: "repo",
+        status: "missing",
+        label: "clawdbot config secrets",
+        detail: `${path.relative(repoRoot, first.file)} matched ${first.label}`,
+      });
+    } else {
+      params.push({
+        scope: "repo",
+        status: "ok",
+        label: "clawdbot config secrets",
+        detail: scan.files.length > 0 ? `(scanned ${scan.files.length} clawdbot.json5)` : "(no clawdbot.json5 found)",
+      });
+    }
+
+    if (templateRoot) {
+      const scanTemplate = findClawdbotSecretViolations(templateRoot);
+      if (scanTemplate.violations.length > 0) {
+        const first = scanTemplate.violations[0]!;
+        params.push({
+          scope: "repo",
+          status: "missing",
+          label: "template clawdbot config secrets",
+          detail: `${path.relative(repoRoot, first.file)} matched ${first.label}`,
+        });
+      } else {
+        params.push({
+          scope: "repo",
+          status: "ok",
+          label: "template clawdbot config secrets",
+          detail:
+            scanTemplate.files.length > 0 ? `(scanned ${scanTemplate.files.length} clawdbot.json5)` : "(no clawdbot.json5 found)",
+        });
+      }
     }
   }
 

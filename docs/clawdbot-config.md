@@ -14,7 +14,7 @@ Large/file-based (recommended when it grows):
 
 If the JSON5 file exists, clawdlets-template:
 
-- installs `fleet/workspaces/bots/<bot>/` to `/etc/clawdlets/bots/<bot>/`
+- installs **only** `fleet/workspaces/bots/<bot>/clawdbot.json5` to `/etc/clawdlets/bots/<bot>/clawdbot.json5`
 - injects `"$include": "/etc/clawdlets/bots/<bot>/clawdbot.json5"` into the rendered config
 
 ## Merge order
@@ -28,7 +28,10 @@ If the JSON5 file exists, clawdlets-template:
 
 ## Secrets
 
-Never commit plaintext tokens into clawdbot.json5.
+Never commit plaintext tokens into clawdbot.json5 (or any `$include` it references).
+
+Files under `documentsDir` are copied into the Nix store during deploy. Treat them as public:
+do **not** place secrets in `fleet/workspaces/**` or `$include` trees. Use env vars + SOPS instead.
 
 Use env var substitution and map env vars → sops secrets:
 

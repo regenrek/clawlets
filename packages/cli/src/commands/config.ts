@@ -80,7 +80,8 @@ const init = defineCommand({
 const migrateV6ToV7 = defineCommand({
   meta: { name: "migrate-v6-to-v7", description: "Migrate fleet/clawdlets.json schemaVersion 6 -> 7 (one-shot)." },
   args: {
-    "dry-run": { type: "boolean", description: "Print migrated config without writing.", default: false },
+    "dry-run": { type: "boolean", description: "Print migration summary without writing.", default: false },
+    print: { type: "boolean", description: "Print full migrated config (dangerous if secrets inline).", default: false },
   },
   async run({ args }) {
     const repoRoot = findRepoRoot(process.cwd());
@@ -105,7 +106,26 @@ const migrateV6ToV7 = defineCommand({
     const validated = ClawdletsConfigSchema.parse(migrated);
 
     if ((args as any)["dry-run"]) {
-      console.log(JSON.stringify(validated, null, 2));
+      if (args.print) {
+        console.log(JSON.stringify(validated, null, 2));
+        return;
+      }
+      const botOrder = Array.isArray((validated as any).fleet?.botOrder) ? (validated as any).fleet.botOrder : [];
+      const hostCount = Object.keys((validated as any).hosts || {}).length;
+      console.error("warning: dry-run output suppressed to avoid leaking secrets; use --print to dump full JSON.");
+      console.log(
+        JSON.stringify(
+          {
+            schemaVersion: (validated as any).schemaVersion,
+            defaultHost: (validated as any).defaultHost || "",
+            botCount: botOrder.length,
+            bots: botOrder,
+            hostCount,
+          },
+          null,
+          2,
+        ),
+      );
       return;
     }
 
