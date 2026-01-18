@@ -58,6 +58,7 @@ const FleetBotSchema = z
 const FleetSchema = z
   .object({
     envSecrets: z.record(EnvVarNameSchema, SecretNameSchema).default(() => ({})),
+    guildId: z.string().trim().default(""),
     botOrder: z.array(BotIdSchema).default(() => []),
     bots: z.record(BotIdSchema, FleetBotSchema).default(() => ({})),
     codex: z
@@ -275,6 +276,7 @@ export const ClawdletsConfigSchema = z.object({
   baseFlake: z.string().trim().default(""),
   fleet: FleetSchema.default(() => ({
     envSecrets: {},
+    guildId: "",
     botOrder: [],
     bots: {},
     codex: { enable: false, bots: [] },
@@ -345,6 +347,7 @@ export function createDefaultClawdletsConfig(params: { host: string; bots?: stri
         ZAI_API_KEY: "z_ai_api_key",
         Z_AI_API_KEY: "z_ai_api_key",
       },
+      guildId: "",
       botOrder: bots,
       bots: botsRecord,
       codex: { enable: false, bots: [] },
