@@ -4,6 +4,7 @@ let
   defs = import ./impl/defs.nix { inherit config lib pkgs project flakeInfo; };
   botConfig = import ./impl/bot-config.nix { inherit config lib defs; };
   runtime = import ./impl/runtime.nix { inherit config lib pkgs defs botConfig; };
+  gatewayToken = import ./impl/gateway-token.nix { inherit config lib pkgs defs; };
   github = import ./impl/github.nix { inherit config lib pkgs defs; };
 
   cfg = defs.cfg;
@@ -157,6 +158,11 @@ in
       mode = "0755";
     };
 
+    environment.etc."clawdlets/bin/ensure-gateway-token" = {
+      source = ../../scripts/ensure-gateway-token.sh;
+      mode = "0755";
+    };
+
     environment.etc."clawdlets/bin/sync-managed-docs" = {
       source = ../../scripts/sync-managed-docs.sh;
       mode = "0755";
@@ -174,6 +180,7 @@ in
 
     systemd.services = lib.mkMerge [
       (builtins.listToAttrs (map runtime.mkService cfg.bots))
+      (lib.mkMerge (map gatewayToken.mkGatewayTokenService cfg.bots))
       (lib.mkMerge (map github.mkGithubTokenService cfg.bots))
       (lib.mkMerge (map github.mkGithubSyncService cfg.bots))
       (lib.optionalAttrs cfg.opsSnapshot.enable {

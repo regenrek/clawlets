@@ -99,6 +99,7 @@ let
       clawPkg = cfg.package;
       seedDir = profile.workspace.seedDir or cfg.documentsDir or null;
       credsDir = resolveBotCredsDir b;
+      gatewayEnvFile = "${credsDir}/gateway.env";
       env = profile.env or {};
       envSecrets = profile.envSecrets or {};
       envDupes = lib.intersectLists (builtins.attrNames env) (builtins.attrNames envSecrets);
@@ -145,11 +146,11 @@ let
           description = "Clawdbot Discord gateway (${b})";
           wantedBy = [ "multi-user.target" ];
           after =
-            [ "network-online.target" "sops-nix.service" ]
+            [ "network-online.target" "sops-nix.service" "clawdbot-gateway-token-${b}.service" ]
             ++ lib.optional ghEnabled "clawdbot-gh-token-${b}.service"
             ++ lib.optional proxyEnabled "clawdlets-egress-proxy.service";
           wants =
-            [ "network-online.target" "sops-nix.service" ]
+            [ "network-online.target" "sops-nix.service" "clawdbot-gateway-token-${b}.service" ]
             ++ lib.optional ghEnabled "clawdbot-gh-token-${b}.service"
             ++ lib.optional proxyEnabled "clawdlets-egress-proxy.service";
 
@@ -197,6 +198,7 @@ let
             RestartSec = "3";
 
             EnvironmentFile = lib.flatten [
+              gatewayEnvFile
               (lib.optional (envSecretsFile != null) "-${envSecretsFile}")
               (lib.optional ghEnabled "-${ghEnvFile}")
             ];
