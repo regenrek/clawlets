@@ -142,52 +142,55 @@ in
         "d ${cfg.opsSnapshot.outDir} 0750 root root - -"
       ];
 
-    environment.etc = lib.mkMerge (map mkBotEtc cfg.bots);
+    environment.etc = lib.mkMerge [
+      (lib.mkMerge (map mkBotEtc cfg.bots))
+      {
+        "clawdlets/tools.md" = {
+          source = defs.toolsInventoryMd;
+          mode = "0444";
+        };
 
-    environment.etc."clawdlets/tools.md" = {
-      source = defs.toolsInventoryMd;
-      mode = "0444";
-    };
+        "clawdlets/build-info.json" = {
+          source = defs.buildInfoJson;
+          mode = "0444";
+        };
 
-    environment.etc."clawdlets/build-info.json" = {
-      source = defs.buildInfoJson;
-      mode = "0444";
-    };
+        "clawdlets/bin/gh-sync" = {
+          source = ../../scripts/gh-sync.sh;
+          mode = "0755";
+        };
 
-    environment.etc."clawdlets/bin/gh-sync" = {
-      source = ../../scripts/gh-sync.sh;
-      mode = "0755";
-    };
+        "clawdlets/bin/gh-sync-read" = {
+          source = ../../scripts/gh-sync-read.sh;
+          mode = "0755";
+        };
 
-    environment.etc."clawdlets/bin/gh-sync-read" = {
-      source = ../../scripts/gh-sync-read.sh;
-      mode = "0755";
-    };
+        "clawdlets/bin/gh-mint-app-token" = {
+          source = ../../scripts/gh-mint-app-token.sh;
+          mode = "0755";
+        };
 
-    environment.etc."clawdlets/bin/gh-mint-app-token" = {
-      source = ../../scripts/gh-mint-app-token.sh;
-      mode = "0755";
-    };
+        "clawdlets/bin/ops-snapshot" = {
+          source = ../../scripts/ops-snapshot.sh;
+          mode = "0755";
+        };
 
-    environment.etc."clawdlets/bin/ops-snapshot" = {
-      source = ../../scripts/ops-snapshot.sh;
-      mode = "0755";
-    };
+        "clawdlets/bin/seed-workspace" = {
+          source = ../../scripts/seed-workspace.sh;
+          mode = "0755";
+        };
 
-    environment.etc."clawdlets/bin/seed-workspace" = {
-      source = ../../scripts/seed-workspace.sh;
-      mode = "0755";
-    };
+        "clawdlets/bin/ensure-gateway-token" = {
+          source = ../../scripts/ensure-gateway-token.sh;
+          mode = "0755";
+        };
 
-    environment.etc."clawdlets/bin/ensure-gateway-token" = {
-      source = ../../scripts/ensure-gateway-token.sh;
-      mode = "0755";
-    };
-
-    environment.etc."clawdlets/bin/sync-managed-docs" = {
-      source = ../../scripts/sync-managed-docs.sh;
-      mode = "0755";
-    };
+        "clawdlets/bin/sync-managed-docs" = {
+          source = ../../scripts/sync-managed-docs.sh;
+          mode = "0755";
+        };
+      }
+    ];
 
     environment.systemPackages =
       [ cfg.package pkgs.git pkgs.jq ]
