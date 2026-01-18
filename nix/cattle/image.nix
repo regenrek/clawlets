@@ -17,6 +17,11 @@
   clawdlets.hostName = "clawdlets-cattle";
   clawdlets.diskDevice = "/dev/sda";
 
+  fileSystems."/" = {
+    device = lib.mkDefault "/dev/disk/by-label/nixos";
+    autoResize = lib.mkDefault true;
+  };
+
   networking.hostName = lib.mkDefault config.clawdlets.hostName;
   networking.nameservers = config.clawdlets.nameservers;
   networking.useDHCP = false;
@@ -36,6 +41,7 @@
 
   boot.loader.grub = {
     enable = true;
+    devices = lib.mkDefault [ config.clawdlets.diskDevice ];
     efiSupport = false;
     useOSProber = false;
   };
