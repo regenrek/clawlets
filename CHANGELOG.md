@@ -5,6 +5,10 @@ The format is based on Keep a Changelog and this project follows SemVer for npm 
 
 ## Unreleased
 
+## [0.2.1] - 2026-01-19
+### Fixed
+- Handle null `fleet.modelSecrets` in Nix runtime env wiring (prevents eval failure during bootstrap).
+
 ## [0.2.0] - 2026-01-18
 ### Breaking
 - Remove `envSecrets` indirection. Secrets now live in `fleet.modelSecrets` (provider → secret) and `fleet.bots.<bot>.profile.discordTokenSecret`. Config schema bumped to v8.
