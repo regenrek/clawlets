@@ -76,7 +76,15 @@ jobs:
 
       - name: Publish to npm (OIDC)
         working-directory: dist/npm/clawdlets
-        run: npm publish --access public --provenance --tag ${{ steps.release.outputs.dist }}
+        run: |
+          set -euo pipefail
+          pkg="$(node -p "require('./package.json').name")"
+          ver="$(node -p "require('./package.json').version")"
+          if npm view "${pkg}@${ver}" version >/dev/null 2>&1; then
+            echo "skip: already published ${pkg}@${ver}"
+            exit 0
+          fi
+          npm publish --access public --provenance --tag ${{ steps.release.outputs.dist }}
         env:
           NODE_AUTH_TOKEN: ""
 
@@ -85,6 +93,14 @@ jobs:
 
       - name: Publish plugin to npm (OIDC)
         working-directory: dist/npm/clawdlets-plugin-cattle
-        run: npm publish --access public --provenance --tag ${{ steps.release.outputs.dist }}
+        run: |
+          set -euo pipefail
+          pkg="$(node -p "require('./package.json').name")"
+          ver="$(node -p "require('./package.json').version")"
+          if npm view "${pkg}@${ver}" version >/dev/null 2>&1; then
+            echo "skip: already published ${pkg}@${ver}"
+            exit 0
+          fi
+          npm publish --access public --provenance --tag ${{ steps.release.outputs.dist }}
         env:
           NODE_AUTH_TOKEN: ""
