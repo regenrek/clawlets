@@ -5,13 +5,13 @@ const findRepoRootMock = vi.fn(() => "/repo");
 const loadClawdletsConfigMock = vi.fn();
 const resolveHostNameOrExitMock = vi.fn();
 
-vi.mock("@clawdlets/core/lib/repo", () => ({
+vi.mock("../src/lib/repo.js", () => ({
   findRepoRoot: findRepoRootMock,
 }));
 
-vi.mock("@clawdlets/core/lib/clawdlets-config", async () => {
-  const actual = await vi.importActual<typeof import("@clawdlets/core/lib/clawdlets-config")>(
-    "@clawdlets/core/lib/clawdlets-config",
+vi.mock("../src/lib/clawdlets-config.js", async () => {
+  const actual = await vi.importActual<typeof import("../src/lib/clawdlets-config.js")>(
+    "../src/lib/clawdlets-config.js",
   );
   return {
     ...actual,

@@ -7,7 +7,7 @@ import { capture } from "@clawdlets/core/lib/run";
 import { withFlakesEnv } from "@clawdlets/core/lib/nix-flakes";
 import { getHostSecretsDir } from "@clawdlets/core/repo-layout";
 import { createSecretsTar } from "@clawdlets/core/lib/secrets-tar";
-import { loadHostContextOrExit } from "../../lib/context.js";
+import { loadHostContextOrExit } from "@clawdlets/core/lib/context";
 import { formatDeployManifest, requireToplevel, requireRev, type DeployManifest } from "../../lib/deploy-manifest.js";
 import { requireLinuxForLocalNixosBuild } from "../../lib/linux-build.js";
 

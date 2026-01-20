@@ -163,8 +163,21 @@ function main() {
   const corePkgPath = path.resolve("packages/core/package.json");
   const cliPkgGitPath = "packages/cli/package.json";
   const corePkgGitPath = "packages/core/package.json";
+  const pluginsDir = path.resolve("packages/plugins");
+  const pluginPkgPaths: string[] = [];
+  const pluginPkgGitPaths: string[] = [];
 
-  for (const p of [cliPkgPath, corePkgPath]) {
+  if (fs.existsSync(pluginsDir)) {
+    for (const ent of fs.readdirSync(pluginsDir, { withFileTypes: true })) {
+      if (!ent.isDirectory()) continue;
+      const pkgPath = path.join(pluginsDir, ent.name, "package.json");
+      if (!fs.existsSync(pkgPath)) continue;
+      pluginPkgPaths.push(pkgPath);
+      pluginPkgGitPaths.push(path.relative(process.cwd(), pkgPath));
+    }
+  }
+
+  for (const p of [cliPkgPath, corePkgPath, ...pluginPkgPaths]) {
     if (!fs.existsSync(p)) die(`missing package.json: ${p}`);
   }
 
@@ -176,6 +189,13 @@ function main() {
   const coreCurrent = String(corePkg.version || "").trim();
   if (!coreCurrent) die("packages/core/package.json missing version");
   if (coreCurrent !== current) die(`version mismatch: cli=${current} core=${coreCurrent}`);
+
+  for (const p of pluginPkgPaths) {
+    const pluginPkg = JSON.parse(fs.readFileSync(p, "utf8"));
+    const pluginVersion = String(pluginPkg.version || "").trim();
+    if (!pluginVersion) die(`missing version in ${p}`);
+    if (pluginVersion !== current) die(`version mismatch: cli=${current} plugin=${pluginVersion} (${p})`);
+  }
 
   const next = bumpSemver(current, bumpArg);
   const tag = `v${next}`;
@@ -204,7 +224,9 @@ function main() {
   if (willBump) {
     bumpPackageVersion(cliPkgPath, next);
     bumpPackageVersion(corePkgPath, next);
-    run(`git add "${cliPkgGitPath}" "${corePkgGitPath}"`);
+    for (const p of pluginPkgPaths) bumpPackageVersion(p, next);
+    const addPaths = [cliPkgGitPath, corePkgGitPath, ...pluginPkgGitPaths].map((p) => `"${p}"`).join(" ");
+    run(`git add ${addPaths}`);
     run(`git commit -m "chore(release): ${tag}"`);
   } else {
     console.log(`No version bump/commit (current already ${current}; pass patch/minor/major or a new version to bump).`);

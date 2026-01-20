@@ -4,6 +4,14 @@ Goal: on-demand, ephemeral Clawdbot agent VMs on Hetzner Cloud (spawn → run ta
 
 This is separate from “Pet” hosts (long-running fleet servers).
 
+## Plugin
+
+Install the cattle CLI plugin before running `clawdlets cattle *` commands:
+
+```
+clawdlets plugin add cattle
+```
+
 ## Principles
 
 - Hetzner-only.

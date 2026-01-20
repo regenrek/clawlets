@@ -7,7 +7,7 @@ import { getHostRemoteSecretsDir, getHostSecretsDir } from "@clawdlets/core/repo
 import { resolveGitRev } from "@clawdlets/core/lib/git";
 import { createSecretsTar } from "@clawdlets/core/lib/secrets-tar";
 import { needsSudo, requireTargetHost } from "./common.js";
-import { loadHostContextOrExit } from "../../lib/context.js";
+import { loadHostContextOrExit } from "@clawdlets/core/lib/context";
 
 export const secretsSync = defineCommand({
   meta: {

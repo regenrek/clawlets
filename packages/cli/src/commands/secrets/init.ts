@@ -17,7 +17,7 @@ import { readYamlScalarFromMapping } from "@clawdlets/core/lib/yaml-scalar";
 import { getHostEncryptedAgeKeyFile, getHostExtraFilesKeyPath, getHostExtraFilesSecretsDir, getHostSecretsDir, getLocalOperatorAgeKeyPath } from "@clawdlets/core/repo-layout";
 import { expandPath } from "@clawdlets/core/lib/path-expand";
 import { cancelFlow, navOnCancel, NAV_EXIT } from "../../lib/wizard.js";
-import { loadHostContextOrExit } from "../../lib/context.js";
+import { loadHostContextOrExit } from "@clawdlets/core/lib/context";
 import { upsertYamlScalarLine } from "./common.js";
 
 function wantsInteractive(flag: boolean | undefined): boolean {

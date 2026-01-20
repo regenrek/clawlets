@@ -11,7 +11,7 @@ const createSecretsTarMock = vi.fn();
 const captureMock = vi.fn();
 const requireLinuxMock = vi.fn();
 
-vi.mock("../src/lib/context.js", () => ({
+vi.mock("@clawdlets/core/lib/context", () => ({
   loadHostContextOrExit: loadHostContextMock,
 }));
 

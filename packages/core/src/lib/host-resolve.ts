@@ -1,6 +1,6 @@
 import process from "node:process";
-import { findRepoRoot } from "@clawdlets/core/lib/repo";
-import { loadClawdletsConfig, resolveHostName } from "@clawdlets/core/lib/clawdlets-config";
+import { findRepoRoot } from "./repo.js";
+import { loadClawdletsConfig, resolveHostName } from "./clawdlets-config.js";
 
 function printHostTips(lines: string[]): void {
   for (const l of lines) console.error(`tip: ${l}`);

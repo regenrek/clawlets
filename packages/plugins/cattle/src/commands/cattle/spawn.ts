@@ -3,9 +3,9 @@ import process from "node:process";
 import { defineCommand } from "citty";
 import { CLF_PROTOCOL_VERSION, createClfClient } from "@clawdlets/clf-queue";
 import { sanitizeOperatorId } from "@clawdlets/core/lib/identifiers";
-import { openCattleState } from "@clawdlets/core/lib/cattle-state";
+import { openCattleState } from "../../lib/cattle-state.js";
 import { type CattleTask } from "@clawdlets/core/lib/cattle-task";
-import { loadHostContextOrExit } from "../../lib/context.js";
+import { loadHostContextOrExit } from "@clawdlets/core/lib/context";
 import { loadTaskFromFile, requireEnabled, requireFile, requireTtlSeconds, unixSecondsNow, waitForClfJobTerminal } from "./common.js";
 
 export const cattleSpawn = defineCommand({

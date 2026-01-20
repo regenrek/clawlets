@@ -4,7 +4,7 @@ import process from "node:process";
 import { defineCommand } from "citty";
 import { collectDoctorChecks } from "@clawdlets/core/doctor";
 import { findRepoRoot } from "@clawdlets/core/lib/repo";
-import { resolveHostNameOrExit } from "../lib/host-resolve.js";
+import { resolveHostNameOrExit } from "@clawdlets/core/lib/host-resolve";
 import { renderDoctorReport } from "../lib/doctor-render.js";
 
 export const doctor = defineCommand({

@@ -9,7 +9,7 @@ import { expandPath } from "@clawdlets/core/lib/path-expand";
 import { findRepoRoot } from "@clawdlets/core/lib/repo";
 import { getSshExposureMode, getTailnetMode, loadClawdletsConfig } from "@clawdlets/core/lib/clawdlets-config";
 import { getHostOpenTofuDir } from "@clawdlets/core/repo-layout";
-import { resolveHostNameOrExit } from "../lib/host-resolve.js";
+import { resolveHostNameOrExit } from "@clawdlets/core/lib/host-resolve";
 
 const infraApply = defineCommand({
   meta: {

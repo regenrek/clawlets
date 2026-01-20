@@ -6,7 +6,7 @@ import { resolveGitRev } from "@clawdlets/core/lib/git";
 import { capture, run } from "@clawdlets/core/lib/run";
 import { withFlakesEnv } from "@clawdlets/core/lib/nix-flakes";
 import { loadDeployCreds } from "@clawdlets/core/lib/deploy-creds";
-import { loadHostContextOrExit } from "../lib/context.js";
+import { loadHostContextOrExit } from "@clawdlets/core/lib/context";
 
 async function buildRawImage(params: { repoRoot: string; nixBin: string; host: string }): Promise<string> {
   if (process.platform !== "linux") {

@@ -39,6 +39,11 @@ jobs:
           CI: "1"
         run: pnpm -C packages/cli test
 
+      - name: Plugin tests (cattle)
+        env:
+          CI: "1"
+        run: pnpm -C packages/plugins/cattle test
+
       - name: Tests
         env:
           CI: "1"
@@ -48,6 +53,11 @@ jobs:
         env:
           CI: "1"
         run: pnpm -C packages/core run coverage
+
+      - name: Plugin coverage (cattle)
+        env:
+          CI: "1"
+        run: pnpm -C packages/plugins/cattle run coverage
 
       - uses: cachix/install-nix-action@4e002c8ec80594ecd40e759629461e26c8abed15 # v31.9.0
         with:

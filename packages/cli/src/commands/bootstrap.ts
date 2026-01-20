@@ -15,7 +15,7 @@ import { getSshExposureMode, getTailnetMode, loadClawdletsConfig } from "@clawdl
 import { resolveBaseFlake } from "@clawdlets/core/lib/base-flake";
 import { getHostExtraFilesDir, getHostExtraFilesKeyPath, getHostExtraFilesSecretsDir, getHostOpenTofuDir } from "@clawdlets/core/repo-layout";
 import { requireDeployGate } from "../lib/deploy-gate.js";
-import { resolveHostNameOrExit } from "../lib/host-resolve.js";
+import { resolveHostNameOrExit } from "@clawdlets/core/lib/host-resolve";
 
 async function purgeKnownHosts(ipv4: string, opts: { dryRun: boolean }) {
   const rm = async (host: string) => {

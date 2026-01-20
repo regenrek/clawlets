@@ -5,7 +5,7 @@ import { requireTargetHost, needsSudo } from "./server/common.js";
 import { serverGithubSync } from "./server/github-sync.js";
 import { serverDeploy } from "./server/deploy.js";
 import { serverManifest } from "./server/manifest.js";
-import { loadHostContextOrExit } from "../lib/context.js";
+import { loadHostContextOrExit } from "@clawdlets/core/lib/context";
 
 function normalizeSince(value: string): string {
   const v = value.trim();
