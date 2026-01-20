@@ -83,9 +83,50 @@ function rewriteWorkspaceDeps(pkg, versionsByName, fallbackVersion) {
   return next;
 }
 
+function collectWorkspacePackages(root) {
+  const out = new Map();
+  const ignore = new Set(["node_modules", "dist", "coverage", ".git", ".turbo"]);
+  const rootDir = path.join(root, "packages");
+  if (!fs.existsSync(rootDir)) return out;
+
+  const walk = (dir) => {
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const ent of entries) {
+      if (!ent.isDirectory()) continue;
+      if (ignore.has(ent.name)) continue;
+      const next = path.join(dir, ent.name);
+      const pkgPath = path.join(next, "package.json");
+      if (fs.existsSync(pkgPath)) {
+        const pkg = readJson(pkgPath);
+        const name = String(pkg.name || "").trim();
+        if (name) out.set(name, { dir: next, pkg });
+      }
+      walk(next);
+    }
+  };
+
+  walk(rootDir);
+  return out;
+}
+
+function resolveDefaultOutDir(pkgDir, pkg) {
+  const defaultCliDir = path.join(repoRoot, "packages", "cli");
+  if (pkgDir === defaultCliDir) return path.join(repoRoot, "dist", "npm", "clawdlets");
+  const name = String(pkg?.name || "").trim();
+  const safe = name ? name.replace(/\//g, "-") : "package";
+  return path.join(repoRoot, "dist", "npm", safe);
+}
+
+function isPathWithin(baseDir, candidate) {
+  const rel = path.relative(baseDir, candidate);
+  return rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel));
+}
+
 function main() {
   const args = process.argv.slice(2);
-  let outDir = path.join(repoRoot, "dist", "npm", "clawdlets");
+  let outDir = "";
+  let pkgDir = path.join(repoRoot, "packages", "cli");
+  let allowUnsafeOut = false;
 
   for (let i = 0; i < args.length; i += 1) {
     const a = args[i];
@@ -96,83 +137,94 @@ function main() {
       i += 1;
       continue;
     }
+    if (a === "--pkg") {
+      const v = args[i + 1];
+      if (!v) die("missing value for --pkg");
+      pkgDir = path.isAbsolute(v) ? v : path.resolve(repoRoot, v);
+      i += 1;
+      continue;
+    }
+    if (a === "--allow-unsafe-out") {
+      allowUnsafeOut = true;
+      continue;
+    }
     if (a === "-h" || a === "--help") {
-      console.log("Usage: node scripts/prepare-package.mjs [--out <dir>]");
+      console.log("Usage: node scripts/prepare-package.mjs [--pkg <dir>] [--out <dir>] [--allow-unsafe-out]");
       process.exit(0);
     }
     die(`unknown arg: ${a}`);
   }
 
-  const cliDir = path.join(repoRoot, "packages", "cli");
-  const cliPkgPath = path.join(cliDir, "package.json");
-  if (!fs.existsSync(cliPkgPath)) die(`missing cli package.json at ${cliPkgPath}`);
+  const pkgPath = path.join(pkgDir, "package.json");
+  if (!fs.existsSync(pkgPath)) die(`missing package.json at ${pkgPath}`);
 
-  const coreDir = path.join(repoRoot, "packages", "core");
-  const corePkgPath = path.join(coreDir, "package.json");
-  const coreDistDir = path.join(coreDir, "dist");
-  if (!fs.existsSync(corePkgPath)) die(`missing core package.json at ${corePkgPath}`);
-  if (!fs.existsSync(coreDistDir)) die(`missing core dist/ (run build): ${coreDistDir}`);
+  const pkg = readJson(pkgPath);
+  const pkgVersion = String(pkg?.version || "").trim();
+  if (!pkgVersion) die("package.json missing version");
 
-  const clfQueueDir = path.join(repoRoot, "packages", "clf", "queue");
-  const clfQueuePkgPath = path.join(clfQueueDir, "package.json");
-  const clfQueueDistDir = path.join(clfQueueDir, "dist");
-  if (!fs.existsSync(clfQueuePkgPath)) die(`missing clf-queue package.json at ${clfQueuePkgPath}`);
-  if (!fs.existsSync(clfQueueDistDir)) die(`missing clf-queue dist/ (run build): ${clfQueueDistDir}`);
+  if (!outDir) outDir = resolveDefaultOutDir(pkgDir, pkg);
+  const distRoot = path.join(repoRoot, "dist");
+  if (!allowUnsafeOut && !isPathWithin(distRoot, outDir)) {
+    die(`--out must be under ${distRoot} (pass --allow-unsafe-out to override)`);
+  }
 
-  const cliPkg = readJson(cliPkgPath);
-  const corePkg = readJson(corePkgPath);
-  const clfQueuePkg = readJson(clfQueuePkgPath);
+  const distDir = path.join(pkgDir, "dist");
+  if (!fs.existsSync(distDir)) die(`missing dist/ (run build): ${distDir}`);
 
-  const cliVersion = String(cliPkg?.version || "").trim();
-  if (!cliVersion) die("cli package.json missing version");
+  const workspacePkgs = collectWorkspacePackages(repoRoot);
+  const versionsByName = new Map();
+  for (const [name, info] of workspacePkgs.entries()) {
+    versionsByName.set(String(name), String(info.pkg.version || pkgVersion));
+  }
+
+  const bundledDeps = Object.entries(pkg.dependencies || {})
+    .filter(([, v]) => isWorkspaceProtocol(v))
+    .map(([name]) => String(name));
 
   const outPkgDir = outDir;
   rmForce(outPkgDir);
   ensureDir(outPkgDir);
 
-  // Copy CLI build output.
-  const cliDistDir = path.join(cliDir, "dist");
-  if (!fs.existsSync(cliDistDir)) die(`missing cli dist/ (run build): ${cliDistDir}`);
-  cpDir(cliDistDir, path.join(outPkgDir, "dist"));
+  // Copy build output.
+  cpDir(distDir, path.join(outPkgDir, "dist"));
   removeTsBuildInfoFiles(path.join(outPkgDir, "dist"));
 
   // README + LICENSE for npm page.
   const repoPkg = readJson(path.join(repoRoot, "package.json"));
-  const repoSlug = resolveRepoSlugFromPackageJson(cliPkg) || resolveRepoSlugFromPackageJson(repoPkg);
-  const readmeSrc = path.join(repoRoot, "README.md");
-  if (fs.existsSync(readmeSrc)) {
+  const repoSlug = resolveRepoSlugFromPackageJson(pkg) || resolveRepoSlugFromPackageJson(repoPkg);
+  const readmeCandidates = [path.join(pkgDir, "README.md"), path.join(repoRoot, "README.md")];
+  for (const readmeSrc of readmeCandidates) {
+    if (!fs.existsSync(readmeSrc)) continue;
     const readme = fs.readFileSync(readmeSrc, "utf8");
     fs.writeFileSync(path.join(outPkgDir, "README.md"), rewriteReadmeForNpm(readme, repoSlug));
+    break;
   }
   const licenseSrc = path.join(repoRoot, "LICENSE");
   if (fs.existsSync(licenseSrc)) cpFile(licenseSrc, path.join(outPkgDir, "LICENSE"));
 
   // Bundle internal workspace deps into node_modules.
-  const versionsByName = new Map([
-    [String(corePkg.name), String(corePkg.version || cliVersion)],
-    [String(clfQueuePkg.name), String(clfQueuePkg.version || cliVersion)],
-  ]);
-
-  const bundled = [String(corePkg.name), String(clfQueuePkg.name)];
   const nmRoot = path.join(outPkgDir, "node_modules");
+  const bundled = [];
+  for (const depName of bundledDeps) {
+    const info = workspacePkgs.get(depName);
+    if (!info) die(`workspace dependency not found: ${depName}`);
+    const depPkg = info.pkg;
+    const depDir = info.dir;
+    const depDistDir = path.join(depDir, "dist");
+    if (!fs.existsSync(depDistDir)) die(`missing dist/ for ${depName} (run build): ${depDistDir}`);
 
-  const coreOutDir = path.join(nmRoot, ...String(corePkg.name).split("/"));
-  ensureDir(coreOutDir);
-  writeJson(path.join(coreOutDir, "package.json"), rewriteWorkspaceDeps(corePkg, versionsByName, cliVersion));
-  cpDir(coreDistDir, path.join(coreOutDir, "dist"));
-  removeTsBuildInfoFiles(path.join(coreOutDir, "dist"));
+    const depOutDir = path.join(nmRoot, ...String(depPkg.name).split("/"));
+    ensureDir(depOutDir);
+    writeJson(path.join(depOutDir, "package.json"), rewriteWorkspaceDeps(depPkg, versionsByName, pkgVersion));
+    cpDir(depDistDir, path.join(depOutDir, "dist"));
+    removeTsBuildInfoFiles(path.join(depOutDir, "dist"));
 
-  const clfQueueOutDir = path.join(nmRoot, ...String(clfQueuePkg.name).split("/"));
-  ensureDir(clfQueueOutDir);
-  writeJson(path.join(clfQueueOutDir, "package.json"), rewriteWorkspaceDeps(clfQueuePkg, versionsByName, cliVersion));
-  cpDir(clfQueueDistDir, path.join(clfQueueOutDir, "dist"));
-  removeTsBuildInfoFiles(path.join(clfQueueOutDir, "dist"));
+    bundled.push(String(depPkg.name));
+  }
 
-  // Bundle runtime deps of the bundled workspace packages.
-  // npm pack will treat these as part of the bundled closure; if they're missing,
-  // installs can produce empty "invalid" node_modules entries.
-  const bundleRuntimeDeps = (pkgDir, pkg) => {
-    for (const [depName, depVersion] of Object.entries(pkg.dependencies || {})) {
+  // Bundle runtime deps of bundled workspace packages.
+  const bundleRuntimeDeps = (pkgDir, pkgObj) => {
+    for (const [depName, depVersion] of Object.entries(pkgObj.dependencies || {})) {
       if (isWorkspaceProtocol(depVersion)) continue;
       const srcDepDir = path.join(pkgDir, "node_modules", ...String(depName).split("/"));
       if (!fs.existsSync(srcDepDir)) die(`missing installed dependency (run install): ${srcDepDir}`);
@@ -181,41 +233,45 @@ function main() {
       cpDirDereference(srcDepDir, destDepDir);
     }
   };
-  bundleRuntimeDeps(coreDir, corePkg);
-  bundleRuntimeDeps(clfQueueDir, clfQueuePkg);
+  for (const depName of bundledDeps) {
+    const info = workspacePkgs.get(depName);
+    if (!info) continue;
+    bundleRuntimeDeps(info.dir, info.pkg);
+  }
 
   // Publishable package.json (no workspace: protocol).
-  const nextCliPkg = { ...cliPkg };
-  nextCliPkg.private = false;
-  nextCliPkg.publishConfig = { ...(nextCliPkg.publishConfig || {}), access: "public" };
-  nextCliPkg.files = Array.from(
-    new Set(["dist", "README.md", "LICENSE", ...(Array.isArray(nextCliPkg.files) ? nextCliPkg.files : [])]),
+  const nextPkg = { ...pkg };
+  nextPkg.private = false;
+  nextPkg.publishConfig = { ...(nextPkg.publishConfig || {}), access: "public" };
+  nextPkg.files = Array.from(
+    new Set(["dist", "README.md", "LICENSE", ...(Array.isArray(nextPkg.files) ? nextPkg.files : [])]),
   ).filter((x) => x !== "node_modules");
 
-  nextCliPkg.bundledDependencies = Array.from(new Set([...(nextCliPkg.bundledDependencies || []), ...bundled]));
+  nextPkg.bundledDependencies = Array.from(new Set([...(nextPkg.bundledDependencies || []), ...bundled]));
 
-  const deps = { ...(nextCliPkg.dependencies || {}) };
+  const deps = { ...(nextPkg.dependencies || {}) };
 
   // Ensure runtime deps of bundled workspace packages are installed by npm.
-  // Bundled dependencies' transitive deps are not installed automatically.
-  for (const pkg of [corePkg, clfQueuePkg]) {
-    for (const [name, version] of Object.entries(pkg.dependencies || {})) {
+  for (const depName of bundledDeps) {
+    const info = workspacePkgs.get(depName);
+    if (!info) continue;
+    for (const [name, version] of Object.entries(info.pkg.dependencies || {})) {
       if (isWorkspaceProtocol(version)) continue;
       if (!deps[name]) deps[name] = version;
     }
   }
 
   for (const name of bundled) {
-    deps[name] = versionsByName.get(name) || cliVersion;
+    deps[name] = versionsByName.get(name) || pkgVersion;
   }
-  nextCliPkg.dependencies = deps;
+  nextPkg.dependencies = deps;
 
   // Guard: no workspace: protocol in output manifest.
-  for (const [k, v] of Object.entries(nextCliPkg.dependencies || {})) {
+  for (const [k, v] of Object.entries(nextPkg.dependencies || {})) {
     if (String(v).startsWith("workspace:")) die(`output package.json still contains workspace protocol: ${k}=${v}`);
   }
 
-  writeJson(path.join(outPkgDir, "package.json"), nextCliPkg);
+  writeJson(path.join(outPkgDir, "package.json"), nextPkg);
 
   console.log(`Prepared npm package dir: ${outPkgDir}`);
 }

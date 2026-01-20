@@ -62,7 +62,7 @@ vi.mock("@clawdlets/core/lib/secrets-init", async () => {
   };
 });
 
-vi.mock("../src/lib/context.js", () => ({
+vi.mock("@clawdlets/core/lib/context", () => ({
   loadHostContextOrExit: loadHostContextMock,
 }));
 

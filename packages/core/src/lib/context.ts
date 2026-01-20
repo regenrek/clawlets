@@ -1,6 +1,6 @@
-import { findRepoRoot } from "@clawdlets/core/lib/repo";
-import { loadClawdletsConfig, type ClawdletsConfig, type ClawdletsHostConfig } from "@clawdlets/core/lib/clawdlets-config";
-import type { RepoLayout } from "@clawdlets/core/repo-layout";
+import { findRepoRoot } from "./repo.js";
+import { loadClawdletsConfig, type ClawdletsConfig, type ClawdletsHostConfig } from "./clawdlets-config.js";
+import type { RepoLayout } from "../repo-layout.js";
 import { resolveHostNameOrExit } from "./host-resolve.js";
 
 export type RepoContext = {

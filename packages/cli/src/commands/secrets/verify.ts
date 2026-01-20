@@ -9,7 +9,7 @@ import { buildFleetSecretsPlan } from "@clawdlets/core/lib/fleet-secrets";
 import { isPlaceholderSecretValue } from "@clawdlets/core/lib/secrets-init";
 import { loadDeployCreds } from "@clawdlets/core/lib/deploy-creds";
 import { getHostSecretsDir, getLocalOperatorAgeKeyPath } from "@clawdlets/core/repo-layout";
-import { loadHostContextOrExit } from "../../lib/context.js";
+import { loadHostContextOrExit } from "@clawdlets/core/lib/context";
 
 export const secretsVerify = defineCommand({
   meta: {

@@ -10,7 +10,7 @@ import { shellQuote, sshRun } from "@clawdlets/core/lib/ssh-remote";
 import { getHostSecretsDir } from "@clawdlets/core/repo-layout";
 import { createSecretsTar } from "@clawdlets/core/lib/secrets-tar";
 import { requireDeployGate } from "../../lib/deploy-gate.js";
-import { loadHostContextOrExit } from "../../lib/context.js";
+import { loadHostContextOrExit } from "@clawdlets/core/lib/context";
 import { needsSudo, requireTargetHost } from "../ssh-target.js";
 import { formatDeployManifest, parseDeployManifest, requireToplevel, type DeployManifest } from "../../lib/deploy-manifest.js";
 import { resolveManifestPublicKey, resolveManifestSignaturePath, verifyManifestSignature } from "../../lib/manifest-signature.js";

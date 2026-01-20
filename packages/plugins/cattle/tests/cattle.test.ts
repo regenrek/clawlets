@@ -5,7 +5,7 @@ import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { getRepoLayout } from "@clawdlets/core/repo-layout";
 
 const loadHostContextOrExitMock = vi.fn();
-vi.mock("../src/lib/context.js", () => ({
+vi.mock("@clawdlets/core/lib/context", () => ({
   loadHostContextOrExit: loadHostContextOrExitMock,
 }));
 
@@ -14,6 +14,11 @@ vi.mock(import("@clawdlets/clf-queue"), async (importOriginal) => {
   const actual = await importOriginal();
   return { ...actual, CLF_PROTOCOL_VERSION: (actual as any).CLF_PROTOCOL_VERSION, createClfClient: createClfClientMock };
 });
+
+const openCattleStateMock = vi.fn();
+vi.mock("../src/lib/cattle-state", () => ({
+  openCattleState: openCattleStateMock,
+}));
 
 const loadDeployCredsMock = vi.fn();
 vi.mock("@clawdlets/core/lib/deploy-creds", () => ({
@@ -81,6 +86,14 @@ describe("cattle command", () => {
       hostName,
       hostCfg,
     });
+
+    openCattleStateMock.mockReturnValue({
+      upsertServer: vi.fn(),
+      listActive: vi.fn(() => []),
+      findActiveByIdOrName: vi.fn(() => null),
+      markDeletedById: vi.fn(),
+      close: vi.fn(),
+    });
   });
 
   afterEach(() => {
@@ -103,7 +116,7 @@ describe("cattle command", () => {
 
     const { cattle } = await import("../src/commands/cattle");
     await cattle.subCommands.spawn.run({
-      args: { host: hostName, persona: "rex", taskFile, ttl: "2h", dryRun: true } as any,
+      args: { host: hostName, persona: "rex", taskFile, ttl: "2h", autoShutdown: false, withGithubToken: true, dryRun: true } as any,
     });
 
     const obj = JSON.parse(logs.join("\n"));
@@ -111,6 +124,8 @@ describe("cattle command", () => {
     expect(obj.request.kind).toBe("cattle.spawn");
     expect(obj.request.payload.persona).toBe("rex");
     expect(obj.request.payload.ttl).toBe("2h");
+    expect(obj.request.payload.autoShutdown).toBe(false);
+    expect(obj.request.payload.withGithubToken).toBe(true);
     expect(obj.request.payload.task.taskId).toBe("issue-42");
   });
 
@@ -141,6 +156,139 @@ describe("cattle command", () => {
 
     expect(enqueueMock).toHaveBeenCalled();
     expect(logs.join("\n")).toMatch(/job-1/);
+  });
+
+  it("spawn stores server state on success", async () => {
+    const taskFile = path.join(repoRoot, "task.json");
+    fs.writeFileSync(
+      taskFile,
+      JSON.stringify({ schemaVersion: 1, taskId: "issue-42", type: "clawdbot.gateway.agent", message: "do the thing" }, null, 2),
+      "utf8",
+    );
+
+    const upsertServer = vi.fn();
+    const close = vi.fn();
+    openCattleStateMock.mockReturnValueOnce({ upsertServer, close });
+
+    createClfClientMock.mockReturnValue({
+      enqueue: vi.fn(async () => ({ protocolVersion: 1, jobId: "job-2" })),
+      show: vi.fn().mockResolvedValue({
+        job: {
+          status: "done",
+          result: {
+            server: {
+              id: "srv-1",
+              name: "cattle-rex-1",
+              ipv4: "1.2.3.4",
+              createdAt: "not-a-date",
+              expiresAt: "",
+              ttlSeconds: 120,
+              labels: { team: "ops" },
+              status: "running",
+            },
+          },
+        },
+      }),
+    });
+
+    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(1_700_000_000_000);
+    const logs: string[] = [];
+    logSpy = vi.spyOn(console, "log").mockImplementation((...args) => logs.push(args.join(" ")));
+
+    const { cattle } = await import("../src/commands/cattle");
+    await cattle.subCommands.spawn.run({
+      args: { host: hostName, persona: "rex", taskFile, wait: true } as any,
+    });
+
+    expect(upsertServer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "srv-1",
+        name: "cattle-rex-1",
+        ttlSeconds: 120,
+        createdAt: 1_700_000_000,
+        expiresAt: 0,
+        labels: { team: "ops" },
+        lastStatus: "running",
+        lastIpv4: "1.2.3.4",
+      }),
+    );
+    expect(close).toHaveBeenCalled();
+    expect(logs.join("\n")).toMatch(/ok: spawned/);
+    nowSpy.mockRestore();
+  });
+
+  it("spawn throws on failed job status", async () => {
+    const taskFile = path.join(repoRoot, "task.json");
+    fs.writeFileSync(
+      taskFile,
+      JSON.stringify({ schemaVersion: 1, taskId: "issue-42", type: "clawdbot.gateway.agent", message: "do the thing" }, null, 2),
+      "utf8",
+    );
+
+    createClfClientMock.mockReturnValue({
+      enqueue: vi.fn(async () => ({ protocolVersion: 1, jobId: "job-3" })),
+      show: vi.fn().mockResolvedValue({ job: { status: "failed", lastError: "boom" } }),
+    });
+
+    const { cattle } = await import("../src/commands/cattle");
+    await expect(
+      cattle.subCommands.spawn.run({ args: { host: hostName, persona: "rex", taskFile, wait: true } as any }),
+    ).rejects.toThrow(/failed.*boom/);
+  });
+
+  it("spawn rejects invalid wait timeout", async () => {
+    const taskFile = path.join(repoRoot, "task.json");
+    fs.writeFileSync(
+      taskFile,
+      JSON.stringify({ schemaVersion: 1, taskId: "issue-42", type: "clawdbot.gateway.agent", message: "do the thing" }, null, 2),
+      "utf8",
+    );
+
+    createClfClientMock.mockReturnValue({
+      enqueue: vi.fn(async () => ({ protocolVersion: 1, jobId: "job-4" })),
+      show: vi.fn(),
+    });
+
+    const { cattle } = await import("../src/commands/cattle");
+    await expect(
+      cattle.subCommands.spawn.run({ args: { host: hostName, persona: "rex", taskFile, wait: true, waitTimeout: "0" } as any }),
+    ).rejects.toThrow(/invalid --wait-timeout/);
+  });
+
+  it("spawn rejects invalid ttl", async () => {
+    const taskFile = path.join(repoRoot, "task.json");
+    fs.writeFileSync(
+      taskFile,
+      JSON.stringify({ schemaVersion: 1, taskId: "issue-42", type: "clawdbot.gateway.agent", message: "do the thing" }, null, 2),
+      "utf8",
+    );
+
+    const { cattle } = await import("../src/commands/cattle");
+    await expect(
+      cattle.subCommands.spawn.run({ args: { host: hostName, persona: "rex", taskFile, ttl: "nope", dryRun: true } as any }),
+    ).rejects.toThrow(/invalid --ttl/);
+  });
+
+  it("spawn rejects when cattle disabled", async () => {
+    const taskFile = path.join(repoRoot, "task.json");
+    fs.writeFileSync(
+      taskFile,
+      JSON.stringify({ schemaVersion: 1, taskId: "issue-42", type: "clawdbot.gateway.agent", message: "do the thing" }, null, 2),
+      "utf8",
+    );
+
+    loadHostContextOrExitMock.mockReturnValue({
+      repoRoot,
+      layout,
+      config: { ...config, cattle: { enabled: false } },
+      hostName,
+      hostCfg,
+    });
+
+    const { cattle } = await import("../src/commands/cattle");
+    await expect(
+      cattle.subCommands.spawn.run({ args: { host: hostName, persona: "rex", taskFile, dryRun: true } as any }),
+    ).rejects.toThrow(/cattle is disabled/);
   });
 
   it("reap --dry-run does not delete", async () => {

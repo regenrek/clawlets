@@ -9,7 +9,7 @@ const captureMock = vi.fn();
 const runMock = vi.fn();
 const loadDeployCredsMock = vi.fn();
 
-vi.mock("../src/lib/context.js", () => ({
+vi.mock("@clawdlets/core/lib/context", () => ({
   loadHostContextOrExit: loadHostContextMock,
 }));
 

@@ -10,7 +10,7 @@ vi.mock("@clawdlets/core/lib/repo", () => ({
   findRepoRoot: findRepoRootMock,
 }));
 
-vi.mock("../src/lib/host-resolve.js", () => ({
+vi.mock("@clawdlets/core/lib/host-resolve", () => ({
   resolveHostNameOrExit: resolveHostNameOrExitMock,
 }));
 

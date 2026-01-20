@@ -22,7 +22,7 @@ Operator vs bot
 
 Where to run what
 - Workstation: `clawdlets` (project init, bootstrap, deploy).
-- Pet host: `clf` + `clf-orchestrator`, and `clawdlets cattle *` (talks to local Unix socket).
+- Pet host: `clf` + `clf-orchestrator`, and `clawdlets cattle *` (requires `clawdlets plugin add cattle`).
 
 Key split
 - `clawdlets` = operator/admin CLI (bootstrap, deploy, lockdown, infra).

@@ -9,7 +9,7 @@ import { findRepoRoot } from "@clawdlets/core/lib/repo";
 import { getSshExposureMode, getTailnetMode, loadClawdletsConfig } from "@clawdlets/core/lib/clawdlets-config";
 import { getHostOpenTofuDir } from "@clawdlets/core/repo-layout";
 import { requireDeployGate } from "../lib/deploy-gate.js";
-import { resolveHostNameOrExit } from "../lib/host-resolve.js";
+import { resolveHostNameOrExit } from "@clawdlets/core/lib/host-resolve";
 
 export const lockdown = defineCommand({
   meta: {

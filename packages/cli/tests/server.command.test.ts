@@ -6,7 +6,7 @@ const sshCaptureMock = vi.fn();
 const sshRunMock = vi.fn();
 const shellQuoteMock = vi.fn((s: string) => s);
 
-vi.mock("../src/lib/context.js", () => ({
+vi.mock("@clawdlets/core/lib/context", () => ({
   loadHostContextOrExit: loadHostContextMock,
 }));
 

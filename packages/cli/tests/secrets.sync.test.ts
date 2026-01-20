@@ -11,7 +11,7 @@ const createSecretsTarMock = vi.fn();
 const runMock = vi.fn();
 const sshRunMock = vi.fn();
 
-vi.mock("../src/lib/context.js", () => ({
+vi.mock("@clawdlets/core/lib/context", () => ({
   loadHostContextOrExit: loadHostContextMock,
 }));
 

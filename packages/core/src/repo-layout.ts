@@ -18,6 +18,9 @@ export type RepoLayout = {
   runtimeInfraDir: string;
   opentofuDir: string;
 
+  // Local plugin installs (gitignored). Defaults to <runtimeDir>/plugins.
+  pluginsDir: string;
+
   // Fleet (app layer): bot roster, routing, skills, workspace docs.
   fleetDir: string;
   clawdletsConfigPath: string;
@@ -43,6 +46,7 @@ export function getRepoLayout(repoRoot: string, runtimeDir?: string): RepoLayout
   const cattleDbPath = path.join(cattleDir, "state.sqlite");
   const runtimeInfraDir = path.join(resolvedRuntimeDir, "infra");
   const opentofuDir = path.join(runtimeInfraDir, "opentofu");
+  const pluginsDir = path.join(resolvedRuntimeDir, "plugins");
   const fleetDir = path.join(repoRoot, "fleet");
   const clawdletsConfigPath = path.join(fleetDir, "clawdlets.json");
   const bundledSkillsPath = path.join(fleetDir, "bundled-skills.json");
@@ -63,6 +67,7 @@ export function getRepoLayout(repoRoot: string, runtimeDir?: string): RepoLayout
     cattleDbPath,
     runtimeInfraDir,
     opentofuDir,
+    pluginsDir,
     fleetDir,
     clawdletsConfigPath,
     bundledSkillsPath,

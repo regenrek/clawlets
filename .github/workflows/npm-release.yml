@@ -79,3 +79,12 @@ jobs:
         run: npm publish --access public --provenance --tag ${{ steps.release.outputs.dist }}
         env:
           NODE_AUTH_TOKEN: ""
+
+      - name: Prepare plugin publish dir (cattle)
+        run: node scripts/prepare-package.mjs --pkg packages/plugins/cattle --out dist/npm/clawdlets-plugin-cattle
+
+      - name: Publish plugin to npm (OIDC)
+        working-directory: dist/npm/clawdlets-plugin-cattle
+        run: npm publish --access public --provenance --tag ${{ steps.release.outputs.dist }}
+        env:
+          NODE_AUTH_TOKEN: ""

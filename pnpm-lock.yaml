@@ -88,9 +88,6 @@ importers:
       '@clack/prompts':
         specifier: ^0.11.0
         version: 0.11.0
-      '@clawdlets/clf-queue':
-        specifier: workspace:*
-        version: link:../clf/queue
       '@clawdlets/core':
         specifier: workspace:*
         version: link:../core
@@ -125,9 +122,6 @@ importers:
 
   packages/core:
     dependencies:
-      better-sqlite3:
-        specifier: ^12.6.2
-        version: 12.6.2
       dotenv:
         specifier: ^17.2.3
         version: 17.2.3
@@ -138,6 +132,34 @@ importers:
         specifier: ^4.3.5
         version: 4.3.5
     devDependencies:
+      '@types/node':
+        specifier: ^25.0.9
+        version: 25.0.9
+      '@vitest/coverage-v8':
+        specifier: ^4.0.17
+        version: 4.0.17(vitest@4.0.17(@types/node@25.0.9)(yaml@2.8.2))
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+      vitest:
+        specifier: ^4.0.17
+        version: 4.0.17(@types/node@25.0.9)(yaml@2.8.2)
+
+  packages/plugins/cattle:
+    dependencies:
+      '@clawdlets/clf-queue':
+        specifier: workspace:*
+        version: link:../../clf/queue
+      '@clawdlets/core':
+        specifier: workspace:*
+        version: link:../../core
+      better-sqlite3:
+        specifier: ^12.6.2
+        version: 12.6.2
+      citty:
+        specifier: ^0.1.6
+        version: 0.1.6
+    devDependencies:
       '@types/better-sqlite3':
         specifier: ^7.6.13
         version: 7.6.13
@@ -147,6 +169,9 @@ importers:
       '@vitest/coverage-v8':
         specifier: ^4.0.17
         version: 4.0.17(vitest@4.0.17(@types/node@25.0.9)(yaml@2.8.2))
+      tsdown:
+        specifier: ^0.20.0-beta.3
+        version: 0.20.0-beta.3(typescript@5.9.3)
       typescript:
         specifier: ^5.6.3
         version: 5.9.3

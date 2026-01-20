@@ -10,7 +10,7 @@ const loadDeployCredsMock = vi.fn();
 const buildFleetSecretsPlanMock = vi.fn();
 const sopsDecryptMock = vi.fn();
 
-vi.mock("../src/lib/context.js", () => ({
+vi.mock("@clawdlets/core/lib/context", () => ({
   loadHostContextOrExit: loadHostContextMock,
 }));
 

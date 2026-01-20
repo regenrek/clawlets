@@ -1,0 +1,41 @@
+{
+  "name": "@clawdlets/plugin-cattle",
+  "version": "0.2.5",
+  "private": false,
+  "type": "module",
+  "description": "Clawdlets cattle plugin",
+  "exports": {
+    ".": "./dist/plugin.mjs"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@clawdlets/core": "workspace:*",
+    "@clawdlets/clf-queue": "workspace:*",
+    "better-sqlite3": "^12.6.2",
+    "citty": "^0.1.6"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^25.0.9",
+    "@vitest/coverage-v8": "^4.0.17",
+    "tsdown": "^0.20.0-beta.3",
+    "typescript": "^5.6.3",
+    "vitest": "^4.0.17"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "clawdlets": {
+    "command": "cattle",
+    "entry": "./dist/plugin.mjs"
+  },
+  "packageManager": "pnpm@10.25.0"
+}

@@ -4,11 +4,11 @@ const findRepoRootMock = vi.fn(() => "/repo");
 const loadClawdletsConfigMock = vi.fn(() => ({ config: {} }));
 const resolveHostNameMock = vi.fn();
 
-vi.mock("@clawdlets/core/lib/repo", () => ({
+vi.mock("../src/lib/repo.js", () => ({
   findRepoRoot: findRepoRootMock,
 }));
 
-vi.mock("@clawdlets/core/lib/clawdlets-config", () => ({
+vi.mock("../src/lib/clawdlets-config.js", () => ({
   loadClawdletsConfig: loadClawdletsConfigMock,
   resolveHostName: resolveHostNameMock,
 }));

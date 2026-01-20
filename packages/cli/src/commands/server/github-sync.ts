@@ -2,7 +2,7 @@ import process from "node:process";
 import { defineCommand } from "citty";
 import { shellQuote, sshRun } from "@clawdlets/core/lib/ssh-remote";
 import { needsSudo, requireTargetHost } from "./common.js";
-import { loadHostContextOrExit } from "../../lib/context.js";
+import { loadHostContextOrExit } from "@clawdlets/core/lib/context";
 
 function normalizeKind(raw: string): "prs" | "issues" {
   const v = raw.trim();
