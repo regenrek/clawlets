@@ -1,11 +1,19 @@
 import { convexQuery } from "@convex-dev/react-query"
 import { useQuery } from "@tanstack/react-query"
-import { createFileRoute, Link } from "@tanstack/react-router"
+import { createFileRoute, Link, redirect } from "@tanstack/react-router"
 import { Button } from "~/components/ui/button"
 import { api } from "../../../../convex/_generated/api"
 import type { Id } from "../../../../convex/_generated/dataModel"
 
 export const Route = createFileRoute("/projects/$projectId/")({
+  beforeLoad: ({ params }) => {
+    if (params.projectId === "new") {
+      throw redirect({ to: "/projects/new" })
+    }
+    if (params.projectId === "import") {
+      throw redirect({ to: "/projects/import" })
+    }
+  },
   component: ProjectOverview,
 })
 

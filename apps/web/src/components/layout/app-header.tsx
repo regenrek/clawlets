@@ -19,7 +19,10 @@ import { authClient } from "~/lib/auth-client"
 function useActiveProjectId(): string | null {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const match = pathname.match(/^\/projects\/([^/]+)/)
-  return match?.[1] ?? null
+  const raw = match?.[1] ?? null
+  if (!raw) return null
+  if (raw === "new" || raw === "import") return null
+  return raw
 }
 
 function AppHeader() {
