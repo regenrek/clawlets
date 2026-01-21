@@ -5,10 +5,11 @@ import { toast } from "sonner"
 import type { Id } from "../../../../../convex/_generated/dataModel"
 import { Button } from "~/components/ui/button"
 import { Input } from "~/components/ui/input"
-import { Label } from "~/components/ui/label"
+import { HelpTooltip, LabelWithHelp } from "~/components/ui/label-help"
 import { Switch } from "~/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs"
 import { Textarea } from "~/components/ui/textarea"
+import { setupFieldHelp } from "~/lib/setup-field-help"
 import {
   configDotGet,
   configDotSet,
@@ -176,7 +177,9 @@ function FleetSetup() {
 
               <div className="grid gap-6 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="guild">Discord guild ID</Label>
+                  <LabelWithHelp htmlFor="guild" help={setupFieldHelp.fleet.guildId}>
+                    Discord guild ID
+                  </LabelWithHelp>
                   <Input id="guild" value={guildId} onChange={(e) => setGuildId(e.target.value)} />
                   <div className="text-xs text-muted-foreground">
                     Stored as <code>fleet.guildId</code>.
@@ -184,10 +187,15 @@ function FleetSetup() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Codex</Label>
+                  <LabelWithHelp>Codex</LabelWithHelp>
                   <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/30 p-3">
                     <div className="min-w-0">
-                      <div className="text-sm font-medium">Enable Codex</div>
+                      <div className="flex items-center gap-1 text-sm font-medium">
+                        <span>Enable Codex</span>
+                        <HelpTooltip title="Enable Codex" side="top">
+                          {setupFieldHelp.fleet.codexEnable}
+                        </HelpTooltip>
+                      </div>
                       <div className="text-xs text-muted-foreground">
                         Stored as <code>fleet.codex.enable</code>.
                       </div>
@@ -197,10 +205,15 @@ function FleetSetup() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Backups (restic)</Label>
+                  <LabelWithHelp>Backups (restic)</LabelWithHelp>
                   <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/30 p-3">
                     <div className="min-w-0">
-                      <div className="text-sm font-medium">Enable restic</div>
+                      <div className="flex items-center gap-1 text-sm font-medium">
+                        <span>Enable restic</span>
+                        <HelpTooltip title="Enable restic" side="top">
+                          {setupFieldHelp.fleet.resticEnable}
+                        </HelpTooltip>
+                      </div>
                       <div className="text-xs text-muted-foreground">
                         Stored as <code>fleet.backups.restic.enable</code>.
                       </div>
@@ -208,7 +221,9 @@ function FleetSetup() {
                     <Switch checked={resticEnable} onCheckedChange={setResticEnable} />
                   </div>
                   <div className="mt-3 space-y-2">
-                    <Label htmlFor="resticRepo">Repository</Label>
+                    <LabelWithHelp htmlFor="resticRepo" help={setupFieldHelp.fleet.resticRepo}>
+                      Repository
+                    </LabelWithHelp>
                     <Input
                       id="resticRepo"
                       value={resticRepo}
@@ -251,7 +266,11 @@ function FleetSetup() {
           <TabsContent value="json">
             <div className="rounded-lg border bg-card p-6 space-y-4">
               <div className="text-xs text-muted-foreground">Edit full config. Saved atomically.</div>
+              <LabelWithHelp htmlFor="configJson" help={setupFieldHelp.fleet.jsonEditor}>
+                Config JSON
+              </LabelWithHelp>
               <Textarea
+                id="configJson"
                 value={jsonText}
                 onChange={(e) => setJsonText(e.target.value)}
                 className="font-mono min-h-[360px]"
@@ -297,15 +316,21 @@ function FleetSetup() {
               </div>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="dotPath">Path</Label>
+                  <LabelWithHelp htmlFor="dotPath" help={setupFieldHelp.fleet.dotPath}>
+                    Path
+                  </LabelWithHelp>
                   <Input id="dotPath" value={dotPath} onChange={(e) => setDotPath(e.target.value)} />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="dotValue">Value (string)</Label>
+                  <LabelWithHelp htmlFor="dotValue" help={setupFieldHelp.fleet.dotValue}>
+                    Value (string)
+                  </LabelWithHelp>
                   <Input id="dotValue" value={dotValue} onChange={(e) => setDotValue(e.target.value)} />
                 </div>
                 <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="dotJson">Value (JSON)</Label>
+                  <LabelWithHelp htmlFor="dotJson" help={setupFieldHelp.fleet.dotValueJson}>
+                    Value (JSON)
+                  </LabelWithHelp>
                   <Textarea
                     id="dotJson"
                     value={dotValueJson}
