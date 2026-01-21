@@ -1,15 +1,22 @@
 import { Link, useRouterState } from "@tanstack/react-router"
 import * as React from "react"
-import { HugeiconsIcon } from "@hugeicons/react"
 import {
-  Folder01Icon,
-  Settings02Icon,
-  Shield01Icon,
-  Rocket01Icon,
-  FileEditIcon,
-  ComputerTerminalIcon,
-  Clock01Icon,
-} from "@hugeicons/core-free-icons"
+  ArrowPathIcon,
+  ClockIcon,
+  CloudArrowUpIcon,
+  CodeBracketSquareIcon,
+  Cog6ToothIcon,
+  CommandLineIcon,
+  CpuChipIcon,
+  ClipboardDocumentCheckIcon,
+  DocumentTextIcon,
+  FolderIcon,
+  KeyIcon,
+  PuzzlePieceIcon,
+  RocketLaunchIcon,
+  ServerStackIcon,
+  WrenchScrewdriverIcon,
+} from "@heroicons/react/24/outline"
 import {
   Sidebar,
   SidebarContent,
@@ -28,7 +35,7 @@ import { cn } from "~/lib/utils"
 type NavItem = {
   to: string
   label: string
-  icon?: React.ComponentProps<typeof HugeiconsIcon>["icon"]
+  icon?: React.ComponentType<React.ComponentProps<"svg">>
 }
 
 function useActiveProjectId(): string | null {
@@ -64,9 +71,7 @@ function NavLink({
           />
         }
       >
-        {item.icon ? (
-          <HugeiconsIcon icon={item.icon} strokeWidth={2} />
-        ) : null}
+        {item.icon ? <item.icon aria-hidden="true" /> : null}
         <span className="truncate">{item.label}</span>
       </SidebarMenuButton>
     </SidebarMenuItem>
@@ -78,36 +83,36 @@ function AppSidebarContent() {
   const projectId = useActiveProjectId()
 
   const base: NavItem[] = [
-    { to: "/projects", label: "Projects", icon: Folder01Icon },
+    { to: "/projects", label: "Projects", icon: FolderIcon },
   ]
 
   const projectBase = projectId ? `/projects/${projectId}` : null
   const setup: NavItem[] = projectBase
     ? [
-        { to: `${projectBase}/setup/fleet`, label: "Fleet", icon: Settings02Icon },
-        { to: `${projectBase}/setup/hosts`, label: "Hosts" },
-        { to: `${projectBase}/setup/bots`, label: "Bots" },
-        { to: `${projectBase}/setup/providers`, label: "Providers" },
-        { to: `${projectBase}/setup/secrets`, label: "Secrets", icon: Shield01Icon },
-        { to: `${projectBase}/setup/doctor`, label: "Doctor" },
-        { to: `${projectBase}/setup/bootstrap`, label: "Bootstrap", icon: Rocket01Icon },
+        { to: `${projectBase}/setup/fleet`, label: "Fleet", icon: Cog6ToothIcon },
+        { to: `${projectBase}/setup/hosts`, label: "Hosts", icon: ServerStackIcon },
+        { to: `${projectBase}/setup/bots`, label: "Bots", icon: CpuChipIcon },
+        { to: `${projectBase}/setup/providers`, label: "Providers", icon: PuzzlePieceIcon },
+        { to: `${projectBase}/setup/secrets`, label: "Secrets", icon: KeyIcon },
+        { to: `${projectBase}/setup/doctor`, label: "Doctor", icon: WrenchScrewdriverIcon },
+        { to: `${projectBase}/setup/bootstrap`, label: "Bootstrap", icon: RocketLaunchIcon },
       ]
     : []
 
   const operate: NavItem[] = projectBase
     ? [
-        { to: `${projectBase}/operate/deploy`, label: "Deploy" },
-        { to: `${projectBase}/operate/logs`, label: "Logs" },
-        { to: `${projectBase}/operate/audit`, label: "Audit" },
-        { to: `${projectBase}/operate/restart`, label: "Restart" },
+        { to: `${projectBase}/operate/deploy`, label: "Deploy", icon: CloudArrowUpIcon },
+        { to: `${projectBase}/operate/logs`, label: "Logs", icon: DocumentTextIcon },
+        { to: `${projectBase}/operate/audit`, label: "Audit", icon: ClipboardDocumentCheckIcon },
+        { to: `${projectBase}/operate/restart`, label: "Restart", icon: ArrowPathIcon },
       ]
     : []
 
   const advanced: NavItem[] = projectBase
     ? [
-        { to: `${projectBase}/advanced/editor`, label: "Raw Editor", icon: FileEditIcon },
-        { to: `${projectBase}/advanced/commands`, label: "Command Runner", icon: ComputerTerminalIcon },
-        { to: `${projectBase}/runs`, label: "Runs", icon: Clock01Icon },
+        { to: `${projectBase}/advanced/editor`, label: "Raw Editor", icon: CodeBracketSquareIcon },
+        { to: `${projectBase}/advanced/commands`, label: "Command Runner", icon: CommandLineIcon },
+        { to: `${projectBase}/runs`, label: "Runs", icon: ClockIcon },
       ]
     : []
 
