@@ -34,7 +34,12 @@ pnpm dev
 
 ### Dev mode (no auth)
 
-Set `VITE_CLAWDLETS_AUTH_DISABLED=true` (and optionally `CLAWDLETS_AUTH_DISABLED=true`) in `apps/web/.env.local`.
+Set `VITE_CLAWDLETS_AUTH_DISABLED=true` and `CLAWDLETS_AUTH_DISABLED=true` in `apps/web/.env.local`, and also set the Convex env var:
+
+```sh
+cd apps/web
+npx convex env set CLAWDLETS_AUTH_DISABLED true
+```
 
 ## Build
 
