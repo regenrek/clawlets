@@ -5,7 +5,8 @@ import { toast } from "sonner"
 import type { Id } from "../../../../../convex/_generated/dataModel"
 import { Button } from "~/components/ui/button"
 import { Input } from "~/components/ui/input"
-import { Label } from "~/components/ui/label"
+import { HelpTooltip, LabelWithHelp } from "~/components/ui/label-help"
+import { setupFieldHelp } from "~/lib/setup-field-help"
 import { getClawdletsConfig, writeClawdletsConfigFile } from "~/sdk/config"
 
 export const Route = createFileRoute("/projects/$projectId/setup/providers")({
@@ -105,7 +106,9 @@ function ProvidersSetup() {
             <div className="font-medium">Discord</div>
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="guild">Guild ID</Label>
+                <LabelWithHelp htmlFor="guild" help={setupFieldHelp.providers.guildId}>
+                  Guild ID
+                </LabelWithHelp>
                 <Input id="guild" value={guildId} onChange={(e) => setGuildId(e.target.value)} />
                 <div className="text-xs text-muted-foreground">
                   Stored as <code>fleet.guildId</code>.
@@ -113,7 +116,12 @@ function ProvidersSetup() {
               </div>
             </div>
             <div className="space-y-2">
-              <div className="text-sm font-medium">Per-bot discordTokenSecret</div>
+              <div className="flex items-center gap-1 text-sm font-medium">
+                <span>Per-bot discordTokenSecret</span>
+                <HelpTooltip title="discordTokenSecret" side="top">
+                  {setupFieldHelp.providers.discordTokenSecret}
+                </HelpTooltip>
+              </div>
               <div className="text-xs text-muted-foreground">
                 Secret names only. Tokens stay on disk.
               </div>
@@ -123,12 +131,18 @@ function ProvidersSetup() {
                 ) : (
                   bots.map((botId) => (
                     <div key={botId} className="grid gap-2 md:grid-cols-[180px_1fr] items-center">
-                      <div className="text-sm font-medium">{botId}</div>
+                      <div className="flex items-center gap-1 text-sm font-medium">
+                        <span>{botId}</span>
+                        <HelpTooltip title={`${botId} discordTokenSecret`} side="top">
+                          {setupFieldHelp.providers.discordTokenSecret}
+                        </HelpTooltip>
+                      </div>
                       <Input
                         value={botDiscordSecrets[botId] || ""}
                         onChange={(e) =>
                           setBotDiscordSecrets((prev) => ({ ...prev, [botId]: e.target.value }))
                         }
+                        aria-label={`${botId} discordTokenSecret`}
                         placeholder={`discord_token_${botId}`}
                       />
                     </div>
@@ -143,6 +157,21 @@ function ProvidersSetup() {
             <div className="text-xs text-muted-foreground">
               Stored as <code>fleet.modelSecrets</code> (provider key → secret name).
             </div>
+            <div className="hidden md:grid md:grid-cols-[1fr_1fr_auto] gap-2 text-xs text-muted-foreground">
+              <div className="flex items-center gap-1">
+                <span>Provider key</span>
+                <HelpTooltip title="Provider key" side="top">
+                  {setupFieldHelp.providers.modelProviderKey}
+                </HelpTooltip>
+              </div>
+              <div className="flex items-center gap-1">
+                <span>Secret name</span>
+                <HelpTooltip title="Secret name" side="top">
+                  {setupFieldHelp.providers.modelProviderSecret}
+                </HelpTooltip>
+              </div>
+              <div />
+            </div>
             <div className="grid gap-3">
               {modelSecrets.length === 0 ? (
                 <div className="text-muted-foreground">No model secrets configured.</div>
@@ -156,6 +185,7 @@ function ProvidersSetup() {
                         prev.map((r, i) => (i === idx ? { ...r, key: e.target.value } : r)),
                       )
                     }
+                    aria-label={`model provider key ${idx + 1}`}
                     placeholder="zai"
                   />
                   <Input
@@ -165,6 +195,7 @@ function ProvidersSetup() {
                         prev.map((r, i) => (i === idx ? { ...r, secret: e.target.value } : r)),
                       )
                     }
+                    aria-label={`model provider secret ${idx + 1}`}
                     placeholder="z_ai_api_key"
                   />
                   <Button

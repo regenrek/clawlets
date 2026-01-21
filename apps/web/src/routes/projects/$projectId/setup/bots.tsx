@@ -16,6 +16,8 @@ import {
 } from "~/components/ui/alert-dialog"
 import { Button } from "~/components/ui/button"
 import { Input } from "~/components/ui/input"
+import { LabelWithHelp } from "~/components/ui/label-help"
+import { setupFieldHelp } from "~/lib/setup-field-help"
 import { getClawdletsConfig, addBot, removeBot } from "~/sdk/config"
 
 export const Route = createFileRoute("/projects/$projectId/setup/bots")({
@@ -71,9 +73,9 @@ function BotsSetup() {
             <div className="font-medium">Add bot</div>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
               <div className="flex-1 space-y-2">
-                <label className="text-sm font-medium" htmlFor="newBot">
+                <LabelWithHelp htmlFor="newBot" help={setupFieldHelp.bots.botId}>
                   Bot id
-                </label>
+                </LabelWithHelp>
                 <Input id="newBot" value={newBot} onChange={(e) => setNewBot(e.target.value)} placeholder="maren" />
               </div>
               <Button type="button" disabled={addBotMutation.isPending || !newBot.trim()} onClick={() => addBotMutation.mutate()}>

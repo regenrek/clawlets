@@ -6,11 +6,12 @@ import type { Id } from "../../../../../convex/_generated/dataModel"
 import { RunLogTail } from "~/components/run-log-tail"
 import { Button } from "~/components/ui/button"
 import { Input } from "~/components/ui/input"
-import { Label } from "~/components/ui/label"
+import { HelpTooltip, LabelWithHelp } from "~/components/ui/label-help"
 import { NativeSelect, NativeSelectOption } from "~/components/ui/native-select"
 import { Switch } from "~/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs"
 import { Textarea } from "~/components/ui/textarea"
+import { setupFieldHelp } from "~/lib/setup-field-help"
 import { getClawdletsConfig } from "~/sdk/config"
 import { getDeployCredsStatus } from "~/sdk/deploy-creds"
 import {
@@ -148,8 +149,10 @@ function SecretsSetup() {
           <div className="rounded-lg border bg-card p-6 space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label>Host</Label>
-                <NativeSelect value={host} onChange={(e) => setHost(e.target.value)}>
+                <LabelWithHelp htmlFor="secretsHost" help={setupFieldHelp.secrets.host}>
+                  Host
+                </LabelWithHelp>
+                <NativeSelect id="secretsHost" value={host} onChange={(e) => setHost(e.target.value)}>
                   {hosts.map((h) => (
                     <NativeSelectOption key={h} value={h}>
                       {h}
@@ -159,7 +162,12 @@ function SecretsSetup() {
               </div>
               <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/30 p-3">
                 <div className="min-w-0">
-                  <div className="text-sm font-medium">Allow placeholders</div>
+                  <div className="flex items-center gap-1 text-sm font-medium">
+                    <span>Allow placeholders</span>
+                    <HelpTooltip title="Allow placeholders" side="top">
+                      {setupFieldHelp.secrets.allowPlaceholders}
+                    </HelpTooltip>
+                  </div>
                   <div className="text-xs text-muted-foreground">
                     Lets secrets init proceed with &lt;PLACEHOLDER&gt; values (not recommended).
                   </div>
@@ -272,14 +280,18 @@ function SecretsSetup() {
 
                     <div className="grid gap-4 md:grid-cols-2">
                       <div className="space-y-2">
-                        <Label htmlFor="adminPass">Admin password (optional)</Label>
+                        <LabelWithHelp htmlFor="adminPass" help={setupFieldHelp.secrets.adminPassword}>
+                          Admin password (optional)
+                        </LabelWithHelp>
                         <Input id="adminPass" type="password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} />
                         <div className="text-xs text-muted-foreground">
                           If set, the server will generate a yescrypt hash via Nix mkpasswd.
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="adminHash">Admin password hash</Label>
+                        <LabelWithHelp htmlFor="adminHash" help={setupFieldHelp.secrets.adminPasswordHash}>
+                          Admin password hash
+                        </LabelWithHelp>
                         <Input id="adminHash" value={adminPasswordHash} onChange={(e) => setAdminPasswordHash(e.target.value)} placeholder="$y$…" />
                         <div className="text-xs text-muted-foreground">
                           Stored as <code>admin_password_hash</code> secret.
@@ -288,23 +300,33 @@ function SecretsSetup() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="tskey">Tailscale auth key (if needed)</Label>
+                      <LabelWithHelp htmlFor="tskey" help={setupFieldHelp.secrets.tailscaleAuthKey}>
+                        Tailscale auth key (if needed)
+                      </LabelWithHelp>
                       <Input id="tskey" value={tailscaleAuthKey} onChange={(e) => setTailscaleAuthKey(e.target.value)} placeholder="tskey-auth-…" />
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Discord tokens</Label>
+                      <LabelWithHelp help={setupFieldHelp.secrets.discordToken}>
+                        Discord tokens
+                      </LabelWithHelp>
                       <div className="grid gap-3">
                         {Object.keys(discordTokens).length === 0 ? (
                           <div className="text-muted-foreground text-sm">No discord tokens required.</div>
                         ) : (
                           Object.keys(discordTokens).map((botId) => (
                             <div key={botId} className="grid gap-2 md:grid-cols-[180px_1fr] items-center">
-                              <div className="text-sm font-medium">{botId}</div>
+                              <div className="flex items-center gap-1 text-sm font-medium">
+                                <span>{botId}</span>
+                                <HelpTooltip title={`${botId} discord token`} side="top">
+                                  {setupFieldHelp.secrets.discordToken}
+                                </HelpTooltip>
+                              </div>
                               <Input
                                 type="password"
                                 value={discordTokens[botId] || ""}
                                 onChange={(e) => setDiscordTokens((prev) => ({ ...prev, [botId]: e.target.value }))}
+                                aria-label={`${botId} discord token`}
                                 placeholder="discord token"
                               />
                             </div>
@@ -314,7 +336,9 @@ function SecretsSetup() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Extra secrets</Label>
+                      <LabelWithHelp help={setupFieldHelp.secrets.extraSecret}>
+                        Extra secrets
+                      </LabelWithHelp>
                       <div className="text-xs text-muted-foreground">
                         Values are written to encrypted YAML in <code>secrets/hosts/{host}</code>.
                       </div>
@@ -324,13 +348,19 @@ function SecretsSetup() {
                         ) : (
                           Object.keys(extraSecrets).sort().map((name) => (
                             <div key={name} className="grid gap-2 md:grid-cols-[220px_1fr] items-center">
-                              <div className="text-sm font-medium truncate">{name}</div>
+                              <div className="flex items-center gap-1 text-sm font-medium truncate">
+                                <span className="truncate">{name}</span>
+                                <HelpTooltip title={name} side="top">
+                                  {setupFieldHelp.secrets.extraSecret}
+                                </HelpTooltip>
+                              </div>
                               <Input
                                 type="password"
                                 value={extraSecrets[name] || ""}
                                 onChange={(e) =>
                                   setExtraSecrets((prev) => ({ ...prev, [name]: e.target.value }))
                                 }
+                                aria-label={`extra secret ${name}`}
                                 placeholder={extraSecrets[name] || "<REPLACE_WITH_SECRET>"}
                               />
                             </div>

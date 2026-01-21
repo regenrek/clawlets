@@ -5,10 +5,11 @@ import { toast } from "sonner"
 import type { Id } from "../../../../../convex/_generated/dataModel"
 import { Button } from "~/components/ui/button"
 import { Input } from "~/components/ui/input"
-import { Label } from "~/components/ui/label"
+import { HelpTooltip, LabelWithHelp } from "~/components/ui/label-help"
 import { NativeSelect, NativeSelectOption } from "~/components/ui/native-select"
 import { Switch } from "~/components/ui/switch"
 import { Textarea } from "~/components/ui/textarea"
+import { setupFieldHelp } from "~/lib/setup-field-help"
 import { addHost, addHostSshKeys, getClawdletsConfig, writeClawdletsConfigFile } from "~/sdk/config"
 
 export const Route = createFileRoute("/projects/$projectId/setup/hosts")({
@@ -171,7 +172,9 @@ function HostsSetup() {
           <div className="rounded-lg border bg-card p-5 space-y-4">
             <div className="font-medium">Hosts</div>
             <div className="space-y-2">
-              <Label htmlFor="defaultHost">Default host</Label>
+              <LabelWithHelp htmlFor="defaultHost" help={setupFieldHelp.hosts.defaultHost}>
+                Default host
+              </LabelWithHelp>
               <NativeSelect
                 id="defaultHost"
                 value={defaultHost}
@@ -186,7 +189,9 @@ function HostsSetup() {
               </NativeSelect>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="hostSelect">Edit host</Label>
+              <LabelWithHelp htmlFor="hostSelect" help={setupFieldHelp.hosts.editHost}>
+                Edit host
+              </LabelWithHelp>
               <NativeSelect id="hostSelect" value={selectedHost} onChange={(e) => setSelectedHost(e.target.value)}>
                 <NativeSelectOption value="">(select)</NativeSelectOption>
                 {hosts.map((h) => (
@@ -198,7 +203,9 @@ function HostsSetup() {
             </div>
 
             <div className="border-t pt-4 space-y-2">
-              <Label htmlFor="newHost">Add host</Label>
+              <LabelWithHelp htmlFor="newHost" help={setupFieldHelp.hosts.addHost}>
+                Add host
+              </LabelWithHelp>
               <Input id="newHost" placeholder="my-host" value={newHost} onChange={(e) => setNewHost(e.target.value)} />
               <Button type="button" disabled={addHostMutation.isPending || !newHost.trim()} onClick={() => addHostMutation.mutate()}>
                 Add
@@ -217,65 +224,92 @@ function HostsSetup() {
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className="text-sm text-muted-foreground">Enabled</div>
+                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                      <span>Enabled</span>
+                      <HelpTooltip title="Enabled" side="top">
+                        {setupFieldHelp.hosts.enabled}
+                      </HelpTooltip>
+                    </div>
                     <Switch checked={enable} onCheckedChange={setEnable} />
                   </div>
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="disk">Disk device</Label>
+                    <LabelWithHelp htmlFor="disk" help={setupFieldHelp.hosts.diskDevice}>
+                      Disk device
+                    </LabelWithHelp>
                     <Input id="disk" value={diskDevice} onChange={(e) => setDiskDevice(e.target.value)} />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="target">SSH targetHost</Label>
+                    <LabelWithHelp htmlFor="target" help={setupFieldHelp.hosts.targetHost}>
+                      SSH targetHost
+                    </LabelWithHelp>
                     <Input id="target" value={targetHost} onChange={(e) => setTargetHost(e.target.value)} placeholder="ssh-alias or user@host" />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="adminCidr">Admin CIDR</Label>
+                    <LabelWithHelp htmlFor="adminCidr" help={setupFieldHelp.hosts.adminCidr}>
+                      Admin CIDR
+                    </LabelWithHelp>
                     <Input id="adminCidr" value={adminCidr} onChange={(e) => setAdminCidr(e.target.value)} placeholder="203.0.113.10/32" />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="pubkeyFile">SSH pubkey file</Label>
+                    <LabelWithHelp htmlFor="pubkeyFile" help={setupFieldHelp.hosts.sshPubkeyFile}>
+                      SSH pubkey file
+                    </LabelWithHelp>
                     <Input id="pubkeyFile" value={sshPubkeyFile} onChange={(e) => setSshPubkeyFile(e.target.value)} />
                   </div>
 
                   <div className="space-y-2">
-                    <Label>SSH exposure</Label>
-                    <NativeSelect value={sshExposure} onChange={(e) => setSshExposure(e.target.value as any)}>
+                    <LabelWithHelp htmlFor="sshExposure" help={setupFieldHelp.hosts.sshExposure}>
+                      SSH exposure
+                    </LabelWithHelp>
+                    <NativeSelect id="sshExposure" value={sshExposure} onChange={(e) => setSshExposure(e.target.value as any)}>
                       <NativeSelectOption value="tailnet">tailnet</NativeSelectOption>
                       <NativeSelectOption value="bootstrap">bootstrap</NativeSelectOption>
                       <NativeSelectOption value="public">public</NativeSelectOption>
                     </NativeSelect>
                   </div>
                   <div className="space-y-2">
-                    <Label>Tailnet</Label>
-                    <NativeSelect value={tailnetMode} onChange={(e) => setTailnetMode(e.target.value as any)}>
+                    <LabelWithHelp htmlFor="tailnetMode" help={setupFieldHelp.hosts.tailnet}>
+                      Tailnet
+                    </LabelWithHelp>
+                    <NativeSelect id="tailnetMode" value={tailnetMode} onChange={(e) => setTailnetMode(e.target.value as any)}>
                       <NativeSelectOption value="tailscale">tailscale</NativeSelectOption>
                       <NativeSelectOption value="none">none</NativeSelectOption>
                     </NativeSelect>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="serverType">Hetzner serverType</Label>
+                    <LabelWithHelp htmlFor="serverType" help={setupFieldHelp.hosts.hetznerServerType}>
+                      Hetzner serverType
+                    </LabelWithHelp>
                     <Input id="serverType" value={serverType} onChange={(e) => setServerType(e.target.value)} />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="location">Hetzner location</Label>
+                    <LabelWithHelp htmlFor="location" help={setupFieldHelp.hosts.hetznerLocation}>
+                      Hetzner location
+                    </LabelWithHelp>
                     <Input id="location" value={hetznerLocation} onChange={(e) => setHetznerLocation(e.target.value)} />
                   </div>
                   <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="image">Hetzner image</Label>
+                    <LabelWithHelp htmlFor="image" help={setupFieldHelp.hosts.hetznerImage}>
+                      Hetzner image
+                    </LabelWithHelp>
                     <Input id="image" value={hetznerImage} onChange={(e) => setHetznerImage(e.target.value)} />
                   </div>
 
                   <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="flakeHost">Flake host override</Label>
+                    <LabelWithHelp htmlFor="flakeHost" help={setupFieldHelp.hosts.flakeHost}>
+                      Flake host override
+                    </LabelWithHelp>
                     <Input id="flakeHost" value={flakeHost} onChange={(e) => setFlakeHost(e.target.value)} />
                   </div>
 
                   <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="model">Agent model (primary)</Label>
+                    <LabelWithHelp htmlFor="model" help={setupFieldHelp.hosts.agentModelPrimary}>
+                      Agent model (primary)
+                    </LabelWithHelp>
                     <Input id="model" value={agentModelPrimary} onChange={(e) => setAgentModelPrimary(e.target.value)} placeholder="zai/glm-4.7" />
                   </div>
                 </div>
@@ -287,7 +321,9 @@ function HostsSetup() {
                   </div>
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2 md:col-span-2">
-                      <Label htmlFor="keyText">Paste public keys</Label>
+                      <LabelWithHelp htmlFor="keyText" help={setupFieldHelp.hosts.sshKeyPaste}>
+                        Paste public keys
+                      </LabelWithHelp>
                       <Textarea
                         id="keyText"
                         value={keyText}
@@ -297,11 +333,15 @@ function HostsSetup() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="keyFile">Key file path (.pub)</Label>
+                      <LabelWithHelp htmlFor="keyFile" help={setupFieldHelp.hosts.sshKeyFile}>
+                        Key file path (.pub)
+                      </LabelWithHelp>
                       <Input id="keyFile" value={keyFilePath} onChange={(e) => setKeyFilePath(e.target.value)} placeholder="~/.ssh/id_ed25519.pub" />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="knownHosts">known_hosts file path</Label>
+                      <LabelWithHelp htmlFor="knownHosts" help={setupFieldHelp.hosts.knownHostsFile}>
+                        known_hosts file path
+                      </LabelWithHelp>
                       <Input id="knownHosts" value={knownHostsFilePath} onChange={(e) => setKnownHostsFilePath(e.target.value)} placeholder="~/.ssh/known_hosts" />
                     </div>
                   </div>

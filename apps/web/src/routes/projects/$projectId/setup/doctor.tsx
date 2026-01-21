@@ -6,8 +6,9 @@ import type { Id } from "../../../../../convex/_generated/dataModel"
 import { RunLogTail } from "~/components/run-log-tail"
 import { Badge } from "~/components/ui/badge"
 import { Button } from "~/components/ui/button"
-import { Label } from "~/components/ui/label"
+import { LabelWithHelp } from "~/components/ui/label-help"
 import { NativeSelect, NativeSelectOption } from "~/components/ui/native-select"
+import { setupFieldHelp } from "~/lib/setup-field-help"
 import { getClawdletsConfig } from "~/sdk/config"
 import { runDoctor } from "~/sdk/operations"
 
@@ -100,8 +101,10 @@ function DoctorSetup() {
           <div className="rounded-lg border bg-card p-6 space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label>Host</Label>
-                <NativeSelect value={host} onChange={(e) => setHost(e.target.value)}>
+                <LabelWithHelp htmlFor="doctorHost" help={setupFieldHelp.doctor.host}>
+                  Host
+                </LabelWithHelp>
+                <NativeSelect id="doctorHost" value={host} onChange={(e) => setHost(e.target.value)}>
                   <NativeSelectOption value="">(default)</NativeSelectOption>
                   {hosts.map((h) => (
                     <NativeSelectOption key={h} value={h}>
@@ -111,8 +114,10 @@ function DoctorSetup() {
                 </NativeSelect>
               </div>
               <div className="space-y-2">
-                <Label>Scope</Label>
-                <NativeSelect value={scope} onChange={(e) => setScope(e.target.value as any)}>
+                <LabelWithHelp htmlFor="doctorScope" help={setupFieldHelp.doctor.scope}>
+                  Scope
+                </LabelWithHelp>
+                <NativeSelect id="doctorScope" value={scope} onChange={(e) => setScope(e.target.value as any)}>
                   <NativeSelectOption value="all">all</NativeSelectOption>
                   <NativeSelectOption value="repo">repo</NativeSelectOption>
                   <NativeSelectOption value="bootstrap">bootstrap</NativeSelectOption>

@@ -6,10 +6,11 @@ import type { Id } from "../../../../../convex/_generated/dataModel"
 import { RunLogTail } from "~/components/run-log-tail"
 import { Badge } from "~/components/ui/badge"
 import { Button } from "~/components/ui/button"
-import { Label } from "~/components/ui/label"
+import { HelpTooltip, LabelWithHelp } from "~/components/ui/label-help"
 import { NativeSelect, NativeSelectOption } from "~/components/ui/native-select"
 import { Switch } from "~/components/ui/switch"
 import { canBootstrapFromDoctorGate } from "~/lib/bootstrap-gate"
+import { setupFieldHelp } from "~/lib/setup-field-help"
 import { getClawdletsConfig } from "~/sdk/config"
 import { getDeployCredsStatus } from "~/sdk/deploy-creds"
 import { bootstrapExecute, bootstrapStart, runDoctor } from "~/sdk/operations"
@@ -97,8 +98,10 @@ function BootstrapSetup() {
           <div className="rounded-lg border bg-card p-6 space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label>Host</Label>
-                <NativeSelect value={host} onChange={(e) => setHost(e.target.value)}>
+                <LabelWithHelp htmlFor="bootstrapHost" help={setupFieldHelp.bootstrap.host}>
+                  Host
+                </LabelWithHelp>
+                <NativeSelect id="bootstrapHost" value={host} onChange={(e) => setHost(e.target.value)}>
                   {hosts.map((h) => (
                     <NativeSelectOption key={h} value={h}>
                       {h}
@@ -107,8 +110,10 @@ function BootstrapSetup() {
                 </NativeSelect>
               </div>
               <div className="space-y-2">
-                <Label>Mode</Label>
-                <NativeSelect value={mode} onChange={(e) => setMode(e.target.value as any)}>
+                <LabelWithHelp htmlFor="bootstrapMode" help={setupFieldHelp.bootstrap.mode}>
+                  Mode
+                </LabelWithHelp>
+                <NativeSelect id="bootstrapMode" value={mode} onChange={(e) => setMode(e.target.value as any)}>
                   <NativeSelectOption value="nixos-anywhere">nixos-anywhere</NativeSelectOption>
                   <NativeSelectOption value="image">image</NativeSelectOption>
                 </NativeSelect>
@@ -118,7 +123,12 @@ function BootstrapSetup() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/30 p-3">
                 <div className="min-w-0">
-                  <div className="text-sm font-medium">Force</div>
+                  <div className="flex items-center gap-1 text-sm font-medium">
+                    <span>Force</span>
+                    <HelpTooltip title="Force" side="top">
+                      {setupFieldHelp.bootstrap.force}
+                    </HelpTooltip>
+                  </div>
                   <div className="text-xs text-muted-foreground">
                     Skips doctor gate in CLI (not recommended).
                   </div>
@@ -127,7 +137,12 @@ function BootstrapSetup() {
               </div>
               <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/30 p-3">
                 <div className="min-w-0">
-                  <div className="text-sm font-medium">Dry run</div>
+                  <div className="flex items-center gap-1 text-sm font-medium">
+                    <span>Dry run</span>
+                    <HelpTooltip title="Dry run" side="top">
+                      {setupFieldHelp.bootstrap.dryRun}
+                    </HelpTooltip>
+                  </div>
                   <div className="text-xs text-muted-foreground">
                     Prints commands without executing.
                   </div>
