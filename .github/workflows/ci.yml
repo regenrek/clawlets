@@ -127,3 +127,102 @@ jobs:
             --template-path "${{ steps.template.outputs.path }}" \
             --template-ref "${{ steps.template.outputs.ref }}"
           (cd "${tmpdir}/clawdlets-project" && node "${GITHUB_WORKSPACE}/packages/cli/dist/main.mjs" doctor --scope repo)
+          (cd "${tmpdir}/clawdlets-project" && node "${GITHUB_WORKSPACE}/packages/cli/dist/main.mjs" config validate --strict)
+
+  clawdbot-assets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect clawdbot asset changes
+        id: assets
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          base="${BASE_SHA}"
+          head="${HEAD_SHA}"
+          if [[ -z "${base}" || -z "${head}" ]]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          base_lock="$(git show "${base}:flake.lock" 2>/dev/null || true)"
+          head_lock="$(git show "${head}:flake.lock" 2>/dev/null || true)"
+          if [[ -z "${head_lock}" ]]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [[ -z "${base_lock}" ]]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          base_info="$(printf '%s' "${base_lock}" | jq -c '{clawdbot: .nodes["clawdbot-src"], nix: .nodes["nix-clawdbot"]}')"
+          head_info="$(printf '%s' "${head_lock}" | jq -c '{clawdbot: .nodes["clawdbot-src"], nix: .nodes["nix-clawdbot"]}')"
+          if [[ "${base_info}" == "${head_info}" ]]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Read pinned clawdbot rev
+        id: clawdbot
+        if: ${{ steps.assets.outputs.changed == 'true' }}
+        run: |
+          set -euo pipefail
+          rev="$(jq -r '.nodes["clawdbot-src"].locked.rev' flake.lock)"
+          if [[ -z "${rev}" || "${rev}" == "null" ]]; then
+            echo "error: missing clawdbot-src rev in flake.lock" >&2
+            exit 1
+          fi
+          echo "rev=${rev}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout clawdbot source
+        if: ${{ steps.assets.outputs.changed == 'true' }}
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v4
+        with:
+          repository: clawdbot/clawdbot
+          ref: ${{ steps.clawdbot.outputs.rev }}
+          path: clawdbot-src
+
+      - uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4
+        if: ${{ steps.assets.outputs.changed == 'true' }}
+        with:
+          version: 10.25.0
+
+      - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v4
+        if: ${{ steps.assets.outputs.changed == 'true' }}
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            clawdbot-src/pnpm-lock.yaml
+
+      - name: Install clawdlets deps
+        if: ${{ steps.assets.outputs.changed == 'true' }}
+        run: pnpm install --frozen-lockfile
+
+      - name: Install clawdbot deps
+        if: ${{ steps.assets.outputs.changed == 'true' }}
+        working-directory: clawdbot-src
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Regenerate clawdbot assets
+        if: ${{ steps.assets.outputs.changed == 'true' }}
+        env:
+          CLAWDBOT_SRC: ${{ github.workspace }}/clawdbot-src
+        run: pnpm clawdlets:clawdbot-assets
+
+      - name: Verify clawdbot assets are committed
+        if: ${{ steps.assets.outputs.changed == 'true' }}
+        run: |
+          set -euo pipefail
+          if git diff --name-only -- packages/core/src/assets/clawdbot-config.schema.json packages/core/src/assets/llm-providers.json | grep -q .; then
+            echo "error: clawdbot assets out of date; run pnpm clawdlets:clawdbot-assets and commit outputs" >&2
+            git diff --stat -- packages/core/src/assets/clawdbot-config.schema.json packages/core/src/assets/llm-providers.json
+            exit 1
+          fi

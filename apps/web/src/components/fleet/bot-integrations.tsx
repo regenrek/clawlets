@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
-
 import type { Id } from "../../../convex/_generated/dataModel"
 import { findEnvVarRefs } from "@clawdlets/core/lib/env-var-refs"
-
+import { getKnownLlmProviders, getProviderRequiredEnvVars } from "@clawdlets/core/lib/llm-provider-env"
 import { RunLogTail } from "~/components/run-log-tail"
 import { Badge } from "~/components/ui/badge"
 import { Button } from "~/components/ui/button"
@@ -23,7 +22,6 @@ function getEnvMapping(params: {
   botSecretEnv: unknown
 }): { secretName: string; scope: "bot" | "fleet" } | null {
   const envVar = params.envVar
-
   if (isPlainObject(params.botSecretEnv)) {
     const v = params.botSecretEnv[envVar]
     if (typeof v === "string" && v.trim()) return { secretName: v.trim(), scope: "bot" }
@@ -43,26 +41,34 @@ function suggestedSecretName(envVar: string, botId: string): string {
   return envVar.toLowerCase()
 }
 
+const SHAREABLE_ENV_VARS = (() => {
+  const out = new Set<string>()
+  for (const provider of getKnownLlmProviders()) {
+    for (const envVar of getProviderRequiredEnvVars(provider)) out.add(envVar)
+  }
+  return out
+})()
+
+function isShareableEnvVar(envVar: string): boolean {
+  return SHAREABLE_ENV_VARS.has(envVar)
+}
+
 function readChannelTokenWarnings(clawdbot: any): string[] {
   const warnings: string[] = []
   const channels = clawdbot?.channels
   if (!isPlainObject(channels)) return warnings
-
   const discordToken = (channels as any)?.discord?.token
   if (typeof discordToken === "string" && discordToken.trim() && !discordToken.includes("${")) {
     warnings.push("Discord token looks inline (avoid secrets in config; use ${DISCORD_BOT_TOKEN}).")
   }
-
   const telegramToken = (channels as any)?.telegram?.botToken
   if (typeof telegramToken === "string" && telegramToken.trim() && !telegramToken.includes("${")) {
     warnings.push("Telegram botToken looks inline (avoid secrets in config; use ${TELEGRAM_BOT_TOKEN}).")
   }
-
   const slackBotToken = (channels as any)?.slack?.botToken
   if (typeof slackBotToken === "string" && slackBotToken.trim() && !slackBotToken.includes("${")) {
     warnings.push("Slack botToken looks inline (avoid secrets in config; use ${SLACK_BOT_TOKEN}).")
   }
-
   const slackAppToken = (channels as any)?.slack?.appToken
   if (typeof slackAppToken === "string" && slackAppToken.trim() && !slackAppToken.includes("${")) {
     warnings.push("Slack appToken looks inline (avoid secrets in config; use ${SLACK_APP_TOKEN}).")
@@ -74,7 +80,6 @@ function readChannelTokenWarnings(clawdbot: any): string[] {
 function listEnabledChannels(clawdbot: any): string[] {
   const channels = clawdbot?.channels
   if (!isPlainObject(channels)) return []
-
   return Object.keys(channels)
     .filter((k) => {
       const entry = (channels as any)?.[k]
@@ -83,6 +88,11 @@ function listEnabledChannels(clawdbot: any): string[] {
       return true
     })
     .sort()
+}
+
+function formatMapping(mapping: { secretName: string; scope: "bot" | "fleet" } | null): string {
+  if (!mapping) return "unwired"
+  return `${mapping.secretName} (${mapping.scope})`
 }
 
 export function BotIntegrations(props: {
@@ -206,10 +216,53 @@ export function BotIntegrations(props: {
     onError: (err) => toast.error(String(err)),
   })
 
+  const botSecretEnv = (props.profile as any)?.secretEnv
+
+  const promoteToFleet = useMutation({
+    mutationFn: async (params: { envVar: string; secretName: string }) => {
+      const envVar = params.envVar.trim()
+      const secretName = params.secretName.trim()
+      if (!envVar) throw new Error("missing env var")
+      if (!secretName) throw new Error("missing secret name")
+
+      const fleetRes = await configDotSet({
+        data: {
+          projectId: props.projectId as Id<"projects">,
+          path: `fleet.secretEnv.${envVar}`,
+          value: secretName,
+          del: false,
+        },
+      })
+      if (!fleetRes.ok) throw new Error("Failed to promote mapping")
+
+      if (isPlainObject(botSecretEnv) && typeof botSecretEnv[envVar] === "string") {
+        const botRes = await configDotSet({
+          data: {
+            projectId: props.projectId as Id<"projects">,
+            path: `fleet.bots.${props.botId}.profile.secretEnv.${envVar}`,
+            del: true,
+          },
+        })
+        if (!botRes.ok) throw new Error("Failed to clear bot mapping")
+      }
+
+      return { ok: true as const }
+    },
+    onSuccess: () => {
+      toast.success("Promoted to fleet")
+      void queryClient.invalidateQueries({ queryKey: ["clawdletsConfig", props.projectId] })
+    },
+    onError: (err) => toast.error(String(err)),
+  })
+
   const hasDiscord = enabledChannels.includes("discord")
   const hasTelegram = enabledChannels.includes("telegram")
   const hasSlack = enabledChannels.includes("slack")
   const hasWhatsApp = enabledChannels.includes("whatsapp")
+  const discordMapping = getEnvMapping({ envVar: "DISCORD_BOT_TOKEN", fleetSecretEnv: props.fleetSecretEnv, botSecretEnv })
+  const telegramMapping = getEnvMapping({ envVar: "TELEGRAM_BOT_TOKEN", fleetSecretEnv: props.fleetSecretEnv, botSecretEnv })
+  const slackBotMapping = getEnvMapping({ envVar: "SLACK_BOT_TOKEN", fleetSecretEnv: props.fleetSecretEnv, botSecretEnv })
+  const slackAppMapping = getEnvMapping({ envVar: "SLACK_APP_TOKEN", fleetSecretEnv: props.fleetSecretEnv, botSecretEnv })
 
   return (
     <div className="space-y-4">
@@ -238,7 +291,9 @@ export function BotIntegrations(props: {
               Discord
               {hasDiscord ? <Badge variant="secondary">enabled</Badge> : <Badge variant="outline">off</Badge>}
             </div>
-            <div className="text-xs text-muted-foreground">Wires <code>DISCORD_BOT_TOKEN</code></div>
+            <div className="text-xs text-muted-foreground">
+              <code>DISCORD_BOT_TOKEN</code> → {formatMapping(discordMapping)}
+            </div>
           </div>
           <Button
             size="sm"
@@ -256,7 +311,9 @@ export function BotIntegrations(props: {
               Telegram
               {hasTelegram ? <Badge variant="secondary">enabled</Badge> : <Badge variant="outline">off</Badge>}
             </div>
-            <div className="text-xs text-muted-foreground">Wires <code>TELEGRAM_BOT_TOKEN</code></div>
+            <div className="text-xs text-muted-foreground">
+              <code>TELEGRAM_BOT_TOKEN</code> → {formatMapping(telegramMapping)}
+            </div>
           </div>
           <Button
             size="sm"
@@ -275,7 +332,10 @@ export function BotIntegrations(props: {
               {hasSlack ? <Badge variant="secondary">enabled</Badge> : <Badge variant="outline">off</Badge>}
             </div>
             <div className="text-xs text-muted-foreground">
-              Wires <code>SLACK_BOT_TOKEN</code> + <code>SLACK_APP_TOKEN</code>
+              <code>SLACK_BOT_TOKEN</code> → {formatMapping(slackBotMapping)}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              <code>SLACK_APP_TOKEN</code> → {formatMapping(slackAppMapping)}
             </div>
           </div>
           <Button
@@ -362,10 +422,11 @@ export function BotIntegrations(props: {
                 const mapping = getEnvMapping({
                   envVar,
                   fleetSecretEnv: props.fleetSecretEnv,
-                  botSecretEnv: (props.profile as any)?.secretEnv,
+                  botSecretEnv,
                 })
                 const draft = (draftSecretByEnvVar[envVar] || "").trim()
                 const hasMapping = Boolean(mapping?.secretName)
+                const canPromote = Boolean(mapping && mapping.scope === "bot" && isShareableEnvVar(envVar))
                 return (
                   <div key={envVar} className="rounded-md border bg-muted/20 p-3 space-y-2">
                     <div className="flex items-center justify-between gap-2">
@@ -373,7 +434,7 @@ export function BotIntegrations(props: {
                         <div className="text-sm font-medium">
                           <code>{envVar}</code>
                         </div>
-                        <div className="text-xs text-muted-foreground">
+                        <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-2">
                           {hasMapping ? (
                             <>
                               mapped to <code>{mapping!.secretName}</code> ({mapping!.scope})
@@ -381,6 +442,16 @@ export function BotIntegrations(props: {
                           ) : (
                             <>missing mapping</>
                           )}
+                          {canPromote ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={!props.canEdit || promoteToFleet.isPending}
+                              onClick={() => promoteToFleet.mutate({ envVar, secretName: mapping!.secretName })}
+                            >
+                              Promote to fleet
+                            </Button>
+                          ) : null}
                         </div>
                       </div>
                       {hasMapping ? <Badge variant="secondary">ok</Badge> : <Badge variant="destructive">missing</Badge>}

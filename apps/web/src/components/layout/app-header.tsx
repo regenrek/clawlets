@@ -12,6 +12,7 @@ import {
 import { ModeToggle } from "~/components/mode-toggle"
 import { Button } from "~/components/ui/button"
 import { Badge } from "~/components/ui/badge"
+import { Separator } from "~/components/ui/separator"
 import {
   Command,
   CommandEmpty,
@@ -37,7 +38,17 @@ import {
 import { SidebarTrigger } from "~/components/ui/sidebar"
 import { useAuthState } from "~/lib/auth-state"
 import { authClient } from "~/lib/auth-client"
-import { useHostSelection } from "~/lib/host-selection"
+import { useProjectsList } from "~/lib/project-data"
+import {
+  buildHostPath,
+  buildHostsPath,
+  buildProjectBasePath,
+  getInstanceHostFromWindow,
+  parseHostName,
+  parseProjectSlug,
+  slugifyProjectName,
+  storeLastProjectSlug,
+} from "~/lib/project-routing"
 import { cn } from "~/lib/utils"
 import { getClawdletsConfig } from "~/sdk/config"
 import { api } from "../../../convex/_generated/api"
@@ -57,22 +68,14 @@ type HostOption = {
   isDefault: boolean
 }
 
-function useActiveProjectId(): string | null {
-  const pathname = useRouterState({ select: (s) => s.location.pathname })
-  const match = pathname.match(/^\/projects\/([^/]+)/)
-  const raw = match?.[1] ?? null
-  if (!raw) return null
-  if (raw === "new" || raw === "import") return null
-  return raw
-}
-
 function AppHeader({ showSidebarToggle = true }: { showSidebarToggle?: boolean }) {
   const { authDisabled } = useAuthState()
-  const projectId = useActiveProjectId()
   const router = useRouter()
   const pathname = useRouterState({ select: (s) => s.location.pathname })
-  const search = useRouterState({ select: (s) => s.location.search })
   const { data: session } = authClient.useSession()
+  const instanceHost = getInstanceHostFromWindow()
+  const projectSlug = parseProjectSlug(pathname)
+  const activeHost = parseHostName(pathname) || ""
 
   const currentUser = useQuery({
     ...convexQuery(api.users.getCurrent, {}),
@@ -85,14 +88,12 @@ function AppHeader({ showSidebarToggle = true }: { showSidebarToggle?: boolean }
     session?.user?.name ||
     "Account"
 
-  const projectsQuery = useQuery({
-    ...convexQuery(api.projects.list, {}),
-    gcTime: 5_000,
-  })
+  const projectsQuery = useProjectsList()
   const projects = (projectsQuery.data || []) as ProjectOption[]
-  const activeProject = projectId
-    ? projects.find((p) => p._id === (projectId as Id<"projects">)) || null
+  const activeProject = projectSlug
+    ? projects.find((p) => slugifyProjectName(p.name) === projectSlug) || null
     : null
+  const projectId = activeProject?._id ?? null
 
   const configQuery = useQuery({
     queryKey: ["clawdletsConfig", projectId],
@@ -107,15 +108,6 @@ function AppHeader({ showSidebarToggle = true }: { showSidebarToggle?: boolean }
     () => Object.keys(config?.hosts || {}).sort(),
     [config],
   )
-  const hostParam = React.useMemo(() => {
-    const params = new URLSearchParams(search)
-    return params.get("host")?.trim() || ""
-  }, [search])
-  const hostSelection = useHostSelection({
-    hosts: hostNames,
-    defaultHost: config?.defaultHost || null,
-    mode: hostParam ? "required" : "optional",
-  })
   const hostOptions = React.useMemo<HostOption[]>(
     () =>
       hostNames.map((name) => ({
@@ -128,131 +120,132 @@ function AppHeader({ showSidebarToggle = true }: { showSidebarToggle?: boolean }
 
   const handleProjectSelect = React.useCallback(
     (next: Id<"projects">) => {
-      const currentPrefix = projectId ? `/projects/${projectId}` : ""
-      const nextPrefix = `/projects/${next}`
-      const nextPath =
-        currentPrefix && pathname.startsWith(currentPrefix)
-          ? pathname.replace(currentPrefix, nextPrefix)
-          : `${nextPrefix}/dashboard`
+      const nextProject = projects.find((p) => p._id === next)
+      if (!nextProject) return
+      const nextSlug = slugifyProjectName(nextProject.name)
+      storeLastProjectSlug(nextSlug)
       void router.navigate({
-        to: nextPath,
+        to: buildProjectBasePath(nextSlug),
       } as any)
     },
-    [pathname, projectId, router],
+    [projects, router],
   )
 
   const handleHostSelect = React.useCallback(
     (next: string) => {
-      hostSelection.setHostParam(next)
+      if (!projectSlug) return
+      const parts = pathname.split("/").filter(Boolean)
+      const suffix =
+        parts[1] === "hosts" && parts[2]
+          ? parts.slice(3).join("/")
+          : ""
+      const base = buildHostPath(projectSlug, next)
+      const target = suffix ? `${base}/${suffix}` : base
+      void router.navigate({ to: target } as any)
     },
-    [hostSelection],
+    [pathname, projectSlug, router],
   )
 
   const handleManageHosts = React.useMemo(
     () =>
-      projectId
+      projectSlug
         ? () => {
-            void router.navigate({
-              to: `/projects/${projectId}/hosts/overview`,
-              search: {},
-            } as any)
-          }
+          void router.navigate({
+            to: buildHostsPath(projectSlug),
+          } as any)
+        }
         : undefined,
-    [projectId, router],
+    [projectSlug, router],
   )
 
   return (
-    <header className="border-b bg-background">
-      <div className="mx-auto max-w-screen-2xl px-4 sm:px-6">
-        <div className="h-14 flex items-center gap-3">
-          <div className="min-w-0 flex items-center gap-2">
-            {showSidebarToggle ? <SidebarTrigger /> : null}
-            <Link
-              to="/projects"
-              search={{}}
-              className="font-black tracking-tight text-lg leading-none shrink-0"
-              aria-label="Clawdlets"
-            >
-              Clawdlets
-            </Link>
+    <header className="bg-background sticky top-0 z-40 flex h-14 shrink-0 items-center gap-2 border-b px-4">
+      {showSidebarToggle ? <SidebarTrigger className="-ml-1" /> : null}
+      <Separator orientation="vertical" className="mr-2 h-4" />
+      <div className="min-w-0 flex items-center gap-2">
+        <Link
+          to={projectSlug ? buildProjectBasePath(projectSlug) : "/"}
+          className="font-black tracking-tight text-lg leading-none shrink-0"
+          aria-label="Clawdlets"
+        >
+          Clawdlets
+        </Link>
+        <BreadcrumbSlash />
+        <ProjectSwitcher
+          projects={projects}
+          activeProjectId={activeProject?._id || null}
+          activeLabel={activeProject?.name || "Select project"}
+          disabled={projectsQuery.isPending}
+          onSelect={handleProjectSelect}
+          onNew={() => void router.navigate({ to: "/projects/new" })}
+          onViewAll={() => void router.navigate({ to: "/projects" })}
+        />
+        {projectSlug ? (
+          <>
             <BreadcrumbSlash />
-            <ProjectSwitcher
-              projects={projects}
-              activeProjectId={activeProject?._id || null}
-              activeLabel={activeProject?.name || "Select project"}
-              disabled={projectsQuery.isPending}
-              onSelect={handleProjectSelect}
-              onNew={() => void router.navigate({ to: "/projects/new" })}
-              onViewAll={() => void router.navigate({ to: "/projects" })}
+            <HostSwitcher
+              hosts={hostOptions}
+              activeHost={activeHost || ""}
+              disabled={!projectId || hostOptions.length === 0}
+              onSelect={handleHostSelect}
+              onManage={handleManageHosts}
             />
-            {hostParam ? (
-              <>
-                <BreadcrumbSlash />
-                <HostSwitcher
-                  hosts={hostOptions}
-                  activeHost={hostSelection.host || ""}
-                  disabled={!projectId || hostOptions.length === 0}
-                  onSelect={handleHostSelect}
-                  onManage={handleManageHosts}
+          </>
+        ) : null}
+      </div>
+
+      <div className="ml-auto flex items-center gap-2 shrink-0">
+        <Button
+          size="icon-sm"
+          variant="outline"
+          nativeButton={false}
+          render={<Link to="/projects/new" />}
+          aria-label="New project"
+        >
+          <HugeiconsIcon icon={Add01Icon} strokeWidth={2} />
+        </Button>
+        <ModeToggle />
+
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button size="icon-sm" variant="ghost" aria-label="Menu">
+                <HugeiconsIcon
+                  icon={MoreHorizontalCircle01Icon}
+                  strokeWidth={2}
                 />
-              </>
-            ) : null}
-          </div>
-
-          <div className="ml-auto flex items-center gap-2 shrink-0">
-            <Button
-              size="icon-sm"
-              variant="outline"
-              nativeButton={false}
-              render={<Link to="/projects/new" />}
-              aria-label="New project"
+              </Button>
+            }
+          />
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel className="truncate">
+              {userLabel}
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {authDisabled ? (
+              <DropdownMenuItem disabled>Auth disabled</DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem
+                onClick={() => {
+                  void (async () => {
+                    await authClient.signOut()
+                    await router.invalidate()
+                    await router.navigate({ to: "/sign-in" })
+                  })()
+                }}
+              >
+                Sign out
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              render={<a href="https://github.com/regenrek/clawdlets" />}
             >
-              <HugeiconsIcon icon={Add01Icon} strokeWidth={2} />
-            </Button>
-            <ModeToggle />
-
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button size="icon-sm" variant="ghost" aria-label="Menu">
-                    <HugeiconsIcon
-                      icon={MoreHorizontalCircle01Icon}
-                      strokeWidth={2}
-                    />
-                  </Button>
-                }
-              />
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel className="truncate">
-                  {userLabel}
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {authDisabled ? (
-                  <DropdownMenuItem disabled>Auth disabled</DropdownMenuItem>
-                ) : (
-                  <DropdownMenuItem
-                    onClick={() => {
-                      void (async () => {
-                        await authClient.signOut()
-                        await router.invalidate()
-                        await router.navigate({ to: "/sign-in" })
-                      })()
-                    }}
-                  >
-                    Sign out
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  render={<a href="https://github.com/regenrek/clawdlets" />}
-                >
-                  <HugeiconsIcon icon={GithubIcon} strokeWidth={2} />
-                  GitHub
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
+              <HugeiconsIcon icon={GithubIcon} strokeWidth={2} />
+              GitHub
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   )

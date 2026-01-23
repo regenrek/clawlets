@@ -27,6 +27,7 @@ import { api } from "../../convex/_generated/api"
 import { getAuthBootstrap } from "~/sdk/auth"
 import { authClient } from "~/lib/auth-client"
 import { AuthStateProvider } from "~/lib/auth-state"
+import { parseProjectSlug } from "~/lib/project-routing"
 
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient
@@ -117,9 +118,8 @@ function RootComponent() {
   const convexQueryClient = router.options.context.convexQueryClient
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const showShell = pathname !== "/sign-in"
-  const projectMatch = pathname.match(/^\/projects\/([^/]+)/)
-  const activeProjectId = projectMatch?.[1] || null
-  const showSidebar = Boolean(activeProjectId && activeProjectId !== "new" && activeProjectId !== "import")
+  const projectSlug = parseProjectSlug(pathname)
+  const showSidebar = Boolean(projectSlug)
 
   const app = showShell ? (
     <AppShell showSidebar={showSidebar}>

@@ -15,13 +15,19 @@
 
     nix-clawdbot.url = "github:clawdbot/nix-clawdbot";
     nix-clawdbot.inputs.nixpkgs.follows = "nixpkgs";
+
+    clawdbot-src = {
+      url = "github:clawdbot/clawdbot?rev=8b47368167ad062b86669dfa77ef7ebb4e0ad5f0";
+      flake = false;
+    };
   };
 
-  outputs = { self, nixpkgs, ... }:
+  outputs = { self, nixpkgs, nix-clawdbot, clawdbot-src, ... }:
     let
       system = "x86_64-linux";
       pkgs = import nixpkgs { inherit system; };
       dev = import ./devenv.nix { inherit pkgs; };
+      clawdbotSourceInfo = import "${nix-clawdbot}/nix/sources/clawdbot-source.nix";
 
       pnpmDeps = pkgs.fetchPnpmDeps {
         pname = "clawdlets";
@@ -91,6 +97,26 @@
 
       packages.${system} = {
         inherit clf;
+      };
+
+      checks.${system} = {
+        clawdbot-pin-align = pkgs.runCommand "clawdbot-pin-align" {} ''
+          set -euo pipefail
+          pinned_rev="${clawdbotSourceInfo.rev or ""}"
+          src_rev="${clawdbot-src.rev or ""}"
+
+          if [ -z "$pinned_rev" ] || [ -z "$src_rev" ]; then
+            echo "error: missing clawdbot rev (nix-clawdbot pinned=$pinned_rev clawdbot-src=$src_rev)" >&2
+            exit 1
+          fi
+
+          if [ "$pinned_rev" != "$src_rev" ]; then
+            echo "error: clawdbot-src rev mismatch (nix-clawdbot=$pinned_rev clawdbot-src=$src_rev)" >&2
+            exit 1
+          fi
+
+          touch "$out"
+        '';
       };
 
       nixosModules = {

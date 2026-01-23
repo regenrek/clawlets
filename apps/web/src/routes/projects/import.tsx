@@ -5,6 +5,7 @@ import { Button } from "~/components/ui/button"
 import { Input } from "~/components/ui/input"
 import { Label } from "~/components/ui/label"
 import { projectImport } from "~/sdk/projects"
+import { slugifyProjectName } from "~/lib/project-routing"
 
 export const Route = createFileRoute("/projects/import")({
   component: ImportProject,
@@ -58,7 +59,11 @@ function ImportProject() {
           >
             Import
           </Button>
-          <Button variant="ghost" nativeButton={false} render={<Link to="/projects" />}>
+          <Button
+            variant="ghost"
+            nativeButton={false}
+            render={<Link to="/projects" />}
+          >
             Cancel
           </Button>
         </div>
@@ -67,8 +72,10 @@ function ImportProject() {
           <div className="rounded-md bg-muted/40 p-3 text-sm">
             Imported.{" "}
             <Link
-              to="/projects/$projectId"
-              params={{ projectId: importMutation.data.projectId }}
+              to="/$projectSlug"
+              params={{
+                projectSlug: slugifyProjectName(name || "project"),
+              }}
               className="underline"
             >
               Open project
@@ -79,4 +86,3 @@ function ImportProject() {
     </div>
   )
 }
-

@@ -31,7 +31,10 @@ function isMigratableConfigError(message: string): boolean {
   return false
 }
 
-export function ProjectDashboard(props: { projectId: Id<"projects"> }) {
+export function ProjectDashboard(props: {
+  projectId: Id<"projects">
+  projectSlug: string
+}) {
   const router = useRouter()
   const queryClient = useQueryClient()
   const convexQueryClient = router.options.context.convexQueryClient
@@ -112,7 +115,10 @@ export function ProjectDashboard(props: { projectId: Id<"projects"> }) {
           <CardDescription>Pick a different project from the list.</CardDescription>
         </CardHeader>
         <CardFooter>
-          <Button nativeButton={false} render={<Link to="/projects" />}>
+          <Button
+            nativeButton={false}
+            render={<Link to="/projects" />}
+          >
             Back to projects
           </Button>
         </CardFooter>
@@ -125,6 +131,10 @@ export function ProjectDashboard(props: { projectId: Id<"projects"> }) {
     ? "—"
     : `${project.cfg.hostsEnabled.toLocaleString()} / ${project.cfg.hostsTotal.toLocaleString()}`
   const defaultHost = project.cfg.error ? "—" : project.cfg.defaultHost || "—"
+  const defaultHostName = project.cfg.error ? "" : project.cfg.defaultHost || ""
+  const defaultHostBase = defaultHostName
+    ? `/${props.projectSlug}/hosts/${encodeURIComponent(defaultHostName)}`
+    : `/${props.projectSlug}/hosts`
 
   return (
     <div className="space-y-6">
@@ -139,13 +149,31 @@ export function ProjectDashboard(props: { projectId: Id<"projects"> }) {
           <p className="text-muted-foreground text-sm truncate">{project.localPath}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" nativeButton={false} render={<Link to="/projects" />}>
+          <Button
+            variant="outline"
+            nativeButton={false}
+            render={<Link to="/projects" />}
+          >
             Projects
           </Button>
-          <Button nativeButton={false} render={<Link to="/projects/$projectId/setup/fleet" params={{ projectId: project.projectId }} />}>
-            Fleet
+          <Button
+            nativeButton={false}
+            render={
+              <Link
+                to="/$projectSlug/setup/fleet"
+                params={{ projectSlug: props.projectSlug }}
+              />
+            }
+          >
+            Skills
           </Button>
-          <Button variant="outline" nativeButton={false} render={<Link to="/projects/$projectId/hosts/deploy" params={{ projectId: project.projectId }} />}>
+          <Button
+            variant="outline"
+            nativeButton={false}
+            render={
+              <Link to={defaultHostBase} />
+            }
+          >
             Deploy
           </Button>
         </div>
@@ -221,13 +249,40 @@ export function ProjectDashboard(props: { projectId: Id<"projects"> }) {
             )}
           </CardContent>
           <CardFooter className="gap-2">
-            <Button size="sm" variant="outline" nativeButton={false} render={<Link to="/projects/$projectId/setup/doctor" params={{ projectId: project.projectId }} />}>
+            <Button
+              size="sm"
+              variant="outline"
+              nativeButton={false}
+              render={
+                <Link
+                  to="/$projectSlug/setup/doctor"
+                  params={{ projectSlug: props.projectSlug }}
+                />
+              }
+            >
               Doctor
             </Button>
-            <Button size="sm" variant="outline" nativeButton={false} render={<Link to="/projects/$projectId/hosts/overview" params={{ projectId: project.projectId }} />}>
+            <Button
+              size="sm"
+              variant="outline"
+              nativeButton={false}
+              render={
+                <Link
+                  to="/$projectSlug/hosts"
+                  params={{ projectSlug: props.projectSlug }}
+                />
+              }
+            >
               Hosts
             </Button>
-            <Button size="sm" variant="outline" nativeButton={false} render={<Link to="/projects/$projectId/hosts/bootstrap" params={{ projectId: project.projectId }} />}>
+            <Button
+              size="sm"
+              variant="outline"
+              nativeButton={false}
+              render={
+                <Link to={defaultHostBase} />
+              }
+            >
               Bootstrap
             </Button>
           </CardFooter>
@@ -244,7 +299,12 @@ export function ProjectDashboard(props: { projectId: Id<"projects"> }) {
             size="sm"
             variant="outline"
             nativeButton={false}
-            render={<Link to="/projects/$projectId/runs" params={{ projectId: project.projectId }} />}
+            render={
+              <Link
+                to="/$projectSlug/runs"
+                params={{ projectSlug: props.projectSlug }}
+              />
+            }
           >
             View all
           </Button>
@@ -257,7 +317,10 @@ export function ProjectDashboard(props: { projectId: Id<"projects"> }) {
           ) : runs.length === 0 ? (
             <div className="text-muted-foreground text-sm">No runs yet.</div>
           ) : (
-            <RecentRunsTable runs={runs.slice(0, 10)} projectId={project.projectId} />
+            <RecentRunsTable
+              runs={runs.slice(0, 10)}
+              projectSlug={props.projectSlug}
+            />
           )}
         </CardContent>
       </Card>

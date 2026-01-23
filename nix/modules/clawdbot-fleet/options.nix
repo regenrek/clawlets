@@ -246,6 +246,12 @@ in {
             description = "Per-bot secret env mapping (ENV_VAR -> sops secret name) merged into the bot env file.";
           };
 
+          secretEnvAllowlist = lib.mkOption {
+            type = lib.types.nullOr (lib.types.listOf lib.types.str);
+            default = null;
+            description = "Optional allowlist of secret env vars written into this bot's env file (least-privilege injection).";
+          };
+
           secretFiles = lib.mkOption {
             type = lib.types.attrsOf (lib.types.submodule ({ ... }: {
               options = {
@@ -320,12 +326,12 @@ in {
                   apiKey = lib.mkOption {
                     type = lib.types.nullOr lib.types.str;
                     default = null;
-                    description = "Inline apiKey (prefer apiKeySecret for secrets).";
+                    description = "Inline apiKey (deprecated; use apiKeySecret + env var injection).";
                   };
                   apiKeySecret = lib.mkOption {
                     type = lib.types.nullOr lib.types.str;
                     default = null;
-                    description = "Sops secret name used as skills.entries.<skill>.apiKey.";
+                    description = "Sops secret name used to set skills.entries.<skill>.apiKey via CLAWDBOT_SKILL_<SKILL>_API_KEY.";
                   };
                   env = lib.mkOption {
                     type = lib.types.attrsOf lib.types.str;
@@ -354,12 +360,12 @@ in {
             tokenSecret = lib.mkOption {
               type = lib.types.nullOr lib.types.str;
               default = null;
-              description = "Sops secret name used as hooks.token.";
+              description = "Sops secret name injected as hooks.token via CLAWDBOT_HOOKS_TOKEN.";
             };
             gmailPushTokenSecret = lib.mkOption {
               type = lib.types.nullOr lib.types.str;
               default = null;
-              description = "Sops secret name used as hooks.gmail.pushToken.";
+              description = "Sops secret name injected as hooks.gmail.pushToken via CLAWDBOT_HOOKS_GMAIL_PUSH_TOKEN.";
             };
           };
 

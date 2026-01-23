@@ -6,28 +6,29 @@ let
     getBotProfile
     resolveBotWorkspace
     resolveBotCredsDir
-    mkSopsSecretFor;
+    mkSopsSecretFor
+    buildEffectiveSecretEnv;
 
   inherit (botConfig) mkBotConfig;
+
+  resolveSecretEnv = profile:
+    let
+      baseEnv = buildEffectiveSecretEnv profile;
+      allowlist = profile.secretEnvAllowlist or null;
+    in
+      if allowlist == null
+      then baseEnv
+      else lib.filterAttrs (k: _: lib.elem k allowlist) baseEnv;
 
   mkBotSkillSecrets = b:
     let
       profile = getBotProfile b;
-      entries = profile.skills.entries or {};
-      effectiveSecretEnv = (cfg.secretEnv or {}) // (profile.secretEnv or {});
+      effectiveSecretEnv = resolveSecretEnv profile;
       secretEnvSecrets = builtins.attrValues effectiveSecretEnv;
-      hooksSecrets =
-        (lib.optional ((profile.hooks.tokenSecret or null) != null) profile.hooks.tokenSecret)
-        ++ (lib.optional ((profile.hooks.gmailPushTokenSecret or null) != null) profile.hooks.gmailPushTokenSecret);
       githubSecrets =
         lib.optional ((profile.github.privateKeySecret or null) != null) profile.github.privateKeySecret;
-      perEntrySecrets = lib.concatLists (lib.mapAttrsToList (_: entry:
-        (lib.optional ((entry.apiKeySecret or null) != null) entry.apiKeySecret)
-      ) entries);
       allSecrets = lib.unique (lib.filter (s: s != null && s != "") (
-        hooksSecrets
-        ++ githubSecrets
-        ++ perEntrySecrets
+        githubSecrets
         ++ secretEnvSecrets
       ));
     in
@@ -47,7 +48,7 @@ let
       "clawdbot-${b}.env" =
         let
           profile = getBotProfile b;
-          effectiveSecretEnv = (cfg.secretEnv or {}) // (profile.secretEnv or {});
+          effectiveSecretEnv = resolveSecretEnv profile;
           envKeys = lib.sort (a: b: a < b) (builtins.attrNames effectiveSecretEnv);
           lines = lib.concatLists (map (k:
             let
@@ -103,7 +104,7 @@ let
       credsDir = resolveBotCredsDir b;
       gatewayEnvFile = "${credsDir}/gateway.env";
       env = profile.env or {};
-      effectiveSecretEnv = (cfg.secretEnv or {}) // (profile.secretEnv or {});
+      effectiveSecretEnv = resolveSecretEnv profile;
       secretEnvKeys = builtins.attrNames effectiveSecretEnv;
       envDupes = lib.intersectLists (builtins.attrNames env) secretEnvKeys;
       botResources = profile.resources or {};
@@ -205,17 +206,28 @@ let
 
             NoNewPrivileges = true;
             PrivateTmp = true;
+            PrivateDevices = true;
             ProtectSystem = "strict";
             ProtectHome = true;
+            ProtectProc = "invisible";
+            ProcSubset = "pid";
+            ProtectKernelTunables = true;
+            ProtectKernelModules = true;
+            ProtectKernelLogs = true;
+            ProtectControlGroups = true;
             ReadWritePaths = lib.unique [ stateDir workspace ];
             UMask = "0077";
 
             CapabilityBoundingSet = "";
             AmbientCapabilities = "";
             LockPersonality = true;
+            LimitCORE = 0;
             # Node/V8 JIT needs to toggle executable memory permissions.
             MemoryDenyWriteExecute = cfg.hardening.nodeExecMem != "jit";
             RestrictAddressFamilies = [ "AF_INET" "AF_INET6" "AF_NETLINK" "AF_UNIX" ];
+            RestrictNamespaces = true;
+            RestrictSUIDSGID = true;
+            RestrictRealtime = true;
             SystemCallArchitectures = "native";
           }
           // lib.optionalAttrs (memoryMax != null) { MemoryMax = memoryMax; }

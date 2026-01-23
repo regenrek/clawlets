@@ -8,8 +8,8 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table"
-import type { Id } from "../../../convex/_generated/dataModel"
 import { formatShortDateTime, statusBadgeVariant, type RunStatus } from "./dashboard-utils"
+import type { Id } from "../../../convex/_generated/dataModel"
 
 export type RunRow = {
   _id: Id<"runs">
@@ -21,7 +21,7 @@ export type RunRow = {
 
 export function RecentRunsTable(props: {
   runs: RunRow[]
-  projectId: Id<"projects">
+  projectSlug: string
 }) {
   return (
     <Table>
@@ -37,8 +37,8 @@ export function RecentRunsTable(props: {
           <TableRow key={r._id}>
             <TableCell className="max-w-[520px]">
               <Link
-                to="/projects/$projectId/runs/$runId"
-                params={{ projectId: props.projectId, runId: r._id }}
+                to="/$projectSlug/runs/$runId"
+                params={{ projectSlug: props.projectSlug, runId: r._id }}
                 className="block hover:underline"
               >
                 <div className="font-medium truncate">{r.title || r.kind}</div>

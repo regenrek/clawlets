@@ -1,0 +1,6208 @@
+{
+  "schema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+      "env": {
+        "type": "object",
+        "properties": {
+          "shellEnv": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "timeoutMs": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "additionalProperties": false
+          },
+          "vars": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "wizard": {
+        "type": "object",
+        "properties": {
+          "lastRunAt": {
+            "type": "string"
+          },
+          "lastRunVersion": {
+            "type": "string"
+          },
+          "lastRunCommit": {
+            "type": "string"
+          },
+          "lastRunCommand": {
+            "type": "string"
+          },
+          "lastRunMode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "local"
+              },
+              {
+                "type": "string",
+                "const": "remote"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "logging": {
+        "type": "object",
+        "properties": {
+          "level": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "silent"
+              },
+              {
+                "type": "string",
+                "const": "fatal"
+              },
+              {
+                "type": "string",
+                "const": "error"
+              },
+              {
+                "type": "string",
+                "const": "warn"
+              },
+              {
+                "type": "string",
+                "const": "info"
+              },
+              {
+                "type": "string",
+                "const": "debug"
+              },
+              {
+                "type": "string",
+                "const": "trace"
+              }
+            ]
+          },
+          "file": {
+            "type": "string"
+          },
+          "consoleLevel": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "silent"
+              },
+              {
+                "type": "string",
+                "const": "fatal"
+              },
+              {
+                "type": "string",
+                "const": "error"
+              },
+              {
+                "type": "string",
+                "const": "warn"
+              },
+              {
+                "type": "string",
+                "const": "info"
+              },
+              {
+                "type": "string",
+                "const": "debug"
+              },
+              {
+                "type": "string",
+                "const": "trace"
+              }
+            ]
+          },
+          "consoleStyle": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "pretty"
+              },
+              {
+                "type": "string",
+                "const": "compact"
+              },
+              {
+                "type": "string",
+                "const": "json"
+              }
+            ]
+          },
+          "redactSensitive": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "off"
+              },
+              {
+                "type": "string",
+                "const": "tools"
+              }
+            ]
+          },
+          "redactPatterns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "browser": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "controlUrl": {
+            "type": "string"
+          },
+          "cdpUrl": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string"
+          },
+          "executablePath": {
+            "type": "string"
+          },
+          "headless": {
+            "type": "boolean"
+          },
+          "noSandbox": {
+            "type": "boolean"
+          },
+          "attachOnly": {
+            "type": "boolean"
+          },
+          "defaultProfile": {
+            "type": "string"
+          },
+          "profiles": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string",
+              "pattern": "^[a-z0-9-]+$"
+            },
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "cdpPort": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 65535
+                },
+                "cdpUrl": {
+                  "type": "string"
+                },
+                "color": {
+                  "type": "string",
+                  "pattern": "^#?[0-9a-fA-F]{6}$"
+                }
+              },
+              "required": [
+                "color"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "ui": {
+        "type": "object",
+        "properties": {
+          "seamColor": {
+            "type": "string",
+            "pattern": "^#?[0-9a-fA-F]{6}$"
+          }
+        },
+        "additionalProperties": false
+      },
+      "auth": {
+        "type": "object",
+        "properties": {
+          "profiles": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "provider": {
+                  "type": "string"
+                },
+                "mode": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "const": "api_key"
+                    },
+                    {
+                      "type": "string",
+                      "const": "oauth"
+                    },
+                    {
+                      "type": "string",
+                      "const": "token"
+                    }
+                  ]
+                },
+                "email": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "provider",
+                "mode"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "order": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "cooldowns": {
+            "type": "object",
+            "properties": {
+              "billingBackoffHours": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "billingBackoffHoursByProvider": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                }
+              },
+              "billingMaxHours": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "failureWindowHours": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "models": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "merge"
+              },
+              {
+                "type": "string",
+                "const": "replace"
+              }
+            ]
+          },
+          "providers": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "baseUrl": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "apiKey": {
+                  "type": "string"
+                },
+                "api": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "const": "openai-completions"
+                    },
+                    {
+                      "type": "string",
+                      "const": "openai-responses"
+                    },
+                    {
+                      "type": "string",
+                      "const": "anthropic-messages"
+                    },
+                    {
+                      "type": "string",
+                      "const": "google-generative-ai"
+                    }
+                  ]
+                },
+                "headers": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                },
+                "authHeader": {
+                  "type": "boolean"
+                },
+                "models": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "name": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "api": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "const": "openai-completions"
+                          },
+                          {
+                            "type": "string",
+                            "const": "openai-responses"
+                          },
+                          {
+                            "type": "string",
+                            "const": "anthropic-messages"
+                          },
+                          {
+                            "type": "string",
+                            "const": "google-generative-ai"
+                          }
+                        ]
+                      },
+                      "reasoning": {
+                        "type": "boolean"
+                      },
+                      "input": {
+                        "type": "array",
+                        "items": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "text"
+                            },
+                            {
+                              "type": "string",
+                              "const": "image"
+                            }
+                          ]
+                        }
+                      },
+                      "cost": {
+                        "type": "object",
+                        "properties": {
+                          "input": {
+                            "type": "number"
+                          },
+                          "output": {
+                            "type": "number"
+                          },
+                          "cacheRead": {
+                            "type": "number"
+                          },
+                          "cacheWrite": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "input",
+                          "output",
+                          "cacheRead",
+                          "cacheWrite"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "contextWindow": {
+                        "type": "number",
+                        "exclusiveMinimum": 0
+                      },
+                      "maxTokens": {
+                        "type": "number",
+                        "exclusiveMinimum": 0
+                      },
+                      "headers": {
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string"
+                        },
+                        "additionalProperties": {
+                          "type": "string"
+                        }
+                      },
+                      "compat": {
+                        "type": "object",
+                        "properties": {
+                          "supportsStore": {
+                            "type": "boolean"
+                          },
+                          "supportsDeveloperRole": {
+                            "type": "boolean"
+                          },
+                          "supportsReasoningEffort": {
+                            "type": "boolean"
+                          },
+                          "maxTokensField": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "const": "max_completion_tokens"
+                              },
+                              {
+                                "type": "string",
+                                "const": "max_tokens"
+                              }
+                            ]
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "reasoning",
+                      "input",
+                      "cost",
+                      "contextWindow",
+                      "maxTokens"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "baseUrl",
+                "models"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "agents": {
+        "type": "object",
+        "properties": {
+          "defaults": {
+            "type": "object",
+            "properties": {
+              "model": {
+                "type": "object",
+                "properties": {
+                  "primary": {
+                    "type": "string"
+                  },
+                  "fallbacks": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "additionalProperties": false
+              },
+              "imageModel": {
+                "type": "object",
+                "properties": {
+                  "primary": {
+                    "type": "string"
+                  },
+                  "fallbacks": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "additionalProperties": false
+              },
+              "models": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "type": "object",
+                  "properties": {
+                    "alias": {
+                      "type": "string"
+                    },
+                    "params": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "workspace": {
+                "type": "string"
+              },
+              "skipBootstrap": {
+                "type": "boolean"
+              },
+              "userTimezone": {
+                "type": "string"
+              },
+              "contextTokens": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "contextPruning": {
+                "type": "object",
+                "properties": {
+                  "mode": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "const": "off"
+                      },
+                      {
+                        "type": "string",
+                        "const": "adaptive"
+                      },
+                      {
+                        "type": "string",
+                        "const": "aggressive"
+                      }
+                    ]
+                  },
+                  "keepLastAssistants": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "softTrimRatio": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "hardClearRatio": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "minPrunableToolChars": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "tools": {
+                    "type": "object",
+                    "properties": {
+                      "allow": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "deny": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  "softTrim": {
+                    "type": "object",
+                    "properties": {
+                      "maxChars": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "headChars": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "tailChars": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  "hardClear": {
+                    "type": "object",
+                    "properties": {
+                      "enabled": {
+                        "type": "boolean"
+                      },
+                      "placeholder": {
+                        "type": "string"
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "additionalProperties": false
+              },
+              "thinkingDefault": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "const": "off"
+                  },
+                  {
+                    "type": "string",
+                    "const": "minimal"
+                  },
+                  {
+                    "type": "string",
+                    "const": "low"
+                  },
+                  {
+                    "type": "string",
+                    "const": "medium"
+                  },
+                  {
+                    "type": "string",
+                    "const": "high"
+                  }
+                ]
+              },
+              "verboseDefault": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "const": "off"
+                  },
+                  {
+                    "type": "string",
+                    "const": "on"
+                  }
+                ]
+              },
+              "elevatedDefault": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "const": "off"
+                  },
+                  {
+                    "type": "string",
+                    "const": "on"
+                  }
+                ]
+              },
+              "blockStreamingDefault": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "const": "off"
+                  },
+                  {
+                    "type": "string",
+                    "const": "on"
+                  }
+                ]
+              },
+              "blockStreamingBreak": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "const": "text_end"
+                  },
+                  {
+                    "type": "string",
+                    "const": "message_end"
+                  }
+                ]
+              },
+              "blockStreamingChunk": {
+                "type": "object",
+                "properties": {
+                  "minChars": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "maxChars": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "breakPreference": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "const": "paragraph"
+                      },
+                      {
+                        "type": "string",
+                        "const": "newline"
+                      },
+                      {
+                        "type": "string",
+                        "const": "sentence"
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              },
+              "blockStreamingCoalesce": {
+                "type": "object",
+                "properties": {
+                  "minChars": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "maxChars": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "idleMs": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "additionalProperties": false
+              },
+              "timeoutSeconds": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "mediaMaxMb": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "typingIntervalSeconds": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "typingMode": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "const": "never"
+                  },
+                  {
+                    "type": "string",
+                    "const": "instant"
+                  },
+                  {
+                    "type": "string",
+                    "const": "thinking"
+                  },
+                  {
+                    "type": "string",
+                    "const": "message"
+                  }
+                ]
+              },
+              "heartbeat": {
+                "type": "object",
+                "properties": {
+                  "every": {
+                    "type": "string"
+                  },
+                  "model": {
+                    "type": "string"
+                  },
+                  "target": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "const": "last"
+                      },
+                      {
+                        "type": "string",
+                        "const": "whatsapp"
+                      },
+                      {
+                        "type": "string",
+                        "const": "telegram"
+                      },
+                      {
+                        "type": "string",
+                        "const": "discord"
+                      },
+                      {
+                        "type": "string",
+                        "const": "slack"
+                      },
+                      {
+                        "type": "string",
+                        "const": "msteams"
+                      },
+                      {
+                        "type": "string",
+                        "const": "signal"
+                      },
+                      {
+                        "type": "string",
+                        "const": "imessage"
+                      },
+                      {
+                        "type": "string",
+                        "const": "none"
+                      }
+                    ]
+                  },
+                  "to": {
+                    "type": "string"
+                  },
+                  "prompt": {
+                    "type": "string"
+                  },
+                  "ackMaxChars": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "additionalProperties": false
+              },
+              "maxConcurrent": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "subagents": {
+                "type": "object",
+                "properties": {
+                  "maxConcurrent": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "archiveAfterMinutes": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "additionalProperties": false
+              },
+              "sandbox": {
+                "type": "object",
+                "properties": {
+                  "mode": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "const": "off"
+                      },
+                      {
+                        "type": "string",
+                        "const": "non-main"
+                      },
+                      {
+                        "type": "string",
+                        "const": "all"
+                      }
+                    ]
+                  },
+                  "workspaceAccess": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "const": "none"
+                      },
+                      {
+                        "type": "string",
+                        "const": "ro"
+                      },
+                      {
+                        "type": "string",
+                        "const": "rw"
+                      }
+                    ]
+                  },
+                  "sessionToolsVisibility": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "const": "spawned"
+                      },
+                      {
+                        "type": "string",
+                        "const": "all"
+                      }
+                    ]
+                  },
+                  "scope": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "const": "session"
+                      },
+                      {
+                        "type": "string",
+                        "const": "agent"
+                      },
+                      {
+                        "type": "string",
+                        "const": "shared"
+                      }
+                    ]
+                  },
+                  "perSession": {
+                    "type": "boolean"
+                  },
+                  "workspaceRoot": {
+                    "type": "string"
+                  },
+                  "docker": {
+                    "type": "object",
+                    "properties": {
+                      "image": {
+                        "type": "string"
+                      },
+                      "containerPrefix": {
+                        "type": "string"
+                      },
+                      "workdir": {
+                        "type": "string"
+                      },
+                      "readOnlyRoot": {
+                        "type": "boolean"
+                      },
+                      "tmpfs": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "network": {
+                        "type": "string"
+                      },
+                      "user": {
+                        "type": "string"
+                      },
+                      "capDrop": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "env": {
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string"
+                        },
+                        "additionalProperties": {
+                          "type": "string"
+                        }
+                      },
+                      "setupCommand": {
+                        "type": "string"
+                      },
+                      "pidsLimit": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "memory": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "number"
+                          }
+                        ]
+                      },
+                      "memorySwap": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "number"
+                          }
+                        ]
+                      },
+                      "cpus": {
+                        "type": "number",
+                        "exclusiveMinimum": 0
+                      },
+                      "ulimits": {
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string"
+                        },
+                        "additionalProperties": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "soft": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "hard": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "additionalProperties": false
+                            }
+                          ]
+                        }
+                      },
+                      "seccompProfile": {
+                        "type": "string"
+                      },
+                      "apparmorProfile": {
+                        "type": "string"
+                      },
+                      "dns": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "extraHosts": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  "browser": {
+                    "type": "object",
+                    "properties": {
+                      "enabled": {
+                        "type": "boolean"
+                      },
+                      "image": {
+                        "type": "string"
+                      },
+                      "containerPrefix": {
+                        "type": "string"
+                      },
+                      "cdpPort": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "vncPort": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "noVncPort": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "headless": {
+                        "type": "boolean"
+                      },
+                      "enableNoVnc": {
+                        "type": "boolean"
+                      },
+                      "autoStart": {
+                        "type": "boolean"
+                      },
+                      "autoStartTimeoutMs": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  "prune": {
+                    "type": "object",
+                    "properties": {
+                      "idleHours": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "maxAgeDays": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          "list": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "default": {
+                  "type": "boolean"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "workspace": {
+                  "type": "string"
+                },
+                "agentDir": {
+                  "type": "string"
+                },
+                "model": {
+                  "type": "string"
+                },
+                "identity": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "theme": {
+                      "type": "string"
+                    },
+                    "emoji": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "groupChat": {
+                  "type": "object",
+                  "properties": {
+                    "mentionPatterns": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "historyLimit": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "subagents": {
+                  "type": "object",
+                  "properties": {
+                    "allowAgents": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "sandbox": {
+                  "type": "object",
+                  "properties": {
+                    "mode": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "const": "off"
+                        },
+                        {
+                          "type": "string",
+                          "const": "non-main"
+                        },
+                        {
+                          "type": "string",
+                          "const": "all"
+                        }
+                      ]
+                    },
+                    "workspaceAccess": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "const": "none"
+                        },
+                        {
+                          "type": "string",
+                          "const": "ro"
+                        },
+                        {
+                          "type": "string",
+                          "const": "rw"
+                        }
+                      ]
+                    },
+                    "sessionToolsVisibility": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "const": "spawned"
+                        },
+                        {
+                          "type": "string",
+                          "const": "all"
+                        }
+                      ]
+                    },
+                    "scope": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "const": "session"
+                        },
+                        {
+                          "type": "string",
+                          "const": "agent"
+                        },
+                        {
+                          "type": "string",
+                          "const": "shared"
+                        }
+                      ]
+                    },
+                    "perSession": {
+                      "type": "boolean"
+                    },
+                    "workspaceRoot": {
+                      "type": "string"
+                    },
+                    "docker": {
+                      "type": "object",
+                      "properties": {
+                        "image": {
+                          "type": "string"
+                        },
+                        "containerPrefix": {
+                          "type": "string"
+                        },
+                        "workdir": {
+                          "type": "string"
+                        },
+                        "readOnlyRoot": {
+                          "type": "boolean"
+                        },
+                        "tmpfs": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "network": {
+                          "type": "string"
+                        },
+                        "user": {
+                          "type": "string"
+                        },
+                        "capDrop": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "env": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "type": "string"
+                          }
+                        },
+                        "setupCommand": {
+                          "type": "string"
+                        },
+                        "pidsLimit": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "memory": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "number"
+                            }
+                          ]
+                        },
+                        "memorySwap": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "number"
+                            }
+                          ]
+                        },
+                        "cpus": {
+                          "type": "number",
+                          "exclusiveMinimum": 0
+                        },
+                        "ulimits": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "soft": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "hard": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 9007199254740991
+                                  }
+                                },
+                                "additionalProperties": false
+                              }
+                            ]
+                          }
+                        },
+                        "seccompProfile": {
+                          "type": "string"
+                        },
+                        "apparmorProfile": {
+                          "type": "string"
+                        },
+                        "dns": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "extraHosts": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    "browser": {
+                      "type": "object",
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean"
+                        },
+                        "image": {
+                          "type": "string"
+                        },
+                        "containerPrefix": {
+                          "type": "string"
+                        },
+                        "cdpPort": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "vncPort": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "noVncPort": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "headless": {
+                          "type": "boolean"
+                        },
+                        "enableNoVnc": {
+                          "type": "boolean"
+                        },
+                        "autoStart": {
+                          "type": "boolean"
+                        },
+                        "autoStartTimeoutMs": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    "prune": {
+                      "type": "object",
+                      "properties": {
+                        "idleHours": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "maxAgeDays": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "tools": {
+                  "type": "object",
+                  "properties": {
+                    "allow": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "deny": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "elevated": {
+                      "type": "object",
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean"
+                        },
+                        "allowFrom": {
+                          "type": "object",
+                          "properties": {
+                            "whatsapp": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "telegram": {
+                              "type": "array",
+                              "items": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "number"
+                                  }
+                                ]
+                              }
+                            },
+                            "discord": {
+                              "type": "array",
+                              "items": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "number"
+                                  }
+                                ]
+                              }
+                            },
+                            "slack": {
+                              "type": "array",
+                              "items": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "number"
+                                  }
+                                ]
+                              }
+                            },
+                            "signal": {
+                              "type": "array",
+                              "items": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "number"
+                                  }
+                                ]
+                              }
+                            },
+                            "imessage": {
+                              "type": "array",
+                              "items": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "number"
+                                  }
+                                ]
+                              }
+                            },
+                            "webchat": {
+                              "type": "array",
+                              "items": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "number"
+                                  }
+                                ]
+                              }
+                            }
+                          },
+                          "additionalProperties": false
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    "sandbox": {
+                      "type": "object",
+                      "properties": {
+                        "tools": {
+                          "type": "object",
+                          "properties": {
+                            "allow": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "deny": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "additionalProperties": false
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "id"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "tools": {
+        "type": "object",
+        "properties": {
+          "allow": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "deny": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "agentToAgent": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "allow": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "elevated": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "allowFrom": {
+                "type": "object",
+                "properties": {
+                  "whatsapp": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "telegram": {
+                    "type": "array",
+                    "items": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    }
+                  },
+                  "discord": {
+                    "type": "array",
+                    "items": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    }
+                  },
+                  "slack": {
+                    "type": "array",
+                    "items": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    }
+                  },
+                  "signal": {
+                    "type": "array",
+                    "items": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    }
+                  },
+                  "imessage": {
+                    "type": "array",
+                    "items": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    }
+                  },
+                  "webchat": {
+                    "type": "array",
+                    "items": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          "bash": {
+            "type": "object",
+            "properties": {
+              "backgroundMs": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "timeoutSec": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "cleanupMs": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "additionalProperties": false
+          },
+          "subagents": {
+            "type": "object",
+            "properties": {
+              "tools": {
+                "type": "object",
+                "properties": {
+                  "allow": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "deny": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          "sandbox": {
+            "type": "object",
+            "properties": {
+              "tools": {
+                "type": "object",
+                "properties": {
+                  "allow": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "deny": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "bindings": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "agentId": {
+              "type": "string"
+            },
+            "match": {
+              "type": "object",
+              "properties": {
+                "provider": {
+                  "type": "string"
+                },
+                "accountId": {
+                  "type": "string"
+                },
+                "peer": {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "const": "dm"
+                        },
+                        {
+                          "type": "string",
+                          "const": "group"
+                        },
+                        {
+                          "type": "string",
+                          "const": "channel"
+                        }
+                      ]
+                    },
+                    "id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "id"
+                  ],
+                  "additionalProperties": false
+                },
+                "guildId": {
+                  "type": "string"
+                },
+                "teamId": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "provider"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "agentId",
+            "match"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "broadcast": {
+        "type": "object",
+        "properties": {
+          "strategy": {
+            "type": "string",
+            "enum": [
+              "parallel",
+              "sequential"
+            ]
+          }
+        },
+        "additionalProperties": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "audio": {
+        "type": "object",
+        "properties": {
+          "transcription": {
+            "type": "object",
+            "properties": {
+              "command": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "timeoutSeconds": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "command"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "messages": {
+        "type": "object",
+        "properties": {
+          "messagePrefix": {
+            "type": "string"
+          },
+          "responsePrefix": {
+            "type": "string"
+          },
+          "groupChat": {
+            "type": "object",
+            "properties": {
+              "mentionPatterns": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "historyLimit": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "additionalProperties": false
+          },
+          "queue": {
+            "type": "object",
+            "properties": {
+              "mode": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "const": "steer"
+                  },
+                  {
+                    "type": "string",
+                    "const": "followup"
+                  },
+                  {
+                    "type": "string",
+                    "const": "collect"
+                  },
+                  {
+                    "type": "string",
+                    "const": "steer-backlog"
+                  },
+                  {
+                    "type": "string",
+                    "const": "steer+backlog"
+                  },
+                  {
+                    "type": "string",
+                    "const": "queue"
+                  },
+                  {
+                    "type": "string",
+                    "const": "interrupt"
+                  }
+                ]
+              },
+              "byProvider": {
+                "type": "object",
+                "properties": {
+                  "whatsapp": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "const": "steer"
+                      },
+                      {
+                        "type": "string",
+                        "const": "followup"
+                      },
+                      {
+                        "type": "string",
+                        "const": "collect"
+                      },
+                      {
+                        "type": "string",
+                        "const": "steer-backlog"
+                      },
+                      {
+                        "type": "string",
+                        "const": "steer+backlog"
+                      },
+                      {
+                        "type": "string",
+                        "const": "queue"
+                      },
+                      {
+                        "type": "string",
+                        "const": "interrupt"
+                      }
+                    ]
+                  },
+                  "telegram": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "const": "steer"
+                      },
+                      {
+                        "type": "string",
+                        "const": "followup"
+                      },
+                      {
+                        "type": "string",
+                        "const": "collect"
+                      },
+                      {
+                        "type": "string",
+                        "const": "steer-backlog"
+                      },
+                      {
+                        "type": "string",
+                        "const": "steer+backlog"
+                      },
+                      {
+                        "type": "string",
+                        "const": "queue"
+                      },
+                      {
+                        "type": "string",
+                        "const": "interrupt"
+                      }
+                    ]
+                  },
+                  "discord": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "const": "steer"
+                      },
+                      {
+                        "type": "string",
+                        "const": "followup"
+                      },
+                      {
+                        "type": "string",
+                        "const": "collect"
+                      },
+                      {
+                        "type": "string",
+                        "const": "steer-backlog"
+                      },
+                      {
+                        "type": "string",
+                        "const": "steer+backlog"
+                      },
+                      {
+                        "type": "string",
+                        "const": "queue"
+                      },
+                      {
+                        "type": "string",
+                        "const": "interrupt"
+                      }
+                    ]
+                  },
+                  "slack": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "const": "steer"
+                      },
+                      {
+                        "type": "string",
+                        "const": "followup"
+                      },
+                      {
+                        "type": "string",
+                        "const": "collect"
+                      },
+                      {
+                        "type": "string",
+                        "const": "steer-backlog"
+                      },
+                      {
+                        "type": "string",
+                        "const": "steer+backlog"
+                      },
+                      {
+                        "type": "string",
+                        "const": "queue"
+                      },
+                      {
+                        "type": "string",
+                        "const": "interrupt"
+                      }
+                    ]
+                  },
+                  "signal": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "const": "steer"
+                      },
+                      {
+                        "type": "string",
+                        "const": "followup"
+                      },
+                      {
+                        "type": "string",
+                        "const": "collect"
+                      },
+                      {
+                        "type": "string",
+                        "const": "steer-backlog"
+                      },
+                      {
+                        "type": "string",
+                        "const": "steer+backlog"
+                      },
+                      {
+                        "type": "string",
+                        "const": "queue"
+                      },
+                      {
+                        "type": "string",
+                        "const": "interrupt"
+                      }
+                    ]
+                  },
+                  "imessage": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "const": "steer"
+                      },
+                      {
+                        "type": "string",
+                        "const": "followup"
+                      },
+                      {
+                        "type": "string",
+                        "const": "collect"
+                      },
+                      {
+                        "type": "string",
+                        "const": "steer-backlog"
+                      },
+                      {
+                        "type": "string",
+                        "const": "steer+backlog"
+                      },
+                      {
+                        "type": "string",
+                        "const": "queue"
+                      },
+                      {
+                        "type": "string",
+                        "const": "interrupt"
+                      }
+                    ]
+                  },
+                  "msteams": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "const": "steer"
+                      },
+                      {
+                        "type": "string",
+                        "const": "followup"
+                      },
+                      {
+                        "type": "string",
+                        "const": "collect"
+                      },
+                      {
+                        "type": "string",
+                        "const": "steer-backlog"
+                      },
+                      {
+                        "type": "string",
+                        "const": "steer+backlog"
+                      },
+                      {
+                        "type": "string",
+                        "const": "queue"
+                      },
+                      {
+                        "type": "string",
+                        "const": "interrupt"
+                      }
+                    ]
+                  },
+                  "webchat": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "const": "steer"
+                      },
+                      {
+                        "type": "string",
+                        "const": "followup"
+                      },
+                      {
+                        "type": "string",
+                        "const": "collect"
+                      },
+                      {
+                        "type": "string",
+                        "const": "steer-backlog"
+                      },
+                      {
+                        "type": "string",
+                        "const": "steer+backlog"
+                      },
+                      {
+                        "type": "string",
+                        "const": "queue"
+                      },
+                      {
+                        "type": "string",
+                        "const": "interrupt"
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              },
+              "debounceMs": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "cap": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "drop": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "const": "old"
+                  },
+                  {
+                    "type": "string",
+                    "const": "new"
+                  },
+                  {
+                    "type": "string",
+                    "const": "summarize"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": false
+          },
+          "ackReaction": {
+            "type": "string"
+          },
+          "ackReactionScope": {
+            "type": "string",
+            "enum": [
+              "group-mentions",
+              "group-all",
+              "direct",
+              "all"
+            ]
+          },
+          "removeAckAfterReply": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "commands": {
+        "type": "object",
+        "properties": {
+          "native": {
+            "type": "boolean"
+          },
+          "text": {
+            "type": "boolean"
+          },
+          "restart": {
+            "type": "boolean"
+          },
+          "useAccessGroups": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "session": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "per-sender"
+              },
+              {
+                "type": "string",
+                "const": "global"
+              }
+            ]
+          },
+          "resetTriggers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "idleMinutes": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "heartbeatIdleMinutes": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "store": {
+            "type": "string"
+          },
+          "typingIntervalSeconds": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "typingMode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "never"
+              },
+              {
+                "type": "string",
+                "const": "instant"
+              },
+              {
+                "type": "string",
+                "const": "thinking"
+              },
+              {
+                "type": "string",
+                "const": "message"
+              }
+            ]
+          },
+          "mainKey": {
+            "type": "string"
+          },
+          "sendPolicy": {
+            "type": "object",
+            "properties": {
+              "default": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "const": "allow"
+                  },
+                  {
+                    "type": "string",
+                    "const": "deny"
+                  }
+                ]
+              },
+              "rules": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "action": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "const": "allow"
+                        },
+                        {
+                          "type": "string",
+                          "const": "deny"
+                        }
+                      ]
+                    },
+                    "match": {
+                      "type": "object",
+                      "properties": {
+                        "provider": {
+                          "type": "string"
+                        },
+                        "chatType": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "direct"
+                            },
+                            {
+                              "type": "string",
+                              "const": "group"
+                            },
+                            {
+                              "type": "string",
+                              "const": "room"
+                            }
+                          ]
+                        },
+                        "keyPrefix": {
+                          "type": "string"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "action"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "agentToAgent": {
+            "type": "object",
+            "properties": {
+              "maxPingPongTurns": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 5
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "cron": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "store": {
+            "type": "string"
+          },
+          "maxConcurrentRuns": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "additionalProperties": false
+      },
+      "hooks": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "path": {
+            "type": "string"
+          },
+          "token": {
+            "type": "string"
+          },
+          "maxBodyBytes": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "presets": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "transformsDir": {
+            "type": "string"
+          },
+          "mappings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "match": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    },
+                    "source": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "action": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "const": "wake"
+                    },
+                    {
+                      "type": "string",
+                      "const": "agent"
+                    }
+                  ]
+                },
+                "wakeMode": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "const": "now"
+                    },
+                    {
+                      "type": "string",
+                      "const": "next-heartbeat"
+                    }
+                  ]
+                },
+                "name": {
+                  "type": "string"
+                },
+                "sessionKey": {
+                  "type": "string"
+                },
+                "messageTemplate": {
+                  "type": "string"
+                },
+                "textTemplate": {
+                  "type": "string"
+                },
+                "deliver": {
+                  "type": "boolean"
+                },
+                "provider": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "const": "last"
+                    },
+                    {
+                      "type": "string",
+                      "const": "whatsapp"
+                    },
+                    {
+                      "type": "string",
+                      "const": "telegram"
+                    },
+                    {
+                      "type": "string",
+                      "const": "discord"
+                    },
+                    {
+                      "type": "string",
+                      "const": "slack"
+                    },
+                    {
+                      "type": "string",
+                      "const": "signal"
+                    },
+                    {
+                      "type": "string",
+                      "const": "imessage"
+                    },
+                    {
+                      "type": "string",
+                      "const": "msteams"
+                    }
+                  ]
+                },
+                "to": {
+                  "type": "string"
+                },
+                "model": {
+                  "type": "string"
+                },
+                "thinking": {
+                  "type": "string"
+                },
+                "timeoutSeconds": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "transform": {
+                  "type": "object",
+                  "properties": {
+                    "module": {
+                      "type": "string"
+                    },
+                    "export": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "module"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "gmail": {
+            "type": "object",
+            "properties": {
+              "account": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              },
+              "topic": {
+                "type": "string"
+              },
+              "subscription": {
+                "type": "string"
+              },
+              "pushToken": {
+                "type": "string"
+              },
+              "hookUrl": {
+                "type": "string"
+              },
+              "includeBody": {
+                "type": "boolean"
+              },
+              "maxBytes": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "renewEveryMinutes": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "serve": {
+                "type": "object",
+                "properties": {
+                  "bind": {
+                    "type": "string"
+                  },
+                  "port": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "path": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              },
+              "tailscale": {
+                "type": "object",
+                "properties": {
+                  "mode": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "const": "off"
+                      },
+                      {
+                        "type": "string",
+                        "const": "serve"
+                      },
+                      {
+                        "type": "string",
+                        "const": "funnel"
+                      }
+                    ]
+                  },
+                  "path": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              },
+              "model": {
+                "type": "string"
+              },
+              "thinking": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "const": "off"
+                  },
+                  {
+                    "type": "string",
+                    "const": "minimal"
+                  },
+                  {
+                    "type": "string",
+                    "const": "low"
+                  },
+                  {
+                    "type": "string",
+                    "const": "medium"
+                  },
+                  {
+                    "type": "string",
+                    "const": "high"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "web": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "heartbeatSeconds": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "reconnect": {
+            "type": "object",
+            "properties": {
+              "initialMs": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "maxMs": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "factor": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "jitter": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "maxAttempts": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "whatsapp": {
+        "type": "object",
+        "properties": {
+          "accounts": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "capabilities": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "enabled": {
+                  "type": "boolean"
+                },
+                "messagePrefix": {
+                  "type": "string"
+                },
+                "authDir": {
+                  "type": "string"
+                },
+                "dmPolicy": {
+                  "default": "pairing",
+                  "type": "string",
+                  "enum": [
+                    "pairing",
+                    "allowlist",
+                    "open",
+                    "disabled"
+                  ]
+                },
+                "selfChatMode": {
+                  "type": "boolean"
+                },
+                "allowFrom": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "groupAllowFrom": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "groupPolicy": {
+                  "default": "open",
+                  "type": "string",
+                  "enum": [
+                    "open",
+                    "disabled",
+                    "allowlist"
+                  ]
+                },
+                "textChunkLimit": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "mediaMaxMb": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "blockStreaming": {
+                  "type": "boolean"
+                },
+                "blockStreamingCoalesce": {
+                  "type": "object",
+                  "properties": {
+                    "minChars": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "maxChars": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "idleMs": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "groups": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {
+                    "type": "object",
+                    "properties": {
+                      "requireMention": {
+                        "type": "boolean"
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "dmPolicy",
+                "groupPolicy"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "dmPolicy": {
+            "default": "pairing",
+            "type": "string",
+            "enum": [
+              "pairing",
+              "allowlist",
+              "open",
+              "disabled"
+            ]
+          },
+          "messagePrefix": {
+            "type": "string"
+          },
+          "selfChatMode": {
+            "type": "boolean"
+          },
+          "allowFrom": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "groupAllowFrom": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "groupPolicy": {
+            "default": "open",
+            "type": "string",
+            "enum": [
+              "open",
+              "disabled",
+              "allowlist"
+            ]
+          },
+          "textChunkLimit": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "mediaMaxMb": {
+            "default": 50,
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "blockStreaming": {
+            "type": "boolean"
+          },
+          "blockStreamingCoalesce": {
+            "type": "object",
+            "properties": {
+              "minChars": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "maxChars": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "idleMs": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "additionalProperties": false
+          },
+          "actions": {
+            "type": "object",
+            "properties": {
+              "reactions": {
+                "type": "boolean"
+              },
+              "sendMessage": {
+                "type": "boolean"
+              },
+              "polls": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          },
+          "groups": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "requireMention": {
+                  "type": "boolean"
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "dmPolicy",
+          "groupPolicy",
+          "mediaMaxMb"
+        ],
+        "additionalProperties": false
+      },
+      "telegram": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "dmPolicy": {
+            "default": "pairing",
+            "type": "string",
+            "enum": [
+              "pairing",
+              "allowlist",
+              "open",
+              "disabled"
+            ]
+          },
+          "botToken": {
+            "type": "string"
+          },
+          "tokenFile": {
+            "type": "string"
+          },
+          "replyToMode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "off"
+              },
+              {
+                "type": "string",
+                "const": "first"
+              },
+              {
+                "type": "string",
+                "const": "all"
+              }
+            ]
+          },
+          "groups": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "requireMention": {
+                  "type": "boolean"
+                },
+                "skills": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "enabled": {
+                  "type": "boolean"
+                },
+                "allowFrom": {
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "number"
+                      }
+                    ]
+                  }
+                },
+                "systemPrompt": {
+                  "type": "string"
+                },
+                "topics": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {
+                    "type": "object",
+                    "properties": {
+                      "requireMention": {
+                        "type": "boolean"
+                      },
+                      "skills": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "enabled": {
+                        "type": "boolean"
+                      },
+                      "allowFrom": {
+                        "type": "array",
+                        "items": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "number"
+                            }
+                          ]
+                        }
+                      },
+                      "systemPrompt": {
+                        "type": "string"
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "allowFrom": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                }
+              ]
+            }
+          },
+          "groupAllowFrom": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                }
+              ]
+            }
+          },
+          "groupPolicy": {
+            "default": "open",
+            "type": "string",
+            "enum": [
+              "open",
+              "disabled",
+              "allowlist"
+            ]
+          },
+          "textChunkLimit": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "blockStreaming": {
+            "type": "boolean"
+          },
+          "blockStreamingCoalesce": {
+            "type": "object",
+            "properties": {
+              "minChars": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "maxChars": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "idleMs": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "additionalProperties": false
+          },
+          "streamMode": {
+            "default": "partial",
+            "type": "string",
+            "enum": [
+              "off",
+              "partial",
+              "block"
+            ]
+          },
+          "mediaMaxMb": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "retry": {
+            "type": "object",
+            "properties": {
+              "attempts": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              },
+              "minDelayMs": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "maxDelayMs": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "jitter": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            },
+            "additionalProperties": false
+          },
+          "proxy": {
+            "type": "string"
+          },
+          "webhookUrl": {
+            "type": "string"
+          },
+          "webhookSecret": {
+            "type": "string"
+          },
+          "webhookPath": {
+            "type": "string"
+          },
+          "actions": {
+            "type": "object",
+            "properties": {
+              "reactions": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          },
+          "accounts": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "capabilities": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "enabled": {
+                  "type": "boolean"
+                },
+                "dmPolicy": {
+                  "default": "pairing",
+                  "type": "string",
+                  "enum": [
+                    "pairing",
+                    "allowlist",
+                    "open",
+                    "disabled"
+                  ]
+                },
+                "botToken": {
+                  "type": "string"
+                },
+                "tokenFile": {
+                  "type": "string"
+                },
+                "replyToMode": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "const": "off"
+                    },
+                    {
+                      "type": "string",
+                      "const": "first"
+                    },
+                    {
+                      "type": "string",
+                      "const": "all"
+                    }
+                  ]
+                },
+                "groups": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {
+                    "type": "object",
+                    "properties": {
+                      "requireMention": {
+                        "type": "boolean"
+                      },
+                      "skills": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "enabled": {
+                        "type": "boolean"
+                      },
+                      "allowFrom": {
+                        "type": "array",
+                        "items": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "number"
+                            }
+                          ]
+                        }
+                      },
+                      "systemPrompt": {
+                        "type": "string"
+                      },
+                      "topics": {
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string"
+                        },
+                        "additionalProperties": {
+                          "type": "object",
+                          "properties": {
+                            "requireMention": {
+                              "type": "boolean"
+                            },
+                            "skills": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "enabled": {
+                              "type": "boolean"
+                            },
+                            "allowFrom": {
+                              "type": "array",
+                              "items": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "number"
+                                  }
+                                ]
+                              }
+                            },
+                            "systemPrompt": {
+                              "type": "string"
+                            }
+                          },
+                          "additionalProperties": false
+                        }
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "allowFrom": {
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "number"
+                      }
+                    ]
+                  }
+                },
+                "groupAllowFrom": {
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "number"
+                      }
+                    ]
+                  }
+                },
+                "groupPolicy": {
+                  "default": "open",
+                  "type": "string",
+                  "enum": [
+                    "open",
+                    "disabled",
+                    "allowlist"
+                  ]
+                },
+                "textChunkLimit": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "blockStreaming": {
+                  "type": "boolean"
+                },
+                "blockStreamingCoalesce": {
+                  "type": "object",
+                  "properties": {
+                    "minChars": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "maxChars": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "idleMs": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "streamMode": {
+                  "default": "partial",
+                  "type": "string",
+                  "enum": [
+                    "off",
+                    "partial",
+                    "block"
+                  ]
+                },
+                "mediaMaxMb": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "retry": {
+                  "type": "object",
+                  "properties": {
+                    "attempts": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    },
+                    "minDelayMs": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "maxDelayMs": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "jitter": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "proxy": {
+                  "type": "string"
+                },
+                "webhookUrl": {
+                  "type": "string"
+                },
+                "webhookSecret": {
+                  "type": "string"
+                },
+                "webhookPath": {
+                  "type": "string"
+                },
+                "actions": {
+                  "type": "object",
+                  "properties": {
+                    "reactions": {
+                      "type": "boolean"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "dmPolicy",
+                "groupPolicy",
+                "streamMode"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "dmPolicy",
+          "groupPolicy",
+          "streamMode"
+        ],
+        "additionalProperties": false
+      },
+      "discord": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "token": {
+            "type": "string"
+          },
+          "groupPolicy": {
+            "default": "open",
+            "type": "string",
+            "enum": [
+              "open",
+              "disabled",
+              "allowlist"
+            ]
+          },
+          "textChunkLimit": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "blockStreaming": {
+            "type": "boolean"
+          },
+          "blockStreamingCoalesce": {
+            "type": "object",
+            "properties": {
+              "minChars": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "maxChars": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "idleMs": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "additionalProperties": false
+          },
+          "maxLinesPerMessage": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "mediaMaxMb": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "historyLimit": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "retry": {
+            "type": "object",
+            "properties": {
+              "attempts": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              },
+              "minDelayMs": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "maxDelayMs": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "jitter": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            },
+            "additionalProperties": false
+          },
+          "actions": {
+            "type": "object",
+            "properties": {
+              "reactions": {
+                "type": "boolean"
+              },
+              "stickers": {
+                "type": "boolean"
+              },
+              "polls": {
+                "type": "boolean"
+              },
+              "permissions": {
+                "type": "boolean"
+              },
+              "messages": {
+                "type": "boolean"
+              },
+              "threads": {
+                "type": "boolean"
+              },
+              "pins": {
+                "type": "boolean"
+              },
+              "search": {
+                "type": "boolean"
+              },
+              "memberInfo": {
+                "type": "boolean"
+              },
+              "roleInfo": {
+                "type": "boolean"
+              },
+              "roles": {
+                "type": "boolean"
+              },
+              "channelInfo": {
+                "type": "boolean"
+              },
+              "voiceStatus": {
+                "type": "boolean"
+              },
+              "events": {
+                "type": "boolean"
+              },
+              "moderation": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          },
+          "replyToMode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "off"
+              },
+              {
+                "type": "string",
+                "const": "first"
+              },
+              {
+                "type": "string",
+                "const": "all"
+              }
+            ]
+          },
+          "dm": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "policy": {
+                "default": "pairing",
+                "type": "string",
+                "enum": [
+                  "pairing",
+                  "allowlist",
+                  "open",
+                  "disabled"
+                ]
+              },
+              "allowFrom": {
+                "type": "array",
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ]
+                }
+              },
+              "groupEnabled": {
+                "type": "boolean"
+              },
+              "groupChannels": {
+                "type": "array",
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ]
+                }
+              }
+            },
+            "required": [
+              "policy"
+            ],
+            "additionalProperties": false
+          },
+          "guilds": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "slug": {
+                  "type": "string"
+                },
+                "requireMention": {
+                  "type": "boolean"
+                },
+                "reactionNotifications": {
+                  "type": "string",
+                  "enum": [
+                    "off",
+                    "own",
+                    "all",
+                    "allowlist"
+                  ]
+                },
+                "users": {
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "number"
+                      }
+                    ]
+                  }
+                },
+                "channels": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {
+                    "type": "object",
+                    "properties": {
+                      "allow": {
+                        "type": "boolean"
+                      },
+                      "requireMention": {
+                        "type": "boolean"
+                      },
+                      "skills": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "enabled": {
+                        "type": "boolean"
+                      },
+                      "users": {
+                        "type": "array",
+                        "items": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "number"
+                            }
+                          ]
+                        }
+                      },
+                      "systemPrompt": {
+                        "type": "string"
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "accounts": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "capabilities": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "enabled": {
+                  "type": "boolean"
+                },
+                "token": {
+                  "type": "string"
+                },
+                "groupPolicy": {
+                  "default": "open",
+                  "type": "string",
+                  "enum": [
+                    "open",
+                    "disabled",
+                    "allowlist"
+                  ]
+                },
+                "textChunkLimit": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "blockStreaming": {
+                  "type": "boolean"
+                },
+                "blockStreamingCoalesce": {
+                  "type": "object",
+                  "properties": {
+                    "minChars": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "maxChars": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "idleMs": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "maxLinesPerMessage": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "mediaMaxMb": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "historyLimit": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "retry": {
+                  "type": "object",
+                  "properties": {
+                    "attempts": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    },
+                    "minDelayMs": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "maxDelayMs": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "jitter": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "actions": {
+                  "type": "object",
+                  "properties": {
+                    "reactions": {
+                      "type": "boolean"
+                    },
+                    "stickers": {
+                      "type": "boolean"
+                    },
+                    "polls": {
+                      "type": "boolean"
+                    },
+                    "permissions": {
+                      "type": "boolean"
+                    },
+                    "messages": {
+                      "type": "boolean"
+                    },
+                    "threads": {
+                      "type": "boolean"
+                    },
+                    "pins": {
+                      "type": "boolean"
+                    },
+                    "search": {
+                      "type": "boolean"
+                    },
+                    "memberInfo": {
+                      "type": "boolean"
+                    },
+                    "roleInfo": {
+                      "type": "boolean"
+                    },
+                    "roles": {
+                      "type": "boolean"
+                    },
+                    "channelInfo": {
+                      "type": "boolean"
+                    },
+                    "voiceStatus": {
+                      "type": "boolean"
+                    },
+                    "events": {
+                      "type": "boolean"
+                    },
+                    "moderation": {
+                      "type": "boolean"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "replyToMode": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "const": "off"
+                    },
+                    {
+                      "type": "string",
+                      "const": "first"
+                    },
+                    {
+                      "type": "string",
+                      "const": "all"
+                    }
+                  ]
+                },
+                "dm": {
+                  "type": "object",
+                  "properties": {
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "policy": {
+                      "default": "pairing",
+                      "type": "string",
+                      "enum": [
+                        "pairing",
+                        "allowlist",
+                        "open",
+                        "disabled"
+                      ]
+                    },
+                    "allowFrom": {
+                      "type": "array",
+                      "items": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "number"
+                          }
+                        ]
+                      }
+                    },
+                    "groupEnabled": {
+                      "type": "boolean"
+                    },
+                    "groupChannels": {
+                      "type": "array",
+                      "items": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "number"
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "policy"
+                  ],
+                  "additionalProperties": false
+                },
+                "guilds": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {
+                    "type": "object",
+                    "properties": {
+                      "slug": {
+                        "type": "string"
+                      },
+                      "requireMention": {
+                        "type": "boolean"
+                      },
+                      "reactionNotifications": {
+                        "type": "string",
+                        "enum": [
+                          "off",
+                          "own",
+                          "all",
+                          "allowlist"
+                        ]
+                      },
+                      "users": {
+                        "type": "array",
+                        "items": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "number"
+                            }
+                          ]
+                        }
+                      },
+                      "channels": {
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string"
+                        },
+                        "additionalProperties": {
+                          "type": "object",
+                          "properties": {
+                            "allow": {
+                              "type": "boolean"
+                            },
+                            "requireMention": {
+                              "type": "boolean"
+                            },
+                            "skills": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "enabled": {
+                              "type": "boolean"
+                            },
+                            "users": {
+                              "type": "array",
+                              "items": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "number"
+                                  }
+                                ]
+                              }
+                            },
+                            "systemPrompt": {
+                              "type": "string"
+                            }
+                          },
+                          "additionalProperties": false
+                        }
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "groupPolicy"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "groupPolicy"
+        ],
+        "additionalProperties": false
+      },
+      "slack": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "botToken": {
+            "type": "string"
+          },
+          "appToken": {
+            "type": "string"
+          },
+          "allowBots": {
+            "type": "boolean"
+          },
+          "groupPolicy": {
+            "default": "open",
+            "type": "string",
+            "enum": [
+              "open",
+              "disabled",
+              "allowlist"
+            ]
+          },
+          "textChunkLimit": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "blockStreaming": {
+            "type": "boolean"
+          },
+          "blockStreamingCoalesce": {
+            "type": "object",
+            "properties": {
+              "minChars": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "maxChars": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "idleMs": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "additionalProperties": false
+          },
+          "mediaMaxMb": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "reactionNotifications": {
+            "type": "string",
+            "enum": [
+              "off",
+              "own",
+              "all",
+              "allowlist"
+            ]
+          },
+          "reactionAllowlist": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                }
+              ]
+            }
+          },
+          "replyToMode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "off"
+              },
+              {
+                "type": "string",
+                "const": "first"
+              },
+              {
+                "type": "string",
+                "const": "all"
+              }
+            ]
+          },
+          "actions": {
+            "type": "object",
+            "properties": {
+              "reactions": {
+                "type": "boolean"
+              },
+              "messages": {
+                "type": "boolean"
+              },
+              "pins": {
+                "type": "boolean"
+              },
+              "search": {
+                "type": "boolean"
+              },
+              "permissions": {
+                "type": "boolean"
+              },
+              "memberInfo": {
+                "type": "boolean"
+              },
+              "channelInfo": {
+                "type": "boolean"
+              },
+              "emojiList": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          },
+          "slashCommand": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "name": {
+                "type": "string"
+              },
+              "sessionPrefix": {
+                "type": "string"
+              },
+              "ephemeral": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          },
+          "dm": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "policy": {
+                "default": "pairing",
+                "type": "string",
+                "enum": [
+                  "pairing",
+                  "allowlist",
+                  "open",
+                  "disabled"
+                ]
+              },
+              "allowFrom": {
+                "type": "array",
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ]
+                }
+              },
+              "groupEnabled": {
+                "type": "boolean"
+              },
+              "groupChannels": {
+                "type": "array",
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ]
+                }
+              }
+            },
+            "required": [
+              "policy"
+            ],
+            "additionalProperties": false
+          },
+          "channels": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                },
+                "allow": {
+                  "type": "boolean"
+                },
+                "requireMention": {
+                  "type": "boolean"
+                },
+                "allowBots": {
+                  "type": "boolean"
+                },
+                "users": {
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "number"
+                      }
+                    ]
+                  }
+                },
+                "skills": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "systemPrompt": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "accounts": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "capabilities": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "enabled": {
+                  "type": "boolean"
+                },
+                "botToken": {
+                  "type": "string"
+                },
+                "appToken": {
+                  "type": "string"
+                },
+                "allowBots": {
+                  "type": "boolean"
+                },
+                "groupPolicy": {
+                  "default": "open",
+                  "type": "string",
+                  "enum": [
+                    "open",
+                    "disabled",
+                    "allowlist"
+                  ]
+                },
+                "textChunkLimit": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "blockStreaming": {
+                  "type": "boolean"
+                },
+                "blockStreamingCoalesce": {
+                  "type": "object",
+                  "properties": {
+                    "minChars": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "maxChars": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "idleMs": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "mediaMaxMb": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "reactionNotifications": {
+                  "type": "string",
+                  "enum": [
+                    "off",
+                    "own",
+                    "all",
+                    "allowlist"
+                  ]
+                },
+                "reactionAllowlist": {
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "number"
+                      }
+                    ]
+                  }
+                },
+                "replyToMode": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "const": "off"
+                    },
+                    {
+                      "type": "string",
+                      "const": "first"
+                    },
+                    {
+                      "type": "string",
+                      "const": "all"
+                    }
+                  ]
+                },
+                "actions": {
+                  "type": "object",
+                  "properties": {
+                    "reactions": {
+                      "type": "boolean"
+                    },
+                    "messages": {
+                      "type": "boolean"
+                    },
+                    "pins": {
+                      "type": "boolean"
+                    },
+                    "search": {
+                      "type": "boolean"
+                    },
+                    "permissions": {
+                      "type": "boolean"
+                    },
+                    "memberInfo": {
+                      "type": "boolean"
+                    },
+                    "channelInfo": {
+                      "type": "boolean"
+                    },
+                    "emojiList": {
+                      "type": "boolean"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "slashCommand": {
+                  "type": "object",
+                  "properties": {
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "sessionPrefix": {
+                      "type": "string"
+                    },
+                    "ephemeral": {
+                      "type": "boolean"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "dm": {
+                  "type": "object",
+                  "properties": {
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "policy": {
+                      "default": "pairing",
+                      "type": "string",
+                      "enum": [
+                        "pairing",
+                        "allowlist",
+                        "open",
+                        "disabled"
+                      ]
+                    },
+                    "allowFrom": {
+                      "type": "array",
+                      "items": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "number"
+                          }
+                        ]
+                      }
+                    },
+                    "groupEnabled": {
+                      "type": "boolean"
+                    },
+                    "groupChannels": {
+                      "type": "array",
+                      "items": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "number"
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "policy"
+                  ],
+                  "additionalProperties": false
+                },
+                "channels": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {
+                    "type": "object",
+                    "properties": {
+                      "enabled": {
+                        "type": "boolean"
+                      },
+                      "allow": {
+                        "type": "boolean"
+                      },
+                      "requireMention": {
+                        "type": "boolean"
+                      },
+                      "allowBots": {
+                        "type": "boolean"
+                      },
+                      "users": {
+                        "type": "array",
+                        "items": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "number"
+                            }
+                          ]
+                        }
+                      },
+                      "skills": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "systemPrompt": {
+                        "type": "string"
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "groupPolicy"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "groupPolicy"
+        ],
+        "additionalProperties": false
+      },
+      "signal": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "account": {
+            "type": "string"
+          },
+          "httpUrl": {
+            "type": "string"
+          },
+          "httpHost": {
+            "type": "string"
+          },
+          "httpPort": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "cliPath": {
+            "type": "string"
+          },
+          "autoStart": {
+            "type": "boolean"
+          },
+          "receiveMode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "on-start"
+              },
+              {
+                "type": "string",
+                "const": "manual"
+              }
+            ]
+          },
+          "ignoreAttachments": {
+            "type": "boolean"
+          },
+          "ignoreStories": {
+            "type": "boolean"
+          },
+          "sendReadReceipts": {
+            "type": "boolean"
+          },
+          "dmPolicy": {
+            "default": "pairing",
+            "type": "string",
+            "enum": [
+              "pairing",
+              "allowlist",
+              "open",
+              "disabled"
+            ]
+          },
+          "allowFrom": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                }
+              ]
+            }
+          },
+          "groupAllowFrom": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                }
+              ]
+            }
+          },
+          "groupPolicy": {
+            "default": "open",
+            "type": "string",
+            "enum": [
+              "open",
+              "disabled",
+              "allowlist"
+            ]
+          },
+          "textChunkLimit": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "blockStreaming": {
+            "type": "boolean"
+          },
+          "blockStreamingCoalesce": {
+            "type": "object",
+            "properties": {
+              "minChars": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "maxChars": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "idleMs": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "additionalProperties": false
+          },
+          "mediaMaxMb": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "reactionNotifications": {
+            "type": "string",
+            "enum": [
+              "off",
+              "own",
+              "all",
+              "allowlist"
+            ]
+          },
+          "reactionAllowlist": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                }
+              ]
+            }
+          },
+          "accounts": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "capabilities": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "enabled": {
+                  "type": "boolean"
+                },
+                "account": {
+                  "type": "string"
+                },
+                "httpUrl": {
+                  "type": "string"
+                },
+                "httpHost": {
+                  "type": "string"
+                },
+                "httpPort": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "cliPath": {
+                  "type": "string"
+                },
+                "autoStart": {
+                  "type": "boolean"
+                },
+                "receiveMode": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "const": "on-start"
+                    },
+                    {
+                      "type": "string",
+                      "const": "manual"
+                    }
+                  ]
+                },
+                "ignoreAttachments": {
+                  "type": "boolean"
+                },
+                "ignoreStories": {
+                  "type": "boolean"
+                },
+                "sendReadReceipts": {
+                  "type": "boolean"
+                },
+                "dmPolicy": {
+                  "default": "pairing",
+                  "type": "string",
+                  "enum": [
+                    "pairing",
+                    "allowlist",
+                    "open",
+                    "disabled"
+                  ]
+                },
+                "allowFrom": {
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "number"
+                      }
+                    ]
+                  }
+                },
+                "groupAllowFrom": {
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "number"
+                      }
+                    ]
+                  }
+                },
+                "groupPolicy": {
+                  "default": "open",
+                  "type": "string",
+                  "enum": [
+                    "open",
+                    "disabled",
+                    "allowlist"
+                  ]
+                },
+                "textChunkLimit": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "blockStreaming": {
+                  "type": "boolean"
+                },
+                "blockStreamingCoalesce": {
+                  "type": "object",
+                  "properties": {
+                    "minChars": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "maxChars": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "idleMs": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "mediaMaxMb": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "reactionNotifications": {
+                  "type": "string",
+                  "enum": [
+                    "off",
+                    "own",
+                    "all",
+                    "allowlist"
+                  ]
+                },
+                "reactionAllowlist": {
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "number"
+                      }
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "dmPolicy",
+                "groupPolicy"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "dmPolicy",
+          "groupPolicy"
+        ],
+        "additionalProperties": false
+      },
+      "imessage": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "cliPath": {
+            "type": "string"
+          },
+          "dbPath": {
+            "type": "string"
+          },
+          "service": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "imessage"
+              },
+              {
+                "type": "string",
+                "const": "sms"
+              },
+              {
+                "type": "string",
+                "const": "auto"
+              }
+            ]
+          },
+          "region": {
+            "type": "string"
+          },
+          "dmPolicy": {
+            "default": "pairing",
+            "type": "string",
+            "enum": [
+              "pairing",
+              "allowlist",
+              "open",
+              "disabled"
+            ]
+          },
+          "allowFrom": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                }
+              ]
+            }
+          },
+          "groupAllowFrom": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                }
+              ]
+            }
+          },
+          "groupPolicy": {
+            "default": "open",
+            "type": "string",
+            "enum": [
+              "open",
+              "disabled",
+              "allowlist"
+            ]
+          },
+          "includeAttachments": {
+            "type": "boolean"
+          },
+          "mediaMaxMb": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "textChunkLimit": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "blockStreaming": {
+            "type": "boolean"
+          },
+          "blockStreamingCoalesce": {
+            "type": "object",
+            "properties": {
+              "minChars": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "maxChars": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "idleMs": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "additionalProperties": false
+          },
+          "groups": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "requireMention": {
+                  "type": "boolean"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "accounts": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "capabilities": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "enabled": {
+                  "type": "boolean"
+                },
+                "cliPath": {
+                  "type": "string"
+                },
+                "dbPath": {
+                  "type": "string"
+                },
+                "service": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "const": "imessage"
+                    },
+                    {
+                      "type": "string",
+                      "const": "sms"
+                    },
+                    {
+                      "type": "string",
+                      "const": "auto"
+                    }
+                  ]
+                },
+                "region": {
+                  "type": "string"
+                },
+                "dmPolicy": {
+                  "default": "pairing",
+                  "type": "string",
+                  "enum": [
+                    "pairing",
+                    "allowlist",
+                    "open",
+                    "disabled"
+                  ]
+                },
+                "allowFrom": {
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "number"
+                      }
+                    ]
+                  }
+                },
+                "groupAllowFrom": {
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "number"
+                      }
+                    ]
+                  }
+                },
+                "groupPolicy": {
+                  "default": "open",
+                  "type": "string",
+                  "enum": [
+                    "open",
+                    "disabled",
+                    "allowlist"
+                  ]
+                },
+                "includeAttachments": {
+                  "type": "boolean"
+                },
+                "mediaMaxMb": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "textChunkLimit": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "blockStreaming": {
+                  "type": "boolean"
+                },
+                "blockStreamingCoalesce": {
+                  "type": "object",
+                  "properties": {
+                    "minChars": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "maxChars": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "idleMs": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "groups": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {
+                    "type": "object",
+                    "properties": {
+                      "requireMention": {
+                        "type": "boolean"
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "dmPolicy",
+                "groupPolicy"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "dmPolicy",
+          "groupPolicy"
+        ],
+        "additionalProperties": false
+      },
+      "msteams": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "appId": {
+            "type": "string"
+          },
+          "appPassword": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "webhook": {
+            "type": "object",
+            "properties": {
+              "port": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "path": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          "dmPolicy": {
+            "default": "pairing",
+            "type": "string",
+            "enum": [
+              "pairing",
+              "allowlist",
+              "open",
+              "disabled"
+            ]
+          },
+          "allowFrom": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "textChunkLimit": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "blockStreamingCoalesce": {
+            "type": "object",
+            "properties": {
+              "minChars": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "maxChars": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "idleMs": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "additionalProperties": false
+          },
+          "mediaAllowHosts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "requireMention": {
+            "type": "boolean"
+          },
+          "replyStyle": {
+            "type": "string",
+            "enum": [
+              "thread",
+              "top-level"
+            ]
+          },
+          "teams": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "requireMention": {
+                  "type": "boolean"
+                },
+                "replyStyle": {
+                  "type": "string",
+                  "enum": [
+                    "thread",
+                    "top-level"
+                  ]
+                },
+                "channels": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {
+                    "type": "object",
+                    "properties": {
+                      "requireMention": {
+                        "type": "boolean"
+                      },
+                      "replyStyle": {
+                        "type": "string",
+                        "enum": [
+                          "thread",
+                          "top-level"
+                        ]
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "dmPolicy"
+        ],
+        "additionalProperties": false
+      },
+      "bridge": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "port": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "bind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "auto"
+              },
+              {
+                "type": "string",
+                "const": "lan"
+              },
+              {
+                "type": "string",
+                "const": "tailnet"
+              },
+              {
+                "type": "string",
+                "const": "loopback"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "discovery": {
+        "type": "object",
+        "properties": {
+          "wideArea": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "canvasHost": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "root": {
+            "type": "string"
+          },
+          "port": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "liveReload": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "talk": {
+        "type": "object",
+        "properties": {
+          "voiceId": {
+            "type": "string"
+          },
+          "voiceAliases": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "modelId": {
+            "type": "string"
+          },
+          "outputFormat": {
+            "type": "string"
+          },
+          "apiKey": {
+            "type": "string"
+          },
+          "interruptOnSpeech": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "gateway": {
+        "type": "object",
+        "properties": {
+          "port": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "mode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "local"
+              },
+              {
+                "type": "string",
+                "const": "remote"
+              }
+            ]
+          },
+          "bind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "auto"
+              },
+              {
+                "type": "string",
+                "const": "lan"
+              },
+              {
+                "type": "string",
+                "const": "tailnet"
+              },
+              {
+                "type": "string",
+                "const": "loopback"
+              }
+            ]
+          },
+          "controlUi": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "basePath": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          "auth": {
+            "type": "object",
+            "properties": {
+              "mode": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "const": "token"
+                  },
+                  {
+                    "type": "string",
+                    "const": "password"
+                  }
+                ]
+              },
+              "token": {
+                "type": "string"
+              },
+              "password": {
+                "type": "string"
+              },
+              "allowTailscale": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          },
+          "tailscale": {
+            "type": "object",
+            "properties": {
+              "mode": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "const": "off"
+                  },
+                  {
+                    "type": "string",
+                    "const": "serve"
+                  },
+                  {
+                    "type": "string",
+                    "const": "funnel"
+                  }
+                ]
+              },
+              "resetOnExit": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          },
+          "remote": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string"
+              },
+              "token": {
+                "type": "string"
+              },
+              "password": {
+                "type": "string"
+              },
+              "sshTarget": {
+                "type": "string"
+              },
+              "sshIdentity": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          "reload": {
+            "type": "object",
+            "properties": {
+              "mode": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "const": "off"
+                  },
+                  {
+                    "type": "string",
+                    "const": "restart"
+                  },
+                  {
+                    "type": "string",
+                    "const": "hot"
+                  },
+                  {
+                    "type": "string",
+                    "const": "hybrid"
+                  }
+                ]
+              },
+              "debounceMs": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "skills": {
+        "type": "object",
+        "properties": {
+          "allowBundled": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "load": {
+            "type": "object",
+            "properties": {
+              "extraDirs": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "install": {
+            "type": "object",
+            "properties": {
+              "preferBrew": {
+                "type": "boolean"
+              },
+              "nodeManager": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "const": "npm"
+                  },
+                  {
+                    "type": "string",
+                    "const": "pnpm"
+                  },
+                  {
+                    "type": "string",
+                    "const": "yarn"
+                  },
+                  {
+                    "type": "string",
+                    "const": "bun"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": false
+          },
+          "entries": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                },
+                "apiKey": {
+                  "type": "string"
+                },
+                "env": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              },
+              "additionalProperties": {}
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false,
+    "title": "ClawdbotConfig"
+  },
+  "uiHints": {
+    "wizard": {
+      "label": "Wizard",
+      "group": "Wizard",
+      "order": 20
+    },
+    "logging": {
+      "label": "Logging",
+      "group": "Logging",
+      "order": 900
+    },
+    "gateway": {
+      "label": "Gateway",
+      "group": "Gateway",
+      "order": 30
+    },
+    "agents": {
+      "label": "Agents",
+      "group": "Agents",
+      "order": 40
+    },
+    "tools": {
+      "label": "Tools",
+      "group": "Tools",
+      "order": 50
+    },
+    "bindings": {
+      "label": "Bindings",
+      "group": "Bindings",
+      "order": 55
+    },
+    "audio": {
+      "label": "Audio",
+      "group": "Audio",
+      "order": 60
+    },
+    "models": {
+      "label": "Models",
+      "group": "Models",
+      "order": 70
+    },
+    "messages": {
+      "label": "Messages",
+      "group": "Messages",
+      "order": 80
+    },
+    "commands": {
+      "label": "Commands",
+      "group": "Commands",
+      "order": 85
+    },
+    "session": {
+      "label": "Session",
+      "group": "Session",
+      "order": 90
+    },
+    "cron": {
+      "label": "Cron",
+      "group": "Cron",
+      "order": 100
+    },
+    "hooks": {
+      "label": "Hooks",
+      "group": "Hooks",
+      "order": 110
+    },
+    "ui": {
+      "label": "UI",
+      "group": "UI",
+      "order": 120
+    },
+    "browser": {
+      "label": "Browser",
+      "group": "Browser",
+      "order": 130
+    },
+    "talk": {
+      "label": "Talk",
+      "group": "Talk",
+      "order": 140
+    },
+    "telegram": {
+      "label": "Telegram",
+      "group": "Telegram",
+      "order": 150
+    },
+    "discord": {
+      "label": "Discord",
+      "group": "Discord",
+      "order": 160
+    },
+    "slack": {
+      "label": "Slack",
+      "group": "Slack",
+      "order": 165
+    },
+    "signal": {
+      "label": "Signal",
+      "group": "Signal",
+      "order": 170
+    },
+    "imessage": {
+      "label": "iMessage",
+      "group": "iMessage",
+      "order": 180
+    },
+    "whatsapp": {
+      "label": "WhatsApp",
+      "group": "WhatsApp",
+      "order": 190
+    },
+    "skills": {
+      "label": "Skills",
+      "group": "Skills",
+      "order": 200
+    },
+    "discovery": {
+      "label": "Discovery",
+      "group": "Discovery",
+      "order": 210
+    },
+    "presence": {
+      "label": "Presence",
+      "group": "Presence",
+      "order": 220
+    },
+    "voicewake": {
+      "label": "Voice Wake",
+      "group": "Voice Wake",
+      "order": 230
+    },
+    "gateway.remote.url": {
+      "label": "Remote Gateway URL",
+      "help": "Remote Gateway WebSocket URL (ws:// or wss://).",
+      "placeholder": "ws://host:18789"
+    },
+    "gateway.remote.sshTarget": {
+      "label": "Remote Gateway SSH Target",
+      "help": "Remote gateway over SSH (tunnels the gateway port to localhost). Format: user@host or user@host:port.",
+      "placeholder": "user@host"
+    },
+    "gateway.remote.sshIdentity": {
+      "label": "Remote Gateway SSH Identity",
+      "help": "Optional SSH identity file path (passed to ssh -i)."
+    },
+    "gateway.remote.token": {
+      "label": "Remote Gateway Token",
+      "sensitive": true
+    },
+    "gateway.remote.password": {
+      "label": "Remote Gateway Password",
+      "sensitive": true
+    },
+    "gateway.auth.token": {
+      "label": "Gateway Token",
+      "help": "Required for multi-machine access or non-loopback binds.",
+      "sensitive": true
+    },
+    "gateway.auth.password": {
+      "label": "Gateway Password",
+      "help": "Required for Tailscale funnel.",
+      "sensitive": true
+    },
+    "gateway.controlUi.basePath": {
+      "label": "Control UI Base Path",
+      "help": "Optional URL prefix where the Control UI is served (e.g. /clawdbot).",
+      "placeholder": "/clawdbot"
+    },
+    "gateway.reload.mode": {
+      "label": "Config Reload Mode",
+      "help": "Hot reload strategy for config changes (\"hybrid\" recommended)."
+    },
+    "gateway.reload.debounceMs": {
+      "label": "Config Reload Debounce (ms)",
+      "help": "Debounce window (ms) before applying config changes."
+    },
+    "agents.defaults.workspace": {
+      "label": "Workspace"
+    },
+    "auth.profiles": {
+      "label": "Auth Profiles",
+      "help": "Named auth profiles (provider + mode + optional email)."
+    },
+    "auth.order": {
+      "label": "Auth Profile Order",
+      "help": "Ordered auth profile IDs per provider (used for automatic failover)."
+    },
+    "auth.cooldowns.billingBackoffHours": {
+      "label": "Billing Backoff (hours)",
+      "help": "Base backoff (hours) when a profile fails due to billing/insufficient credits (default: 5)."
+    },
+    "auth.cooldowns.billingBackoffHoursByProvider": {
+      "label": "Billing Backoff Overrides",
+      "help": "Optional per-provider overrides for billing backoff (hours)."
+    },
+    "auth.cooldowns.billingMaxHours": {
+      "label": "Billing Backoff Cap (hours)",
+      "help": "Cap (hours) for billing backoff (default: 24)."
+    },
+    "auth.cooldowns.failureWindowHours": {
+      "label": "Failover Window (hours)",
+      "help": "Failure window (hours) for backoff counters (default: 24)."
+    },
+    "agents.defaults.models": {
+      "label": "Models",
+      "help": "Configured model catalog (keys are full provider/model IDs)."
+    },
+    "agents.defaults.model.primary": {
+      "label": "Primary Model",
+      "help": "Primary model (provider/model)."
+    },
+    "agents.defaults.model.fallbacks": {
+      "label": "Model Fallbacks",
+      "help": "Ordered fallback models (provider/model). Used when the primary model fails."
+    },
+    "agents.defaults.imageModel.primary": {
+      "label": "Image Model",
+      "help": "Optional image model (provider/model) used when the primary model lacks image input."
+    },
+    "agents.defaults.imageModel.fallbacks": {
+      "label": "Image Model Fallbacks",
+      "help": "Ordered fallback image models (provider/model)."
+    },
+    "commands.native": {
+      "label": "Native Commands",
+      "help": "Register native commands with connectors that support it (Discord/Slack/Telegram)."
+    },
+    "commands.text": {
+      "label": "Text Commands",
+      "help": "Allow text command parsing (slash commands only)."
+    },
+    "commands.restart": {
+      "label": "Allow Restart",
+      "help": "Allow /restart and gateway restart tool actions (default: false)."
+    },
+    "commands.useAccessGroups": {
+      "label": "Use Access Groups",
+      "help": "Enforce access-group allowlists/policies for commands."
+    },
+    "ui.seamColor": {
+      "label": "Accent Color"
+    },
+    "browser.controlUrl": {
+      "label": "Browser Control URL"
+    },
+    "session.agentToAgent.maxPingPongTurns": {
+      "label": "Agent-to-Agent Ping-Pong Turns",
+      "help": "Max reply-back turns between requester and target (0–5)."
+    },
+    "messages.ackReaction": {
+      "label": "Ack Reaction Emoji",
+      "help": "Emoji reaction used to acknowledge inbound messages (empty disables)."
+    },
+    "messages.ackReactionScope": {
+      "label": "Ack Reaction Scope",
+      "help": "When to send ack reactions (\"group-mentions\", \"group-all\", \"direct\", \"all\")."
+    },
+    "talk.apiKey": {
+      "label": "Talk API Key",
+      "sensitive": true
+    },
+    "telegram.botToken": {
+      "label": "Telegram Bot Token",
+      "sensitive": true
+    },
+    "telegram.dmPolicy": {
+      "label": "Telegram DM Policy",
+      "help": "Direct message access control (\"pairing\" recommended). \"open\" requires telegram.allowFrom=[\"*\"]."
+    },
+    "telegram.streamMode": {
+      "label": "Telegram Draft Stream Mode",
+      "help": "Draft streaming mode for Telegram replies (off | partial | block). Separate from block streaming; requires private topics + sendMessageDraft."
+    },
+    "telegram.retry.attempts": {
+      "label": "Telegram Retry Attempts",
+      "help": "Max retry attempts for outbound Telegram API calls (default: 3)."
+    },
+    "telegram.retry.minDelayMs": {
+      "label": "Telegram Retry Min Delay (ms)",
+      "help": "Minimum retry delay in ms for Telegram outbound calls."
+    },
+    "telegram.retry.maxDelayMs": {
+      "label": "Telegram Retry Max Delay (ms)",
+      "help": "Maximum retry delay cap in ms for Telegram outbound calls."
+    },
+    "telegram.retry.jitter": {
+      "label": "Telegram Retry Jitter",
+      "help": "Jitter factor (0-1) applied to Telegram retry delays."
+    },
+    "whatsapp.dmPolicy": {
+      "label": "WhatsApp DM Policy",
+      "help": "Direct message access control (\"pairing\" recommended). \"open\" requires whatsapp.allowFrom=[\"*\"]."
+    },
+    "whatsapp.selfChatMode": {
+      "label": "WhatsApp Self-Phone Mode",
+      "help": "Same-phone setup (bot uses your personal WhatsApp number)."
+    },
+    "signal.dmPolicy": {
+      "label": "Signal DM Policy",
+      "help": "Direct message access control (\"pairing\" recommended). \"open\" requires signal.allowFrom=[\"*\"]."
+    },
+    "imessage.dmPolicy": {
+      "label": "iMessage DM Policy",
+      "help": "Direct message access control (\"pairing\" recommended). \"open\" requires imessage.allowFrom=[\"*\"]."
+    },
+    "discord.dm.policy": {
+      "label": "Discord DM Policy",
+      "help": "Direct message access control (\"pairing\" recommended). \"open\" requires discord.dm.allowFrom=[\"*\"]."
+    },
+    "discord.retry.attempts": {
+      "label": "Discord Retry Attempts",
+      "help": "Max retry attempts for outbound Discord API calls (default: 3)."
+    },
+    "discord.retry.minDelayMs": {
+      "label": "Discord Retry Min Delay (ms)",
+      "help": "Minimum retry delay in ms for Discord outbound calls."
+    },
+    "discord.retry.maxDelayMs": {
+      "label": "Discord Retry Max Delay (ms)",
+      "help": "Maximum retry delay cap in ms for Discord outbound calls."
+    },
+    "discord.retry.jitter": {
+      "label": "Discord Retry Jitter",
+      "help": "Jitter factor (0-1) applied to Discord retry delays."
+    },
+    "discord.maxLinesPerMessage": {
+      "label": "Discord Max Lines Per Message",
+      "help": "Soft max line count per Discord message (default: 17)."
+    },
+    "slack.dm.policy": {
+      "label": "Slack DM Policy",
+      "help": "Direct message access control (\"pairing\" recommended). \"open\" requires slack.dm.allowFrom=[\"*\"]."
+    },
+    "slack.allowBots": {
+      "label": "Slack Allow Bot Messages",
+      "help": "Allow bot-authored messages to trigger Slack replies (default: false)."
+    },
+    "discord.token": {
+      "label": "Discord Bot Token",
+      "sensitive": true
+    },
+    "slack.botToken": {
+      "label": "Slack Bot Token",
+      "sensitive": true
+    },
+    "slack.appToken": {
+      "label": "Slack App Token",
+      "sensitive": true
+    },
+    "signal.account": {
+      "label": "Signal Account"
+    },
+    "imessage.cliPath": {
+      "label": "iMessage CLI Path"
+    }
+  },
+  "version": "2026.1.10",
+  "generatedAt": "2026-01-23T08:31:57.361Z",
+  "clawdbotRev": "8b47368167ad062b86669dfa77ef7ebb4e0ad5f0"
+}

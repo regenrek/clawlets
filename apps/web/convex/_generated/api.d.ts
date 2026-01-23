@@ -16,6 +16,7 @@ import type * as lib_env from "../lib/env.js";
 import type * as lib_errors from "../lib/errors.js";
 import type * as lib_rateLimit from "../lib/rateLimit.js";
 import type * as lib_validators from "../lib/validators.js";
+import type * as maintenance from "../maintenance.js";
 import type * as projects from "../projects.js";
 import type * as runEvents from "../runEvents.js";
 import type * as runs from "../runs.js";
@@ -36,6 +37,7 @@ declare const fullApi: ApiFromModules<{
   "lib/errors": typeof lib_errors;
   "lib/rateLimit": typeof lib_rateLimit;
   "lib/validators": typeof lib_validators;
+  maintenance: typeof maintenance;
   projects: typeof projects;
   runEvents: typeof runEvents;
   runs: typeof runs;

@@ -46,6 +46,27 @@ describe("fleet secrets plan", () => {
     expect(plan.missing.some((m) => m.kind === "envVar" && m.envVar === "OPENAI_API_KEY")).toBe(true);
   });
 
+  it("accepts legacy Z_AI_API_KEY mappings for zai/*", async () => {
+    const { ClawdletsConfigSchema } = await import("../src/lib/clawdlets-config");
+    const { buildFleetSecretsPlan } = await import("../src/lib/fleet-secrets-plan");
+
+    const cfg = ClawdletsConfigSchema.parse({
+      schemaVersion: 9,
+      fleet: {
+        botOrder: ["maren"],
+        bots: { maren: {} },
+        secretEnv: { Z_AI_API_KEY: "z_ai_api_key" },
+      },
+      hosts: {
+        "clawdbot-fleet-host": { tailnet: { mode: "none" }, agentModelPrimary: "zai/glm-4.7" },
+      },
+    });
+
+    const plan = buildFleetSecretsPlan({ config: cfg, hostName: "clawdbot-fleet-host" });
+    expect(plan.missing).toEqual([]);
+    expect(plan.secretNamesRequired).toContain("z_ai_api_key");
+  });
+
   it("does not require secretEnv mapping for OAuth providers", async () => {
     const { ClawdletsConfigSchema } = await import("../src/lib/clawdlets-config");
     const { buildFleetSecretsPlan } = await import("../src/lib/fleet-secrets-plan");
@@ -64,6 +85,92 @@ describe("fleet secrets plan", () => {
 
     const plan = buildFleetSecretsPlan({ config: cfg, hostName: "clawdbot-fleet-host" });
     expect(plan.missing.some((m) => m.kind === "envVar" && m.envVar === "OPENAI_API_KEY")).toBe(false);
+    expect(plan.warnings.some((w) => w.kind === "auth" && w.provider === "openai-codex")).toBe(true);
+  });
+
+  it("warns on inline channel tokens with suggested env wiring", async () => {
+    const { ClawdletsConfigSchema } = await import("../src/lib/clawdlets-config");
+    const { buildFleetSecretsPlan } = await import("../src/lib/fleet-secrets-plan");
+
+    const cfg = ClawdletsConfigSchema.parse({
+      schemaVersion: 9,
+      fleet: {
+        botOrder: ["maren"],
+        bots: {
+          maren: {
+            clawdbot: { channels: { discord: { enabled: true, token: "inline-token" } } },
+          },
+        },
+        secretEnv: { ZAI_API_KEY: "z_ai_api_key" },
+      },
+      hosts: {
+        "clawdbot-fleet-host": { tailnet: { mode: "none" }, agentModelPrimary: "zai/glm-4.7" },
+      },
+    });
+
+    const plan = buildFleetSecretsPlan({ config: cfg, hostName: "clawdbot-fleet-host" });
+    const warning = plan.warnings.find((w) => w.kind === "inlineToken");
+    expect(warning?.message).toMatch(/Inline discord token/i);
+    expect(warning?.suggestion).toMatch(/DISCORD_BOT_TOKEN/);
+  });
+
+  it("includes hook + skill secret mappings from profile", async () => {
+    const { ClawdletsConfigSchema } = await import("../src/lib/clawdlets-config");
+    const { buildFleetSecretsPlan } = await import("../src/lib/fleet-secrets-plan");
+
+    const cfg = ClawdletsConfigSchema.parse({
+      schemaVersion: 9,
+      fleet: {
+        botOrder: ["maren"],
+        bots: {
+          maren: {
+            profile: {
+              hooks: { tokenSecret: "hooks_token" },
+              skills: { entries: { "brave-search": { apiKeySecret: "brave_api_key" } } },
+            },
+          },
+        },
+        secretEnv: { ZAI_API_KEY: "z_ai_api_key" },
+      },
+      hosts: {
+        "clawdbot-fleet-host": { tailnet: { mode: "none" }, agentModelPrimary: "zai/glm-4.7" },
+      },
+    });
+
+    const plan = buildFleetSecretsPlan({ config: cfg, hostName: "clawdbot-fleet-host" });
+    expect(plan.missing).toEqual([]);
+    expect(plan.secretNamesRequired).toEqual(expect.arrayContaining(["hooks_token", "brave_api_key"]));
+    expect(plan.byBot.maren.envVarsRequired).toEqual(
+      expect.arrayContaining(["CLAWDBOT_HOOKS_TOKEN", "CLAWDBOT_SKILL_BRAVE_SEARCH_API_KEY"]),
+    );
+  });
+
+  it("warns on inline hooks + skill apiKey values", async () => {
+    const { ClawdletsConfigSchema } = await import("../src/lib/clawdlets-config");
+    const { buildFleetSecretsPlan } = await import("../src/lib/fleet-secrets-plan");
+
+    const cfg = ClawdletsConfigSchema.parse({
+      schemaVersion: 9,
+      fleet: {
+        botOrder: ["maren"],
+        bots: {
+          maren: {
+            clawdbot: {
+              hooks: { token: "inline-hook-token" },
+              skills: { entries: { "brave-search": { apiKey: "inline-skill-key" } } },
+            },
+          },
+        },
+        secretEnv: { ZAI_API_KEY: "z_ai_api_key" },
+      },
+      hosts: {
+        "clawdbot-fleet-host": { tailnet: { mode: "none" }, agentModelPrimary: "zai/glm-4.7" },
+      },
+    });
+
+    const plan = buildFleetSecretsPlan({ config: cfg, hostName: "clawdbot-fleet-host" });
+    expect(plan.warnings.some((w) => w.kind === "inlineToken" && w.path === "hooks.token")).toBe(true);
+    expect(plan.warnings.some((w) => w.kind === "inlineApiKey" && w.path === "skills.entries.brave-search.apiKey")).toBe(true);
   });
 
   it("includes per-bot secretEnv overrides for mixed providers", async () => {
@@ -280,7 +387,8 @@ describe("fleet secrets plan", () => {
 
     const plan = buildFleetSecretsPlan({ config: cfg, hostName: "clawdbot-fleet-host" });
     expect(plan.missing.some((m) => m.kind === "envVar" && m.envVar === "OPENAI_API_KEY")).toBe(true);
-    expect(plan.missing.some((m) => m.kind === "envVar" && m.envVar === "ANTHROPIC_API_KEY")).toBe(true);
+    expect(plan.missing.some((m) => m.kind === "envVar" && m.envVar === "ANTHROPIC_API_KEY")).toBe(false);
+    expect(plan.warnings.some((w) => w.kind === "auth" && w.provider === "anthropic")).toBe(true);
   });
 
   it("warns on inline discord token", async () => {
@@ -308,6 +416,7 @@ describe("fleet secrets plan", () => {
     const plan = buildFleetSecretsPlan({ config: cfg, hostName: "clawdbot-fleet-host" });
     expect(plan.missing.some((m) => m.kind === "envVar" && m.envVar === "DISCORD_BOT_TOKEN")).toBe(true);
     expect(plan.warnings.some((w) => w.kind === "inlineToken" && w.path === "channels.discord.token")).toBe(true);
+    expect(plan.warnings.some((w) => w.kind === "inlineToken" && w.suggestion?.includes("${DISCORD_BOT_TOKEN}"))).toBe(true);
   });
 
   it("suggests default secret names for env vars", async () => {

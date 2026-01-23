@@ -5,6 +5,7 @@ import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
 import { Button } from "~/components/ui/button"
 import { ProjectsTable } from "~/components/dashboard/projects-table"
 import { getDashboardOverview } from "~/sdk/dashboard"
+import { slugifyProjectName, storeLastProjectSlug } from "~/lib/project-routing"
 
 export const Route = createFileRoute("/projects/")({
   component: ProjectsIndex,
@@ -29,10 +30,17 @@ function ProjectsIndex() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" nativeButton={false} render={<Link to="/projects/import" />}>
+          <Button
+            variant="outline"
+            nativeButton={false}
+            render={<Link to="/projects/import" />}
+          >
             Import
           </Button>
-          <Button nativeButton={false} render={<Link to="/projects/new" />}>
+          <Button
+            nativeButton={false}
+            render={<Link to="/projects/new" />}
+          >
             <HugeiconsIcon icon={Add01Icon} strokeWidth={2} />
             New
           </Button>
@@ -48,9 +56,13 @@ function ProjectsIndex() {
           projects={projects}
           selectedProjectId={null}
           onSelectProjectId={(projectId) => {
+            const selected = projects.find((project) => project.projectId === projectId)
+            if (!selected) return
+            const projectSlug = slugifyProjectName(selected.name)
+            storeLastProjectSlug(projectSlug)
             void router.navigate({
-              to: "/projects/$projectId/dashboard",
-              params: { projectId },
+              to: "/$projectSlug",
+              params: { projectSlug },
             })
           }}
         />
@@ -61,7 +73,10 @@ function ProjectsIndex() {
             Create your first project to configure and deploy a fleet.
           </div>
           <div className="mt-4">
-            <Button nativeButton={false} render={<Link to="/projects/new" />}>
+            <Button
+              nativeButton={false}
+              render={<Link to="/projects/new" />}
+            >
               Create Project
             </Button>
           </div>

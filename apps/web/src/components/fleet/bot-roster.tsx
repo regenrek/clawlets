@@ -87,6 +87,7 @@ export function BotRoster(props: {
                   <BotClawdbotEditor
                     projectId={props.projectId}
                     botId={botId}
+                    host={host}
                     initial={clawdbotCfg}
                     canEdit={props.canEdit}
                   />

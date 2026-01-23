@@ -1,10 +1,14 @@
 import { useMutation } from "@tanstack/react-query"
 import { createFileRoute, Link } from "@tanstack/react-router"
-import { useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { toast } from "sonner"
 import { RunLogTail } from "~/components/run-log-tail"
 import { Button } from "~/components/ui/button"
 import { Input } from "~/components/ui/input"
-import { Label } from "~/components/ui/label"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "~/components/ui/accordion"
+import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "~/components/ui/input-group"
+import { StackedField } from "~/components/ui/stacked-field"
+import { slugifyProjectName } from "~/lib/project-routing"
 import {
   projectCreateExecute,
   projectCreateStart,
@@ -18,21 +22,50 @@ export const Route = createFileRoute("/projects/new")({
 
 function NewProject() {
   const [name, setName] = useState("")
-  const [localPath, setLocalPath] = useState("")
-  const [host, setHost] = useState("clawdbot-fleet-host")
+  const [baseDir, setBaseDir] = useState("")
+  const [host, setHost] = useState("")
   const [templateSpec, setTemplateSpec] = useState("")
   const [runId, setRunId] = useState<Id<"runs"> | null>(null)
   const [projectId, setProjectId] = useState<Id<"projects"> | null>(null)
 
+  const directoryInputRef = useRef<HTMLInputElement>(null)
+  const nameSlug = useMemo(() => slugifyProjectName(name || "project"), [name])
+  const defaultBaseDir = "~/.clawdlets/projects"
+  const defaultHost = nameSlug
+  const normalizedBaseDir = (baseDir.trim() || defaultBaseDir).replace(/\/$/, "")
+  const effectiveLocalPath = normalizedBaseDir.endsWith(`/${nameSlug}`)
+    ? normalizedBaseDir
+    : `${normalizedBaseDir}/${nameSlug}`
+  const effectiveHost = host.trim() || defaultHost
+
+  useEffect(() => {
+    const input = directoryInputRef.current
+    if (!input) return
+    input.setAttribute("webkitdirectory", "")
+    input.setAttribute("directory", "")
+  }, [])
+
   const plan = useMutation({
     mutationFn: async () =>
-      await projectInitPlan({ data: { localPath, host, templateSpec } }),
+      await projectInitPlan({
+        data: {
+          localPath: effectiveLocalPath,
+          host: effectiveHost,
+          templateSpec,
+        },
+      }),
   })
 
   const start = useMutation({
     mutationFn: async () =>
       await projectCreateStart({
-        data: { name, localPath, host, templateSpec, gitInit: true },
+        data: {
+          name,
+          localPath: effectiveLocalPath,
+          host: effectiveHost,
+          templateSpec,
+          gitInit: true,
+        },
       }),
     onSuccess: (res) => {
       setRunId(res.runId)
@@ -51,56 +84,130 @@ function NewProject() {
       </div>
 
       <div className="rounded-lg border bg-card p-6 space-y-4">
-        <div className="space-y-1.5">
-          <Label htmlFor="name">Project name</Label>
+        <StackedField id="name" label="Project name">
           <Input
             id="name"
             placeholder="my-fleet"
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="path">Directory</Label>
-          <Input
-            id="path"
-            placeholder="~/projects/my-fleet"
-            value={localPath}
-            onChange={(e) => setLocalPath(e.target.value)}
-          />
-          <div className="text-muted-foreground text-xs">
-            Stored locally. Secrets remain on disk; Convex stores metadata only.
-          </div>
-        </div>
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="host">Host placeholder</Label>
-            <Input
-              id="host"
-              placeholder="clawdbot-fleet-host"
-              value={host}
-              onChange={(e) => setHost(e.target.value)}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="template">Template (advanced)</Label>
-            <Input
-              id="template"
-              placeholder="github:owner/repo/templates/default#<40-hex-sha>"
-              value={templateSpec}
-              onChange={(e) => setTemplateSpec(e.target.value)}
-            />
-            <div className="text-muted-foreground text-xs">
-              Defaults to <code>config/template-source.json</code>. Supports <code>github:</code>, <code>gh:</code>, or{" "}
-              <code>file:</code> specs.
-            </div>
-          </div>
-        </div>
+        </StackedField>
+
+        <Accordion type="single" collapsible className="rounded-lg border bg-muted/20">
+          <AccordionItem value="advanced" className="px-4">
+            <AccordionTrigger className="rounded-none border-0 px-0 py-2.5 hover:no-underline">
+              Advanced options
+            </AccordionTrigger>
+            <AccordionContent className="pb-4">
+              <div className="space-y-4">
+                <StackedField
+                  id="path"
+                  label="Project directory (optional)"
+                  description={
+                    <>
+                      Default: <code>{defaultBaseDir}/{nameSlug}</code>. Stored locally; Convex saves metadata only.
+                    </>
+                  }
+                  actions={
+                    <Button
+                      type="button"
+                      size="xs"
+                      variant="outline"
+                      onClick={() => directoryInputRef.current?.click()}
+                    >
+                      Choose folder
+                    </Button>
+                  }
+                >
+                  <InputGroup>
+                    <InputGroupInput
+                      id="path"
+                      placeholder={defaultBaseDir}
+                      value={baseDir}
+                      onChange={(e) => setBaseDir(e.target.value)}
+                    />
+                    <InputGroupAddon align="inline-end">
+                      <InputGroupButton
+                        onClick={() => setBaseDir(defaultBaseDir)}
+                        type="button"
+                      >
+                        Use default
+                      </InputGroupButton>
+                    </InputGroupAddon>
+                  </InputGroup>
+                  <input
+                    ref={directoryInputRef}
+                    type="file"
+                    className="sr-only"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0]
+                      event.currentTarget.value = ""
+                      if (!file) return
+                      const rel = (file as { webkitRelativePath?: string }).webkitRelativePath || ""
+                      const root = rel.split("/")[0]
+                      const rawPath = (file as { path?: string }).path
+                      if (typeof rawPath === "string" && rel) {
+                        const parent = rawPath.slice(0, Math.max(0, rawPath.length - rel.length)).replace(/\/$/, "")
+                        const next = root ? `${parent}/${root}` : parent
+                        if (next) {
+                          setBaseDir(next)
+                          return
+                        }
+                      }
+                      if (root) {
+                        setBaseDir(`${defaultBaseDir}/${root}`)
+                        toast.message("Folder name captured. Adjust the path if needed.")
+                        return
+                      }
+                      toast.message("Folder picker unavailable. Enter a directory path.")
+                    }}
+                  />
+                </StackedField>
+
+                <StackedField
+                  id="host"
+                  label="Host placeholder"
+                  description={
+                    <>
+                      Defaults to <code>{defaultHost}</code>.
+                    </>
+                  }
+                >
+                  <Input
+                    id="host"
+                    placeholder={defaultHost}
+                    value={host}
+                    onChange={(e) => setHost(e.target.value)}
+                  />
+                </StackedField>
+
+                <StackedField
+                  id="template"
+                  label="Template"
+                  description={
+                    <>
+                      Defaults to <code>config/template-source.json</code>. Supports <code>github:</code>, <code>gh:</code>,
+                      or <code>file:</code> specs.
+                    </>
+                  }
+                >
+                  <Input
+                    id="template"
+                    placeholder="github:owner/repo/templates/default#<40-hex-sha>"
+                    value={templateSpec}
+                    onChange={(e) => setTemplateSpec(e.target.value)}
+                  />
+                </StackedField>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+
         <div className="flex flex-wrap items-center gap-2">
           <Button
             type="button"
             variant="outline"
-            disabled={plan.isPending || !localPath.trim()}
+            disabled={plan.isPending || !name.trim()}
             onClick={() => plan.mutate()}
           >
             Preview files
@@ -111,8 +218,8 @@ function NewProject() {
               start.isPending ||
               !!runId ||
               !name.trim() ||
-              !localPath.trim() ||
-              !host.trim()
+              !effectiveLocalPath.trim() ||
+              !effectiveHost.trim()
             }
             onClick={() => start.mutate()}
           >
@@ -148,7 +255,14 @@ function NewProject() {
               <Button
                 size="sm"
                 nativeButton={false}
-                render={<Link to="/projects/$projectId" params={{ projectId }} />}
+                render={
+                  <Link
+                    to="/$projectSlug"
+                    params={{
+                      projectSlug: slugifyProjectName(name || "project"),
+                    }}
+                  />
+                }
               >
                 Open project
               </Button>
@@ -156,7 +270,14 @@ function NewProject() {
                 size="sm"
                 variant="outline"
                 nativeButton={false}
-                render={<Link to="/projects/$projectId/runs" params={{ projectId }} />}
+                render={
+                  <Link
+                    to="/$projectSlug/runs"
+                    params={{
+                      projectSlug: slugifyProjectName(name || "project"),
+                    }}
+                  />
+                }
               >
                 Runs
               </Button>

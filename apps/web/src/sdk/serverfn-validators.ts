@@ -113,6 +113,15 @@ export function parseProjectHostInput(data: unknown): { projectId: Id<"projects"
   return { projectId: parseConvexId(d["projectId"], "projectId"), host: parseOptionalHostName(d["host"]) }
 }
 
+export function parseProjectHostBotInput(data: unknown): { projectId: Id<"projects">; host: string; botId: string } {
+  const d = requireObject(data)
+  return {
+    projectId: parseConvexId(d["projectId"], "projectId"),
+    host: parseOptionalHostName(d["host"]),
+    botId: parseBotIdRequired(d["botId"]),
+  }
+}
+
 export function parseProjectRunHostInput(data: unknown): { projectId: Id<"projects">; runId: Id<"runs">; host: string } {
   const d = requireObject(data)
   return {

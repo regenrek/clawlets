@@ -56,11 +56,12 @@ export type MissingSecretConfig = z.infer<typeof MissingSecretConfigSchema>;
 
 export const SecretsPlanWarningSchema = z
   .object({
-    kind: z.enum(["inlineToken", "inlineApiKey", "statefulChannel", "config"]),
+    kind: z.enum(["inlineToken", "inlineApiKey", "statefulChannel", "config", "auth"]),
     message: z.string().trim().min(1),
     path: z.string().trim().optional(),
     suggestion: z.string().trim().optional(),
     channel: z.string().trim().optional(),
+    provider: z.string().trim().optional(),
     bot: BotIdSchema.optional(),
   })
   .strict();

@@ -4,9 +4,10 @@ import { toast } from "sonner"
 import type { Id } from "../../../convex/_generated/dataModel"
 import { Button } from "~/components/ui/button"
 import { Input } from "~/components/ui/input"
-import { LabelWithHelp } from "~/components/ui/label-help"
-import { Switch } from "~/components/ui/switch"
-import { getDeployCredsStatus, updateDeployCreds } from "~/sdk/deploy-creds"
+import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "~/components/ui/input-group"
+import { SecretInput } from "~/components/ui/secret-input"
+import { StackedField } from "~/components/ui/stacked-field"
+import { detectSopsAgeKey, generateSopsAgeKey, getDeployCredsStatus, updateDeployCreds } from "~/sdk/deploy-creds"
 
 type DeployCredsCardProps = {
   projectId: Id<"projects">
@@ -26,17 +27,21 @@ export function DeployCredsCard({ projectId }: DeployCredsCardProps) {
 
   const [hcloudToken, setHcloudToken] = useState("")
   const [githubToken, setGithubToken] = useState("")
-  const [clearHcloudToken, setClearHcloudToken] = useState(false)
-  const [clearGithubToken, setClearGithubToken] = useState(false)
+  const [hcloudUnlocked, setHcloudUnlocked] = useState(false)
+  const [githubUnlocked, setGithubUnlocked] = useState(false)
   const [nixBin, setNixBin] = useState("nix")
   const [sopsAgeKeyFile, setSopsAgeKeyFile] = useState("")
+  const [sopsStatus, setSopsStatus] = useState<{ kind: "ok" | "warn" | "error"; message: string } | null>(null)
 
   useEffect(() => {
     if (!creds.data) return
     const nix = credsByKey["NIX_BIN"]?.value
     const sops = credsByKey["SOPS_AGE_KEY_FILE"]?.value
     setNixBin(String(nix || "nix"))
-    setSopsAgeKeyFile(String(sops || ""))
+    setSopsAgeKeyFile(String(sops || creds.data.defaultSopsAgeKeyPath || ""))
+    setHcloudUnlocked(false)
+    setGithubUnlocked(false)
+    setSopsStatus(null)
   }, [creds.data, credsByKey])
 
   const save = useMutation({
@@ -45,8 +50,8 @@ export function DeployCredsCard({ projectId }: DeployCredsCardProps) {
         data: {
           projectId,
           updates: {
-            ...(clearHcloudToken ? { HCLOUD_TOKEN: "" } : hcloudToken.trim() ? { HCLOUD_TOKEN: hcloudToken.trim() } : {}),
-            ...(clearGithubToken ? { GITHUB_TOKEN: "" } : githubToken.trim() ? { GITHUB_TOKEN: githubToken.trim() } : {}),
+            ...(hcloudToken.trim() ? { HCLOUD_TOKEN: hcloudToken.trim() } : {}),
+            ...(githubToken.trim() ? { GITHUB_TOKEN: githubToken.trim() } : {}),
             NIX_BIN: nixBin.trim(),
             SOPS_AGE_KEY_FILE: sopsAgeKeyFile.trim(),
           },
@@ -57,12 +62,44 @@ export function DeployCredsCard({ projectId }: DeployCredsCardProps) {
       toast.success("Saved")
       setHcloudToken("")
       setGithubToken("")
-      setClearHcloudToken(false)
-      setClearGithubToken(false)
+      setHcloudUnlocked(false)
+      setGithubUnlocked(false)
       await creds.refetch()
     },
     onError: (err) => {
       toast.error(String(err))
+    },
+  })
+
+  const detectSops = useMutation({
+    mutationFn: async () => await detectSopsAgeKey({ data: { projectId } }),
+    onSuccess: (res) => {
+      if (res.recommendedPath) {
+        setSopsAgeKeyFile(res.recommendedPath)
+        setSopsStatus({ kind: "ok", message: `Found key: ${res.recommendedPath}` })
+      } else {
+        setSopsStatus({ kind: "warn", message: "No valid age key found. Generate one below." })
+      }
+    },
+    onError: (err) => {
+      setSopsStatus({ kind: "error", message: err instanceof Error ? err.message : String(err) })
+    },
+  })
+
+  const generateSops = useMutation({
+    mutationFn: async () => await generateSopsAgeKey({ data: { projectId } }),
+    onSuccess: async (res) => {
+      if (res.ok) {
+        setSopsAgeKeyFile(res.keyPath)
+        setSopsStatus({ kind: "ok", message: `Generated key: ${res.keyPath}` })
+        await creds.refetch()
+        toast.success("SOPS key generated")
+      } else {
+        setSopsStatus({ kind: "warn", message: res.message || "Key already exists." })
+      }
+    },
+    onError: (err) => {
+      setSopsStatus({ kind: "error", message: err instanceof Error ? err.message : String(err) })
     },
   })
 
@@ -110,89 +147,65 @@ export function DeployCredsCard({ projectId }: DeployCredsCardProps) {
             )}
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <LabelWithHelp htmlFor="hcloudToken" help="Hetzner Cloud API token (HCLOUD_TOKEN).">
-                Hetzner API token
-              </LabelWithHelp>
-              <Input
+          <div className="space-y-4">
+            <StackedField id="hcloudToken" label="Hetzner API token" help="Hetzner Cloud API token (HCLOUD_TOKEN).">
+              <SecretInput
                 id="hcloudToken"
-                type="password"
                 value={hcloudToken}
-                onChange={(e) => setHcloudToken(e.target.value)}
-                placeholder={credsByKey["HCLOUD_TOKEN"]?.status === "set" ? "(leave blank to keep existing)" : "(required)"}
+                onValueChange={setHcloudToken}
+                placeholder={credsByKey["HCLOUD_TOKEN"]?.status === "set" ? "set (click Remove to edit)" : "(required)"}
+                locked={credsByKey["HCLOUD_TOKEN"]?.status === "set" && !hcloudUnlocked}
+                onUnlock={() => setHcloudUnlocked(true)}
               />
-              <div className="flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2">
-                <div className="text-xs text-muted-foreground">
-                  Status: <span className={credsByKey["HCLOUD_TOKEN"]?.status === "set" ? "text-emerald-600" : "text-destructive"}>{credsByKey["HCLOUD_TOKEN"]?.status || "unset"}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="text-xs text-muted-foreground">Clear</div>
-                  <Switch checked={clearHcloudToken} onCheckedChange={setClearHcloudToken} />
-                </div>
-              </div>
-            </div>
+            </StackedField>
 
-            <div className="space-y-2">
-              <LabelWithHelp htmlFor="githubToken" help="GitHub token (GITHUB_TOKEN).">
-                GitHub token
-              </LabelWithHelp>
-              <Input
+            <StackedField id="githubToken" label="GitHub token" help="GitHub token (GITHUB_TOKEN).">
+              <SecretInput
                 id="githubToken"
-                type="password"
                 value={githubToken}
-                onChange={(e) => setGithubToken(e.target.value)}
-                placeholder={credsByKey["GITHUB_TOKEN"]?.status === "set" ? "(leave blank to keep existing)" : "(recommended)"}
+                onValueChange={setGithubToken}
+                placeholder={credsByKey["GITHUB_TOKEN"]?.status === "set" ? "set (click Remove to edit)" : "(recommended)"}
+                locked={credsByKey["GITHUB_TOKEN"]?.status === "set" && !githubUnlocked}
+                onUnlock={() => setGithubUnlocked(true)}
               />
-              <div className="flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2">
-                <div className="text-xs text-muted-foreground">
-                  Status: <span className={credsByKey["GITHUB_TOKEN"]?.status === "set" ? "text-emerald-600" : "text-destructive"}>{credsByKey["GITHUB_TOKEN"]?.status || "unset"}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="text-xs text-muted-foreground">Clear</div>
-                  <Switch checked={clearGithubToken} onCheckedChange={setClearGithubToken} />
-                </div>
-              </div>
-            </div>
+            </StackedField>
 
-            <div className="space-y-2">
-              <LabelWithHelp htmlFor="nixBin" help="Binary name/path used to invoke Nix (NIX_BIN).">
-                Nix binary
-              </LabelWithHelp>
+            <StackedField id="nixBin" label="Nix binary" help="Binary name/path used to invoke Nix (NIX_BIN).">
               <Input id="nixBin" value={nixBin} onChange={(e) => setNixBin(e.target.value)} placeholder="nix" />
-            </div>
+            </StackedField>
 
-            <div className="space-y-2">
-              <LabelWithHelp htmlFor="sopsAgeKeyFile" help="Path to your operator age key file (SOPS_AGE_KEY_FILE).">
-                SOPS age key file
-              </LabelWithHelp>
-              <Input
-                id="sopsAgeKeyFile"
-                value={sopsAgeKeyFile}
-                onChange={(e) => setSopsAgeKeyFile(e.target.value)}
-                placeholder="~/.config/sops/age/keys.txt"
-              />
-            </div>
+            <StackedField
+              id="sopsAgeKeyFile"
+              label="SOPS age key file"
+              help="Path to your operator age key file (SOPS_AGE_KEY_FILE)."
+            >
+              <InputGroup>
+                <InputGroupInput
+                  id="sopsAgeKeyFile"
+                  value={sopsAgeKeyFile}
+                  onChange={(e) => setSopsAgeKeyFile(e.target.value)}
+                  placeholder=".clawdlets/keys/operators/<user>.agekey"
+                />
+                <InputGroupAddon align="inline-end">
+                  <InputGroupButton disabled={detectSops.isPending} onClick={() => detectSops.mutate()}>
+                    {detectSops.isPending ? "Finding…" : "Find"}
+                  </InputGroupButton>
+                  <InputGroupButton disabled={generateSops.isPending} onClick={() => generateSops.mutate()}>
+                    {generateSops.isPending ? "Generating…" : "Generate"}
+                  </InputGroupButton>
+                </InputGroupAddon>
+              </InputGroup>
+              {sopsStatus ? (
+                <div className={`text-xs ${sopsStatus.kind === "error" ? "text-destructive" : "text-muted-foreground"}`}>
+                  {sopsStatus.message}
+                </div>
+              ) : null}
+            </StackedField>
           </div>
 
           <div className="flex items-center gap-2">
             <Button type="button" disabled={save.isPending} onClick={() => save.mutate()}>
-              Save settings
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={save.isPending}
-              onClick={() => {
-                setHcloudToken("")
-                setGithubToken("")
-                setClearHcloudToken(false)
-                setClearGithubToken(false)
-                setNixBin(String(credsByKey["NIX_BIN"]?.value || "nix"))
-                setSopsAgeKeyFile(String(credsByKey["SOPS_AGE_KEY_FILE"]?.value || ""))
-              }}
-            >
-              Reset
+              Save
             </Button>
           </div>
         </div>

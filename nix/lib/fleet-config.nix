@@ -28,6 +28,7 @@ let
 
   baseBot = {
     secretEnv = {};
+    secretEnvAllowlist = null;
     secretFiles = {};
     skills = {
       # Explicit allowlist required on servers. Avoid null (typically means “allow all bundled skills”).

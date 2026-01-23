@@ -11,6 +11,7 @@ import {
 } from "~/components/ui/table"
 import type { Id } from "../../../convex/_generated/dataModel"
 import type { DashboardProjectSummary } from "~/sdk/dashboard"
+import { slugifyProjectName } from "~/lib/project-routing"
 import { formatShortDate, projectStatusBadgeVariant } from "./dashboard-utils"
 
 export function ProjectsTable(props: {
@@ -37,6 +38,7 @@ export function ProjectsTable(props: {
           const hosts = p.cfg.error
             ? "—"
             : `${p.cfg.hostsEnabled.toLocaleString()} / ${p.cfg.hostsTotal.toLocaleString()}`
+          const projectSlug = slugifyProjectName(p.name)
 
           return (
             <TableRow
@@ -73,7 +75,7 @@ export function ProjectsTable(props: {
                     size="sm"
                     variant="outline"
                     nativeButton={false}
-                    render={<Link to="/projects/$projectId/dashboard" params={{ projectId: p.projectId }} />}
+                    render={<Link to="/$projectSlug" params={{ projectSlug }} />}
                     onClick={(e) => e.stopPropagation()}
                   >
                     Open

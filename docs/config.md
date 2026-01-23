@@ -34,6 +34,7 @@ Fleet (`fleet.*`):
 - `fleet.bots.<bot>`: per-bot config object
   - `profile`: clawdlets/template infra knobs (systemd/env/secrets/limits)
     - `profile.secretEnv`: per-bot env var -> sops secret name overrides (merged onto `fleet.secretEnv`)
+    - `profile.secretEnvAllowlist`: optional allowlist of env vars written into the bot env file (least-privilege)
     - `profile.secretFiles`: bot-scoped secret files (id -> `{ secretName, targetPath, ... }`)
     - other keys are forwarded into Nix `services.clawdbotFleet.botProfiles.<bot>` (forward compatible)
   - `clawdbot`: raw clawdbot config (canonical; channels/routing/agents/tools/etc)
@@ -77,6 +78,54 @@ Cattle (`cattle.*`):
 - `cattle.hetzner.labels`: extra base labels to stamp on cattle servers (safe keys/values only)
 - `cattle.defaults.autoShutdown`: power off after task completes (recommended)
 - `cattle.defaults.callbackUrl`: optional callback URL for task results
+
+## Secret scoping + `${ENV}` wiring
+
+- fleet scope: `fleet.secretEnv` (shared env var -> secret name mappings)
+- bot scope: `fleet.bots.<bot>.profile.secretEnv` (per-bot overrides)
+- host secret files: `fleet.secretFiles` → `targetPath` must be under `/var/lib/clawdlets/`
+- bot secret files: `fleet.bots.<bot>.profile.secretFiles` → `targetPath` must be under `/srv/clawdbot/<bot>/`
+
+Clawdbot config should use `${ENV_VAR}` (uppercase/underscores). Clawdlets scans `fleet.bots.<bot>.clawdbot` for `${ENV_VAR}` refs plus channel tokens, hooks tokens, skill apiKey fields, and provider `apiKey` fields to build the secrets plan.
+
+- Inline tokens/API keys emit warnings; strict mode fails them.
+- Escape literal `${ENV_VAR}` as `$${ENV_VAR}`.
+
+Hooks + skills env wiring:
+- `hooks.token` → `${CLAWDBOT_HOOKS_TOKEN}`
+- `hooks.gmail.pushToken` → `${CLAWDBOT_HOOKS_GMAIL_PUSH_TOKEN}`
+- `skills.entries.<skill>.apiKey` → `${CLAWDBOT_SKILL_<SKILL>_API_KEY}`
+
+If you set `profile.hooks.*Secret` or `profile.skills.entries.*.apiKeySecret`, clawdlets derives the env mapping automatically.
+
+## Autowire missing secretEnv
+
+CLI:
+- `clawdlets config wire-secrets --write` (adds missing mappings; auto scope)
+- `clawdlets secrets init --autowire` (runs autowire before init)
+
+UI:
+- Host secrets panel: Missing secret wiring -> Wire all
+- Bot integrations panel: Secret wiring (advanced)
+
+Default autowire scope:
+- channel secrets → bot
+- model/provider secrets → fleet
+
+## Least-privilege env injection (optional)
+
+- Set `profile.secretEnvAllowlist` to restrict which env vars are written into each bot env file.
+- Generate from current config: `clawdlets config derive-allowlist --write`.
+- `clawdlets config validate --strict` fails if the allowlist doesn’t match derived requirements.
+
+## Strict mode
+
+- `clawdlets config validate --strict`: treat inline secrets + invariant overrides + allowlist mismatches as errors.
+- `clawdlets doctor --scope server-deploy --strict`: deploy gate; fails on warn.
+
+## Migration notes
+
+- v9: inline secrets are deprecated; move tokens/api keys to `${ENV_VAR}` wiring and secretEnv mappings (hooks/skills included).
 
 ## Example
 

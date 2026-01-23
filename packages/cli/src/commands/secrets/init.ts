@@ -12,14 +12,17 @@ import { sopsDecryptYamlFile, sopsEncryptYamlToFile } from "@clawdlets/core/lib/
 import { getHostAgeKeySopsCreationRulePathRegex, getHostSecretsSopsCreationRulePathRegex } from "@clawdlets/core/lib/sops-rules";
 import { sanitizeOperatorId } from "@clawdlets/core/lib/identifiers";
 import { buildFleetSecretsPlan } from "@clawdlets/core/lib/fleet-secrets-plan";
+import { applySecretsAutowire, planSecretsAutowire } from "@clawdlets/core/lib/secrets-autowire";
 import { buildSecretsInitTemplate, isPlaceholderSecretValue, listSecretsInitPlaceholders, parseSecretsInitJson, resolveSecretsInitFromJsonArg, validateSecretsInitNonInteractive, type SecretsInitJson } from "@clawdlets/core/lib/secrets-init";
 import { readYamlScalarFromMapping } from "@clawdlets/core/lib/yaml-scalar";
 import { getHostEncryptedAgeKeyFile, getHostExtraFilesKeyPath, getHostExtraFilesSecretsDir, getHostSecretsDir, getLocalOperatorAgeKeyPath } from "@clawdlets/core/repo-layout";
 import { expandPath } from "@clawdlets/core/lib/path-expand";
 import { mapWithConcurrency } from "@clawdlets/core/lib/concurrency";
+import { assertSecretsAreManaged, buildManagedHostSecretNameAllowlist } from "@clawdlets/core/lib/secrets-allowlist";
 import { cancelFlow, navOnCancel, NAV_EXIT } from "../../lib/wizard.js";
 import { loadHostContextOrExit } from "@clawdlets/core/lib/context";
 import { upsertYamlScalarLine } from "./common.js";
+import { writeClawdletsConfig } from "@clawdlets/core/lib/clawdlets-config";
 
 function wantsInteractive(flag: boolean | undefined): boolean {
   if (flag) return true;
@@ -60,6 +63,7 @@ export const secretsInit = defineCommand({
     },
     yes: { type: "boolean", description: "Overwrite without prompt.", default: false },
     dryRun: { type: "boolean", description: "Print actions without writing.", default: false },
+    autowire: { type: "boolean", description: "Autowire missing secretEnv mappings before init.", default: false },
   },
   async run({ args }) {
     type SecretsInitArgs = {
@@ -71,13 +75,14 @@ export const secretsInit = defineCommand({
       operator?: string;
       yes?: boolean;
       dryRun?: boolean;
+      autowire?: boolean;
     };
 
     const a = args as unknown as SecretsInitArgs;
     const cwd = process.cwd();
     const ctx = loadHostContextOrExit({ cwd, runtimeDir: a.runtimeDir, hostArg: a.host });
     if (!ctx) return;
-    const { layout, config: clawdletsConfig, hostName, hostCfg } = ctx;
+    let { layout, config: clawdletsConfig, hostName, hostCfg } = ctx;
 
     const hasTty = Boolean(process.stdin.isTTY && process.stdout.isTTY);
     let interactive = wantsInteractive(Boolean(a.interactive));
@@ -104,15 +109,31 @@ export const secretsInit = defineCommand({
     const garnixNetrcPath = garnixPrivateEnabled ? String(garnixPrivate?.netrcPath || "/etc/nix/netrc").trim() : "";
     if (garnixPrivateEnabled && !garnixNetrcSecretName) throw new Error("cache.garnix.private.netrcSecret must be set when private cache is enabled");
 
-    const secretsPlan = buildFleetSecretsPlan({ config: clawdletsConfig, hostName });
+    let secretsPlan = buildFleetSecretsPlan({ config: clawdletsConfig, hostName });
     if (secretsPlan.missingSecretConfig.length > 0) {
-      const first = secretsPlan.missingSecretConfig[0]!;
-      if (first.kind === "envVar") {
-        throw new Error(
-          `missing secretEnv mapping for envVar=${first.envVar} (bot=${first.bot}); set fleet.secretEnv.${first.envVar} or fleet.bots.${first.bot}.profile.secretEnv.${first.envVar}`,
-        );
+      if (a.autowire) {
+        const plan = planSecretsAutowire({ config: clawdletsConfig, hostName });
+        if (plan.updates.length === 0) {
+          const first = secretsPlan.missingSecretConfig[0]!;
+          throw new Error(
+            first.kind === "envVar"
+              ? `missing secretEnv mapping for envVar=${first.envVar} (bot=${first.bot}); run: clawdlets config wire-secrets --write`
+              : `invalid secret file config: scope=${first.scope} id=${first.fileId} targetPath=${first.targetPath} (${first.message})`,
+          );
+        }
+        const nextConfig = applySecretsAutowire({ config: clawdletsConfig, plan });
+        await writeClawdletsConfig({ configPath: layout.clawdletsConfigPath, config: nextConfig });
+        clawdletsConfig = nextConfig;
+        secretsPlan = buildFleetSecretsPlan({ config: clawdletsConfig, hostName });
+      } else {
+        const first = secretsPlan.missingSecretConfig[0]!;
+        if (first.kind === "envVar") {
+          throw new Error(
+            `missing secretEnv mapping for envVar=${first.envVar} (bot=${first.bot}); set fleet.secretEnv.${first.envVar} or fleet.bots.${first.bot}.profile.secretEnv.${first.envVar} (or run: clawdlets config wire-secrets --write)`,
+          );
+        }
+        throw new Error(`invalid secret file config: scope=${first.scope} id=${first.fileId} targetPath=${first.targetPath} (${first.message})`);
       }
-      throw new Error(`invalid secret file config: scope=${first.scope} id=${first.fileId} targetPath=${first.targetPath} (${first.message})`);
     }
 
     const hostRequiredSecretNames = new Set<string>(secretsPlan.hostSecretNamesRequired);
@@ -413,6 +434,9 @@ export const secretsInit = defineCommand({
       values.tailscaleAuthKey = input.tailscaleAuthKey || "";
       values.secrets = input.secrets || {};
     }
+
+    const allowlist = buildManagedHostSecretNameAllowlist({ config: clawdletsConfig, host: hostName });
+    assertSecretsAreManaged({ allowlist, secrets: values.secrets });
 
     const secretsToWrite = Array.from(new Set([
       ...secretsPlan.hostSecretNamesRequired,

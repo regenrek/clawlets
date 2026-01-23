@@ -6,7 +6,11 @@ settings:
 
 importers:
 
-  .: {}
+  .:
+    devDependencies:
+      tsx:
+        specifier: ^4.7.0
+        version: 4.21.0
 
   apps/web:
     dependencies:
@@ -291,6 +295,9 @@ importers:
 
   packages/core:
     dependencies:
+      ajv:
+        specifier: ^8.17.1
+        version: 8.17.1
       dotenv:
         specifier: ^17.2.3
         version: 17.2.3

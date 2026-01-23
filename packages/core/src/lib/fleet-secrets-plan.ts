@@ -1,60 +1,32 @@
 import { findEnvVarRefs } from "./env-var-refs.js";
 import {
+  applyChannelEnvRequirements,
+  applyHookEnvRequirements,
+  applySkillEnvRequirements,
   ENV_VAR_HELP,
+  buildBaseSecretEnv,
+  buildDerivedSecretEnv,
+  buildEnvVarAliasMap,
+  canonicalizeEnvVar,
+  collectBotModels,
+  collectDerivedSecretEnvEntries,
   extractEnvVarRef,
+  isPlainObject,
+  isWhatsAppEnabled,
+  normalizeSecretFiles,
   normalizeEnvVarPaths,
   pickPrimarySource,
   recordSecretSpec,
   type SecretSpecAccumulator,
 } from "./fleet-secrets-plan-helpers.js";
-import { getModelRequiredEnvVars, getProviderRequiredEnvVars } from "./llm-provider-env.js";
+import {
+  getLlmProviderFromModelId,
+  getProviderAuthMode,
+  getProviderCredentials,
+} from "./llm-provider-env.js";
 import type { ClawdletsConfig } from "./clawdlets-config.js";
 import type { SecretFileSpec } from "./secret-wiring.js";
 import type { MissingSecretConfig, SecretSource, SecretSpec, SecretsPlanWarning } from "./secrets-plan.js";
-
-function collectBotModels(params: { clawdbot: any; hostDefaultModel: string }): string[] {
-  const models: string[] = [];
-
-  const hostDefaultModel = String(params.hostDefaultModel || "").trim();
-  const defaults = params.clawdbot?.agents?.defaults;
-
-  const pushModel = (v: unknown) => {
-    if (typeof v !== "string") return;
-    const s = v.trim();
-    if (s) models.push(s);
-  };
-
-  const readModelSpec = (spec: unknown) => {
-    if (typeof spec === "string") {
-      pushModel(spec);
-      return;
-    }
-    if (!spec || typeof spec !== "object" || Array.isArray(spec)) return;
-    pushModel((spec as any).primary);
-    const fallbacks = (spec as any).fallbacks;
-    if (Array.isArray(fallbacks)) {
-      for (const f of fallbacks) pushModel(f);
-    }
-  };
-
-  readModelSpec(defaults?.model);
-  readModelSpec(defaults?.imageModel);
-
-  if (models.length === 0 && hostDefaultModel) models.push(hostDefaultModel);
-
-  return Array.from(new Set(models));
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
-
-function isWhatsAppEnabled(clawdbot: any): boolean {
-  const whatsapp = clawdbot?.channels?.whatsapp;
-  if (!isPlainObject(whatsapp)) return false;
-  return (whatsapp as any).enabled !== false;
-}
-
 
 export type MissingFleetSecretConfig = MissingSecretConfig;
 
@@ -87,30 +59,6 @@ export type FleetSecretsPlan = {
   hostSecretFiles: Record<string, SecretFileSpec>;
 };
 
-function mergeSecretEnv(globalEnv: unknown, botEnv: unknown): Record<string, string> {
-  const out: Record<string, string> = {};
-
-  const apply = (v: unknown) => {
-    if (!v || typeof v !== "object" || Array.isArray(v)) return;
-    for (const [k, vv] of Object.entries(v as Record<string, unknown>)) {
-      if (typeof vv !== "string") continue;
-      const key = String(k || "").trim();
-      const value = vv.trim();
-      if (!key || !value) continue;
-      out[key] = value;
-    }
-  };
-
-  apply(globalEnv);
-  apply(botEnv);
-  return out;
-}
-
-function normalizeSecretFiles(value: unknown): Record<string, SecretFileSpec> {
-  if (!isPlainObject(value)) return {};
-  return value as Record<string, SecretFileSpec>;
-}
-
 export function buildFleetSecretsPlan(params: { config: ClawdletsConfig; hostName: string }): FleetSecretsPlan {
   const hostName = params.hostName.trim();
   const hostCfg = (params.config.hosts as any)?.[hostName];
@@ -125,6 +73,7 @@ export function buildFleetSecretsPlan(params: { config: ClawdletsConfig; hostNam
   const warnings: SecretsPlanWarning[] = [];
   const secretSpecs = new Map<string, SecretSpecAccumulator>();
   const secretEnvMetaByName = new Map<string, { envVars: Set<string>; bots: Set<string> }>();
+  const envVarHelpOverrides = new Map<string, string>();
 
   const hostSecretNamesRequired = new Set<string>(["admin_password_hash"]);
 
@@ -191,12 +140,38 @@ export function buildFleetSecretsPlan(params: { config: ClawdletsConfig; hostNam
     if (bot) existing.bots.add(bot);
   };
 
+  const envVarAliasMap = buildEnvVarAliasMap();
+
   for (const bot of bots) {
     const botCfg = (botConfigs as any)?.[bot] || {};
     const profile = (botCfg as any)?.profile || {};
     const clawdbot = (botCfg as any)?.clawdbot || {};
 
-    const secretEnv = mergeSecretEnv(fleetSecretEnv, profile?.secretEnv);
+    const baseSecretEnv = buildBaseSecretEnv({
+      globalEnv: fleetSecretEnv,
+      botEnv: profile?.secretEnv,
+      aliasMap: envVarAliasMap,
+      warnings,
+      bot,
+    });
+    const derivedEntries = collectDerivedSecretEnvEntries(profile);
+    const derivedSecretEnv = buildDerivedSecretEnv(profile);
+    const secretEnv = { ...baseSecretEnv, ...derivedSecretEnv };
+    const derivedDupes = derivedEntries
+      .map((entry) => entry.envVar)
+      .filter((envVar) => Object.prototype.hasOwnProperty.call(baseSecretEnv, envVar));
+    for (const entry of derivedEntries) {
+      if (entry.help && !envVarHelpOverrides.has(entry.envVar)) {
+        envVarHelpOverrides.set(entry.envVar, entry.help);
+      }
+    }
+    if (derivedDupes.length > 0) {
+      warnings.push({
+        kind: "config",
+        bot,
+        message: `secretEnv conflicts with derived hooks/skill env vars: ${derivedDupes.join(",")}`,
+      });
+    }
     for (const [envVar, secretNameRaw] of Object.entries(secretEnv)) {
       const secretName = String(secretNameRaw || "").trim();
       if (!secretName) continue;
@@ -204,11 +179,20 @@ export function buildFleetSecretsPlan(params: { config: ClawdletsConfig; hostNam
       recordSecretEnvMeta(secretName, envVar, bot);
     }
 
-    const envVarRefs = findEnvVarRefs(clawdbot);
-    const envVarPathsByVar: Record<string, string[]> = { ...envVarRefs.pathsByVar };
+    const envVarRefsRaw = findEnvVarRefs(clawdbot);
+    const envVarPathsByVar: Record<string, string[]> = {};
+    for (const [envVar, paths] of Object.entries(envVarRefsRaw.pathsByVar)) {
+      const canonical = canonicalizeEnvVar(envVar, envVarAliasMap);
+      if (!canonical) continue;
+      envVarPathsByVar[canonical] = (envVarPathsByVar[canonical] || []).concat(paths);
+    }
+    const envVarRefs = {
+      vars: Object.keys(envVarPathsByVar).sort(),
+      pathsByVar: envVarPathsByVar,
+    };
     const requiredEnvBySource = new Map<string, Set<SecretSource>>();
     const addRequiredEnv = (envVar: string, source: SecretSource, path?: string) => {
-      const key = envVar.trim();
+      const key = canonicalizeEnvVar(envVar, envVarAliasMap);
       if (!key) return;
       const set = requiredEnvBySource.get(key) ?? new Set<SecretSource>();
       set.add(source);
@@ -220,109 +204,26 @@ export function buildFleetSecretsPlan(params: { config: ClawdletsConfig; hostNam
     };
 
     for (const envVar of envVarRefs.vars) addRequiredEnv(envVar, "custom");
+    for (const entry of derivedEntries) addRequiredEnv(entry.envVar, "custom", entry.path);
 
-    const addChannelToken = (params: { channel: string; envVar: string; path: string; value: unknown }) => {
-      if (typeof params.value !== "string") return;
-      const trimmed = params.value.trim();
-      if (!trimmed) return;
-      const envVar = extractEnvVarRef(trimmed);
-      if (envVar && envVar !== params.envVar) {
-        warnings.push({
-          kind: "inlineToken",
-          channel: params.channel,
-          bot,
-          path: params.path,
-          message: `Unexpected env ref at ${params.path}: ${trimmed}`,
-          suggestion: `Use \${${params.envVar}} for ${params.channel} and map it in fleet.secretEnv or fleet.bots.${bot}.profile.secretEnv.`,
-        });
-      }
-      if (!envVar) {
-        warnings.push({
-          kind: "inlineToken",
-          channel: params.channel,
-          bot,
-          path: params.path,
-          message: `Inline ${params.channel} token detected at ${params.path}`,
-          suggestion: `Replace with \${${params.envVar}} and map it in fleet.secretEnv or fleet.bots.${bot}.profile.secretEnv.`,
-        });
-      }
-      addRequiredEnv(params.envVar, "channel", params.path);
-    };
-
-    const channels = (clawdbot as any)?.channels;
-    if (isPlainObject(channels)) {
-      const discord = channels.discord;
-      if (isPlainObject(discord) && (discord as any).enabled !== false) {
-        addChannelToken({ channel: "discord", envVar: "DISCORD_BOT_TOKEN", path: "channels.discord.token", value: (discord as any).token });
-        const accounts = (discord as any).accounts;
-        if (isPlainObject(accounts)) {
-          for (const [accountId, accountCfg] of Object.entries(accounts)) {
-            if (!isPlainObject(accountCfg)) continue;
-            addChannelToken({
-              channel: "discord",
-              envVar: "DISCORD_BOT_TOKEN",
-              path: `channels.discord.accounts.${accountId}.token`,
-              value: (accountCfg as any).token,
-            });
-          }
-        }
-      }
-
-      const telegram = channels.telegram;
-      if (isPlainObject(telegram) && (telegram as any).enabled !== false) {
-        addChannelToken({ channel: "telegram", envVar: "TELEGRAM_BOT_TOKEN", path: "channels.telegram.botToken", value: (telegram as any).botToken });
-        const accounts = (telegram as any).accounts;
-        if (isPlainObject(accounts)) {
-          for (const [accountId, accountCfg] of Object.entries(accounts)) {
-            if (!isPlainObject(accountCfg)) continue;
-            addChannelToken({
-              channel: "telegram",
-              envVar: "TELEGRAM_BOT_TOKEN",
-              path: `channels.telegram.accounts.${accountId}.botToken`,
-              value: (accountCfg as any).botToken,
-            });
-          }
-        }
-      }
-
-      const slack = channels.slack;
-      if (isPlainObject(slack) && (slack as any).enabled !== false) {
-        addChannelToken({ channel: "slack", envVar: "SLACK_BOT_TOKEN", path: "channels.slack.botToken", value: (slack as any).botToken });
-        addChannelToken({ channel: "slack", envVar: "SLACK_APP_TOKEN", path: "channels.slack.appToken", value: (slack as any).appToken });
-        const accounts = (slack as any).accounts;
-        if (isPlainObject(accounts)) {
-          for (const [accountId, accountCfg] of Object.entries(accounts)) {
-            if (!isPlainObject(accountCfg)) continue;
-            addChannelToken({
-              channel: "slack",
-              envVar: "SLACK_BOT_TOKEN",
-              path: `channels.slack.accounts.${accountId}.botToken`,
-              value: (accountCfg as any).botToken,
-            });
-            addChannelToken({
-              channel: "slack",
-              envVar: "SLACK_APP_TOKEN",
-              path: `channels.slack.accounts.${accountId}.appToken`,
-              value: (accountCfg as any).appToken,
-            });
-          }
-        }
-      }
-    }
+    applyChannelEnvRequirements({ bot, clawdbot, warnings, addRequiredEnv });
+    applyHookEnvRequirements({ bot, clawdbot, warnings, addRequiredEnv });
+    applySkillEnvRequirements({ bot, clawdbot, warnings, addRequiredEnv, envVarHelpOverrides });
 
     const models = collectBotModels({ clawdbot, hostDefaultModel: String(hostCfg.agentModelPrimary || "") });
+    const providersFromModels = new Set<string>();
     for (const model of models) {
-      for (const envVar of getModelRequiredEnvVars(model)) addRequiredEnv(envVar, "model");
+      const provider = getLlmProviderFromModelId(model);
+      if (provider) providersFromModels.add(provider);
     }
 
+    const providersFromConfig = new Set<string>();
     const providers = (clawdbot as any)?.models?.providers;
     if (isPlainObject(providers)) {
       for (const [providerIdRaw, providerCfg] of Object.entries(providers)) {
         const providerId = String(providerIdRaw || "").trim();
         if (!providerId) continue;
-        for (const envVar of getProviderRequiredEnvVars(providerId)) {
-          addRequiredEnv(envVar, "provider", `models.providers.${providerId}.apiKey`);
-        }
+        providersFromConfig.add(providerId);
         if (!isPlainObject(providerCfg)) continue;
         const apiKey = (providerCfg as any).apiKey;
         if (typeof apiKey === "string") {
@@ -330,7 +231,9 @@ export function buildFleetSecretsPlan(params: { config: ClawdletsConfig; hostNam
           if (envVar) {
             addRequiredEnv(envVar, "provider", `models.providers.${providerId}.apiKey`);
           } else if (apiKey.trim()) {
-            const known = getProviderRequiredEnvVars(providerId);
+            const known = getProviderCredentials(providerId)
+              .map((slot) => slot.anyOfEnv[0])
+              .filter(Boolean);
             const suggested = known.length === 1 ? `\${${known[0]}}` : "\${PROVIDER_API_KEY}";
             warnings.push({
               kind: "inlineApiKey",
@@ -341,6 +244,61 @@ export function buildFleetSecretsPlan(params: { config: ClawdletsConfig; hostNam
             });
           }
         }
+      }
+    }
+
+    const usedProviders = new Set<string>([...providersFromModels, ...providersFromConfig]);
+    const hasMappingForAnyOf = (anyOfEnv: string[]): boolean => {
+      for (const envVar of anyOfEnv) {
+        const canonical = canonicalizeEnvVar(envVar, envVarAliasMap);
+        if (!canonical) continue;
+        if (secretEnv[canonical]) return true;
+      }
+      return false;
+    };
+
+    for (const provider of usedProviders) {
+      const auth = getProviderAuthMode(provider);
+      const credentials = getProviderCredentials(provider);
+      const sourcesForProvider: SecretSource[] = [];
+      if (providersFromModels.has(provider)) sourcesForProvider.push("model");
+      if (providersFromConfig.has(provider)) sourcesForProvider.push("provider");
+      if (credentials.length === 0) {
+        if (auth === "oauth") {
+          warnings.push({
+            kind: "auth",
+            provider,
+            bot,
+            message: `Provider ${provider} requires OAuth login (no env vars required).`,
+          });
+        }
+        continue;
+      }
+
+      let hasAnyMapping = false;
+      for (const slot of credentials) {
+        if (slot.anyOfEnv.length === 0) continue;
+        const canonical = slot.anyOfEnv[0]!;
+        const mapped = hasMappingForAnyOf(slot.anyOfEnv);
+        if (mapped) {
+          hasAnyMapping = true;
+        }
+        if (auth === "apiKey") {
+          for (const source of sourcesForProvider) addRequiredEnv(canonical, source);
+        } else if (auth === "mixed" && mapped) {
+          for (const source of sourcesForProvider) addRequiredEnv(canonical, source);
+        }
+      }
+
+      if ((auth === "oauth" || auth === "mixed") && !hasAnyMapping) {
+        warnings.push({
+          kind: "auth",
+          provider,
+          bot,
+          message: auth === "mixed"
+            ? `Provider ${provider} supports OAuth or API key; no env wiring found (manual login required).`
+            : `Provider ${provider} requires OAuth login (no env wiring found).`,
+        });
       }
     }
 
@@ -373,6 +331,7 @@ export function buildFleetSecretsPlan(params: { config: ClawdletsConfig; hostNam
       }
       envVarToSecretName[envVar] = secretName;
       secretNamesRequired.add(secretName);
+      const help = envVarHelpOverrides.get(envVar) ?? ENV_VAR_HELP[envVar];
       recordSecretSpec(secretSpecs, {
         name: secretName,
         kind: "env",
@@ -381,7 +340,7 @@ export function buildFleetSecretsPlan(params: { config: ClawdletsConfig; hostNam
         optional: false,
         envVar,
         bot,
-        help: ENV_VAR_HELP[envVar],
+        help,
       });
     }
 
@@ -438,6 +397,7 @@ export function buildFleetSecretsPlan(params: { config: ClawdletsConfig; hostNam
       continue;
     }
     for (const envVar of meta.envVars) {
+      const help = envVarHelpOverrides.get(envVar) ?? ENV_VAR_HELP[envVar];
       recordSecretSpec(secretSpecs, {
         name: secretName,
         kind: "env",
@@ -445,7 +405,7 @@ export function buildFleetSecretsPlan(params: { config: ClawdletsConfig; hostNam
         source: "custom",
         optional: true,
         envVar,
-        help: ENV_VAR_HELP[envVar],
+        help,
       });
     }
     for (const botId of meta.bots) {

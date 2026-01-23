@@ -36,7 +36,7 @@ import { readClawdletsEnvTokens } from "~/server/redaction"
 import { runWithEvents, spawnCommand, spawnCommandCapture } from "~/server/run-manager"
 import { assertRunBoundToProject } from "~/sdk/run-binding"
 import { parseProjectHostInput, parseProjectRunHostInput } from "~/sdk/serverfn-validators"
-import { assertSecretsAreManaged, buildManagedHostSecretNameAllowlist } from "~/sdk/secrets-allowlist"
+import { assertSecretsAreManaged, buildManagedHostSecretNameAllowlist } from "@clawdlets/core/lib/secrets-allowlist"
 
 async function getRepoRoot(
   client: ConvexClient,
@@ -161,7 +161,6 @@ export const secretsInitExecute = createServerFn({ method: "POST" })
     return {
       ...base,
       allowPlaceholders: Boolean(d["allowPlaceholders"]),
-      allowUnmanaged: Boolean(d["allowUnmanaged"]),
       adminPassword: typeof d["adminPassword"] === "string" ? d["adminPassword"] : "",
       adminPasswordHash: typeof d["adminPasswordHash"] === "string" ? d["adminPasswordHash"] : "",
       tailscaleAuthKey: typeof d["tailscaleAuthKey"] === "string" ? d["tailscaleAuthKey"] : "",
@@ -186,7 +185,7 @@ export const secretsInitExecute = createServerFn({ method: "POST" })
     const layout = getRepoLayout(repoRoot)
 
     const allowlist = buildManagedHostSecretNameAllowlist({ config, host: data.host })
-    assertSecretsAreManaged({ allowlist, secrets: data.secrets, allowUnmanaged: data.allowUnmanaged })
+    assertSecretsAreManaged({ allowlist, secrets: data.secrets })
 
     const baseRedactions = await readClawdletsEnvTokens(repoRoot)
     const extraRedactions = [
@@ -525,7 +524,6 @@ export const writeHostSecrets = createServerFn({ method: "POST" })
     return {
       projectId: d["projectId"] as Id<"projects">,
       host: String(d["host"] || ""),
-      allowUnmanaged: Boolean(d["allowUnmanaged"]),
       secrets,
     }
   })
@@ -539,7 +537,7 @@ export const writeHostSecrets = createServerFn({ method: "POST" })
     if (!config.hosts[host]) throw new Error(`unknown host: ${host}`)
 
     const allowlist = buildManagedHostSecretNameAllowlist({ config, host })
-    assertSecretsAreManaged({ allowlist, secrets: data.secrets, allowUnmanaged: data.allowUnmanaged })
+    assertSecretsAreManaged({ allowlist, secrets: data.secrets })
 
     const layout = getRepoLayout(repoRoot)
     if (!fsSync.existsSync(layout.sopsConfigPath)) {

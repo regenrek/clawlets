@@ -117,6 +117,7 @@ export const bootstrapExecute = createServerFn({ method: "POST" })
       mode: (String(d["mode"] || "nixos-anywhere").trim() || "nixos-anywhere") as "nixos-anywhere" | "image",
       force: Boolean(d["force"]),
       dryRun: Boolean(d["dryRun"]),
+      rev: typeof d["rev"] === "string" ? d["rev"] : "",
     }
   })
   .handler(async ({ data }) => {
@@ -137,6 +138,7 @@ export const bootstrapExecute = createServerFn({ method: "POST" })
           "--host",
           data.host,
           `--mode=${data.mode}`,
+          ...(data.rev.trim() ? ["--rev", data.rev.trim()] : []),
           ...(data.force ? ["--force"] : []),
           ...(data.dryRun ? ["--dry-run"] : []),
         ],

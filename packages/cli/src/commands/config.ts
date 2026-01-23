@@ -12,9 +12,13 @@ import {
   ClawdletsConfigSchema,
   loadClawdletsConfig,
   loadClawdletsConfigRaw,
+  resolveHostName,
   writeClawdletsConfig,
 } from "@clawdlets/core/lib/clawdlets-config";
 import { migrateClawdletsConfigToV9 } from "@clawdlets/core/lib/clawdlets-config-migrate";
+import { validateClawdletsConfig } from "@clawdlets/core/lib/clawdlets-config-validate";
+import { buildFleetSecretsPlan } from "@clawdlets/core/lib/fleet-secrets-plan";
+import { applySecretsAutowire, planSecretsAutowire, type SecretsAutowireScope } from "@clawdlets/core/lib/secrets-autowire";
 
 const init = defineCommand({
   meta: { name: "init", description: "Initialize fleet/clawdlets.json (canonical config)." },
@@ -59,12 +63,187 @@ const show = defineCommand({
 });
 
 const validate = defineCommand({
-  meta: { name: "validate", description: "Validate fleet/clawdlets.json schema." },
-  args: {},
-  async run() {
+  meta: { name: "validate", description: "Validate fleet/clawdlets.json + rendered Clawdbot config." },
+  args: {
+    host: { type: "string", description: "Host name (defaults to clawdlets.json defaultHost / sole host)." },
+    strict: { type: "boolean", description: "Fail on warnings (inline secrets, invariant overrides).", default: false },
+  },
+  async run({ args }) {
     const repoRoot = findRepoRoot(process.cwd());
-    loadClawdletsConfig({ repoRoot });
+    const { config } = loadClawdletsConfig({ repoRoot });
+    const resolved = resolveHostName({ config, host: args.host });
+    if (!resolved.ok) {
+      const tips = resolved.tips.length > 0 ? `; ${resolved.tips.join("; ")}` : "";
+      throw new Error(`${resolved.message}${tips}`);
+    }
+    const res = validateClawdletsConfig({ config, hostName: resolved.host, strict: Boolean(args.strict) });
+    for (const w of res.warnings) console.error(`warn: ${w}`);
+    if (!res.ok) {
+      for (const e of res.errors) console.error(`error: ${e}`);
+      throw new Error("config validation failed");
+    }
     console.log("ok");
+  },
+});
+
+const wireSecrets = defineCommand({
+  meta: { name: "wire-secrets", description: "Autowire missing secretEnv mappings." },
+  args: {
+    host: { type: "string", description: "Host name (defaults to clawdlets.json defaultHost / sole host)." },
+    bot: { type: "string", description: "Only wire secrets for this bot id." },
+    scope: { type: "string", description: "Override scope (bot|fleet)." },
+    only: { type: "string", description: "Only wire a specific ENV_VAR (comma-separated)." },
+    write: { type: "boolean", description: "Apply changes to fleet/clawdlets.json.", default: false },
+    json: { type: "boolean", description: "Output JSON summary.", default: false },
+    yes: { type: "boolean", description: "Skip confirmation (non-interactive).", default: false },
+  },
+  async run({ args }) {
+    const repoRoot = findRepoRoot(process.cwd());
+    const { configPath, config } = loadClawdletsConfigRaw({ repoRoot });
+    const validated = ClawdletsConfigSchema.parse(config);
+    const resolved = resolveHostName({ config: validated, host: args.host });
+    if (!resolved.ok) {
+      const tips = resolved.tips.length > 0 ? `; ${resolved.tips.join("; ")}` : "";
+      throw new Error(`${resolved.message}${tips}`);
+    }
+
+    const scopeRaw = String(args.scope || "").trim();
+    const scope = scopeRaw ? (scopeRaw === "bot" || scopeRaw === "fleet" ? (scopeRaw as SecretsAutowireScope) : null) : null;
+    if (scopeRaw && !scope) throw new Error(`invalid --scope: ${scopeRaw} (expected bot|fleet)`);
+
+    const onlyEnvVars = String(args.only || "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    const plan = planSecretsAutowire({
+      config: validated,
+      hostName: resolved.host,
+      scope: scope ?? undefined,
+      bot: args.bot ? String(args.bot).trim() : undefined,
+      onlyEnvVars,
+    });
+
+    if (plan.updates.length === 0) {
+      if (args.json) {
+        console.log(JSON.stringify({ ok: true, updates: [] }, null, 2));
+      } else {
+        console.log("ok: no missing secretEnv mappings");
+      }
+      return;
+    }
+
+    const summary = plan.updates.map((u) => ({
+      bot: u.bot,
+      envVar: u.envVar,
+      scope: u.scope,
+      secretName: u.secretName,
+    }));
+
+    if (!args.write) {
+      if (args.json) {
+        console.log(JSON.stringify({ ok: true, write: false, updates: summary }, null, 2));
+        return;
+      }
+      console.log(`planned: update ${path.relative(repoRoot, configPath)}`);
+      for (const entry of summary) {
+        const target =
+          entry.scope === "fleet"
+            ? `fleet.secretEnv.${entry.envVar}`
+            : `fleet.bots.${entry.bot}.profile.secretEnv.${entry.envVar}`;
+        console.log(`- ${target} = ${entry.secretName}`);
+      }
+      console.log("run with --write to apply changes");
+      return;
+    }
+
+    const next = applySecretsAutowire({ config: validated, plan });
+    const validation = validateClawdletsConfig({ config: next, hostName: resolved.host });
+    if (!validation.ok) {
+      for (const e of validation.errors) console.error(`error: ${e}`);
+      throw new Error("autowire failed: validation errors");
+    }
+
+    await writeClawdletsConfig({ configPath, config: next });
+    if (args.json) {
+      console.log(JSON.stringify({ ok: true, write: true, updates: summary }, null, 2));
+      return;
+    }
+    console.log(`ok: updated ${path.relative(repoRoot, configPath)}`);
+    for (const entry of summary) {
+      const target =
+        entry.scope === "fleet"
+          ? `fleet.secretEnv.${entry.envVar}`
+          : `fleet.bots.${entry.bot}.profile.secretEnv.${entry.envVar}`;
+      console.log(`- ${target} = ${entry.secretName}`);
+    }
+  },
+});
+
+const deriveAllowlist = defineCommand({
+  meta: { name: "derive-allowlist", description: "Derive per-bot secretEnvAllowlist from current config." },
+  args: {
+    host: { type: "string", description: "Host name (defaults to clawdlets.json defaultHost / sole host)." },
+    bot: { type: "string", description: "Only derive allowlist for this bot id." },
+    write: { type: "boolean", description: "Apply changes to fleet/clawdlets.json.", default: false },
+    json: { type: "boolean", description: "Output JSON summary.", default: false },
+  },
+  async run({ args }) {
+    const repoRoot = findRepoRoot(process.cwd());
+    const { configPath, config } = loadClawdletsConfigRaw({ repoRoot });
+    const validated = ClawdletsConfigSchema.parse(config);
+    const resolved = resolveHostName({ config: validated, host: args.host });
+    if (!resolved.ok) {
+      const tips = resolved.tips.length > 0 ? `; ${resolved.tips.join("; ")}` : "";
+      throw new Error(`${resolved.message}${tips}`);
+    }
+
+    const plan = buildFleetSecretsPlan({ config: validated, hostName: resolved.host });
+    const botArg = args.bot ? String(args.bot).trim() : "";
+    const bots = botArg ? [botArg] : validated.fleet.botOrder || [];
+    if (bots.length === 0) throw new Error("fleet.botOrder is empty (set bots in fleet/clawdlets.json)");
+
+    const updates = bots.map((bot) => {
+      const envVars = plan.byBot?.[bot]?.envVarsRequired;
+      if (!envVars) throw new Error(`unknown bot id: ${bot}`);
+      return { bot, allowlist: envVars };
+    });
+
+    if (!args.write) {
+      if (args.json) {
+        console.log(JSON.stringify({ ok: true, write: false, updates }, null, 2));
+        return;
+      }
+      console.log(`planned: update ${path.relative(repoRoot, configPath)}`);
+      for (const entry of updates) {
+        console.log(`- fleet.bots.${entry.bot}.profile.secretEnvAllowlist = ${JSON.stringify(entry.allowlist)}`);
+      }
+      console.log("run with --write to apply changes");
+      return;
+    }
+
+    const next = structuredClone(validated) as any;
+    for (const entry of updates) {
+      if (!next.fleet.bots[entry.bot]) next.fleet.bots[entry.bot] = {};
+      if (!next.fleet.bots[entry.bot].profile) next.fleet.bots[entry.bot].profile = {};
+      next.fleet.bots[entry.bot].profile.secretEnvAllowlist = entry.allowlist;
+    }
+
+    const validation = validateClawdletsConfig({ config: next, hostName: resolved.host });
+    if (!validation.ok) {
+      for (const e of validation.errors) console.error(`error: ${e}`);
+      throw new Error("allowlist derive failed: validation errors");
+    }
+
+    await writeClawdletsConfig({ configPath, config: next });
+    if (args.json) {
+      console.log(JSON.stringify({ ok: true, write: true, updates }, null, 2));
+      return;
+    }
+    console.log(`ok: updated ${path.relative(repoRoot, configPath)}`);
+    for (const entry of updates) {
+      console.log(`- fleet.bots.${entry.bot}.profile.secretEnvAllowlist = ${JSON.stringify(entry.allowlist)}`);
+    }
   },
 });
 
@@ -181,5 +360,5 @@ const migrate = defineCommand({
 
 export const config = defineCommand({
   meta: { name: "config", description: "Canonical config (fleet/clawdlets.json)." },
-  subCommands: { init, show, validate, get, set, migrate },
+  subCommands: { init, show, validate, get, set, migrate, "wire-secrets": wireSecrets, "derive-allowlist": deriveAllowlist },
 });

@@ -1,10 +1,15 @@
 import providerInfoJson from "../assets/llm-providers.json" with { type: "json" };
 
-export type LlmProviderAuth = "apiKey" | "oauth";
+export type LlmProviderAuth = "apiKey" | "oauth" | "mixed";
+
+export type LlmProviderCredential = {
+  id: string;
+  anyOfEnv: string[];
+};
 
 export type LlmProviderInfo = {
   auth: LlmProviderAuth;
-  secretEnvVars: string[];
+  credentials: LlmProviderCredential[];
   configEnvVars: string[];
 };
 
@@ -20,12 +25,27 @@ function normalizeProviderInfoMap(raw: unknown): {
     if (!key) continue;
     if (!v || typeof v !== "object" || Array.isArray(v)) continue;
     const info = v as Record<string, unknown>;
-    const auth = info["auth"] === "oauth" ? "oauth" : "apiKey";
-    const secretEnvVars = Array.isArray(info["secretEnvVars"]) ? (info["secretEnvVars"] as unknown[]) : [];
+    const auth = info["auth"] === "oauth" || info["auth"] === "mixed" ? (info["auth"] as LlmProviderAuth) : "apiKey";
     const configEnvVars = Array.isArray(info["configEnvVars"]) ? (info["configEnvVars"] as unknown[]) : [];
+    const credentialsRaw = Array.isArray(info["credentials"]) ? (info["credentials"] as unknown[]) : [];
+    const legacySecretEnvVars = Array.isArray(info["secretEnvVars"]) ? (info["secretEnvVars"] as unknown[]) : [];
+    const credentials: LlmProviderCredential[] = [];
+    for (const entry of credentialsRaw) {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+      const record = entry as Record<string, unknown>;
+      const id = String(record["id"] || "").trim();
+      const anyOfEnvRaw = Array.isArray(record["anyOfEnv"]) ? (record["anyOfEnv"] as unknown[]) : [];
+      const anyOfEnv = anyOfEnvRaw.map((s) => String(s || "").trim()).filter(Boolean);
+      if (!id || anyOfEnv.length === 0) continue;
+      credentials.push({ id, anyOfEnv });
+    }
+    if (credentials.length === 0 && legacySecretEnvVars.length > 0) {
+      const anyOfEnv = legacySecretEnvVars.map((s) => String(s || "").trim()).filter(Boolean);
+      if (anyOfEnv.length > 0) credentials.push({ id: "api_key", anyOfEnv });
+    }
     providers[key] = {
       auth,
-      secretEnvVars: secretEnvVars.map((s) => String(s || "").trim()).filter(Boolean),
+      credentials,
       configEnvVars: configEnvVars.map((s) => String(s || "").trim()).filter(Boolean),
     };
     const aliases = Array.isArray(info["aliases"]) ? (info["aliases"] as unknown[]) : [];
@@ -67,8 +87,23 @@ export function getKnownLlmProviders(): string[] {
   return Object.keys(PROVIDER_INFO).sort();
 }
 
+export function getProviderAuthMode(provider: string): LlmProviderAuth | null {
+  return getLlmProviderInfo(provider)?.auth ?? null;
+}
+
+export function getProviderCredentials(provider: string): LlmProviderCredential[] {
+  return getLlmProviderInfo(provider)?.credentials ?? [];
+}
+
 export function getProviderRequiredEnvVars(provider: string): string[] {
-  return getLlmProviderInfo(provider)?.secretEnvVars ?? [];
+  const info = getLlmProviderInfo(provider);
+  if (!info) return [];
+  const envVars: string[] = [];
+  for (const slot of info.credentials) {
+    const first = slot.anyOfEnv[0];
+    if (first) envVars.push(first);
+  }
+  return envVars;
 }
 
 export function getModelRequiredEnvVars(modelId: string): string[] {

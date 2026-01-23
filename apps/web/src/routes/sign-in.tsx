@@ -27,7 +27,11 @@ function AuthDisabled() {
           </div>
         </div>
         <div className="mt-6 flex items-center justify-between">
-          <Button nativeButton={false} render={<Link to="/projects" />} className="w-full">
+          <Button
+            nativeButton={false}
+            render={<Link to="/" />}
+            className="w-full"
+          >
             Continue
           </Button>
         </div>
@@ -48,7 +52,7 @@ function AuthEnabledSignIn() {
 
   React.useEffect(() => {
     if (session?.session?.id) {
-      void router.navigate({ to: "/projects" });
+      void router.navigate({ to: "/" });
     }
   }, [router, session?.session?.id]);
 
@@ -70,7 +74,7 @@ function AuthEnabledSignIn() {
         });
       }
       await router.invalidate();
-      void router.navigate({ to: "/projects" });
+      void router.navigate({ to: "/" });
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {

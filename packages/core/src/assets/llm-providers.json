@@ -1,87 +1,159 @@
 {
-  "openai": {
-    "auth": "apiKey",
-    "secretEnvVars": ["OPENAI_API_KEY"]
-  },
   "anthropic": {
-    "auth": "apiKey",
-    "secretEnvVars": ["ANTHROPIC_API_KEY"]
-  },
-  "openai-codex": {
-    "auth": "oauth",
-    "secretEnvVars": []
-  },
-  "opencode": {
-    "auth": "apiKey",
-    "secretEnvVars": ["OPENCODE_API_KEY", "OPENCODE_ZEN_API_KEY"]
-  },
-  "google": {
-    "auth": "apiKey",
-    "secretEnvVars": ["GEMINI_API_KEY"]
-  },
-  "google-vertex": {
-    "auth": "oauth",
-    "secretEnvVars": []
-  },
-  "google-antigravity": {
-    "auth": "oauth",
-    "secretEnvVars": []
-  },
-  "google-gemini-cli": {
-    "auth": "oauth",
-    "secretEnvVars": []
-  },
-  "zai": {
-    "auth": "apiKey",
-    "secretEnvVars": ["ZAI_API_KEY"],
-    "aliases": ["z.ai", "z-ai"]
-  },
-  "vercel-ai-gateway": {
-    "auth": "apiKey",
-    "secretEnvVars": ["AI_GATEWAY_API_KEY"]
-  },
-  "openrouter": {
-    "auth": "apiKey",
-    "secretEnvVars": ["OPENROUTER_API_KEY"]
-  },
-  "xai": {
-    "auth": "apiKey",
-    "secretEnvVars": ["XAI_API_KEY"]
-  },
-  "groq": {
-    "auth": "apiKey",
-    "secretEnvVars": ["GROQ_API_KEY"]
+    "auth": "mixed",
+    "credentials": [
+      {
+        "id": "api_key",
+        "anyOfEnv": [
+          "ANTHROPIC_API_KEY"
+        ]
+      },
+      {
+        "id": "oauth_token",
+        "anyOfEnv": [
+          "ANTHROPIC_OAUTH_TOKEN"
+        ]
+      }
+    ]
   },
   "cerebras": {
     "auth": "apiKey",
-    "secretEnvVars": ["CEREBRAS_API_KEY"]
-  },
-  "mistral": {
-    "auth": "apiKey",
-    "secretEnvVars": ["MISTRAL_API_KEY"]
+    "credentials": [
+      {
+        "id": "api_key",
+        "anyOfEnv": [
+          "CEREBRAS_API_KEY"
+        ]
+      }
+    ]
   },
   "github-copilot": {
+    "auth": "mixed",
+    "credentials": [
+      {
+        "id": "api_key",
+        "anyOfEnv": [
+          "COPILOT_GITHUB_TOKEN",
+          "GH_TOKEN",
+          "GITHUB_TOKEN"
+        ]
+      }
+    ]
+  },
+  "google": {
+    "auth": "apiKey",
+    "credentials": [
+      {
+        "id": "api_key",
+        "anyOfEnv": [
+          "GEMINI_API_KEY"
+        ]
+      }
+    ]
+  },
+  "google-antigravity": {
     "auth": "oauth",
-    "secretEnvVars": []
+    "credentials": []
   },
-  "moonshot": {
-    "auth": "apiKey",
-    "secretEnvVars": ["MOONSHOT_API_KEY"]
-  },
-  "kimi-code": {
-    "auth": "apiKey",
-    "secretEnvVars": ["KIMICODE_API_KEY"]
-  },
-  "qwen-portal": {
+  "google-gemini-cli": {
     "auth": "oauth",
-    "secretEnvVars": []
+    "credentials": []
   },
-  "synthetic": {
+  "groq": {
     "auth": "apiKey",
-    "secretEnvVars": ["SYNTHETIC_API_KEY"]
+    "credentials": [
+      {
+        "id": "api_key",
+        "anyOfEnv": [
+          "GROQ_API_KEY"
+        ]
+      }
+    ]
   },
   "minimax": {
     "auth": "apiKey",
-    "secretEnvVars": ["MINIMAX_API_KEY"]
+    "credentials": [
+      {
+        "id": "api_key",
+        "anyOfEnv": [
+          "MINIMAX_API_KEY"
+        ]
+      }
+    ]
+  },
+  "mistral": {
+    "auth": "apiKey",
+    "credentials": [
+      {
+        "id": "api_key",
+        "anyOfEnv": [
+          "MISTRAL_API_KEY"
+        ]
+      }
+    ]
+  },
+  "openai": {
+    "auth": "apiKey",
+    "credentials": [
+      {
+        "id": "api_key",
+        "anyOfEnv": [
+          "OPENAI_API_KEY"
+        ]
+      }
+    ]
+  },
+  "openai-codex": {
+    "auth": "oauth",
+    "credentials": []
+  },
+  "opencode-zen": {
+    "auth": "apiKey",
+    "credentials": [
+      {
+        "id": "api_key",
+        "anyOfEnv": [
+          "OPENCODE_ZEN_API_KEY"
+        ]
+      }
+    ]
+  },
+  "openrouter": {
+    "auth": "apiKey",
+    "credentials": [
+      {
+        "id": "api_key",
+        "anyOfEnv": [
+          "OPENROUTER_API_KEY"
+        ]
+      }
+    ]
+  },
+  "xai": {
+    "auth": "apiKey",
+    "credentials": [
+      {
+        "id": "api_key",
+        "anyOfEnv": [
+          "XAI_API_KEY"
+        ]
+      }
+    ]
+  },
+  "zai": {
+    "auth": "apiKey",
+    "credentials": [
+      {
+        "id": "api_key",
+        "anyOfEnv": [
+          "ZAI_API_KEY",
+          "Z_AI_API_KEY"
+        ]
+      }
+    ],
+    "aliases": [
+      "z.ai",
+      "z-ai"
+    ]
   }
 }

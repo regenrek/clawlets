@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start"
 import { BotIdSchema } from "@clawdlets/core/lib/identifiers"
 import { CHANNEL_PRESETS, applyChannelPreset } from "@clawdlets/core/lib/config-patch"
+import { validateClawdbotConfig } from "@clawdlets/core/lib/clawdbot-schema-validate"
 import {
   ClawdletsConfigSchema,
   loadClawdletsConfigRaw,
@@ -62,6 +63,17 @@ export const setBotClawdbotConfig = createServerFn({ method: "POST" })
     if (!existingBot || typeof existingBot !== "object") throw new Error("bot not found")
 
     existingBot.clawdbot = data.clawdbot
+    const schemaValidation = validateClawdbotConfig(existingBot.clawdbot)
+    if (!schemaValidation.ok) {
+      return {
+        ok: false as const,
+        issues: schemaValidation.errors.map((message) => ({
+          code: "schema",
+          path: [],
+          message,
+        })),
+      }
+    }
 
     const validated = ClawdletsConfigSchema.safeParse(next)
     if (!validated.success) return { ok: false as const, issues: toIssues(validated.error.issues as unknown[]) }

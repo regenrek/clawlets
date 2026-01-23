@@ -5,7 +5,7 @@ export const setupFieldHelp = {
     addHost: "Adds a new host entry under `hosts.<host>` (config only; no infra created yet).",
     enabled: "Toggles whether this host is managed/deployed by clawdlets.",
     diskDevice: "Block device to install NixOS onto (usually `/dev/sda` on Hetzner). Must start with `/dev/`.",
-    targetHost: "SSH destination used for deploy/ops after bootstrap (ssh alias or `user@host`).",
+    targetHost: "SSH destination used for deploy/ops + live schema. Optional until you run server ops; set in Hosts → Settings → Target host (ssh alias or `user@host`).",
     adminCidr: "CIDR allowed to reach admin SSH during bootstrap (recommend your current IP `/32`). Use Detect to autofill from your public IP.",
     sshPubkeyFile: "Local `.pub` file to authorize on the host during provisioning.",
     sshExposure: "How SSH is exposed: `bootstrap` (temporary), `tailnet` (recommended), or `public` (risky).",
@@ -46,6 +46,7 @@ export const setupFieldHelp = {
   bootstrap: {
     host: "Host entry to bootstrap/provision.",
     mode: "`nixos-anywhere` provisions a fresh server; `image` uses an existing image flow.",
+    source: "Pins which git revision nixos-anywhere installs. Workstation uses local HEAD; GitHub uses the last pushed origin default.",
     force: "Skip doctor gate checks. Risky; prefer fixing doctor findings first.",
     dryRun: "Show commands without executing (safe preview).",
   },

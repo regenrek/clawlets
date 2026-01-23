@@ -16,7 +16,7 @@ describe("llm provider env", () => {
     expect(getProviderRequiredEnvVars("unknown")).toEqual([]);
     expect(getProviderRequiredEnvVars("openai")).toEqual(["OPENAI_API_KEY"]);
     expect(getProviderRequiredEnvVars("minimax")).toEqual(["MINIMAX_API_KEY"]);
-    expect(getModelRequiredEnvVars("anthropic/claude")).toEqual(["ANTHROPIC_API_KEY"]);
+    expect(getModelRequiredEnvVars("anthropic/claude")).toEqual(["ANTHROPIC_API_KEY", "ANTHROPIC_OAUTH_TOKEN"]);
     expect(getModelRequiredEnvVars("nope")).toEqual([]);
     expect(getLlmProviderInfo("openai-codex")?.auth).toBe("oauth");
   });
