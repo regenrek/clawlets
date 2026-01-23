@@ -35,7 +35,7 @@
         src = self;
         pnpm = pkgs.pnpm_9;
         fetcherVersion = 2;
-        hash = "";
+        hash = "sha256-/rdlAUPe6grGq3HdR6cYj04hhu3VThOAwezmwvvG+50=";
       };
 
       clf = pkgs.buildNpmPackage {
