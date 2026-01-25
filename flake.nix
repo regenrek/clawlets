@@ -24,7 +24,7 @@
     # CLF is a separate subflake with its own lock file (opt-in for cattle users)
     # This avoids hash update pain for non-cattle users
     clf = {
-      url = "path:./nix/subflakes/clf";
+      url = "git+file:./?dir=nix/subflakes/clf";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };

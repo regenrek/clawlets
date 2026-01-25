@@ -23,14 +23,19 @@
         ]
       },
       "locked": {
-        "path": "./nix/subflakes/clf",
-        "type": "path"
+        "dir": "nix/subflakes/clf",
+        "dirtyRev": "6672c3df2feccfa77b38a5385cd99f58c4074cfb-dirty",
+        "dirtyShortRev": "6672c3d-dirty",
+        "lastModified": 1769352315,
+        "narHash": "sha256-5oxZkzYqp67Qfg2Yuswkfm3TEOWwH3gNVzVFMoPuHtQ=",
+        "type": "git",
+        "url": "file:./"
       },
       "original": {
-        "path": "./nix/subflakes/clf",
-        "type": "path"
-      },
-      "parent": []
+        "dir": "nix/subflakes/clf",
+        "type": "git",
+        "url": "file:./"
+      }
     },
     "disko": {
       "inputs": {
