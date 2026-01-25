@@ -17,9 +17,8 @@ yarn.lock
 .env.*.local
 .env.sentry-build-plugin
 
-# Convex (generated + local state)
+# Convex (local state)
 .convex/
-convex/_generated/
 
 # Generated fumadocs files
 .source/
