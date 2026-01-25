@@ -36,7 +36,8 @@
               || lib.hasSuffix "/packages" full
               || lib.hasInfix "/packages/" full;
           in
-            isRootFile
+            rel == ""
+            || isRootFile
             || isScripts
             || isPackages;
       };
