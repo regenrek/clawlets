@@ -5,6 +5,10 @@ The format is based on Keep a Changelog and this project follows SemVer for npm 
 
 ## Unreleased
 
+## [0.4.2] - 2026-01-26
+### Fixed
+- Fix `pnpm -g add clawdlets` installs by removing `file:vendor/...` deps from published packages (rewrite `workspace:*` to real versions and publish required `@clawdlets/*` packages to npm).
+
 ## [0.4.1] - 2026-01-25
 ### Fixed
 - Ensure npm release fails fast if vendored workspace deps are missing (prevents broken `file:vendor/...` installs).
