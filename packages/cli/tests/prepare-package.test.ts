@@ -53,5 +53,10 @@ describe("prepare-package guardrails", () => {
     expect(tar.status).toBe(0);
     expect(tar.stdout).toContain("package/vendor/@clawdlets/core/package.json");
     expect(tar.stdout).not.toContain("package/node_modules/");
+    const files = String(tar.stdout || "")
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+    expect(files.some((f) => f.endsWith(".map"))).toBe(false);
   });
 });

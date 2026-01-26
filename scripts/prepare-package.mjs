@@ -50,6 +50,19 @@ function removeTsBuildInfoFiles(dir) {
   }
 }
 
+function removeSourceMapFiles(dir) {
+  if (!fs.existsSync(dir)) return;
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  for (const e of entries) {
+    const p = path.join(dir, e.name);
+    if (e.isDirectory()) {
+      removeSourceMapFiles(p);
+      continue;
+    }
+    if (e.isFile() && e.name.endsWith(".map")) rmForce(p);
+  }
+}
+
 function resolveRepoSlugFromPackageJson(pkg) {
   const url = pkg?.repository?.url;
   if (!url) return "";
@@ -285,6 +298,7 @@ function main() {
   }
 
   writeJson(path.join(outPkgDir, "package.json"), nextPkg);
+  removeSourceMapFiles(outPkgDir);
 
   console.log(`Prepared npm package dir: ${outPkgDir}`);
 }
