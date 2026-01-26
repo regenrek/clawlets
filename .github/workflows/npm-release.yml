@@ -75,26 +75,11 @@ jobs:
         run: node scripts/prepare-package.mjs --out dist/npm/clawdlets
 
       - name: Verify prepared package contains vendored workspace deps
+        working-directory: dist/npm/clawdlets
         run: |
           set -euo pipefail
-          test -f dist/npm/clawdlets/vendor/@clawdlets/core/package.json
-          (cd dist/npm/clawdlets && npm pack --silent >/dev/null)
-          (cd dist/npm/clawdlets && python - <<'PY'
-import glob
-import tarfile
-
-matches = sorted(glob.glob("clawdlets-*.tgz"))
-if not matches:
-    raise SystemExit("missing npm pack tarball")
-
-with tarfile.open(matches[0], "r:gz") as tf:
-    names = set(tf.getnames())
-
-if "package/vendor/@clawdlets/core/package.json" not in names:
-    raise SystemExit("vendored core package missing from tarball")
-print("ok: vendored core package present")
-PY
-          )
+          test -f vendor/@clawdlets/core/package.json
+          node -e 'const {spawnSync}=require("node:child_process");const pkg=require("./package.json");const r=spawnSync("npm",["pack","--dry-run","--json"],{encoding:"utf8"});if(r.status!==0){process.stderr.write(r.stderr||r.stdout||"");process.exit(r.status??1);}const info=JSON.parse(r.stdout)[0];const files=new Set(info.files.map((f)=>f.path));const deps=pkg.dependencies||{};const vendored=Object.entries(deps).filter(([,v])=>String(v).startsWith("file:vendor/")).map(([n])=>n);if(!vendored.length){throw new Error("no vendored workspace deps detected (expected file:vendor/...)");}for(const n of vendored){const p="vendor/"+n+"/package.json";if(!files.has(p)){throw new Error("vendored dep missing from npm pack file list: "+p);}}console.log("ok: vendored deps present in npm pack: "+vendored.join(", "));'
 
       - name: Publish to npm (OIDC)
         working-directory: dist/npm/clawdlets
@@ -112,6 +97,13 @@ PY
 
       - name: Prepare plugin publish dir (cattle)
         run: node scripts/prepare-package.mjs --pkg packages/plugins/cattle --out dist/npm/clawdlets-plugin-cattle
+
+      - name: Verify prepared plugin package contains vendored workspace deps
+        working-directory: dist/npm/clawdlets-plugin-cattle
+        run: |
+          set -euo pipefail
+          test -f vendor/@clawdlets/core/package.json
+          node -e 'const {spawnSync}=require("node:child_process");const pkg=require("./package.json");const r=spawnSync("npm",["pack","--dry-run","--json"],{encoding:"utf8"});if(r.status!==0){process.stderr.write(r.stderr||r.stdout||"");process.exit(r.status??1);}const info=JSON.parse(r.stdout)[0];const files=new Set(info.files.map((f)=>f.path));const deps=pkg.dependencies||{};const vendored=Object.entries(deps).filter(([,v])=>String(v).startsWith("file:vendor/")).map(([n])=>n);if(!vendored.length){throw new Error("no vendored workspace deps detected (expected file:vendor/...)");}for(const n of vendored){const p="vendor/"+n+"/package.json";if(!files.has(p)){throw new Error("vendored dep missing from npm pack file list: "+p);}}console.log("ok: vendored deps present in npm pack: "+vendored.join(", "));'
 
       - name: Publish plugin to npm (OIDC)
         working-directory: dist/npm/clawdlets-plugin-cattle
