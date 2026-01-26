@@ -50,13 +50,13 @@ function removeTsBuildInfoFiles(dir) {
   }
 }
 
-function removeSourceMapFiles(dir) {
+function removeSourceMaps(dir) {
   if (!fs.existsSync(dir)) return;
   const entries = fs.readdirSync(dir, { withFileTypes: true });
   for (const e of entries) {
     const p = path.join(dir, e.name);
     if (e.isDirectory()) {
-      removeSourceMapFiles(p);
+      removeSourceMaps(p);
       continue;
     }
     if (e.isFile() && e.name.endsWith(".map")) rmForce(p);
@@ -213,6 +213,7 @@ function main() {
   // Copy build output.
   cpDir(distDir, path.join(outPkgDir, "dist"));
   removeTsBuildInfoFiles(path.join(outPkgDir, "dist"));
+  removeSourceMaps(path.join(outPkgDir, "dist"));
 
   // README + LICENSE for npm page.
   const repoPkg = readJson(path.join(repoRoot, "package.json"));
@@ -262,6 +263,7 @@ function main() {
     writeJson(path.join(depVendorDir, "package.json"), rewritten);
     cpDir(depDistDir, path.join(depVendorDir, "dist"));
     removeTsBuildInfoFiles(path.join(depVendorDir, "dist"));
+    removeSourceMaps(path.join(depVendorDir, "dist"));
   }
 
   // Publishable package.json (no workspace: protocol).
@@ -298,7 +300,6 @@ function main() {
   }
 
   writeJson(path.join(outPkgDir, "package.json"), nextPkg);
-  removeSourceMapFiles(outPkgDir);
 
   console.log(`Prepared npm package dir: ${outPkgDir}`);
 }
