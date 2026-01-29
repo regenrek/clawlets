@@ -11,6 +11,8 @@ import { withFlakesEnv } from "../lib/nix-flakes.js";
 import { ClawdletsConfigSchema } from "../lib/clawdlets-config.js";
 import { buildClawdbotBotConfig } from "../lib/clawdbot-config-invariants.js";
 import { lintClawdbotSecurityConfig } from "../lib/clawdbot-security-lint.js";
+import { getPinnedClawdbotSchema } from "../lib/clawdbot-schema.js";
+import { fetchNixClawdbotSourceInfo, getNixClawdbotRevFromFlakeLock } from "../lib/nix-clawdbot.js";
 import type { DoctorPush } from "./types.js";
 import { dirHasAnyFile, loadKnownBundledSkills, resolveTemplateRoot } from "./util.js";
 
@@ -215,6 +217,55 @@ export async function addRepoChecks(params: {
         });
       }
       // If flake.lock doesn't exist, skip this check silently (test environments, etc.)
+    }
+  }
+
+  {
+    const schema = getPinnedClawdbotSchema();
+    const schemaRev = schema?.clawdbotRev?.trim() || "";
+    if (schemaRev) {
+      const nixClawdbotRev = getNixClawdbotRevFromFlakeLock(repoRoot);
+      if (nixClawdbotRev) {
+        const pinned = await fetchNixClawdbotSourceInfo({ ref: nixClawdbotRev });
+        if (!pinned.ok) {
+          params.push({
+            scope: "repo",
+            status: "warn",
+            label: "clawdbot schema vs nix-clawdbot",
+            detail: `pinned nix-clawdbot rev=${nixClawdbotRev.slice(0, 12)}... (${pinned.error})`,
+          });
+        } else {
+          const matches = pinned.info.rev === schemaRev;
+          params.push({
+            scope: "repo",
+            status: matches ? "ok" : "warn",
+            label: "clawdbot schema vs nix-clawdbot",
+            detail: matches
+              ? `schema=v${schema.version} rev=${schemaRev.slice(0, 12)}...`
+              : `schema=v${schema.version} rev=${schemaRev.slice(0, 12)}... nix=${pinned.info.rev.slice(0, 12)}...`,
+          });
+        }
+      }
+
+      const upstream = await fetchNixClawdbotSourceInfo({ ref: "main" });
+      if (!upstream.ok) {
+        params.push({
+          scope: "repo",
+          status: "warn",
+          label: "clawdbot schema vs upstream",
+          detail: `unable to fetch (main): ${upstream.error}`,
+        });
+      } else {
+        const matches = upstream.info.rev === schemaRev;
+        params.push({
+          scope: "repo",
+          status: matches ? "ok" : "warn",
+          label: "clawdbot schema vs upstream",
+          detail: matches
+            ? `schema=v${schema.version} rev=${schemaRev.slice(0, 12)}...`
+            : `schema=v${schema.version} rev=${schemaRev.slice(0, 12)}... upstream=${upstream.info.rev.slice(0, 12)}...`,
+        });
+      }
     }
   }
 

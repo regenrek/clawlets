@@ -40,6 +40,8 @@ export const setBotClawdbotConfig = createServerFn({ method: "POST" })
       projectId: d["projectId"] as Id<"projects">,
       botId: String(d["botId"] || ""),
       clawdbot: d["clawdbot"] as unknown,
+      schemaMode: String(d["schemaMode"] || "pinned"),
+      host: String(d["host"] || ""),
     }
   })
   .handler(async ({ data }) => {
@@ -59,14 +61,37 @@ export const setBotClawdbotConfig = createServerFn({ method: "POST" })
     if (!existingBot || typeof existingBot !== "object") throw new Error("bot not found")
 
     existingBot.clawdbot = data.clawdbot
-    const schemaValidation = validateClawdbotConfig(existingBot.clawdbot)
+
+    const schemaMode = data.schemaMode === "live" ? "live" : "pinned"
+    let schema: Record<string, unknown> | undefined = undefined
+    if (schemaMode === "live") {
+      try {
+        const { fetchClawdbotSchemaLive } = await import("~/server/clawdbot-schema.server")
+        const live = await fetchClawdbotSchemaLive({
+          projectId: data.projectId,
+          host: data.host,
+          botId,
+        })
+        if (!live.ok) {
+          return { ok: false as const, issues: [{ code: "schema", path: [], message: live.message }] satisfies ValidationIssue[] }
+        }
+        schema = live.schema.schema as Record<string, unknown>
+      } catch (err) {
+        return {
+          ok: false as const,
+          issues: [{ code: "schema", path: [], message: err instanceof Error ? err.message : String(err) }] satisfies ValidationIssue[],
+        }
+      }
+    }
+
+    const schemaValidation = validateClawdbotConfig(existingBot.clawdbot, schema)
     if (!schemaValidation.ok) {
       return {
         ok: false as const,
-        issues: schemaValidation.errors.map((message) => ({
+        issues: schemaValidation.issues.map((issue) => ({
           code: "schema",
-          path: [],
-          message,
+          path: issue.path,
+          message: issue.message,
         })),
       }
     }
