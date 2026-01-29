@@ -84,6 +84,7 @@ describe("git push flow", () => {
       env?: Record<string, string>;
       maxCaptureBytes?: number;
       allowNonZeroExit?: boolean;
+      envAllowlist?: string[];
     };
     expect(call?.args).toEqual(["push"]);
     expect(call?.env?.GIT_TERMINAL_PROMPT).toBe("0");

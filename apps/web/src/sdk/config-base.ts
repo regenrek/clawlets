@@ -11,7 +11,7 @@ import { createConvexClient } from "~/server/convex"
 import { readClawdletsEnvTokens } from "~/server/redaction"
 import { findBotClawdbotChanges } from "~/sdk/config-helpers"
 import { getAdminProjectContext } from "~/sdk/repo-root"
-import { mapValidationIssues, runWithEventsAndStatus } from "~/sdk/run-with-events"
+import { mapValidationIssues, runWithEventsAndStatus, type ValidationIssue } from "~/sdk/run-with-events"
 
 export const getClawdletsConfig = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => {
@@ -77,7 +77,9 @@ export const writeClawdletsConfigFile = createServerFn({ method: "POST" })
       title: data.title,
     })
 
-    return await runWithEventsAndStatus({
+    type WriteConfigResult = { ok: true; runId: typeof runId } | { ok: false; issues: ValidationIssue[] }
+
+    return await runWithEventsAndStatus<WriteConfigResult>({
       client,
       runId,
       redactTokens,

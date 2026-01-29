@@ -7,7 +7,7 @@ describe("clawdbot live schema cache", () => {
     vi.doMock("node:crypto", () => ({
       randomBytes: () => Buffer.from("nonce12", "utf8"),
     }))
-    const sshCapture = vi.fn(async () =>
+    const sshCapture = vi.fn(async (_target: string, _cmd: string, _opts?: unknown) =>
       [
         "__CLAWDBOT_SCHEMA_BEGIN__6e6f6e63653132__",
         "{\"schema\":{\"type\":\"object\"},\"uiHints\":{},\"version\":\"1.0.0\",\"generatedAt\":\"x\",\"clawdbotRev\":\"rev\"}",
@@ -15,7 +15,7 @@ describe("clawdbot live schema cache", () => {
       ].join("\n"),
     )
     const query = vi.fn(async () => ({ project: { localPath: "/tmp" }, role: "admin" }))
-    const mutation = vi.fn(async () => null)
+    const mutation = vi.fn(async (_mutation?: unknown, _payload?: unknown) => null)
     vi.doMock("~/server/convex", () => ({
       createConvexClient: () => ({ query, mutation }) as any,
     }))
@@ -64,7 +64,7 @@ describe("clawdbot live schema cache", () => {
     const gate = new Promise<void>((resolve) => {
       resolveGate = resolve
     })
-    const sshCapture = vi.fn(async () => {
+    const sshCapture = vi.fn(async (_target: string, _cmd: string, _opts?: unknown) => {
       await gate
       return [
         "__CLAWDBOT_SCHEMA_BEGIN__6e6f6e63653334__",
@@ -73,7 +73,7 @@ describe("clawdbot live schema cache", () => {
       ].join("\n")
     })
     const query = vi.fn(async () => ({ project: { localPath: "/tmp" }, role: "admin" }))
-    const mutation = vi.fn(async () => null)
+    const mutation = vi.fn(async (_mutation?: unknown, _payload?: unknown) => null)
     vi.doMock("~/server/convex", () => ({
       createConvexClient: () => ({ query, mutation }) as any,
     }))
@@ -114,7 +114,7 @@ describe("clawdbot live schema cache", () => {
     vi.doMock("node:crypto", () => ({
       randomBytes: () => Buffer.from("nonce66", "utf8"),
     }))
-    const sshCapture = vi.fn(async () => {
+    const sshCapture = vi.fn(async (_target: string, _cmd: string, _opts?: unknown) => {
       await new Promise((resolve) => setTimeout(resolve, 5_000))
       return [
         "__CLAWDBOT_SCHEMA_BEGIN__6e6f6e63653636__",
@@ -123,7 +123,7 @@ describe("clawdbot live schema cache", () => {
       ].join("\n")
     })
     const query = vi.fn(async () => ({ project: { localPath: "/tmp" }, role: "admin" }))
-    const mutation = vi.fn(async () => null)
+    const mutation = vi.fn(async (_mutation?: unknown, _payload?: unknown) => null)
     vi.doMock("~/server/convex", () => ({
       createConvexClient: () => ({ query, mutation }) as any,
     }))
@@ -162,7 +162,7 @@ describe("clawdbot live schema cache", () => {
     vi.doMock("node:crypto", () => ({
       randomBytes: () => Buffer.from("nonce55", "utf8"),
     }))
-    const sshCapture = vi.fn(async () =>
+    const sshCapture = vi.fn(async (_target: string, _cmd: string, _opts?: unknown) =>
       [
         "__CLAWDBOT_SCHEMA_BEGIN__6e6f6e63653535__",
         "{\"schema\":{\"type\":\"object\"},\"uiHints\":{},\"version\":\"1.0.0\",\"generatedAt\":\"x\",\"clawdbotRev\":\"rev\"}",
@@ -173,7 +173,7 @@ describe("clawdbot live schema cache", () => {
       .fn()
       .mockResolvedValueOnce({ project: { localPath: "/tmp" }, role: "admin" })
       .mockResolvedValueOnce({ project: { localPath: "/tmp" }, role: "viewer" })
-    const mutation = vi.fn(async () => null)
+    const mutation = vi.fn(async (_mutation?: unknown, _payload?: unknown) => null)
     vi.doMock("~/server/convex", () => ({
       createConvexClient: () => ({ query, mutation }) as any,
     }))
@@ -209,9 +209,9 @@ describe("clawdbot live schema cache", () => {
   it("rejects non-admin before SSH", async () => {
     vi.useFakeTimers()
     vi.resetModules()
-    const sshCapture = vi.fn(async () => "")
+    const sshCapture = vi.fn(async (_target: string, _cmd: string, _opts?: unknown) => "")
     const query = vi.fn(async () => ({ project: { localPath: "/tmp" }, role: "viewer" }))
-    const mutation = vi.fn(async () => null)
+    const mutation = vi.fn(async (_mutation?: unknown, _payload?: unknown) => null)
     vi.doMock("~/server/convex", () => ({
       createConvexClient: () => ({ query, mutation }) as any,
     }))
@@ -235,9 +235,9 @@ describe("clawdbot live schema cache", () => {
     vi.doMock("node:crypto", () => ({
       randomBytes: () => Buffer.from("nonce99", "utf8"),
     }))
-    const sshCapture = vi.fn(async () => "")
+    const sshCapture = vi.fn(async (_target: string, _cmd: string, _opts?: unknown) => "")
     const query = vi.fn(async () => ({ project: { localPath: "/tmp" }, role: "admin" }))
-    const mutation = vi.fn(async () => {
+    const mutation = vi.fn(async (_mutation?: unknown, _payload?: unknown) => {
       const err: any = new Error("ConvexError")
       err.data = { code: "rate_limited", message: "too many requests" }
       throw err
@@ -278,11 +278,11 @@ describe("clawdbot live schema cache", () => {
     vi.doMock("node:crypto", () => ({
       randomBytes: () => Buffer.from("nonce00", "utf8"),
     }))
-    const sshCapture = vi.fn(async () => {
+    const sshCapture = vi.fn(async (_target: string, _cmd: string, _opts?: unknown) => {
       throw new Error("boom")
     })
     const query = vi.fn(async () => ({ project: { localPath: "/tmp" }, role: "admin" }))
-    const mutation = vi.fn(async () => null)
+    const mutation = vi.fn(async (_mutation?: unknown, _payload?: unknown) => null)
     vi.doMock("~/server/convex", () => ({
       createConvexClient: () => ({ query, mutation }) as any,
     }))

@@ -17,6 +17,8 @@ import { sanitizeErrorMessage } from "@clawdlets/core/lib/safe-error"
 
 export const LIVE_SCHEMA_ERROR_FALLBACK = "Unable to fetch schema. Check logs."
 
+type RunFailure = { ok: false; issues: ValidationIssue[] }
+
 export function sanitizeLiveSchemaError(err: unknown): string {
   return sanitizeErrorMessage(err, LIVE_SCHEMA_ERROR_FALLBACK)
 }
@@ -95,7 +97,9 @@ export const setBotClawdbotConfig = createServerFn({ method: "POST" })
       data: { runId },
     })
 
-    return await runWithEventsAndStatus({
+    type SetClawdbotResult = { ok: true; runId: typeof runId } | RunFailure
+
+    return await runWithEventsAndStatus<SetClawdbotResult>({
       client,
       runId,
       redactTokens,
@@ -186,7 +190,9 @@ export const applyBotChannelPreset = createServerFn({ method: "POST" })
       data: { preset, runId, warnings },
     })
 
-    return await runWithEventsAndStatus({
+    type ApplyPresetResult = { ok: true; runId: typeof runId; warnings: string[] } | RunFailure
+
+    return await runWithEventsAndStatus<ApplyPresetResult>({
       client,
       runId,
       redactTokens,
@@ -235,7 +241,14 @@ export const hardenBotClawdbotConfig = createServerFn({ method: "POST" })
       data: { runId, changes: hardened.changes, warnings: hardened.warnings },
     })
 
-    return await runWithEventsAndStatus({
+    type HardenResult = {
+      ok: true
+      runId: typeof runId
+      changes: typeof hardened.changes
+      warnings: typeof hardened.warnings
+    } | RunFailure
+
+    return await runWithEventsAndStatus<HardenResult>({
       client,
       runId,
       redactTokens,

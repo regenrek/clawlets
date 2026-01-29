@@ -50,7 +50,11 @@ export const migrateClawdletsConfigFileToV9 = createServerFn({ method: "POST" })
       title: "Migrate fleet/clawdlets.json to schemaVersion 9",
     })
 
-    return await runWithEventsAndStatus({
+    type MigrateRunResult =
+      | { ok: true; changed: true; warnings: string[]; runId: typeof runId }
+      | { ok: false; issues: ValidationIssue[]; runId: typeof runId }
+
+    return await runWithEventsAndStatus<MigrateRunResult>({
       client,
       runId,
       redactTokens,
