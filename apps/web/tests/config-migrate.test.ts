@@ -54,6 +54,7 @@ describe("config migrate", () => {
     )
 
     expect(res.ok).toBe(true)
+    if (!res.ok) throw new Error("expected ok")
     expect(res.changed).toBe(true)
 
     const statusCalls = mutation.mock.calls
