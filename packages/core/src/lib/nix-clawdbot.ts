@@ -63,7 +63,7 @@ export function getNixClawdbotRevFromFlakeLock(repoRoot: string): string | null 
 const SAFE_REF_RE = /^[A-Za-z0-9._/-]{1,128}$/;
 
 function buildSourceUrl(ref: string): string {
-  return `https://raw.githubusercontent.com/clawdbot/nix-clawdbot/${ref}/nix/sources/clawdbot-source.nix`;
+  return `https://raw.githubusercontent.com/clawdbot/nix-clawdbot/${ref}/nix/sources/moltbot-source.nix`;
 }
 
 export async function fetchNixClawdbotSourceInfo(params: {
@@ -91,7 +91,7 @@ export async function fetchNixClawdbotSourceInfo(params: {
     }
     const raw = await res.text();
     const parsed = parseNixClawdbotSource(raw);
-    if (!parsed) return { ok: false, error: "unable to parse clawdbot-source.nix", sourceUrl };
+    if (!parsed) return { ok: false, error: "unable to parse moltbot-source.nix", sourceUrl };
     return { ok: true, info: parsed, sourceUrl };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

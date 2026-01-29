@@ -17,7 +17,7 @@
     nix-clawdbot.inputs.nixpkgs.follows = "nixpkgs";
 
     clawdbot-src = {
-      url = "github:clawdbot/clawdbot";
+      url = "github:moltbot/moltbot";
       flake = false;
     };
 
@@ -28,7 +28,7 @@
       system = "x86_64-linux";
       pkgs = import nixpkgs { inherit system; };
       dev = import ./devenv.nix { inherit pkgs; };
-      clawdbotSourceInfo = import "${nix-clawdbot}/nix/sources/clawdbot-source.nix";
+      clawdbotSourceInfo = import "${nix-clawdbot}/nix/sources/moltbot-source.nix";
     in {
       devShells.${system}.default = pkgs.mkShell {
         packages = dev.packages or [ ];
