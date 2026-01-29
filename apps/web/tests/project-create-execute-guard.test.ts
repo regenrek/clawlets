@@ -19,7 +19,7 @@ async function loadProjects(
   const runWithEvents = vi.fn(async ({ fn }: { fn: (emit: (e: any) => Promise<void>) => Promise<void> }) => {
     await fn(async () => {})
   })
-  const mutation = vi.fn(async (_mutation: unknown, payload?: { kind?: string }) => {
+  const mutation = vi.fn(async (_mutation: unknown, payload?: { kind?: string; status?: string; errorMessage?: string }) => {
     if (payload?.kind) return { runId: "run1" }
     return null
   })

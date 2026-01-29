@@ -47,7 +47,7 @@ async function loadGitServer(options: {
       stderr: options.spawnResult?.stderr ?? "",
     };
   });
-  const mutation = vi.fn(async (_mutation: unknown, payload?: { kind?: string }) => {
+  const mutation = vi.fn(async (_mutation: unknown, payload?: { kind?: string; status?: string; errorMessage?: string }) => {
     if (payload?.kind) return { runId: "run1" };
     return null;
   });
@@ -79,7 +79,12 @@ describe("git push flow", () => {
     expect(res.ok).toBe(true);
     expect(res.runId).toBe("run1");
 
-    const call = spawnCommandCapture.mock.calls[0]?.[0];
+    const call = (spawnCommandCapture as any).mock.calls[0]?.[0] as {
+      args?: string[];
+      env?: Record<string, string>;
+      maxCaptureBytes?: number;
+      allowNonZeroExit?: boolean;
+    };
     expect(call?.args).toEqual(["push"]);
     expect(call?.env?.GIT_TERMINAL_PROMPT).toBe("0");
     expect(call?.env?.GIT_ASKPASS).toBe("/bin/false");
@@ -106,7 +111,7 @@ describe("git push flow", () => {
     const res = await mod.executeGitPush({ projectId: "p1" as any });
     expect(res.ok).toBe(true);
 
-    const call = spawnCommandCapture.mock.calls[0]?.[0];
+    const call = (spawnCommandCapture as any).mock.calls[0]?.[0] as { args?: string[] };
     expect(call?.args).toEqual(["push", "--set-upstream", "origin", "main"]);
   });
 

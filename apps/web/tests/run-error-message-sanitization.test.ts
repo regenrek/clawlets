@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest"
 describe("run error message sanitization", () => {
   it("stores fallback message for unsafe errors", async () => {
     vi.resetModules()
-    const mutation = vi.fn(async () => null)
+    const mutation = vi.fn(async (_mutation: unknown, _payload?: { status?: string; errorMessage?: string }) => null)
     vi.doMock("~/server/run-manager", () => ({
       runWithEvents: async () => {
         throw new Error("permission denied: /etc/hosts")
@@ -12,13 +12,14 @@ describe("run error message sanitization", () => {
 
     const { runWithEventsAndStatus } = await import("~/sdk/run-with-events")
 
-    const res = await runWithEventsAndStatus({
+    type Result = { ok: true } | { ok: false; message: string }
+    const res = await runWithEventsAndStatus<Result>({
       client: { mutation } as any,
       runId: "run1" as any,
       redactTokens: [],
       fn: async () => {},
-      onSuccess: () => ({ ok: true as const }),
-      onError: (message) => ({ ok: false as const, message }),
+      onSuccess: () => ({ ok: true }),
+      onError: (message) => ({ ok: false, message }),
     })
 
     expect(res.ok).toBe(false)
