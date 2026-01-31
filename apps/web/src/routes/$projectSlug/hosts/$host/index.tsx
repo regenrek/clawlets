@@ -100,6 +100,14 @@ function HostOverview() {
                 size="sm"
                 variant="outline"
                 nativeButton={false}
+                render={<Link to="/$projectSlug/hosts/$host/updates" params={{ projectSlug, host }} />}
+              >
+                Updates
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                nativeButton={false}
                 render={<Link to="/$projectSlug/hosts/$host/logs" params={{ projectSlug, host }} />}
               >
                 Logs

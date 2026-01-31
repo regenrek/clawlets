@@ -6,6 +6,7 @@ import { requireTargetHost, needsSudo } from "./server/common.js";
 import { serverGithubSync } from "./server/github-sync.js";
 import { serverChannels } from "./server/channels.js";
 import { serverDeploy } from "./server/deploy.js";
+import { serverUpdate } from "./server/update.js";
 import { loadHostContextOrExit } from "@clawdlets/core/lib/context";
 
 function normalizeSince(value: string): string {
@@ -346,7 +347,7 @@ const serverRestart = defineCommand({
 export const server = defineCommand({
   meta: {
     name: "server",
-    description: "Server operations via SSH (deploy/logs/status).",
+    description: "Server operations via SSH (deploy/logs/status/update).",
   },
   subCommands: {
     audit: serverAudit,
@@ -356,5 +357,6 @@ export const server = defineCommand({
     logs: serverLogs,
     "github-sync": serverGithubSync,
     restart: serverRestart,
+    update: serverUpdate,
   },
 });
