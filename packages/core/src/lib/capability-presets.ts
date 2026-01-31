@@ -194,8 +194,19 @@ export function applyCapabilityPreset(params: {
   preset: CapabilityPreset;
 }): CapabilityPresetApplyResult {
   const base = isPlainObject(params.clawdbot) ? params.clawdbot : {};
-  const patched = applyMergePatch(structuredClone(base), params.preset.patch) as Record<string, unknown>;
   const envVarRefs = params.preset.envVarRefs ?? [];
+  for (const ref of envVarRefs) {
+    const current = getAtPath(base, ref.path);
+    const refValue = `\${${ref.envVar}}`;
+    if (current === undefined || current === null || current === "") continue;
+    if (typeof current !== "string") {
+      throw new Error(`${ref.path} must be a string env ref like ${refValue}`);
+    }
+    if (current !== refValue) {
+      throw new Error(`${ref.path} already set; remove inline value and use ${refValue}`);
+    }
+  }
+  const patched = applyMergePatch(structuredClone(base), params.preset.patch) as Record<string, unknown>;
   for (const ref of envVarRefs) ensureEnvRef(patched, ref);
   const hardened = applySecurityDefaults({ clawdbot: patched });
   return {

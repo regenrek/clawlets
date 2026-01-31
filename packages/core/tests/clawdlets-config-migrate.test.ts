@@ -75,7 +75,7 @@ describe("clawdlets config migrate", () => {
     const { migrateClawdletsConfigToV10 } = await import("../src/lib/clawdlets-config-migrate");
 
     const raw = {
-      schemaVersion: 10,
+      schemaVersion: 9,
       fleet: {
         secretEnv: {},
         secretFiles: {},
