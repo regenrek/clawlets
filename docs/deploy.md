@@ -41,7 +41,11 @@ Manifest format (schemaVersion 1):
   "issuedAt": "2026-01-01T00:00:00.000Z",
   "rev": "<40-hex-sha>",
   "toplevel": "/nix/store/<hash>-nixos-system-<host>-<version>",
-  "secrets": { "digest": "<sha256>" }
+  "secrets": {
+    "digest": "<sha256>",
+    "format": "sops-tar",
+    "url": "secrets/<digest>.tgz"
+  }
 }
 ```
 
@@ -50,6 +54,7 @@ Manifest format (schemaVersion 1):
 Recommended: use the built-in workflow shipped by the project template (in your project repo):
 
 - `.github/workflows/updates-publish.yml` writes `deploy/<host>/<channel>/<releaseId>.json`, signs it, and publishes to GitHub Pages (including `latest.json` pointer).
+- It also publishes an encrypted secrets bundle at `deploy/<host>/<channel>/secrets/<digest>.tgz` and pins it in the manifest (`secrets.url`).
 
 Optional: add a push-deploy workflow that joins the tailnet and runs `clawdlets server deploy --manifest ...` (signature verified).
 
@@ -92,6 +97,13 @@ clawdlets.selfUpdate.baseUrl = "https://<pages>/deploy/<host>/prod";
 clawdlets.selfUpdate.channel = "prod";
 clawdlets.selfUpdate.publicKeys = [ "<minisign-pubkey>" ];
 ```
+
+Secrets behavior:
+
+- `secrets.digest` is the sha256 of the published secrets bundle bytes (the bundle contains **sops-encrypted** `.yaml` files).
+- If `secrets.url` is set and installed secrets don't match `secrets.digest`, the updater downloads the bundle, verifies sha256, installs it, then proceeds.
+- `secrets.url` may be an absolute `https://...` URL or a relative path (resolved against `selfUpdate.baseUrl`).
+- Secrets are never placed in the Nix store (downloaded to `/var/lib/clawdlets/updates/`, installed into `/var/lib/clawdlets/secrets/hosts/<host>`).
 
 Signature workflow:
 

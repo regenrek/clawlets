@@ -275,12 +275,13 @@ Rules of thumb:
 | **Secrets** | `secrets/.sops.yaml` | SOPS encryption rules |
 | | `secrets/hosts/<host>/*.yaml` | Encrypted secrets per host |
 | | `.clawdlets/extra-files/` | nixos-anywhere injection payload |
-| **Workflows** | `updates-publish.yml` | Builds and signs release manifests |
+| **Workflows** | `updates-publish.yml` | Builds and signs release manifests + publishes secrets bundles |
 | | `deploy.yml` | Deploys manifests to hosts via Tailnet |
 | | `bump-nix-clawdbot.yml` | Auto-updates nix-clawdbot dependency |
 | | `cattle-image.yml` | Builds and uploads cattle VM image |
 | **Manifests** | `deploy/<host>/<channel>/<releaseId>.json` | Pinned desired-state manifest |
 | | `deploy/<host>/<channel>/latest.json` | Pointer on GitHub Pages |
+| | `deploy/<host>/<channel>/secrets/<digest>.tgz` | Encrypted secrets bundle (sops `.yaml`) |
 | | `cattle-image.json` | Cattle image ID artifact |
 | **Playbooks** | `AGENT-BOOTSTRAP-SERVER.md` | Interactive day0 bootstrap guide |
 | | `AGENT-BOOTSTRAP-SERVER-AUTO.md` | Non-interactive day0 bootstrap |
