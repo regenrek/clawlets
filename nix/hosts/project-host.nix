@@ -164,8 +164,27 @@ in {
     Cmnd_Alias CLAWDBOT_SS = /run/current-system/sw/bin/ss -ltnp
     Cmnd_Alias CLAWDBOT_GH_SYNC_READ = /etc/clawdlets/bin/gh-sync-read *
     Cmnd_Alias CLAWDBOT_CHANNELS = /etc/clawdlets/bin/clawdbot-channels *
+    Cmnd_Alias CLAWDLETS_UPDATE_STATUS = /etc/clawdlets/bin/update-status
+    Cmnd_Alias CLAWDLETS_UPDATE_SYSTEMCTL = \
+      /run/current-system/sw/bin/systemctl is-active clawdlets-update-*, \
+      /run/current-system/sw/bin/systemctl is-active clawdlets-update-*.service, \
+      /run/current-system/sw/bin/systemctl show clawdlets-update-*, \
+      /run/current-system/sw/bin/systemctl show clawdlets-update-*.service, \
+      /run/current-system/sw/bin/systemctl status clawdlets-update-*, \
+      /run/current-system/sw/bin/systemctl status clawdlets-update-* --no-pager, \
+      /run/current-system/sw/bin/systemctl status clawdlets-update-*.service, \
+      /run/current-system/sw/bin/systemctl status clawdlets-update-*.service --no-pager, \
+      /run/current-system/sw/bin/systemctl list-timers clawdlets-update-*, \
+      /run/current-system/sw/bin/systemctl list-timers clawdlets-update-* --all, \
+      /run/current-system/sw/bin/systemctl list-timers clawdlets-update-* --all --no-pager
+    Cmnd_Alias CLAWDLETS_UPDATE_JOURNAL = \
+      /run/current-system/sw/bin/journalctl -u clawdlets-update-* --no-pager, \
+      /run/current-system/sw/bin/journalctl -u clawdlets-update-* -n * --no-pager, \
+      /run/current-system/sw/bin/journalctl -u clawdlets-update-* -n * -f --no-pager, \
+      /run/current-system/sw/bin/journalctl -u clawdlets-update-* -n * --since * --no-pager, \
+      /run/current-system/sw/bin/journalctl -u clawdlets-update-* -n * --since * -f --no-pager
     ${deploySudo}
-    admin ALL=(root) NOPASSWD: CLAWDBOT_SYSTEMCTL, CLAWDBOT_JOURNAL, CLAWDBOT_SS, CLAWDBOT_GH_SYNC_READ, CLAWDBOT_CHANNELS${deployAlias}
+    admin ALL=(root) NOPASSWD: CLAWDBOT_SYSTEMCTL, CLAWDBOT_JOURNAL, CLAWDBOT_SS, CLAWDBOT_GH_SYNC_READ, CLAWDBOT_CHANNELS, CLAWDLETS_UPDATE_STATUS, CLAWDLETS_UPDATE_SYSTEMCTL, CLAWDLETS_UPDATE_JOURNAL${deployAlias}
   '';
 
   services.clawdbotFleet = {
