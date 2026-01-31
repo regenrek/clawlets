@@ -6,7 +6,6 @@ import { requireTargetHost, needsSudo } from "./server/common.js";
 import { serverGithubSync } from "./server/github-sync.js";
 import { serverChannels } from "./server/channels.js";
 import { serverDeploy } from "./server/deploy.js";
-import { serverManifest } from "./server/manifest.js";
 import { loadHostContextOrExit } from "@clawdlets/core/lib/context";
 
 function normalizeSince(value: string): string {
@@ -353,7 +352,6 @@ export const server = defineCommand({
     audit: serverAudit,
     channels: serverChannels,
     deploy: serverDeploy,
-    manifest: serverManifest,
     status: serverStatus,
     logs: serverLogs,
     "github-sync": serverGithubSync,

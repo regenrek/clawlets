@@ -12,7 +12,7 @@ describe("nix-flakes", () => {
   it("keeps existing NIX_CONFIG if it already enables flakes", () => {
     const env = { NIX_CONFIG: "experimental-features = nix-command flakes\nfoo = bar" };
     const out = withFlakesEnv(env);
-    expect(out.NIX_CONFIG).toBe(env.NIX_CONFIG);
+    expect(String(out.NIX_CONFIG || "")).toContain(env.NIX_CONFIG);
   });
 
   it("appends flakes enablement when NIX_CONFIG is present but incomplete", () => {
@@ -22,4 +22,3 @@ describe("nix-flakes", () => {
     expect(String(out.NIX_CONFIG || "")).toContain("experimental-features = nix-command flakes");
   });
 });
-

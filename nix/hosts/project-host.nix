@@ -39,12 +39,14 @@ in {
   clawdlets.cache.garnix.private.narinfoCachePositiveTtl = (garnixPrivate.narinfoCachePositiveTtl or 3600);
 
   clawdlets.selfUpdate.enable = (selfUpdate.enable or false);
-  clawdlets.selfUpdate.manifestUrl = (selfUpdate.manifestUrl or "");
   clawdlets.selfUpdate.interval = (selfUpdate.interval or "30min");
-  clawdlets.selfUpdate.publicKey =
-    let v = (selfUpdate.publicKey or ""); in if v != "" then v else null;
-  clawdlets.selfUpdate.signatureUrl =
-    let v = (selfUpdate.signatureUrl or ""); in if v != "" then v else null;
+  clawdlets.selfUpdate.baseUrl = (selfUpdate.baseUrl or "");
+  clawdlets.selfUpdate.channel = (selfUpdate.channel or "prod");
+  clawdlets.selfUpdate.publicKeys = (selfUpdate.publicKeys or [ ]);
+  clawdlets.selfUpdate.allowUnsigned = (selfUpdate.allowUnsigned or false);
+  clawdlets.selfUpdate.allowRollback = (selfUpdate.allowRollback or false);
+  clawdlets.selfUpdate.healthCheckUnit =
+    let v = (selfUpdate.healthCheckUnit or ""); in if v != "" then v else null;
 
   # Set these in your own repo (or via a host-specific module).
   # Defaults are provided for Hetzner, but hostName must be set.
@@ -118,8 +120,8 @@ in {
           Cmnd_Alias CLAWDLETS_DEPLOY = \
             /etc/clawdlets/bin/install-secrets --host * --tar * --rev *, \
             /etc/clawdlets/bin/install-secrets --host * --tar * --rev * --digest *, \
-            /etc/clawdlets/bin/switch-system --toplevel * --rev *, \
-            /etc/clawdlets/bin/switch-system --toplevel * --rev * --dry-run
+            /etc/clawdlets/bin/update-ingest --manifest * --signature *, \
+            /run/current-system/sw/bin/systemctl start clawdlets-update-apply.service
         '';
       deployAlias =
         if config.clawdlets.operator.deploy.enable
