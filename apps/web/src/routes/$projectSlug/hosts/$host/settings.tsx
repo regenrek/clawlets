@@ -411,14 +411,15 @@ function HostsSetup() {
               Add it in the fleet config or go back to hosts.
             </div>
           </div>
-          <Button asChild variant="secondary">
-            <Link to="/$projectSlug/hosts" params={{ projectSlug }}>
-              Back to hosts
-            </Link>
+          <Button
+            variant="secondary"
+            nativeButton={false}
+            render={<Link to="/$projectSlug/hosts" params={{ projectSlug }} />}
+          >
+            Back to hosts
           </Button>
         </div>
       )}
     </div>
   )
 }
-

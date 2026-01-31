@@ -218,7 +218,7 @@ function SecuritySshKeys() {
                   <div className="text-sm text-muted-foreground">None</div>
                 ) : (
                   <div className="space-y-2">
-                    {fleetSshKeys.authorized.map((k) => (
+                    {fleetSshKeys.authorized.map((k: string) => (
                       <div key={k} className="flex items-center justify-between gap-2">
                         <code className="text-xs break-all">{k}</code>
                         <Button
@@ -243,7 +243,7 @@ function SecuritySshKeys() {
                   <div className="text-sm text-muted-foreground">None</div>
                 ) : (
                   <div className="space-y-2">
-                    {fleetSshKeys.knownHosts.map((entry) => (
+                    {fleetSshKeys.knownHosts.map((entry: string) => (
                       <div key={entry} className="flex items-center justify-between gap-2">
                         <code className="text-xs break-all">{entry}</code>
                         <Button
@@ -266,4 +266,3 @@ function SecuritySshKeys() {
     </div>
   )
 }
-

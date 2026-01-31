@@ -1,6 +1,6 @@
 "use client"
 
-import { createFileRoute, Outlet, redirect, useNavigate, useRouterState } from "@tanstack/react-router"
+import { createFileRoute, Outlet, useNavigate, useRouterState } from "@tanstack/react-router"
 import { Tabs, TabsList, TabsTrigger } from "~/components/ui/tabs"
 import { projectsListQueryOptions } from "~/lib/query-options"
 
@@ -15,14 +15,6 @@ function resolveTab(pathname: string): TabKey {
 export const Route = createFileRoute("/$projectSlug/security")({
   loader: async ({ context }) => {
     await context.queryClient.ensureQueryData(projectsListQueryOptions())
-  },
-  beforeLoad: ({ location, params }) => {
-    if (location.pathname.endsWith(`/${params.projectSlug}/security`)) {
-      throw redirect({
-        to: "/$projectSlug/security/api-keys",
-        params: { projectSlug: params.projectSlug },
-      })
-    }
   },
   component: ProjectSecurityLayout,
 })
@@ -61,4 +53,3 @@ function ProjectSecurityLayout() {
     </div>
   )
 }
-

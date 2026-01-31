@@ -142,6 +142,7 @@ export function ProjectDashboard(props: {
   const defaultHostBase = defaultHostName
     ? `/${props.projectSlug}/hosts/${encodeURIComponent(defaultHostName)}`
     : `/${props.projectSlug}/hosts`
+  const canLinkToDefaultHost = Boolean(defaultHostName && props.projectSlug)
 
   return (
     <div className="space-y-6">
@@ -259,30 +260,28 @@ export function ProjectDashboard(props: {
             <Button
               size="sm"
               variant="outline"
-              disabled={!project.localPath}
-              onClick={() => {
-                void router.navigate({ to: "/$projectSlug/operations", params: { projectSlug: props.projectSlug } })
-              }}
-            >
-              Operations
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={!project.localPath}
-              onClick={() => {
-                void router.navigate({ to: "/$projectSlug/logs", params: { projectSlug: props.projectSlug } })
-              }}
+              nativeButton={false}
+              disabled={!canLinkToDefaultHost}
+              render={
+                <Link
+                  to="/$projectSlug/hosts/$host/logs"
+                  params={{ projectSlug: props.projectSlug, host: defaultHostName }}
+                />
+              }
             >
               Logs
             </Button>
             <Button
               size="sm"
               variant="outline"
-              disabled={!project.localPath}
-              onClick={() => {
-                void router.navigate({ to: "/$projectSlug/audit", params: { projectSlug: props.projectSlug } })
-              }}
+              nativeButton={false}
+              disabled={!canLinkToDefaultHost}
+              render={
+                <Link
+                  to="/$projectSlug/hosts/$host/audit"
+                  params={{ projectSlug: props.projectSlug, host: defaultHostName }}
+                />
+              }
             >
               Audit
             </Button>
@@ -293,9 +292,7 @@ export function ProjectDashboard(props: {
       <RecentRunsTable
         runs={runs}
         projectSlug={props.projectSlug}
-        showProject={false}
       />
     </div>
   )
 }
-
