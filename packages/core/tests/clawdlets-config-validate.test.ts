@@ -44,7 +44,7 @@ describe("clawdlets config validate", () => {
         bots: {
           maren: {
             clawdbot: {
-              channels: { discord: { enabled: true } },
+              channels: { discord: { enabled: true, groupPolicy: "allowlist" } },
             },
           },
         },
