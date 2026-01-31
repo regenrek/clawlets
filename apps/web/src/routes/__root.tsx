@@ -27,6 +27,7 @@ import { useConvexAuth } from "convex/react"
 import { getAuthBootstrap } from "~/sdk/auth"
 import { authClient } from "~/lib/auth-client"
 import { parseProjectSlug } from "~/lib/project-routing"
+import { isAuthError } from "~/lib/auth-utils"
 
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient
@@ -114,7 +115,6 @@ function RootComponent() {
   const router = useRouter()
   const convexQueryClient = router.options.context.convexQueryClient
   const pathname = useRouterState({ select: (s) => s.location.pathname })
-  const isAuthRoute = pathname === "/sign-in" || pathname.startsWith("/api/auth/")
   const showShell = pathname !== "/sign-in"
   const projectSlug = parseProjectSlug(pathname)
   const showSidebar = Boolean(projectSlug)
@@ -134,6 +134,7 @@ function RootComponent() {
         authClient={authClient}
         initialToken={token}
       >
+        <AuthErrorWatcher />
         <RequireSignIn />
         <EnsureAuthedUser />
         <AuthGate app={app} />
@@ -145,7 +146,7 @@ function RootComponent() {
 function RootDocument({ children }: { children: React.ReactNode }) {
   const initial = Route.useLoaderData() as Theme
   return (
-    <html lang="en" className={initial === "system" ? "" : initial}>
+    <html lang="en" className={initial === "system" ? "" : initial} suppressHydrationWarning>
       <head>
         <ThemeInitScript />
         <HeadContent />
@@ -165,7 +166,7 @@ function EnsureAuthedUser() {
   const ensureCurrent = useConvexMutation(api.users.ensureCurrent)
   const { isAuthenticated, isLoading } = useConvexAuth()
   const { data: session, isPending } = authClient.useSession()
-  const hasSession = Boolean(session?.session?.id)
+  const hasSession = Boolean(session?.user?.id)
 
   React.useEffect(() => {
     if (isPending || isLoading || !isAuthenticated || !hasSession) return
@@ -179,14 +180,14 @@ function RequireSignIn() {
   const router = useRouter()
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const { data: session, isPending } = authClient.useSession()
-  const { isAuthenticated, isLoading } = useConvexAuth()
+  const { isLoading } = useConvexAuth()
 
   React.useEffect(() => {
     if (isPending || isLoading) return
     if (pathname === "/sign-in" || pathname.startsWith("/api/auth/")) return
-    if (isAuthenticated || session?.session?.id) return
+    if (session?.user?.id) return
     void router.navigate({ to: "/sign-in" })
-  }, [isAuthenticated, isLoading, isPending, pathname, router, session?.session?.id])
+  }, [isLoading, isPending, pathname, router, session?.user?.id])
 
   return null
 }
@@ -194,9 +195,9 @@ function RequireSignIn() {
 function AuthGate({ app }: { app: React.ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const { data: session, isPending } = authClient.useSession()
-  const { isAuthenticated, isLoading } = useConvexAuth()
+  const { isLoading } = useConvexAuth()
   const isAuthRoute = pathname === "/sign-in" || pathname.startsWith("/api/auth/")
-  const hasSession = Boolean(session?.session?.id)
+  const hasSession = Boolean(session?.user?.id)
 
   if (isAuthRoute) return <>{app}</>
   if (isPending || isLoading) {
@@ -206,7 +207,7 @@ function AuthGate({ app }: { app: React.ReactNode }) {
       </div>
     )
   }
-  if (!isAuthenticated || !hasSession) {
+  if (!hasSession) {
     return (
       <div className="min-h-[50vh] flex items-center justify-center text-muted-foreground">
         Redirecting to sign-in…
@@ -215,4 +216,35 @@ function AuthGate({ app }: { app: React.ReactNode }) {
   }
 
   return <>{app}</>
+}
+
+function AuthErrorWatcher() {
+  const router = useRouter()
+  const pathname = useRouterState({ select: (s) => s.location.pathname })
+  const queryClient = router.options.context.queryClient
+  const redirectingRef = React.useRef(false)
+
+  React.useEffect(() => {
+    return queryClient.getQueryCache().subscribe((event) => {
+      if (event?.type !== "updated") return
+      const error = event.query?.state?.error
+      if (!isAuthError(error)) return
+      if (pathname === "/sign-in" || pathname.startsWith("/api/auth/")) return
+      if (redirectingRef.current) return
+      redirectingRef.current = true
+      void (async () => {
+        try {
+          await authClient.signOut()
+          await router.invalidate()
+        } catch {
+          // ignore sign-out failures, still redirect
+        } finally {
+          await router.navigate({ to: "/sign-in" })
+          redirectingRef.current = false
+        }
+      })()
+    })
+  }, [pathname, queryClient, router])
+
+  return null
 }

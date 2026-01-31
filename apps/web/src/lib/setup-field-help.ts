@@ -15,9 +15,9 @@ export const setupFieldHelp = {
     hetznerImage: "Optional Hetzner image override (usually leave empty when using nixos-anywhere).",
     flakeHost: "Override the Nix flake host target (advanced; usually leave empty).",
     agentModelPrimary: "Default model identifier used by agents on this host (provider/model).",
-    sshKeyPaste: "Paste one or more public keys to append to `sshAuthorizedKeys` for this host.",
-    sshKeyFile: "Read a local `.pub` file and append it to `sshAuthorizedKeys`.",
-    knownHostsFile: "Optionally import entries from your local `known_hosts` for safer SSH pinning.",
+    sshKeyPaste: "Paste one or more public keys to append to `fleet.sshAuthorizedKeys` (shared across all hosts).",
+    sshKeyFile: "Read a local `.pub` file and append it to `fleet.sshAuthorizedKeys`.",
+    knownHostsFile: "Optionally import entries from your local `known_hosts` into `fleet.sshKnownHosts`.",
   },
   fleet: {
     codexEnable: "Enables Codex integration in the fleet config.",

@@ -124,7 +124,7 @@ function HostsSetup() {
       if (!config || !hostCfg) throw new Error("missing host")
       const sshPubkeyFileTrimmed = sshPubkeyFile.trim()
       if (looksLikeSshPrivateKeyText(sshPubkeyFileTrimmed) || looksLikeSshPublicKeyText(sshPubkeyFileTrimmed)) {
-        throw new Error("SSH pubkey file must be a local file path (not key contents). Use the SSH Keys section to paste keys.")
+        throw new Error("SSH pubkey file must be a local file path (not key contents). Use Security → SSH Keys to paste keys.")
       }
       const next = {
         ...config,

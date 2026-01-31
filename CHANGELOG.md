@@ -5,7 +5,7 @@ The format is based on Keep a Changelog and this project follows SemVer for npm 
 
 ## Unreleased
 ### Added
-- Add project-level **Security** area (tabs for API keys + SSH keys) and move SSH key management there with a host selector.
+- Add project-level **Security** area (tabs for API keys + SSH keys).
 - Add agent detail pages (Overview/Logs/Settings/Skills), capability presets with schema-backed channel dropdown, and user settings page with logout.
 - Add pinned schema diff helpers + config diff preview utilities for agent settings.
 
@@ -15,6 +15,7 @@ The format is based on Keep a Changelog and this project follows SemVer for npm 
 - Bootstrap UI: move post-bootstrap checklist below the bootstrap flow; simplify “deploy source” with Local vs Remote options and hide verbose git info behind a “Show details” toggle.
 - Default web auth to Better Auth (remove legacy auth-disabled path) and enforce sign-in redirect.
 - Regenerate pinned OpenClaw schema to include channel plugin schemas for capability selection.
+- Move SSH keys from host scope to project scope (`fleet.sshAuthorizedKeys` / `fleet.sshKnownHosts`) and update migrations/UI accordingly.
 
 ## [0.4.3] - 2026-01-26
 ### Fixed

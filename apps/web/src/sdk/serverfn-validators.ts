@@ -161,9 +161,8 @@ export function parseProjectHostRequiredInput(data: unknown): { projectId: Id<"p
   return { projectId: parseConvexId(d["projectId"], "projectId"), host: parseHostNameRequired(d["host"]) }
 }
 
-export function parseHostSshKeysInput(data: unknown): {
+export function parseProjectSshKeysInput(data: unknown): {
   projectId: Id<"projects">
-  host: string
   keyText: string
   knownHostsText: string
 } {
@@ -175,7 +174,6 @@ export function parseHostSshKeysInput(data: unknown): {
   }
   return {
     projectId: parseConvexId(d["projectId"], "projectId"),
-    host: parseHostNameRequired(d["host"]),
     keyText: parseOptionalString(d["keyText"], 64 * 1024),
     knownHostsText: parseOptionalString(d["knownHostsText"], 256 * 1024),
   }

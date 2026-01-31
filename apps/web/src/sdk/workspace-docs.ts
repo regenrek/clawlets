@@ -1,18 +1,18 @@
 import { createServerFn } from "@tanstack/react-start"
-import type { Id } from "../../convex/_generated/dataModel"
 import type {
   WorkspaceDocReadResult,
   WorkspaceDocScope,
   WorkspaceDocWriteResult,
   WorkspaceDocWriteScope,
 } from "~/sdk/workspace-docs-model"
+import { parseProjectIdInput } from "~/sdk/serverfn-validators"
 
 export const listWorkspaceDocs = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => {
-    if (!data || typeof data !== "object") throw new Error("invalid input")
+    const base = parseProjectIdInput(data)
     const d = data as Record<string, unknown>
     return {
-      projectId: d["projectId"] as Id<"projects">,
+      ...base,
       botId: String(d["botId"] || ""),
     }
   })
@@ -23,12 +23,12 @@ export const listWorkspaceDocs = createServerFn({ method: "POST" })
 
 export const readWorkspaceDoc = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => {
-    if (!data || typeof data !== "object") throw new Error("invalid input")
+    const base = parseProjectIdInput(data)
     const d = data as Record<string, unknown>
     const scope = String(d["scope"] || "")
     if (scope !== "common" && scope !== "bot" && scope !== "effective") throw new Error("invalid scope")
     return {
-      projectId: d["projectId"] as Id<"projects">,
+      ...base,
       botId: typeof d["botId"] === "string" ? d["botId"] : "",
       scope: scope as WorkspaceDocScope,
       name: String(d["name"] || ""),
@@ -41,12 +41,12 @@ export const readWorkspaceDoc = createServerFn({ method: "POST" })
 
 export const writeWorkspaceDoc = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => {
-    if (!data || typeof data !== "object") throw new Error("invalid input")
+    const base = parseProjectIdInput(data)
     const d = data as Record<string, unknown>
     const scope = String(d["scope"] || "")
     if (scope !== "common" && scope !== "bot") throw new Error("invalid scope")
     return {
-      projectId: d["projectId"] as Id<"projects">,
+      ...base,
       botId: typeof d["botId"] === "string" ? d["botId"] : "",
       scope: scope as WorkspaceDocWriteScope,
       name: String(d["name"] || ""),
@@ -61,10 +61,10 @@ export const writeWorkspaceDoc = createServerFn({ method: "POST" })
 
 export const resetWorkspaceDocOverride = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => {
-    if (!data || typeof data !== "object") throw new Error("invalid input")
+    const base = parseProjectIdInput(data)
     const d = data as Record<string, unknown>
     return {
-      projectId: d["projectId"] as Id<"projects">,
+      ...base,
       botId: String(d["botId"] || ""),
       name: String(d["name"] || ""),
       expectedSha256: typeof d["expectedSha256"] === "string" ? d["expectedSha256"] : "",

@@ -1,23 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import { toast } from "sonner"
 import type { Id } from "../../../../convex/_generated/dataModel"
 import { Button } from "~/components/ui/button"
-import { NativeSelect, NativeSelectOption } from "~/components/ui/native-select"
-import { Label } from "~/components/ui/label"
 import { LabelWithHelp } from "~/components/ui/label-help"
 import { Input } from "~/components/ui/input"
 import { Textarea } from "~/components/ui/textarea"
 import { SettingsSection } from "~/components/ui/settings-section"
 import { useProjectBySlug } from "~/lib/project-data"
 import { setupFieldHelp } from "~/lib/setup-field-help"
-import {
-  addHostSshKeys,
-  getClawdletsConfig,
-  removeHostSshAuthorizedKey,
-  removeHostSshKnownHost,
-} from "~/sdk/config"
+import { addProjectSshKeys, getClawdletsConfig, removeProjectSshAuthorizedKey, removeProjectSshKnownHost } from "~/sdk/config"
 
 export const Route = createFileRoute("/$projectSlug/security/ssh-keys")({
   component: SecuritySshKeys,
@@ -37,16 +30,13 @@ function SecuritySshKeys() {
   })
 
   const config = cfg.data?.config
-  const hosts = useMemo(() => Object.keys(config?.hosts ?? {}).sort(), [config])
-
-  const [selectedHost, setSelectedHost] = useState("")
-
-  useEffect(() => {
-    if (selectedHost) return
-    if (hosts.length) setSelectedHost(hosts[0]!)
-  }, [hosts, selectedHost])
-
-  const hostCfg = selectedHost && config ? config.hosts[selectedHost] : null
+  const fleetSshKeys = useMemo(
+    () => ({
+      authorized: config?.fleet?.sshAuthorizedKeys ?? [],
+      knownHosts: config?.fleet?.sshKnownHosts ?? [],
+    }),
+    [config],
+  )
 
   const [keyText, setKeyText] = useState("")
   const [knownHostsText, setKnownHostsText] = useState("")
@@ -59,11 +49,9 @@ function SecuritySshKeys() {
   const addSsh = useMutation({
     mutationFn: async () => {
       if (!projectId) throw new Error("missing project")
-      if (!selectedHost) throw new Error("select a host")
-      return await addHostSshKeys({
+      return await addProjectSshKeys({
         data: {
           projectId: projectId as Id<"projects">,
-          host: selectedHost,
           keyText,
           knownHostsText,
         },
@@ -82,9 +70,8 @@ function SecuritySshKeys() {
   const removeAuthorizedKey = useMutation({
     mutationFn: async (key: string) => {
       if (!projectId) throw new Error("missing project")
-      if (!selectedHost) throw new Error("select a host")
-      return await removeHostSshAuthorizedKey({
-        data: { projectId: projectId as Id<"projects">, host: selectedHost, key },
+      return await removeProjectSshAuthorizedKey({
+        data: { projectId: projectId as Id<"projects">, key },
       })
     },
     onSuccess: (res) => {
@@ -98,9 +85,8 @@ function SecuritySshKeys() {
   const removeKnownHost = useMutation({
     mutationFn: async (entry: string) => {
       if (!projectId) throw new Error("missing project")
-      if (!selectedHost) throw new Error("select a host")
-      return await removeHostSshKnownHost({
-        data: { projectId: projectId as Id<"projects">, host: selectedHost, entry },
+      return await removeProjectSshKnownHost({
+        data: { projectId: projectId as Id<"projects">, entry },
       })
     },
     onSuccess: (res) => {
@@ -126,38 +112,13 @@ function SecuritySshKeys() {
   if (!config) {
     return <div className="text-muted-foreground">Missing config.</div>
   }
-  if (!hosts.length) {
-    return <div className="text-muted-foreground">No hosts found in this project.</div>
-  }
-
   return (
     <div className="space-y-6">
-      <SettingsSection
-        title="Host selection"
-        description="SSH keys are stored per host, but managed from this project Security page."
-      >
-        <div className="space-y-2 max-w-sm">
-          <Label htmlFor="security-host">Host</Label>
-          <NativeSelect
-            id="security-host"
-            value={selectedHost}
-            onChange={(e) => setSelectedHost(e.target.value)}
-          >
-            {hosts.map((h) => (
-              <NativeSelectOption key={h} value={h}>
-                {h}
-              </NativeSelectOption>
-            ))}
-          </NativeSelect>
-        </div>
-      </SettingsSection>
-
       <SettingsSection
         title="SSH Keys"
         description={
           <>
-            Manage authorized keys and known hosts for{" "}
-            <code className="text-xs">hosts.{selectedHost}</code>.
+            Manage project-level authorized keys and known hosts shared across all hosts.
           </>
         }
         actions={
@@ -252,9 +213,9 @@ function SecuritySshKeys() {
           <div className="border-t pt-4 grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <div className="text-xs font-medium">Authorized keys</div>
-              {hostCfg?.sshAuthorizedKeys?.length ? (
+              {fleetSshKeys.authorized.length ? (
                 <div className="max-h-44 overflow-auto pr-1 space-y-2">
-                  {hostCfg.sshAuthorizedKeys.map((key: string) => (
+                  {fleetSshKeys.authorized.map((key: string) => (
                     <div key={key} className="flex items-start gap-2 rounded-md border bg-background/30 p-2">
                       <code className="flex-1 text-xs font-mono break-all">{key}</code>
                       <Button
@@ -276,9 +237,9 @@ function SecuritySshKeys() {
 
             <div className="space-y-2">
               <div className="text-xs font-medium">Known hosts</div>
-              {hostCfg?.sshKnownHosts?.length ? (
+              {fleetSshKeys.knownHosts.length ? (
                 <div className="max-h-44 overflow-auto pr-1 space-y-2">
-                  {hostCfg.sshKnownHosts.map((entry: string) => (
+                  {fleetSshKeys.knownHosts.map((entry: string) => (
                     <div key={entry} className="flex items-start gap-2 rounded-md border bg-background/30 p-2">
                       <code className="flex-1 text-xs font-mono break-all">{entry}</code>
                       <Button

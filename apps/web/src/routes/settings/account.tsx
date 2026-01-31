@@ -1,6 +1,7 @@
 import { convexQuery } from "@convex-dev/react-query"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute, useRouter } from "@tanstack/react-router"
+import { useConvexAuth } from "convex/react"
 import * as React from "react"
 import { authClient } from "~/lib/auth-client"
 import { api } from "../../../convex/_generated/api"
@@ -17,7 +18,8 @@ export const Route = createFileRoute("/settings/account")({
 function AccountSettings() {
   const router = useRouter()
   const { data: session, isPending } = authClient.useSession()
-  const canQuery = Boolean(session?.session?.id) && !isPending
+  const { isAuthenticated, isLoading } = useConvexAuth()
+  const canQuery = Boolean(session?.user?.id) && isAuthenticated && !isPending && !isLoading
   const currentUser = useQuery({
     ...convexQuery(api.users.getCurrent, {}),
     enabled: canQuery,

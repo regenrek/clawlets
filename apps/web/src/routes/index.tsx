@@ -15,7 +15,7 @@ function RootIndex() {
   const router = useRouter()
   const { data: session, isPending } = authClient.useSession()
   const { isAuthenticated, isLoading } = useConvexAuth()
-  const canQuery = Boolean(session?.session?.id) && isAuthenticated && !isPending && !isLoading
+  const canQuery = Boolean(session?.user?.id) && isAuthenticated && !isPending && !isLoading
   const projectsQuery = useQuery({
     ...convexQuery(api.projects.list, {}),
     gcTime: 5_000,

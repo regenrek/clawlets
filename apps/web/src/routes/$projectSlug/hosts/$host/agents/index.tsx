@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute, Link } from "@tanstack/react-router"
 import { useMemo, useState } from "react"
 import { toast } from "sonner"
+import { useConvexAuth } from "convex/react"
 import type { Id } from "../../../../../../convex/_generated/dataModel"
 import { api } from "../../../../../../convex/_generated/api"
 import { Button } from "~/components/ui/button"
@@ -12,6 +13,7 @@ import { setupFieldHelp } from "~/lib/setup-field-help"
 import { useProjectBySlug } from "~/lib/project-data"
 import { BotRoster } from "~/components/fleet/bot-roster"
 import { getClawdletsConfig, addBot } from "~/sdk/config"
+import { authClient } from "~/lib/auth-client"
 
 export const Route = createFileRoute("/$projectSlug/hosts/$host/agents/")({
   component: AgentsSetup,
@@ -22,11 +24,14 @@ function AgentsSetup() {
   const projectQuery = useProjectBySlug(projectSlug)
   const projectId = projectQuery.projectId
   const queryClient = useQueryClient()
+  const { data: session, isPending } = authClient.useSession()
+  const { isAuthenticated, isLoading } = useConvexAuth()
+  const canQuery = Boolean(session?.user?.id) && isAuthenticated && !isPending && !isLoading
 
   const project = useQuery({
     ...convexQuery(api.projects.get, { projectId: projectId as Id<"projects"> }),
     gcTime: 5_000,
-    enabled: Boolean(projectId),
+    enabled: Boolean(projectId) && canQuery,
   })
   const canEdit = project.data?.role === "admin"
 
@@ -34,7 +39,7 @@ function AgentsSetup() {
     queryKey: ["clawdletsConfig", projectId],
     queryFn: async () =>
       await getClawdletsConfig({ data: { projectId: projectId as Id<"projects"> } }),
-    enabled: Boolean(projectId),
+    enabled: Boolean(projectId) && canQuery,
   })
   const config = cfg.data?.config
   const bots = useMemo(() => (config?.fleet?.botOrder as string[]) || [], [config])

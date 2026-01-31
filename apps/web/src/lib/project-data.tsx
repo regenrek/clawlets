@@ -12,7 +12,7 @@ export type ProjectDoc = (typeof api.projects.list)["_returnType"][number]
 export function useProjectsList() {
   const { data: session, isPending } = authClient.useSession()
   const { isAuthenticated, isLoading } = useConvexAuth()
-  const canQuery = Boolean(session?.session?.id) && isAuthenticated && !isPending && !isLoading
+  const canQuery = Boolean(session?.user?.id) && isAuthenticated && !isPending && !isLoading
   return useQuery({
     ...convexQuery(api.projects.list, {}),
     gcTime: 5_000,

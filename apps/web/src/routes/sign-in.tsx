@@ -25,10 +25,9 @@ function AuthEnabledSignIn() {
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    if (session?.session?.id) {
-      void router.navigate({ to: "/" });
-    }
-  }, [router, session?.session?.id]);
+    if (isPending) return;
+    if (session?.user?.id) void router.navigate({ to: "/" });
+  }, [isPending, router, session?.user?.id]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -48,7 +47,7 @@ function AuthEnabledSignIn() {
         });
       }
       await router.invalidate();
-      void router.navigate({ to: "/" });
+      // Navigation happens via the session effect above; avoids racing SSR auth gating.
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {

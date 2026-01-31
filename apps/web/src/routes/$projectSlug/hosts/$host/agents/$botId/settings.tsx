@@ -1,12 +1,14 @@
 import { convexQuery } from "@convex-dev/react-query"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
+import { useConvexAuth } from "convex/react"
 import type { Id } from "../../../../../../../convex/_generated/dataModel"
 import { api } from "../../../../../../../convex/_generated/api"
 import { BotCapabilities } from "~/components/fleet/bot-capabilities"
 import { BotClawdbotEditor } from "~/components/fleet/bot-clawdbot-editor"
 import { BotIntegrations } from "~/components/fleet/bot-integrations"
 import { BotWorkspaceDocs } from "~/components/fleet/bot-workspace-docs"
+import { authClient } from "~/lib/auth-client"
 import { useProjectBySlug } from "~/lib/project-data"
 import { getClawdletsConfig } from "~/sdk/config"
 
@@ -18,11 +20,14 @@ function AgentSettings() {
   const { projectSlug, host, botId } = Route.useParams()
   const projectQuery = useProjectBySlug(projectSlug)
   const projectId = projectQuery.projectId
+  const { data: session, isPending } = authClient.useSession()
+  const { isAuthenticated, isLoading } = useConvexAuth()
+  const canQuery = Boolean(session?.user?.id) && isAuthenticated && !isPending && !isLoading
 
   const project = useQuery({
     ...convexQuery(api.projects.get, { projectId: projectId as Id<"projects"> }),
     gcTime: 5_000,
-    enabled: Boolean(projectId),
+    enabled: Boolean(projectId) && canQuery,
   })
   const canEdit = project.data?.role === "admin"
 
@@ -30,7 +35,7 @@ function AgentSettings() {
     queryKey: ["clawdletsConfig", projectId],
     queryFn: async () =>
       await getClawdletsConfig({ data: { projectId: projectId as Id<"projects"> } }),
-    enabled: Boolean(projectId),
+    enabled: Boolean(projectId) && canQuery,
   })
 
   const config = cfg.data?.config

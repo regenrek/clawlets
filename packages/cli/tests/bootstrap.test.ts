@@ -85,7 +85,6 @@ const hostName = "clawdbot-beta-3";
 const baseHost = {
   enable: false,
   diskDevice: "/dev/sda",
-  sshAuthorizedKeys: [],
   flakeHost: "",
   hetzner: { serverType: "cx43" },
   provisioning: { adminCidr: "203.0.113.10/32", sshPubkeyFile: "~/.ssh/id_ed25519.pub" },
@@ -99,8 +98,8 @@ function setConfig(hostOverrides: Partial<typeof baseHost>) {
     layout: getRepoLayout("/repo"),
     configPath: "/repo/fleet/clawdlets.json",
     config: {
-      schemaVersion: 9,
-      fleet: {},
+      schemaVersion: 10,
+      fleet: { sshAuthorizedKeys: [], sshKnownHosts: [] },
       hosts: {
         [hostName]: { ...baseHost, ...hostOverrides },
       },

@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query"
 import { useRouter } from "@tanstack/react-router"
 import { convexQuery } from "@convex-dev/react-query"
 import { ChevronsUpDown, LogOut, Settings } from "lucide-react"
+import { useConvexAuth } from "convex/react"
 
 import { api } from "../../../convex/_generated/api"
 import { authClient } from "~/lib/auth-client"
@@ -36,7 +37,8 @@ export function NavUser() {
   const router = useRouter()
   const { isMobile } = useSidebar()
   const { data: session, isPending } = authClient.useSession()
-  const canQuery = Boolean(session?.session?.id) && !isPending
+  const { isAuthenticated, isLoading } = useConvexAuth()
+  const canQuery = Boolean(session?.user?.id) && isAuthenticated && !isPending && !isLoading
 
   const currentUser = useQuery({
     ...convexQuery(api.users.getCurrent, {}),

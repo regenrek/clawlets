@@ -77,7 +77,7 @@ function AppHeader({ showSidebarToggle = true }: { showSidebarToggle?: boolean }
   const instanceHost = getInstanceHostFromWindow()
   const projectSlug = parseProjectSlug(pathname)
   const activeHost = parseHostName(pathname) || ""
-  const canQuery = Boolean(session?.session?.id) && isAuthenticated && !isPending && !isLoading
+  const canQuery = Boolean(session?.user?.id) && isAuthenticated && !isPending && !isLoading
 
   const currentUser = useQuery({
     ...convexQuery(api.users.getCurrent, {}),

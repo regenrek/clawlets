@@ -33,9 +33,7 @@ function ProjectSecurityLayout() {
     <div className="space-y-6">
       <div className="space-y-1">
         <h1 className="text-2xl font-black tracking-tight">Security</h1>
-        <p className="text-muted-foreground">
-          Project-wide credentials and host SSH keys.
-        </p>
+        <p className="text-muted-foreground">Project-wide credentials and SSH keys.</p>
       </div>
 
       <Tabs
@@ -58,4 +56,3 @@ function ProjectSecurityLayout() {
     </div>
   )
 }
-

@@ -8,7 +8,7 @@ import { useConvexAuth } from "convex/react"
 import { api } from "../../../convex/_generated/api"
 import type { Id } from "../../../convex/_generated/dataModel"
 import { getDashboardOverview } from "~/sdk/dashboard"
-import { migrateClawdletsConfigFileToV9 } from "~/sdk/config-migrate"
+import { migrateClawdletsConfigFileToV10 } from "~/sdk/config-migrate"
 import { Badge } from "~/components/ui/badge"
 import {
   Card,
@@ -42,7 +42,7 @@ export function ProjectDashboard(props: {
   const convexQueryClient = router.options.context.convexQueryClient
   const { data: session, isPending } = authClient.useSession()
   const { isAuthenticated, isLoading } = useConvexAuth()
-  const canQuery = Boolean(session?.session?.id) && isAuthenticated && !isPending && !isLoading
+  const canQuery = Boolean(session?.user?.id) && isAuthenticated && !isPending && !isLoading
 
   const overview = useQuery({
     queryKey: ["dashboardOverview"],
@@ -87,11 +87,11 @@ export function ProjectDashboard(props: {
   const migrate = useMutation({
     mutationFn: async () => {
       if (!project) throw new Error("project not loaded")
-      return await migrateClawdletsConfigFileToV9({ data: { projectId: project.projectId } })
+      return await migrateClawdletsConfigFileToV10({ data: { projectId: project.projectId } })
     },
     onSuccess: (res) => {
       if (res.ok) {
-        toast.success(res.changed ? "Migrated config" : "Config already schemaVersion 9")
+        toast.success(res.changed ? "Migrated config" : "Config already schemaVersion 10")
         void queryClient.invalidateQueries({ queryKey: ["dashboardOverview"] })
         void queryClient.invalidateQueries({
           queryKey: ["dashboardRecentRuns", project?.projectId ?? null],
@@ -224,10 +224,10 @@ export function ProjectDashboard(props: {
                       disabled={!canWrite || migrate.isPending}
                       onClick={() => migrate.mutate()}
                     >
-                      Migrate to schemaVersion 9
+                      Migrate to schemaVersion 10
                     </Button>
                     <div className="text-muted-foreground text-xs">
-                      CLI: <code>clawdlets config migrate --to v9</code>
+                      CLI: <code>clawdlets config migrate --to v10</code>
                     </div>
                   </div>
                 ) : null}
