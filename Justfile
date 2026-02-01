@@ -57,8 +57,8 @@ server-logs target_host args="":
 server-restart target_host args="":
   cd {{justfile_directory()}} && pnpm run clawdlets:server -- restart --target-host {{target_host}} {{args}}
 
-server-deploy target_host args="":
-  cd {{justfile_directory()}} && pnpm run clawdlets:server -- deploy --target-host {{target_host}} {{args}}
+server-update-apply target_host args="":
+  cd {{justfile_directory()}} && pnpm run clawdlets:server -- update apply --target-host {{target_host}} {{args}}
 
 nix-daemon-restart:
   ps -axo pid,command | rg 'nix-daemon' || true

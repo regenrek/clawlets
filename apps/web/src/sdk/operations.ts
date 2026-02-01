@@ -29,7 +29,7 @@ export const runDoctor = createServerFn({ method: "POST" })
       scope: (typeof d["scope"] === "string" ? d["scope"] : "all") as
         | "repo"
         | "bootstrap"
-        | "server-deploy"
+        | "updates"
         | "cattle"
         | "all",
     }

@@ -38,7 +38,7 @@ describe("env commands", () => {
     await envInit.run({ args: { envFile } } as any);
     const content = fs.readFileSync(envFile, "utf8");
     expect(content).toMatch(/HCLOUD_TOKEN=/);
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("note: you must pass --env-file"));
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("note: pass --env-file"));
   });
 
   it("env show prints resolved values", async () => {

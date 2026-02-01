@@ -128,10 +128,10 @@ The format is based on Keep a Changelog and this project follows SemVer for npm 
 - `clawdlets bootstrap --force` skips doctor preflight gate (advanced usage).
 - Destroy command: `clawdlets infra destroy` (with `--force` for non-interactive automation).
 - Local deploy creds: `clawdlets env init` + `clawdlets env show` (default env file: `.clawdlets/env`).
-- Cache-only deploy flow: `clawdlets server deploy` (secrets + desired-state apply) via signed release manifest.
+- Cache-only updates flow: `clawdlets server update apply` (trigger fetch+apply) via signed desired-state manifest.
 - Host deploy entrypoints: `/etc/clawdlets/bin/install-secrets` + `/etc/clawdlets/bin/switch-system` (sudo allowlist via `clawdlets.operator.deploy`).
 - Authenticated cache support: `clawdlets.cache.netrc.*` (netrc + narinfo TTL).
-- CI workflows: build+publish signed release manifests and `deploy` (GitOps tailnet deploy).
+- CI workflows: build+publish signed desired-state manifests (GitHub Pages).
 - Manifest signing support in CI (minisign) + self-update signature verification.
 - Release manifest commands: `clawdlets release manifest build|sign|verify`.
 - Self-update module: `clawdlets.selfUpdate.*` (baseUrl + keys + timer).
@@ -153,7 +153,7 @@ The format is based on Keep a Changelog and this project follows SemVer for npm 
 - Server ops: `server logs|status|audit` now use sudoers-compatible `systemctl`/`journalctl` invocation order; `server logs` defaults to `-n 200` and adds `--lines`.
 - Secrets sync now uses the allowlisted `install-secrets` host entrypoint (no `sudo sh -lc`).
 - SSH capture: `sshCapture(..., { tty: true })` now actually allocates a TTY (fixes `ssh: Pseudo-terminal will not be allocated...` for capture use-cases).
-- Deploy gate split into `bootstrap` vs `server-deploy`; `server deploy`/`lockdown` no longer require Hetzner creds or nixos-anywhere extra-files.
+- Doctor gate split into `bootstrap` vs `updates`; `server update apply`/`lockdown` no longer require Hetzner creds or nixos-anywhere extra-files.
 - Garnix config now explicitly builds `packages.x86_64-linux.*-system`.
 - Secrets tar digest is now deterministic (canonical tar+gzip).
 - Project init now pulls templates from `regenrek/clawdlets-template` (no embedded template dist in this repo).

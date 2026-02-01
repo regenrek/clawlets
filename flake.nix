@@ -151,6 +151,8 @@
         clawdletsHostMeta = import ./nix/modules/clawdlets-host-meta.nix;
         clawdletsHostBaseline = import ./nix/modules/clawdlets-host-baseline.nix;
         clawdletsSelfUpdate = import ./nix/modules/clawdlets-self-update.nix;
+        clawdletsCacheAtticServer = import ./nix/modules/clawdlets-cache-attic-server.nix;
+        clawdletsCacheHarmoniaServer = import ./nix/modules/clawdlets-cache-harmonia-server.nix;
         clawdletsImageFormats = import ./nix/modules/clawdlets-image-formats.nix;
 
         clawdbotFleet = import ./nix/modules/clawdbot-fleet.nix;

@@ -21,12 +21,16 @@ Optional env:
 - CLAWDLETS_UPDATER_ALLOW_UNSIGNED   "true" (dev only; skips signature verification)
 - CLAWDLETS_UPDATER_ALLOW_ROLLBACK   "true" (break-glass; accepts lower releaseId)
 - CLAWDLETS_UPDATER_HEALTHCHECK_UNIT systemd unit to require active after switch (record-only)
+- CLAWDLETS_UPDATER_PREVIOUS_KEYS_FILE         newline-delimited minisign public keys (previous/rotating out)
+- CLAWDLETS_UPDATER_PREVIOUS_KEYS_VALID_UNTIL  UTC timestamp (RFC3339/ISO); after this, previous keys are rejected
 USAGE
 }
 
 base_urls_raw="${CLAWDLETS_UPDATER_BASE_URLS:-}"
 state_dir="${CLAWDLETS_UPDATER_STATE_DIR:-/var/lib/clawdlets/updates}"
 keys_file="${CLAWDLETS_UPDATER_KEYS_FILE:-}"
+previous_keys_file="${CLAWDLETS_UPDATER_PREVIOUS_KEYS_FILE:-}"
+previous_keys_valid_until="${CLAWDLETS_UPDATER_PREVIOUS_KEYS_VALID_UNTIL:-}"
 host_name="${CLAWDLETS_UPDATER_HOST_NAME:-}"
 channel="${CLAWDLETS_UPDATER_CHANNEL:-}"
 secrets_dir="${CLAWDLETS_UPDATER_SECRETS_DIR:-}"
@@ -55,6 +59,27 @@ fi
 if [[ ! -f "${keys_file}" ]]; then
   echo "error: keys file not found: ${keys_file}" >&2
   exit 2
+fi
+
+previous_keys_active="false"
+if [[ -n "${previous_keys_file}" ]]; then
+  if [[ ! -f "${previous_keys_file}" ]]; then
+    echo "error: previous keys file not found: ${previous_keys_file}" >&2
+    exit 2
+  fi
+  if [[ -z "${previous_keys_valid_until}" ]]; then
+    echo "error: CLAWDLETS_UPDATER_PREVIOUS_KEYS_VALID_UNTIL must be set when CLAWDLETS_UPDATER_PREVIOUS_KEYS_FILE is set" >&2
+    exit 2
+  fi
+  until_epoch=""
+  if ! until_epoch="$(date -u -d "${previous_keys_valid_until}" +%s 2>/dev/null)"; then
+    echo "error: invalid CLAWDLETS_UPDATER_PREVIOUS_KEYS_VALID_UNTIL: ${previous_keys_valid_until}" >&2
+    exit 2
+  fi
+  now_epoch="$(date -u +%s)"
+  if [[ "${now_epoch}" -le "${until_epoch}" ]]; then
+    previous_keys_active="true"
+  fi
 fi
 
 install -d -m 0700 -o root -g root "${state_dir}"
@@ -131,9 +156,10 @@ write_status() {
   status_tmp="$(mktemp -p "${state_dir}" status.json.tmp.XXXXXX)"
 }
 
-verify_with_keys() {
+verify_with_keys_file() {
   local file="$1"
   local sig="$2"
+  local keys_path="$3"
   local key=""
   local key_trim=""
 
@@ -144,7 +170,25 @@ verify_with_keys() {
       printf '%s' "${key_trim}"
       return 0
     fi
-  done < "${keys_file}"
+  done < "${keys_path}"
+  return 1
+}
+
+verify_with_any_key() {
+  local file="$1"
+  local sig="$2"
+  local verified_key=""
+
+  if verified_key="$(verify_with_keys_file "${file}" "${sig}" "${keys_file}")"; then
+    printf '%s' "${verified_key}"
+    return 0
+  fi
+  if [[ "${previous_keys_active}" == "true" ]]; then
+    if verified_key="$(verify_with_keys_file "${file}" "${sig}" "${previous_keys_file}")"; then
+      printf '%s' "${verified_key}"
+      return 0
+    fi
+  fi
   return 1
 }
 
@@ -163,7 +207,7 @@ is_allowed() {
 verified_key=""
 verified_key_sha256=""
 if [[ "${allow_unsigned}" == "false" ]]; then
-  if ! verified_key="$(verify_with_keys "${desired_json}" "${desired_sig}")"; then
+  if ! verified_key="$(verify_with_any_key "${desired_json}" "${desired_sig}")"; then
     write_status "failed" "manifest signature verification failed" "" "" "" "" "signature verification failed"
     exit 2
   fi

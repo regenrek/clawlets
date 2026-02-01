@@ -8,7 +8,7 @@ import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert"
 import { RunLogTail } from "~/components/run-log-tail"
 import { configDotSet } from "~/sdk/config"
 import { getHostPublicIpv4, probeHostTailscaleIpv4 } from "~/sdk/host-connectivity"
-import { serverDeployExecute, serverDeployStart } from "~/sdk/server-ops"
+import { serverUpdateApplyExecute, serverUpdateApplyStart } from "~/sdk/server-ops"
 import { lockdownExecute, lockdownStart } from "~/sdk/lockdown"
 import { secretsVerifyExecute, secretsVerifyStart } from "~/sdk/secrets"
 
@@ -64,7 +64,7 @@ export function BootstrapChecklist({
   const [tailscaleSecretOk, setTailscaleSecretOk] = useState<boolean | null>(null)
   const [tailscaleSecretError, setTailscaleSecretError] = useState<string | null>(null)
 
-  const [deployRunId, setDeployRunId] = useState<Id<"runs"> | null>(null)
+  const [applyRunId, setApplyRunId] = useState<Id<"runs"> | null>(null)
   const [lockdownRunId, setLockdownRunId] = useState<Id<"runs"> | null>(null)
 
   const publicIpv4Query = useQuery({
@@ -83,8 +83,11 @@ export function BootstrapChecklist({
   const tailnetMode = String(hostCfg?.tailnet?.mode || "tailscale")
   const enabled = Boolean(hostCfg?.enable)
   const tailscaleRequired = tailnetMode === "tailscale"
-  const deployChannel = String(hostCfg?.selfUpdate?.channel || "prod")
-  const deployManifestPath = `deploy/${host}/${deployChannel}/1.json`
+  const updateChannel = String(hostCfg?.selfUpdate?.channel || "prod")
+  const baseUrls: string[] = Array.isArray(hostCfg?.selfUpdate?.baseUrls) ? hostCfg.selfUpdate.baseUrls.map(String) : []
+  const publicKeys: string[] = Array.isArray(hostCfg?.selfUpdate?.publicKeys) ? hostCfg.selfUpdate.publicKeys.map(String) : []
+  const allowUnsigned = Boolean(hostCfg?.selfUpdate?.allowUnsigned)
+  const selfUpdateConfigured = Boolean(hostCfg?.selfUpdate?.enable) && baseUrls.length > 0 && (allowUnsigned || publicKeys.length > 0)
 
   const setConfig = useMutation({
     mutationFn: async (payload: { path: string; value?: string; valueJson?: string }) =>
@@ -147,23 +150,20 @@ export function BootstrapChecklist({
     },
   })
 
-  const deployStart = useMutation({
-    mutationFn: async () =>
-      await serverDeployStart({ data: { projectId, host, manifestPath: deployManifestPath } }),
+  const applyStart = useMutation({
+    mutationFn: async () => await serverUpdateApplyStart({ data: { projectId, host } }),
     onSuccess: (res) => {
-      setDeployRunId(res.runId)
-      void serverDeployExecute({
+      setApplyRunId(res.runId)
+      void serverUpdateApplyExecute({
         data: {
           projectId,
           runId: res.runId,
           host,
-          manifestPath: deployManifestPath,
-          rev: "HEAD",
           targetHost,
-          confirm: `deploy ${host}`,
+          confirm: `apply updates ${host}`,
         },
       })
-      toast.info("Deploy started")
+      toast.info("Updater triggered")
     },
   })
 
@@ -235,17 +235,17 @@ export function BootstrapChecklist({
         />
 
         <ChecklistStep
-          title="C. Deploy (public SSH)"
-          statusLabel={targetHost.trim() ? "ready" : "blocked"}
-          statusVariant={targetHost.trim() ? "secondary" : "destructive"}
+          title="C. Apply updates (pull-only)"
+          statusLabel={selfUpdateConfigured && targetHost.trim() ? "ready" : "blocked"}
+          statusVariant={selfUpdateConfigured && targetHost.trim() ? "secondary" : "destructive"}
           description={
             <span>
-              Manifest: <code>deploy/{host}/{deployChannel}/1.json</code> · Target: <code>{targetHost || "<unset>"}</code>
+              Channel: <code>{updateChannel}</code> · baseUrls: <code>{baseUrls.length || 0}</code> · Target: <code>{targetHost || "<unset>"}</code>
             </span>
           }
-          actionLabel="Deploy now"
-          actionDisabled={!targetHost.trim()}
-          onAction={() => deployStart.mutate()}
+          actionLabel="Apply now"
+          actionDisabled={!selfUpdateConfigured || !targetHost.trim()}
+          onAction={() => applyStart.mutate()}
         />
 
         {tailscaleRequired ? (
@@ -299,16 +299,16 @@ export function BootstrapChecklist({
         />
 
         <ChecklistStep
-          title="I. Redeploy (tailnet)"
-          statusLabel={targetHost.trim() ? "ready" : "blocked"}
-          statusVariant={targetHost.trim() ? "secondary" : "destructive"}
-          actionLabel="Redeploy"
-          actionDisabled={!targetHost.trim()}
-          onAction={() => deployStart.mutate()}
+          title="I. Re-apply updates (tailnet)"
+          statusLabel={selfUpdateConfigured && targetHost.trim() ? "ready" : "blocked"}
+          statusVariant={selfUpdateConfigured && targetHost.trim() ? "secondary" : "destructive"}
+          actionLabel="Apply now"
+          actionDisabled={!selfUpdateConfigured || !targetHost.trim()}
+          onAction={() => applyStart.mutate()}
         />
       </div>
 
-      {deployRunId ? <RunLogTail runId={deployRunId} /> : null}
+      {applyRunId ? <RunLogTail runId={applyRunId} /> : null}
       {lockdownRunId ? <RunLogTail runId={lockdownRunId} /> : null}
     </div>
   )

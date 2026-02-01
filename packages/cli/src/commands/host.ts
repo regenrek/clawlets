@@ -69,6 +69,8 @@ const add = defineCommand({
         baseUrls: [],
         channel: "prod",
         publicKeys: [],
+        previousPublicKeys: [],
+        previousPublicKeysValidUntil: "",
         allowUnsigned: false,
         allowRollback: false,
         healthCheckUnit: "",
@@ -128,6 +130,8 @@ const set = defineCommand({
     "self-update-base-url": { type: "string", description: "Self-update mirror base URL (repeatable; replaces list).", array: true },
     "self-update-channel": { type: "string", description: "Self-update channel (e.g. staging/prod)." },
     "self-update-public-key": { type: "string", description: "Minisign public key (repeatable; replaces list).", array: true },
+    "self-update-previous-public-key": { type: "string", description: "Previous minisign public key (repeatable; replaces list).", array: true },
+    "self-update-previous-public-key-valid-until": { type: "string", description: "UTC timestamp (RFC3339/ISO) until which previous keys are accepted." },
     "self-update-allow-unsigned": { type: "string", description: "Dev-only: skip signature verification (true/false)." },
     "self-update-allow-rollback": { type: "string", description: "Break-glass: accept lower releaseId (true/false)." },
     "self-update-healthcheck-unit": { type: "string", description: "Optional health check systemd unit (record-only)." },
@@ -213,6 +217,12 @@ const set = defineCommand({
     if ((args as any)["self-update-channel"] !== undefined) next.selfUpdate.channel = String((args as any)["self-update-channel"]).trim();
     if (Array.isArray((args as any)["self-update-public-key"])) {
       next.selfUpdate.publicKeys = (args as any)["self-update-public-key"].map((x: unknown) => String(x).trim()).filter(Boolean);
+    }
+    if (Array.isArray((args as any)["self-update-previous-public-key"])) {
+      next.selfUpdate.previousPublicKeys = (args as any)["self-update-previous-public-key"].map((x: unknown) => String(x).trim()).filter(Boolean);
+    }
+    if ((args as any)["self-update-previous-public-key-valid-until"] !== undefined) {
+      next.selfUpdate.previousPublicKeysValidUntil = String((args as any)["self-update-previous-public-key-valid-until"]).trim();
     }
     if ((args as any)["self-update-allow-unsigned"] !== undefined) {
       const v = parseBoolOrUndefined((args as any)["self-update-allow-unsigned"]);

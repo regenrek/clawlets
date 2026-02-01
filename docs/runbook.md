@@ -24,19 +24,19 @@ If/when you want required status checks, re-run with explicit contexts:
 4) `clawdlets doctor --scope bootstrap`
 5) `clawdlets host set --ssh-exposure bootstrap`
 6) `clawdlets bootstrap`
-7) Verify tailnet, then: `clawdlets doctor --scope server-deploy --strict`
+7) Verify tailnet, then: `clawdlets doctor --scope updates --strict`
 8) Switch admin access to VPN + close public SSH:
    - `clawdlets host set --target-host admin@<vpn-ip>`
    - `clawdlets host set --ssh-exposure tailnet`
-   - `clawdlets server deploy --manifest deploy/<host>/prod/<releaseId>.json`
+   - `clawdlets server update apply --host <host> --target-host admin@<vpn-ip>`
    - `clawdlets lockdown`
 9) `clawdlets server audit --target-host admin@<vpn-ip>`
 
 ## Day 2 (routine ops)
 
-Pinned deploys:
+Apply updates:
 
-- `clawdlets server deploy --target-host admin@<vpn-ip> --manifest deploy/<host>/prod/<releaseId>.json`
+- `clawdlets server update apply --host <host> --target-host admin@<vpn-ip>`
 
 Orchestrator (if cattle enabled):
 
@@ -46,7 +46,7 @@ Orchestrator (if cattle enabled):
 
 Secrets rotation:
 
-- edit `secrets/hosts/<host>/*.yaml` → `clawdlets server deploy` (or `clawdlets secrets sync` + deploy)
+- edit `secrets/hosts/<host>/*.yaml` → publish → `clawdlets server update apply`
 
 ## Rollback (must exist before prod)
 

@@ -33,8 +33,8 @@ function pickFixLink(
   const toHostSecrets = () => hostBase
     ? ({ to: `${hostBase}/secrets`, label: "Open Host Secrets" })
     : toHosts()
-  const toDeploy = () => hostBase
-    ? ({ to: `${hostBase}/deploy`, label: "Open Deploy" })
+  const toUpdates = () => hostBase
+    ? ({ to: `${hostBase}/updates`, label: "Open Updates" })
     : toHosts()
   const toAudit = () => hostBase
     ? ({ to: `${hostBase}/audit`, label: "Open Audit" })
@@ -46,7 +46,7 @@ function pickFixLink(
   if (label.includes("provisioning") || label.includes("admin cidr") || label.includes("ssh pubkey")) return toHosts()
   if (label.includes("hcloud_token") || label.includes("github_token") || label.includes("sops_age_key_file")) return toProjectSecrets()
   if (label.includes("sops") || label.includes("secrets")) return toHostSecrets()
-  if (scope === "server-deploy") return toDeploy()
+  if (scope === "updates") return toUpdates()
   if (label.includes("tailscale")) return toAudit()
   return null
 }
@@ -72,7 +72,7 @@ function DoctorSetup() {
       return hosts[0] || ""
     })
   }, [config?.defaultHost, hosts])
-  const [scope, setScope] = useState<"repo" | "bootstrap" | "server-deploy" | "cattle" | "all">("all")
+  const [scope, setScope] = useState<"repo" | "bootstrap" | "updates" | "cattle" | "all">("all")
   const [result, setResult] = useState<null | { runId: Id<"runs">; checks: any[]; ok: boolean }>(null)
 
   const run = useMutation({
@@ -107,7 +107,7 @@ function DoctorSetup() {
     <div className="space-y-6">
       <h1 className="text-2xl font-black tracking-tight">Doctor</h1>
       <p className="text-muted-foreground">
-        Validate repo, config, and deploy readiness.
+        Validate repo, config, and update readiness.
       </p>
 
       {projectQuery.isPending ? (
@@ -156,7 +156,7 @@ function DoctorSetup() {
                   <NativeSelectOption value="all">all</NativeSelectOption>
                   <NativeSelectOption value="repo">repo</NativeSelectOption>
                   <NativeSelectOption value="bootstrap">bootstrap</NativeSelectOption>
-                  <NativeSelectOption value="server-deploy">server-deploy</NativeSelectOption>
+                  <NativeSelectOption value="updates">updates</NativeSelectOption>
                   <NativeSelectOption value="cattle">cattle</NativeSelectOption>
                 </NativeSelect>
               </div>

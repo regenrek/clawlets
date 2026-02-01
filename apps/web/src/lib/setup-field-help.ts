@@ -1,9 +1,9 @@
 export const setupFieldHelp = {
   hosts: {
-    defaultHost: "Default host used by doctor/bootstrap/deploy when you leave host unset.",
+    defaultHost: "Default host used by doctor/bootstrap/updates when you leave host unset.",
     editHost: "Select which host config you’re editing under `hosts.<host>`.",
     addHost: "Adds a new host entry under `hosts.<host>` (config only; no infra created yet).",
-    enabled: "Toggles whether this host is managed/deployed by clawdlets.",
+    enabled: "Toggles whether this host is managed by clawdlets.",
     diskDevice: "Block device to install NixOS onto (usually `/dev/sda` on Hetzner). Must start with `/dev/`.",
     targetHost: "SSH destination used for deploy/ops + live schema. Optional until you run server ops; set in Hosts → Settings → Target host (ssh alias or `user@host`).",
     adminCidr: "CIDR allowed to reach admin SSH during bootstrap (recommend your current IP `/32`). Use Detect to autofill from your public IP.",
@@ -47,7 +47,7 @@ export const setupFieldHelp = {
   },
   doctor: {
     host: "Host to run checks against (defaults to config default host).",
-    scope: "Subset of checks to run (repo/bootstrap/server-deploy/cattle/all).",
+    scope: "Subset of checks to run (repo/bootstrap/updates/cattle/all).",
   },
   bootstrap: {
     host: "Host entry to bootstrap/provision.",

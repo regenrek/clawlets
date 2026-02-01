@@ -68,6 +68,8 @@ function baseConfig(host: string) {
           baseUrls: [],
           channel: "prod",
           publicKeys: [],
+          previousPublicKeys: [],
+          previousPublicKeysValidUntil: "",
           allowUnsigned: false,
           allowRollback: false,
           healthCheckUnit: "",

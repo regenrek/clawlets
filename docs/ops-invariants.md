@@ -5,7 +5,7 @@ Goal: zero drift. Project repo + `.clawdlets/` are the only sources of truth.
 ## Deploy-only
 
 - Any persistent change must be done by editing the project repo (or `.clawdlets/`) and deploying.
-- Prefer pinned deploys: `clawdlets server deploy --manifest deploy/<host>/prod/<releaseId>.json`.
+- Prefer signed desired-state updates + `clawdlets server update apply` (or timer-driven self-update).
 - Assume the box is disposable. Reinstall beats debugging a snowflake.
 
 ## Cache-only
@@ -25,8 +25,8 @@ Do **not**:
 Do:
 
 - change config in the project repo (`fleet/clawdlets.json`, or `flake.nix` for advanced overrides) + deploy
-- rotate secrets by editing `secrets/hosts/<host>/<secret>.yaml` (sops) then `clawdlets server deploy`
-- use `clawdlets server status|logs|restart|deploy` for day-2 ops
+- rotate secrets by editing `secrets/hosts/<host>/<secret>.yaml` (sops), publish, then `clawdlets server update apply`
+- use `clawdlets server status|logs|restart|update` for day-2 ops
 - run `clawdlets server audit --target-host <host>` after bootstrap/lockdown and after major changes
 
 ## Breakglass (explicit)
@@ -45,7 +45,7 @@ Default breakglass path:
 ## Deploy privilege model
 
 - Default: `admin` cannot run `nixos-rebuild` (breakglass required).
-- Recommended: enable `clawdlets.operator.deploy.enable` to allow `admin` to run constrained deploy entrypoints (`/etc/clawdlets/bin/install-secrets`, `/etc/clawdlets/bin/update-ingest`, `systemctl start clawdlets-update-apply.service`).
+- Recommended: enable `clawdlets.operator.deploy.enable` to allow `admin` to run `install-secrets` (push secrets; constrained allowlist).
 
 ## Egress posture (honesty)
 

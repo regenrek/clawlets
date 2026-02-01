@@ -13,7 +13,7 @@ export async function collectDoctorChecks(params: {
   runtimeDir?: string;
   envFile?: string;
   host: string;
-  scope?: "repo" | "bootstrap" | "server-deploy" | "cattle" | "all";
+  scope?: "repo" | "bootstrap" | "updates" | "cattle" | "all";
   skipGithubTokenCheck?: boolean;
 }): Promise<DoctorCheck[]> {
   const deployCreds = loadDeployCreds({ cwd: params.cwd, runtimeDir: params.runtimeDir, envFile: params.envFile });
@@ -23,14 +23,14 @@ export async function collectDoctorChecks(params: {
 
   const wantRepo = params.scope === "repo" || params.scope === "all" || params.scope == null;
   const wantBootstrap = params.scope === "bootstrap" || params.scope === "all" || params.scope == null;
-  const wantServerDeploy = params.scope === "server-deploy" || params.scope === "all" || params.scope == null;
+  const wantUpdates = params.scope === "updates" || params.scope === "all" || params.scope == null;
   const wantCattle = params.scope === "cattle" || params.scope === "all" || params.scope == null;
 
   const checks: DoctorCheck[] = [];
   const push = (c: DoctorCheck) => {
     if (c.scope === "repo" && !wantRepo) return;
     if (c.scope === "bootstrap" && !wantBootstrap) return;
-    if (c.scope === "server-deploy" && !wantServerDeploy) return;
+    if (c.scope === "updates" && !wantUpdates) return;
     if (c.scope === "cattle" && !wantCattle) return;
     checks.push(c);
   };
@@ -72,7 +72,7 @@ export async function collectDoctorChecks(params: {
     });
   }
 
-  if (wantServerDeploy) {
+  if (wantUpdates) {
     await addDeployChecks({
       cwd: params.cwd,
       repoRoot,
@@ -85,7 +85,7 @@ export async function collectDoctorChecks(params: {
       fleetBots: repoResult.fleetBots,
       push,
       skipGithubTokenCheck: params.skipGithubTokenCheck,
-      scope: "server-deploy",
+      scope: "updates",
     });
   }
 

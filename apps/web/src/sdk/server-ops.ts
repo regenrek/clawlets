@@ -11,8 +11,6 @@ import { requireAdminAndBoundRun } from "~/sdk/run-guards"
 import {
   parseServerAuditExecuteInput,
   parseServerAuditStartInput,
-  parseServerDeployExecuteInput,
-  parseServerDeployStartInput,
   parseServerLogsExecuteInput,
   parseServerLogsStartInput,
   parseServerRestartExecuteInput,
@@ -21,6 +19,8 @@ import {
   parseServerStatusStartInput,
   parseServerUpdateLogsExecuteInput,
   parseServerUpdateLogsStartInput,
+  parseServerUpdateApplyExecuteInput,
+  parseServerUpdateApplyStartInput,
   parseServerUpdateStatusExecuteInput,
   parseServerUpdateStatusStartInput,
 } from "~/sdk/serverfn-validators"
@@ -52,28 +52,28 @@ async function setRunFailedOrCanceled(params: {
   return { status: canceled ? "canceled" : "failed", message }
 }
 
-export const serverDeployStart = createServerFn({ method: "POST" })
-  .inputValidator(parseServerDeployStartInput)
+export const serverUpdateApplyStart = createServerFn({ method: "POST" })
+  .inputValidator(parseServerUpdateApplyStartInput)
   .handler(async ({ data }) => {
     const client = createConvexClient()
     const { runId } = await client.mutation(api.runs.create, {
       projectId: data.projectId,
-      kind: "deploy",
-      title: `Deploy (${data.host})`,
+      kind: "server_update_apply",
+      title: `Updater apply (${data.host})`,
     })
     await client.mutation(api.auditLogs.append, {
       projectId: data.projectId,
-      action: "server.deploy",
-      target: { host: data.host, manifestPath: data.manifestPath },
+      action: "server.update.apply",
+      target: { host: data.host },
       data: { runId },
     })
     return { runId }
   })
 
-export const serverDeployExecute = createServerFn({ method: "POST" })
-  .inputValidator(parseServerDeployExecuteInput)
+export const serverUpdateApplyExecute = createServerFn({ method: "POST" })
+  .inputValidator(parseServerUpdateApplyExecuteInput)
   .handler(async ({ data }) => {
-    const expected = `deploy ${data.host}`.trim()
+    const expected = `apply updates ${data.host}`.trim()
     requireTypedConfirmation({ expected, received: data.confirm })
 
     const client = createConvexClient()
@@ -81,7 +81,7 @@ export const serverDeployExecute = createServerFn({ method: "POST" })
       client,
       projectId: data.projectId,
       runId: data.runId,
-      expectedKind: "deploy",
+      expectedKind: "server_update_apply",
     })
     const redactTokens = await readClawdletsEnvTokens(repoRoot)
     const cliEntry = resolveClawdletsCliEntry()
@@ -91,12 +91,10 @@ export const serverDeployExecute = createServerFn({ method: "POST" })
       const args = [
         cliEntry,
         "server",
-        "deploy",
+        "update",
+        "apply",
         "--host",
         data.host,
-        "--manifest",
-        data.manifestPath,
-        ...(data.rev.trim() ? ["--rev", data.rev.trim()] : []),
         ...(data.targetHost.trim() ? ["--target-host", data.targetHost.trim()] : []),
         "--ssh-tty=false",
       ]

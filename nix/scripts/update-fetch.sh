@@ -14,12 +14,16 @@ Required env:
 
 Optional env:
 - CLAWDLETS_UPDATER_ALLOW_UNSIGNED  "true" (dev only; skips signature verification)
+- CLAWDLETS_UPDATER_PREVIOUS_KEYS_FILE         newline-delimited minisign public keys (previous/rotating out)
+- CLAWDLETS_UPDATER_PREVIOUS_KEYS_VALID_UNTIL  UTC timestamp (RFC3339/ISO); after this, previous keys are rejected
 USAGE
 }
 
 base_urls_raw="${CLAWDLETS_UPDATER_BASE_URLS:-}"
 state_dir="${CLAWDLETS_UPDATER_STATE_DIR:-/var/lib/clawdlets/updates}"
 keys_file="${CLAWDLETS_UPDATER_KEYS_FILE:-}"
+previous_keys_file="${CLAWDLETS_UPDATER_PREVIOUS_KEYS_FILE:-}"
+previous_keys_valid_until="${CLAWDLETS_UPDATER_PREVIOUS_KEYS_VALID_UNTIL:-}"
 allow_unsigned="${CLAWDLETS_UPDATER_ALLOW_UNSIGNED:-false}"
 
 read -r -a base_urls <<<"${base_urls_raw}"
@@ -39,6 +43,27 @@ if [[ ! -f "${keys_file}" ]]; then
   exit 2
 fi
 
+previous_keys_active="false"
+if [[ -n "${previous_keys_file}" ]]; then
+  if [[ ! -f "${previous_keys_file}" ]]; then
+    echo "error: previous keys file not found: ${previous_keys_file}" >&2
+    exit 2
+  fi
+  if [[ -z "${previous_keys_valid_until}" ]]; then
+    echo "error: CLAWDLETS_UPDATER_PREVIOUS_KEYS_VALID_UNTIL must be set when CLAWDLETS_UPDATER_PREVIOUS_KEYS_FILE is set" >&2
+    exit 2
+  fi
+  until_epoch=""
+  if ! until_epoch="$(date -u -d "${previous_keys_valid_until}" +%s 2>/dev/null)"; then
+    echo "error: invalid CLAWDLETS_UPDATER_PREVIOUS_KEYS_VALID_UNTIL: ${previous_keys_valid_until}" >&2
+    exit 2
+  fi
+  now_epoch="$(date -u +%s)"
+  if [[ "${now_epoch}" -le "${until_epoch}" ]]; then
+    previous_keys_active="true"
+  fi
+fi
+
 tmpdir="$(mktemp -d)"
 trap 'rm -rf "${tmpdir}"' EXIT
 
@@ -48,9 +73,10 @@ curl_fetch() {
   curl -fsSL --retry 3 --retry-delay 2 --connect-timeout 10 -o "${out}" "${url}"
 }
 
-verify_with_keys() {
+verify_with_keys_file() {
   local file="$1"
   local sig="$2"
+  local keys_path="$3"
   local key=""
   local key_trim=""
 
@@ -61,8 +87,26 @@ verify_with_keys() {
       printf '%s' "${key_trim}"
       return 0
     fi
-  done < "${keys_file}"
+  done < "${keys_path}"
 
+  return 1
+}
+
+verify_with_any_key() {
+  local file="$1"
+  local sig="$2"
+  local verified_key=""
+
+  if verified_key="$(verify_with_keys_file "${file}" "${sig}" "${keys_file}")"; then
+    printf '%s' "${verified_key}"
+    return 0
+  fi
+  if [[ "${previous_keys_active}" == "true" ]]; then
+    if verified_key="$(verify_with_keys_file "${file}" "${sig}" "${previous_keys_file}")"; then
+      printf '%s' "${verified_key}"
+      return 0
+    fi
+  fi
   return 1
 }
 
@@ -100,7 +144,7 @@ for base_url in "${base_urls[@]}"; do
 
   if [[ "${allow_unsigned}" == "false" ]]; then
     verified_key=""
-    if ! verified_key="$(verify_with_keys "${pointer_json}" "${pointer_sig}")"; then
+    if ! verified_key="$(verify_with_any_key "${pointer_json}" "${pointer_sig}")"; then
       last_error="pointer signature verification failed: ${pointer_url}"
       continue
     fi
@@ -135,7 +179,7 @@ for base_url in "${base_urls[@]}"; do
   fi
 
   if [[ "${allow_unsigned}" == "false" ]]; then
-    if ! verify_with_keys "${manifest_json}" "${manifest_sig}" >/dev/null; then
+    if ! verify_with_any_key "${manifest_json}" "${manifest_sig}" >/dev/null; then
       last_error="manifest signature verification failed: ${manifest_url}"
       continue
     fi

@@ -27,12 +27,12 @@ pnpm run clawdlets -- --help
 Use the pnpm wrapper for all commands (example): `pnpm run clawdlets -- secrets init` == `clawdlets secrets init`.
 
 - `clawdlets doctor --scope bootstrap`: bootstrap preflight (fails on missing).
-- `clawdlets doctor --scope server-deploy --strict`: deploy gate (fails on warn/missing).
+- `clawdlets doctor --scope updates --strict`: updates gate (fails on warn/missing).
 - `clawdlets secrets init`: generates operator keys + host key, writes encrypted secrets under `secrets/hosts/<host>/`, and generates `.clawdlets/extra-files/<host>/...` for first install.
 - `clawdlets bootstrap`: runs provisioning + `nixos-anywhere` install (prints target IPv4; clears stale `known_hosts`).
 - `clawdlets infra apply`: provisioning apply only (driven by `fleet/clawdlets.json`).
 - `clawdlets lockdown`: reconcile to tailnet-only SSH (provisioning only).
-- `clawdlets server <cmd>`: run server-side operations over SSH (`status`, `logs`, `restart`, `deploy`).
+- `clawdlets server <cmd>`: run server-side operations over SSH (`status`, `logs`, `restart`, `update`).
 
 ## Recommended workflow (new host)
 
@@ -98,25 +98,20 @@ clawdlets bootstrap --mode image
 ```bash
 clawdlets host set --target-host admin@<tailscale-ip>
 clawdlets host set --ssh-exposure tailnet
-clawdlets server deploy --manifest deploy/<host>/prod/<releaseId>.json
+clawdlets server update apply --host <host>
 clawdlets lockdown
 ```
 
-6) Deploy (pinned to a full commit SHA):
-```bash
-clawdlets server deploy --manifest deploy/<host>/prod/<releaseId>.json
-```
+6) Apply updates (signed desired state):
 
-Manifest pins the full 40-hex SHA.
-
-If you don’t have CI manifests yet, generate one locally:
+- Publish the new signed manifest + `latest.json` pointer (CI workflow `updates: publish`).
+- Hosts apply on a timer, or trigger immediately:
 
 ```bash
-clawdlets release manifest build --host <host> --channel prod --system x86_64-linux --release-id <releaseId> --out deploy/<host>/prod/<releaseId>.json
-clawdlets release manifest sign --in deploy/<host>/prod/<releaseId>.json
+clawdlets server update apply --host <host>
 ```
 
-Note: building NixOS system artifacts requires Linux. On macOS, use CI (`updates-publish.yml`) or a Linux builder and then deploy by `--manifest`.
+Note: building NixOS system artifacts requires Linux. On macOS, use CI (`updates-publish.yml`) or a Linux builder.
 
 ## Server checks
 
@@ -127,11 +122,11 @@ clawdlets server logs --target-host admin@<ipv4> --unit clawdbot-maren.service -
 
 ## Common follow-ups
 
-- Change tokens/passwords: edit `secrets/hosts/<host>/*.yaml` with sops, then deploy.
-- Add a bot: `clawdlets bot add --bot <id>` → re-run `clawdlets secrets init` → deploy.
+- Change tokens/passwords: edit `secrets/hosts/<host>/*.yaml` with sops, publish, then apply updates.
+- Add a bot: `clawdlets bot add --bot <id>` → re-run `clawdlets secrets init` → publish → apply updates.
 - Add/enable a skill:
   - add it to `fleet/bundled-skills.json` (if bundled)
   - allow it per-bot via canonical config:
     - `clawdlets config set --path fleet.bots.<bot>.profile.skills.allowBundled --value-json '["github","brave-search"]'`
-  - if it needs secrets: add `secrets/hosts/<host>/<secret>.yaml`, then `clawdlets server deploy`
+  - if it needs secrets: add `secrets/hosts/<host>/<secret>.yaml`, then publish + apply updates
 - Add another operator machine: add their age public key to `secrets/.sops.yaml` recipients for that host and re-encrypt.

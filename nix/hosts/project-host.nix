@@ -53,6 +53,9 @@ in {
   clawdlets.selfUpdate.baseUrls = (selfUpdate.baseUrls or [ ]);
   clawdlets.selfUpdate.channel = (selfUpdate.channel or "prod");
   clawdlets.selfUpdate.publicKeys = (selfUpdate.publicKeys or [ ]);
+  clawdlets.selfUpdate.previousPublicKeys = (selfUpdate.previousPublicKeys or [ ]);
+  clawdlets.selfUpdate.previousPublicKeysValidUntil =
+    let v = (selfUpdate.previousPublicKeysValidUntil or ""); in if v != "" then v else null;
   clawdlets.selfUpdate.allowUnsigned = (selfUpdate.allowUnsigned or false);
   clawdlets.selfUpdate.allowRollback = (selfUpdate.allowRollback or false);
   clawdlets.selfUpdate.healthCheckUnit =
@@ -129,9 +132,7 @@ in {
         lib.optionalString config.clawdlets.operator.deploy.enable ''
           Cmnd_Alias CLAWDLETS_DEPLOY = \
             /etc/clawdlets/bin/install-secrets --host * --tar * --rev *, \
-            /etc/clawdlets/bin/install-secrets --host * --tar * --rev * --digest *, \
-            /etc/clawdlets/bin/update-ingest --manifest * --signature *, \
-            /run/current-system/sw/bin/systemctl start clawdlets-update-apply.service
+            /etc/clawdlets/bin/install-secrets --host * --tar * --rev * --digest *
         '';
       deployAlias =
         if config.clawdlets.operator.deploy.enable
@@ -184,6 +185,8 @@ in {
       /run/current-system/sw/bin/systemctl status clawdlets-update-* --no-pager, \
       /run/current-system/sw/bin/systemctl status clawdlets-update-*.service, \
       /run/current-system/sw/bin/systemctl status clawdlets-update-*.service --no-pager, \
+      /run/current-system/sw/bin/systemctl start clawdlets-update-fetch.service, \
+      /run/current-system/sw/bin/systemctl start clawdlets-update-apply.service, \
       /run/current-system/sw/bin/systemctl list-timers clawdlets-update-*, \
       /run/current-system/sw/bin/systemctl list-timers clawdlets-update-* --all, \
       /run/current-system/sw/bin/systemctl list-timers clawdlets-update-* --all --no-pager

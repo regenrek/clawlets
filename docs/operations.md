@@ -7,12 +7,12 @@ Clawdlets does not own routing. Configure routing/channels via clawdbot config:
 Option:
 - inline: edit `fleet/clawdlets.json` → `fleet.bots.<bot>.clawdbot`
 
-Then deploy (pinned):
+Then publish + apply updates (pinned):
 
 ```bash
 clawdlets release manifest build --host <host> --channel prod --release-id <releaseId> --out deploy/<host>/prod/<releaseId>.json
 clawdlets release manifest sign --in deploy/<host>/prod/<releaseId>.json
-clawdlets server deploy --manifest deploy/<host>/prod/<releaseId>.json
+clawdlets server update apply --host <host>
 ```
 
 `--rev HEAD` resolves to the full SHA locally before the deploy.
@@ -23,10 +23,10 @@ clawdlets server deploy --manifest deploy/<host>/prod/<releaseId>.json
 2) Re-encrypt (or use `clawdlets secrets init` to regenerate)
 3) `clawdlets secrets sync`
 4) `clawdlets secrets verify`
-5) Deploy (pinned):
+5) Apply updates:
 
 ```bash
-clawdlets server deploy --manifest deploy/<host>/prod/<releaseId>.json
+clawdlets server update apply --host <host>
 ```
 
 ## Add a bot
@@ -43,7 +43,7 @@ clawdlets bot add --bot <id>
 Then:
 ```bash
 clawdlets secrets sync
-clawdlets server deploy --manifest deploy/<host>/prod/<releaseId>.json
+clawdlets server update apply --host <host>
 ```
 
 ## Add/enable a skill
@@ -57,7 +57,7 @@ clawdlets config set --path fleet.bots.maren.profile.skills.allowBundled --value
 4) Sync + deploy:
 ```bash
 clawdlets secrets sync
-clawdlets server deploy --manifest deploy/<host>/prod/<releaseId>.json
+clawdlets server update apply --host <host>
 ```
 
 ## Verify

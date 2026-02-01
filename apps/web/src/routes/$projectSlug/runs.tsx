@@ -54,7 +54,7 @@ function RunsPage() {
     <div className="space-y-4">
       <h1 className="text-2xl font-black tracking-tight">Runs</h1>
       <p className="text-muted-foreground">
-        History of doctor/bootstrap/deploy/etc with event logs.
+        History of doctor/bootstrap/updates/etc with event logs.
       </p>
 
       {runs.isPending ? (

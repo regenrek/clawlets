@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
-import type { Id } from "../../../../convex/_generated/dataModel"
+import type { Id } from "../../../convex/_generated/dataModel"
 import { HostCacheSettingsSection } from "~/components/hosts/cache-settings-section"
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert"
 import { parseLineList } from "~/lib/form-utils"
@@ -30,7 +30,7 @@ function normalizeCache(cache: any): {
   }
 }
 
-export const Route = createFileRoute("/$projectSlug/security/cache")({
+export const Route = createFileRoute("/$projectSlug/cache")({
   loader: async ({ context, params }) => {
     const projects = await context.queryClient.ensureQueryData(projectsListQueryOptions())
     const project = projects.find((p) => slugifyProjectName(p.name) === params.projectSlug) ?? null
@@ -38,10 +38,10 @@ export const Route = createFileRoute("/$projectSlug/security/cache")({
     if (!projectId) return
     await context.queryClient.ensureQueryData(clawdletsConfigQueryOptions(projectId))
   },
-  component: SecurityCache,
+  component: CachePage,
 })
 
-function SecurityCache() {
+function CachePage() {
   const { projectSlug } = Route.useParams()
   const projectQuery = useProjectBySlug(projectSlug)
   const projectId = projectQuery.projectId
@@ -177,6 +177,11 @@ function SecurityCache() {
 
   return (
     <div className="space-y-6">
+      <div className="space-y-1">
+        <h1 className="text-2xl font-black tracking-tight">Cache</h1>
+        <p className="text-muted-foreground">Project-wide Nix binary cache policy (applies to all hosts).</p>
+      </div>
+
       {cacheDivergedHosts.length > 0 ? (
         <Alert className="border-amber-500/40 bg-amber-500/5 text-amber-900 dark:text-amber-100">
           <AlertTitle>Hosts have different cache settings</AlertTitle>

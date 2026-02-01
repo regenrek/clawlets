@@ -229,10 +229,10 @@ export const bootstrap = defineCommand({
       console.log(`SSH exposure: ${sshExposureMode}`);
       console.log("");
       console.log("Next:");
-      console.log(`1) Set targetHost for deploys:`);
+      console.log(`1) Set targetHost for ops:`);
       console.log(`   clawdlets host set --host ${hostName} --target-host admin@${ipv4}`);
-      console.log("2) Deploy secrets + system:");
-      console.log(`   clawdlets server deploy --host ${hostName} --target-host admin@${ipv4} --manifest deploy/${hostName}/prod/<releaseId>.json`);
+      console.log("2) Trigger updater (fetch+apply):");
+      console.log(`   clawdlets server update apply --host ${hostName} --target-host admin@${ipv4}`);
       console.log("");
       console.log("After tailnet is healthy, lock down SSH:");
       console.log(`  clawdlets host set --host ${hostName} --ssh-exposure tailnet`);
@@ -451,8 +451,8 @@ export const bootstrap = defineCommand({
       if (lockdownAfter) {
         console.log(`1) Verify access via tailnet (targetHost updated):`);
         console.log(`   ssh admin@<tailscale-ip> 'hostname; uptime'`);
-        console.log("2) Redeploy so NixOS firewall also becomes tailnet-only:");
-        console.log(`   clawdlets server deploy --host ${hostName}`);
+        console.log("2) Apply updates so NixOS SSH exposure becomes tailnet-only:");
+        console.log(`   clawdlets server update apply --host ${hostName}`);
         console.log("3) Optional checks:");
         console.log("   clawdlets server audit --host " + hostName);
       } else {

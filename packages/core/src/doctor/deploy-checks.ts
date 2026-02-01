@@ -46,14 +46,14 @@ export async function addDeployChecks(params: {
   fleetBots: string[] | null;
   push: DoctorPush;
   skipGithubTokenCheck?: boolean;
-  scope: "bootstrap" | "server-deploy";
+  scope: "bootstrap" | "updates";
 }): Promise<void> {
   const host = params.host.trim() || "clawdbot-fleet-host";
   const scope = params.scope;
   const push = (c: Omit<DoctorCheck, "scope">) =>
     params.push({ scope, ...c });
   const isBootstrap = scope === "bootstrap";
-  const isServerDeploy = scope === "server-deploy";
+  const isUpdates = scope === "updates";
 
   try {
     const v = await capture(params.nixBin, ["--version"], { cwd: params.repoRoot });
@@ -172,7 +172,7 @@ export async function addDeployChecks(params: {
   }
 
   if (clawdletsHostCfg) {
-    if (isServerDeploy) {
+    if (isUpdates) {
       push({
         status: clawdletsHostCfg.targetHost ? "ok" : "warn",
         label: "targetHost",
@@ -434,11 +434,11 @@ export async function addDeployChecks(params: {
     }
   }
 
-  if (isServerDeploy) {
+  if (isUpdates) {
     push({
       status: "ok",
       label: "GITHUB_TOKEN",
-      detail: "(not required; cache-only deploy)",
+      detail: "(not required; cache-only updates)",
     });
     return;
   }

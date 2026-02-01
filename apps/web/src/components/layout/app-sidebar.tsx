@@ -5,11 +5,11 @@ import {
   BoltIcon,
   CheckIcon,
   ChevronUpDownIcon,
+  CircleStackIcon,
   Cog6ToothIcon,
   DocumentTextIcon,
   KeyIcon,
   MagnifyingGlassIcon,
-  RocketLaunchIcon,
   ServerStackIcon,
   ShieldCheckIcon,
   SparklesIcon,
@@ -149,9 +149,9 @@ function AppSidebar() {
             icon: BoltIcon,
           },
           {
-            to: `${hostBase}/deploy`,
-            label: "Deploy",
-            icon: RocketLaunchIcon,
+            to: `${hostBase}/updates`,
+            label: "Updates",
+            icon: ArrowPathIcon,
           },
           {
             to: `${hostBase}/secrets`,
@@ -203,7 +203,13 @@ function AppSidebar() {
           to: `${projectBase}/security`,
           label: "Security",
           icon: KeyIcon,
-          tooltip: "Project-wide API keys, SSH keys, and Nix cache policy.",
+          tooltip: "Project-wide API keys and SSH keys.",
+        },
+        {
+          to: `${projectBase}/cache`,
+          label: "Cache",
+          icon: CircleStackIcon,
+          tooltip: "Nix binary cache policy (substituters, trusted keys, netrc).",
         },
       ]
     : []

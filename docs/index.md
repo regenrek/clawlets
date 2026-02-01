@@ -17,7 +17,7 @@ Start here
 - `docs/runbook.md`: day-0/day-2 checklist.
 
 Operator vs bot
-- Operator/admin: `clawdlets` (bootstrap/deploy/lockdown/server ops).
+- Operator/admin: `clawdlets` (bootstrap/updates/lockdown/server ops).
 - Bot-facing control plane: `clf` (`clf jobs ...`).
 
 Where to run what

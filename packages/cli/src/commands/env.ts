@@ -67,7 +67,7 @@ export const envInit = defineCommand({
 
     console.log(`ok: wrote ${path.relative(repoRoot, resolved.path) || resolved.path}`);
     if (resolved.origin === "explicit") {
-      console.log(`note: you must pass --env-file ${resolved.path} to deploy commands to use it`);
+      console.log(`note: pass --env-file ${resolved.path} to commands that read deploy creds (bootstrap/infra/lockdown/...).`);
     } else {
       console.log("next: edit this file and set HCLOUD_TOKEN (required)");
     }

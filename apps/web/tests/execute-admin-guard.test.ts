@@ -34,15 +34,13 @@ describe("execute admin guard", () => {
 
     await expect(
       runWithStartContext(startContext, async () =>
-        await mod.serverDeployExecute({
+        await mod.serverUpdateApplyExecute({
           data: {
             projectId: "p1" as any,
             runId: "run1" as any,
             host: "alpha",
-            manifestPath: "",
-            rev: "",
             targetHost: "",
-            confirm: "deploy alpha",
+            confirm: "apply updates alpha",
           },
         }),
       ),
@@ -143,4 +141,3 @@ describe("execute admin guard", () => {
     expect(spawnCommandCapture).not.toHaveBeenCalled()
   })
 })
-

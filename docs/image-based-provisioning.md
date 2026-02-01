@@ -43,10 +43,10 @@ clawdlets host set --host <host> --hetzner-image <image_id_or_name>
 clawdlets bootstrap --mode image
 ```
 
-6) **Deploy secrets + system** (same as normal deploy):
+6) **Apply updates** (same as normal updates):
 
 ```bash
-clawdlets server deploy --host <host> --target-host admin@<ipv4> --manifest deploy/<host>/prod/<releaseId>.json
+clawdlets server update apply --host <host> --target-host admin@<ipv4>
 ```
 
 ## Alternate POC (snapshot)
@@ -58,7 +58,7 @@ and risks leaking secrets if you don’t scrub the host first.
 
 - Never embed plaintext secrets in the image.
 - The raw image build uses a bootstrap module that disables secrets + fleet services.
-- Install encrypted secrets via `clawdlets server deploy` after the host is reachable.
+- Install encrypted secrets via CI-published bundles (preferred) or `clawdlets secrets sync` after the host is reachable.
 
 ## Ops notes
 

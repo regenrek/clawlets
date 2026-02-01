@@ -41,7 +41,7 @@ export const lockdown = defineCommand({
       runtimeDir: (args as any).runtimeDir,
       envFile: (args as any).envFile,
       host: hostName,
-      scope: "server-deploy",
+      scope: "updates",
       strict: true,
       skipGithubTokenCheck: true,
     });

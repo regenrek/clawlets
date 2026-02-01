@@ -31,7 +31,7 @@ Goal: prove clawdlets can provision + operate a single Hetzner host end-to-end w
 ### Lockdown (no public SSH)
 
 - Tailnet works (WireGuard or Tailscale).
-- `clawdlets doctor --scope server-deploy --strict` passes.
+- `clawdlets doctor --scope updates --strict` passes.
 - `clawdlets host set --target-host admin@<tail-ip>` + `clawdlets host set --ssh-exposure tailnet` then `clawdlets lockdown` succeeds.
 - Public SSH closed:
   - Hetzner firewall removes TCP/22 from internet
@@ -39,7 +39,7 @@ Goal: prove clawdlets can provision + operate a single Hetzner host end-to-end w
 
 ### Day-2 ops
 
-- Deploy pinned: `clawdlets server deploy --manifest deploy/<host>/prod/<releaseId>.json` works.
+- Apply updates: `clawdlets server update apply --host <host>` works.
 - Rotate a Discord token:
   - edit `secrets/hosts/<host>/discord_token_<bot>.yaml` with `sops`
   - `clawdlets secrets sync`
