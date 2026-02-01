@@ -18,7 +18,7 @@ This file is **committed to git**. Secrets are not stored here (see `docs/secret
 
 Top-level:
 
-- `schemaVersion`: currently `9`
+- `schemaVersion`: currently `12`
 - `defaultHost` (optional): used when `--host` is omitted
 - `baseFlake` (optional): flake URI for remote builds (e.g. `github:<owner>/<repo>`)
   - if empty, CLI falls back to `git remote origin` (recommended)
@@ -52,7 +52,7 @@ Host entry (`hosts.<host>`):
 - `provisioning.adminCidr`: CIDR allowed to SSH during bootstrap (e.g. `203.0.113.10/32`)
 - `provisioning.adminCidrAllowWorldOpen`: allow `0.0.0.0/0` or `::/0` (default: `false`)
 - `provisioning.sshPubkeyFile`: local path to `.pub` used for provisioning
-- `operator.deploy.enable`: allow `admin` to run constrained deploy entrypoints (switch-system/install-secrets). Default: `false`.
+- `operator.deploy.enable`: allow `admin` to run constrained deploy entrypoints (install-secrets + updater apply trigger). Default: `false`.
 - `sshExposure.mode`: `tailnet|bootstrap|public` (single SSH exposure policy)
 - `tailnet.mode`: `tailscale` or `none` (tailscale mode opens UDP/41641 at the provider firewall for direct tailnet connectivity)
 - `cache.substituters`: binary cache URLs (default includes NixOS + Garnix)
@@ -62,7 +62,7 @@ Host entry (`hosts.<host>`):
 - `cache.netrc.path`: where to install the netrc file (default: `/etc/nix/netrc`)
 - `cache.netrc.narinfoCachePositiveTtl`: TTL for private cache narinfo URLs (default: `3600`)
 - `selfUpdate.enable`: enable pull-based self-updates
-- `selfUpdate.baseUrl`: base URL for update manifests (per-host/channel paths under this)
+- `selfUpdate.baseUrls`: mirror base URLs for update manifests (space-separated on the host; first success wins)
 - `selfUpdate.channel`: rollout channel (e.g. `staging`/`prod`)
 - `selfUpdate.interval`: systemd timer cadence (e.g. `30min`)
 - `selfUpdate.publicKeys`: minisign public keys (rotation supported)
@@ -128,15 +128,15 @@ Default autowire scope:
 
 ## Migration notes
 
-- v11: Cache settings are `hosts.<host>.cache.{substituters,trustedPublicKeys,netrc}`; self-updates are `hosts.<host>.selfUpdate.{baseUrl,publicKeys,channel}`.
+- v12: Self-updates use `hosts.<host>.selfUpdate.baseUrls` (mirror list).
+- v11: Cache settings are `hosts.<host>.cache.{substituters,trustedPublicKeys,netrc}`.
 - v10: SSH keys are project-scoped under `fleet.sshAuthorizedKeys`/`fleet.sshKnownHosts` (no longer per-host).
 - v9: inline secrets are deprecated; move tokens/api keys to `${ENV_VAR}` wiring and secretEnv mappings (hooks/skills included).
-
 ## Example
 
 ```json
 {
-  "schemaVersion": 11,
+  "schemaVersion": 12,
   "defaultHost": "clawdbot-fleet-host",
   "baseFlake": "",
   "fleet": {
@@ -203,7 +203,7 @@ Default autowire scope:
       "selfUpdate": {
         "enable": false,
         "interval": "30min",
-        "baseUrl": "",
+        "baseUrls": [],
         "channel": "prod",
         "publicKeys": [],
         "allowUnsigned": false,

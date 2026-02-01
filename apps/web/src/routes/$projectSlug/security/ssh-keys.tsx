@@ -112,7 +112,6 @@ function SecuritySshKeys() {
   if (!config) {
     return <div className="text-muted-foreground">Missing config.</div>
   }
-
   return (
     <div className="space-y-6">
       <SettingsSection

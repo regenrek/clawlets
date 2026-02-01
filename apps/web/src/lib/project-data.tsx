@@ -36,4 +36,3 @@ export function useProjectBySlug(projectSlug: string | null) {
     projectId: (project?._id as Id<"projects"> | null) ?? null,
   }
 }
-

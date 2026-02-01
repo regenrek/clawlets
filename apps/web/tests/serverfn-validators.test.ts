@@ -1,18 +1,21 @@
 import { describe, expect, it } from "vitest"
 
 import {
-	  parseBotClawdbotConfigInput,
-	  parseProjectSshKeysInput,
-	  parseProjectIdInput,
-	  parseProjectBotInput,
-	  parseProjectHostInput,
-	  parseProjectHostRequiredInput,
-	  parseProjectRunHostInput,
+  parseBotCapabilityPresetInput,
+  parseBotClawdbotConfigInput,
+  parseProjectSshKeysInput,
+  parseProjectIdInput,
+  parseProjectBotInput,
+  parseProjectHostInput,
+  parseProjectHostRequiredInput,
+  parseProjectRunHostInput,
   parseServerChannelsExecuteInput,
   parseServerChannelsStartInput,
   parseServerLogsExecuteInput,
   parseServerRestartExecuteInput,
   parseServerRestartStartInput,
+  parseServerUpdateLogsExecuteInput,
+  parseServerUpdateStatusStartInput,
   parseSecretsInitExecuteInput,
   parseWriteHostSecretsInput,
 } from "../src/sdk/serverfn-validators"
@@ -245,10 +248,10 @@ describe("serverfn validators", () => {
     })
   })
 
-	  it("parses server restart inputs", () => {
-	    expect(parseServerRestartStartInput({ projectId: "p1", host: "alpha", unit: "clawdbot-*.service" })).toEqual({
-	      projectId: "p1",
-	      host: "alpha",
+  it("parses server restart inputs", () => {
+    expect(parseServerRestartStartInput({ projectId: "p1", host: "alpha", unit: "clawdbot-*.service" })).toEqual({
+      projectId: "p1",
+      host: "alpha",
       unit: "clawdbot-*.service",
     })
 
@@ -261,31 +264,71 @@ describe("serverfn validators", () => {
         targetHost: "",
         confirm: "restart clawdbot-agent.service",
       }),
-	    ).toMatchObject({ unit: "clawdbot-agent.service", confirm: "restart clawdbot-agent.service" })
-	  })
+    ).toMatchObject({ unit: "clawdbot-agent.service", confirm: "restart clawdbot-agent.service" })
+  })
 
-	  it("rejects ssh key import file paths", () => {
-	    expect(() =>
-	      parseProjectSshKeysInput({
-	        projectId: "p1",
-	        keyText: "",
-	        knownHostsText: "",
-	        keyFilePath: "/etc/passwd",
-	      }),
-	    ).toThrow(/file path imports/i)
-	  })
+  it("parses server update status/logs inputs", () => {
+    expect(parseServerUpdateStatusStartInput({ projectId: "p1", host: "alpha" })).toEqual({
+      projectId: "p1",
+      host: "alpha",
+    })
 
-	  it("parses ssh key import text inputs", () => {
-	    expect(
-	      parseProjectSshKeysInput({
-	        projectId: "p1",
-	        keyText: "ssh-ed25519 AAAA",
-	        knownHostsText: "github.com ssh-ed25519 AAAA",
-	      }),
-	    ).toEqual({
-	      projectId: "p1",
-	      keyText: "ssh-ed25519 AAAA",
-	      knownHostsText: "github.com ssh-ed25519 AAAA",
-	    })
-	  })
-	})
+    expect(
+      parseServerUpdateLogsExecuteInput({
+        projectId: "p1",
+        runId: "r1",
+        host: "alpha",
+        lines: "",
+        since: "",
+      }),
+    ).toMatchObject({ lines: "200", since: "", follow: false })
+  })
+
+  it("rejects ssh key import file paths", () => {
+    expect(() =>
+      parseProjectSshKeysInput({
+        projectId: "p1",
+        keyText: "",
+        knownHostsText: "",
+        keyFilePath: "/etc/passwd",
+      }),
+    ).toThrow(/file path imports/i)
+  })
+
+  it("parses ssh key import text inputs", () => {
+    expect(
+      parseProjectSshKeysInput({
+        projectId: "p1",
+        keyText: "ssh-ed25519 AAAA",
+        knownHostsText: "github.com ssh-ed25519 AAAA",
+      }),
+    ).toEqual({
+      projectId: "p1",
+      keyText: "ssh-ed25519 AAAA",
+      knownHostsText: "github.com ssh-ed25519 AAAA",
+    })
+  })
+
+  it("parses bot capability preset inputs", () => {
+    expect(
+      parseBotCapabilityPresetInput({
+        projectId: "p1",
+        host: "alpha",
+        botId: "maren",
+        kind: "channel",
+        presetId: "discord",
+        schemaMode: "live",
+      }),
+    ).toMatchObject({ botId: "maren", kind: "channel", presetId: "discord", schemaMode: "live" })
+
+    expect(() =>
+      parseBotCapabilityPresetInput({
+        projectId: "p1",
+        host: "alpha",
+        botId: "maren",
+        kind: "channel",
+        presetId: "",
+      }),
+    ).toThrow(/presetId/i)
+  })
+})
