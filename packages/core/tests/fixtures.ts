@@ -24,6 +24,8 @@ export const baseHost = {
     baseUrls: [],
     channel: "prod",
     publicKeys: [],
+    previousPublicKeys: [],
+    previousPublicKeysValidUntil: "",
     allowUnsigned: false,
     allowRollback: false,
     healthCheckUnit: "",

@@ -224,14 +224,14 @@ clawdlets bootstrap --mode image
 
 Then deploy as usual (see below).
 
-## 2) Deploy (pinned)
+## 2) Publish (pinned)
 
-Use a pinned commit for deploys. Short revs are fine; the CLI resolves them to a full SHA.
+Use a pinned commit for publishes. Short revs are fine; the CLI resolves them to a full SHA.
 
 ```bash
 clawdlets release manifest build --host <host> --channel prod --system x86_64-linux --release-id <releaseId> --out deploy/<host>/prod/<releaseId>.json
 clawdlets release manifest sign --in deploy/<host>/prod/<releaseId>.json
-clawdlets server deploy --target-host admin@<ipv4> --manifest deploy/<host>/prod/<releaseId>.json
+clawdlets server update apply --host <host> --target-host admin@<ipv4>
 ```
 
 More deploy/update options (and tradeoffs): `docs/deploy.md`.
@@ -352,7 +352,7 @@ clawdlets host set --ssh-exposure tailnet
 2) Deploy the updated system (cache-only):
 
 ```bash
-clawdlets server deploy --manifest deploy/<host>/prod/<releaseId>.json
+clawdlets server update apply --host <host>
 ```
 
 3) Apply (one-shot helper; provisioning only):

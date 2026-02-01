@@ -156,12 +156,9 @@ Rules of thumb:
 │  │                                                                                           │     │ │
 │  │                                                                                           ▼     │ │
 │  │  ┌──────────────────────────────────────────────────────────────────────────────────────────┐   │ │
-│  │  │ push-deploy.yml (optional)                                                                │   │ │
-│  │  │ ───────────────────────────                                                               │   │ │
-│  │  │   1. Join Tailnet (TAILSCALE_AUTHKEY)                                                     │   │ │
-│  │  │   2. Download signed manifest from GitHub Pages                                           │   │ │
-│  │  │   3. Verify signature (config/manifest.minisign.pub)                                      │   │ │
-│  │  │   4. clawdlets server deploy --manifest ... ─────────────────▶ NixOS Host                 │   │ │
+│  │  │ operator apply-now (optional)                                                            │   │ │
+│  │  │ ─────────────────────────────                                                            │   │ │
+│  │  │   clawdlets server update apply --host <host> ───────────────▶ NixOS Host                 │   │ │
 │  │  └──────────────────────────────────────────────────────────────────────────────────────────┘   │ │
 │  └─────────────────────────────────────────────────────────────────────────────────────────────────┘ │
 │                                                                                                      │
@@ -220,7 +217,7 @@ Rules of thumb:
 │  │  │ ─────────────                │      │ ──────────────────           │                         │ │
 │  │  │ clawdlets doctor --scope repo│      │ sops edit secrets/...yaml    │                         │ │
 │  │  │ clawdlets doctor --scope     │      │ clawdlets secrets sync       │                         │ │
-│  │  │   server-deploy --strict     │      │ clawdlets server deploy      │                         │ │
+│  │  │   updates --strict           │      │ clawdlets server update apply│                         │ │
 │  │  │ clawdlets server audit       │      └──────────────────────────────┘                         │ │
 │  │  │ clawdlets server logs --unit │                                                               │ │
 │  │  │   clawdbot-*.service --follow│      ┌──────────────────────────────┐                         │ │
@@ -228,7 +225,7 @@ Rules of thumb:
 │  │                                        │ ─────────────────            │                         │ │
 │  │                                        │ clawdlets bot add --bot <id> │                         │ │
 │  │                                        │ clawdlets secrets init       │                         │ │
-│  │                                        │ clawdlets server deploy      │                         │ │
+│  │                                        │ clawdlets server update apply│                         │ │
 │  │                                        └──────────────────────────────┘                         │ │
 │  └─────────────────────────────────────────────────────────────────────────────────────────────────┘ │
 └──────────────────────────────────────────────────────────────────────────────────────────────────────┘

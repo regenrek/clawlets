@@ -10,12 +10,12 @@
 nix flake lock --update-input nix-clawdbot
 ```
 
-2) Deploy on a staging host (pinned):
+2) Apply updates on a staging host (pinned):
 
 ```bash
 clawdlets release manifest build --host <host> --channel staging --system x86_64-linux --release-id <releaseId> --out deploy/<host>/staging/<releaseId>.json
 clawdlets release manifest sign --in deploy/<host>/staging/<releaseId>.json
-clawdlets server deploy --manifest deploy/<host>/staging/<releaseId>.json
+clawdlets server update apply --host <host>
 ```
 
 3) Verify:

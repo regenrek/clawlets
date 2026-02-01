@@ -247,6 +247,8 @@ const HostSchema = z.object({
         .default("prod")
         .refine((v) => /^[a-z][a-z0-9-]*$/.test(v), { message: "invalid selfUpdate.channel (use [a-z][a-z0-9-]*)" }),
       publicKeys: z.array(z.string().trim().min(1)).default([]),
+      previousPublicKeys: z.array(z.string().trim().min(1)).default([]),
+      previousPublicKeysValidUntil: z.string().trim().default(""),
       allowUnsigned: z.boolean().default(false),
       allowRollback: z.boolean().default(false),
       healthCheckUnit: z.string().trim().default(""),
@@ -262,6 +264,35 @@ const HostSchema = z.object({
       if (v.enable && !v.allowUnsigned && v.publicKeys.length === 0) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["publicKeys"], message: "selfUpdate.publicKeys must be set when enabled (or enable allowUnsigned for dev)" });
       }
+      if (v.previousPublicKeys.length > 0 && !v.previousPublicKeysValidUntil) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["previousPublicKeysValidUntil"],
+          message: "selfUpdate.previousPublicKeysValidUntil is required when previousPublicKeys is set",
+        });
+      }
+      if (v.previousPublicKeysValidUntil && v.previousPublicKeys.length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["previousPublicKeys"],
+          message: "selfUpdate.previousPublicKeys is required when previousPublicKeysValidUntil is set",
+        });
+      }
+      if (v.previousPublicKeysValidUntil && Number.isNaN(Date.parse(v.previousPublicKeysValidUntil))) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["previousPublicKeysValidUntil"],
+          message: "invalid selfUpdate.previousPublicKeysValidUntil (expected ISO timestamp)",
+        });
+      }
+      const allKeys = new Set([...v.publicKeys, ...v.previousPublicKeys]);
+      if (allKeys.size !== v.publicKeys.length + v.previousPublicKeys.length) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["previousPublicKeys"],
+          message: "selfUpdate.previousPublicKeys must not overlap selfUpdate.publicKeys",
+        });
+      }
       if (v.healthCheckUnit && !/^[A-Za-z0-9@._:-]+(\.service)?$/.test(v.healthCheckUnit)) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["healthCheckUnit"], message: "invalid selfUpdate.healthCheckUnit" });
       }
@@ -272,6 +303,8 @@ const HostSchema = z.object({
       baseUrls: [],
       channel: "prod",
       publicKeys: [],
+      previousPublicKeys: [],
+      previousPublicKeysValidUntil: "",
       allowUnsigned: false,
       allowRollback: false,
       healthCheckUnit: "",
@@ -441,6 +474,8 @@ export function createDefaultClawdletsConfig(params: { host: string; bots?: stri
           baseUrls: [],
           channel: "prod",
           publicKeys: [],
+          previousPublicKeys: [],
+          previousPublicKeysValidUntil: "",
           allowUnsigned: false,
           allowRollback: false,
           healthCheckUnit: "",

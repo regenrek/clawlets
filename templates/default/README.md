@@ -14,7 +14,7 @@ Quickstart
 5) `clawdlets secrets init --host <host> --from-json .clawdlets/secrets.json --yes`
 6) `clawdlets doctor --scope bootstrap`
 7) `clawdlets bootstrap`
-8) join tailnet, then: `clawdlets host set --target-host admin@<tailscale-ip>` then `clawdlets server deploy --manifest deploy/<host>/prod/<releaseId>.json` and `clawdlets lockdown`
+8) join tailnet, then: `clawdlets host set --target-host admin@<tailscale-ip>` then `clawdlets server update apply --host <host>` and `clawdlets lockdown`
 
 Docs: see the clawdlets repo `docs/README.md`
 

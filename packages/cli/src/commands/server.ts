@@ -5,7 +5,6 @@ import { mapWithConcurrency } from "@clawdlets/core/lib/concurrency";
 import { requireTargetHost, needsSudo } from "./server/common.js";
 import { serverGithubSync } from "./server/github-sync.js";
 import { serverChannels } from "./server/channels.js";
-import { serverDeploy } from "./server/deploy.js";
 import { serverUpdate } from "./server/update.js";
 import { loadHostContextOrExit } from "@clawdlets/core/lib/context";
 
@@ -347,12 +346,11 @@ const serverRestart = defineCommand({
 export const server = defineCommand({
   meta: {
     name: "server",
-    description: "Server operations via SSH (deploy/logs/status/update).",
+    description: "Server operations via SSH (audit/logs/status/update).",
   },
   subCommands: {
     audit: serverAudit,
     channels: serverChannels,
-    deploy: serverDeploy,
     status: serverStatus,
     logs: serverLogs,
     "github-sync": serverGithubSync,

@@ -4,7 +4,7 @@ import { renderDoctorGateFailure, renderDoctorReport } from "../src/lib/doctor-r
 const checks = [
   { scope: "repo", status: "ok", label: "Repo OK" },
   { scope: "repo", status: "missing", label: "Secrets missing", detail: "nope" },
-  { scope: "server-deploy", status: "warn", label: "SSH exposure", detail: "bootstrap" },
+  { scope: "updates", status: "warn", label: "SSH exposure", detail: "bootstrap" },
   { scope: "bootstrap", status: "ok", label: "Nix ok" },
 ];
 
@@ -19,9 +19,9 @@ describe("doctor render", () => {
   });
 
   it("renders gate failure summary", () => {
-    const out = renderDoctorGateFailure({ checks, scope: "server-deploy", strict: true });
-    expect(out).toMatch(/doctor gate failed \(server-deploy, strict\)/);
+    const out = renderDoctorGateFailure({ checks, scope: "updates", strict: true });
+    expect(out).toMatch(/doctor gate failed \(updates, strict\)/);
     expect(out).toMatch(/missing=1 warn=1/);
-    expect(out).toMatch(/hint: run clawdlets doctor --scope server-deploy --strict/);
+    expect(out).toMatch(/hint: run clawdlets doctor --scope updates --strict/);
   });
 });

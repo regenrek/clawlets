@@ -6,7 +6,7 @@ export async function requireDeployGate(params: {
   runtimeDir?: string;
   envFile?: string;
   host: string;
-  scope: "bootstrap" | "server-deploy" | "repo";
+  scope: "bootstrap" | "updates" | "repo";
   strict: boolean;
   skipGithubTokenCheck?: boolean;
 }): Promise<void> {

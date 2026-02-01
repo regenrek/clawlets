@@ -42,7 +42,11 @@ describe("secrets-policy", () => {
   it("accepts one-key + sops metadata per file", async () => {
     const dir = await mkdtemp(path.join(tmpdir(), "clawdlets-secrets-policy-"));
     await mkdir(dir, { recursive: true });
-    await writeFile(path.join(dir, "discord_token_alpha.yaml"), "discord_token_alpha: x\nsops: {}\n", "utf8");
+    await writeFile(
+      path.join(dir, "discord_token_alpha.yaml"),
+      "discord_token_alpha: ENC[AES256_GCM,data:abc,iv:def,tag:ghi,type:str]\nsops: {}\n",
+      "utf8",
+    );
     const r = validateHostSecretsYamlFiles({ secretsDir: dir });
     expect(r.ok).toBe(true);
     expect(r.violations).toEqual([]);

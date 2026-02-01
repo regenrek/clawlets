@@ -52,7 +52,7 @@ Host entry (`hosts.<host>`):
 - `provisioning.adminCidr`: CIDR allowed to SSH during bootstrap (e.g. `203.0.113.10/32`)
 - `provisioning.adminCidrAllowWorldOpen`: allow `0.0.0.0/0` or `::/0` (default: `false`)
 - `provisioning.sshPubkeyFile`: local path to `.pub` used for provisioning
-- `operator.deploy.enable`: allow `admin` to run constrained deploy entrypoints (install-secrets + updater apply trigger). Default: `false`.
+- `operator.deploy.enable`: allow `admin` to run `install-secrets` (constrained allowlist). Default: `false`.
 - `sshExposure.mode`: `tailnet|bootstrap|public` (single SSH exposure policy)
 - `tailnet.mode`: `tailscale` or `none` (tailscale mode opens UDP/41641 at the provider firewall for direct tailnet connectivity)
 - `cache.substituters`: binary cache URLs (default includes NixOS + Garnix)
@@ -66,6 +66,8 @@ Host entry (`hosts.<host>`):
 - `selfUpdate.channel`: rollout channel (e.g. `staging`/`prod`)
 - `selfUpdate.interval`: systemd timer cadence (e.g. `30min`)
 - `selfUpdate.publicKeys`: minisign public keys (rotation supported)
+- `selfUpdate.previousPublicKeys`: previous minisign public keys (rotation safe mode; optional)
+- `selfUpdate.previousPublicKeysValidUntil`: UTC timestamp (RFC3339/ISO) until which previousPublicKeys are accepted
 - `selfUpdate.allowUnsigned`: dev-only escape hatch (unsafe)
 - `selfUpdate.allowRollback`: break-glass only (accept lower `releaseId`)
 - `selfUpdate.healthCheckUnit`: optional post-switch health gate (record-only)
@@ -124,7 +126,7 @@ Default autowire scope:
 ## Strict mode
 
 - `clawdlets config validate --strict`: treat inline secrets + invariant overrides + allowlist mismatches as errors.
-- `clawdlets doctor --scope server-deploy --strict`: deploy gate; fails on warn.
+- `clawdlets doctor --scope updates --strict`: updates gate; fails on warn.
 
 ## Migration notes
 

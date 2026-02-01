@@ -12,7 +12,7 @@ import { Switch } from "~/components/ui/switch"
 import { Textarea } from "~/components/ui/textarea"
 import { useProjectBySlug } from "~/lib/project-data"
 import { getClawdletsConfig } from "~/sdk/config"
-import { serverUpdateLogsExecute, serverUpdateLogsStart, serverUpdateStatusExecute, serverUpdateStatusStart } from "~/sdk/server-ops"
+import { serverUpdateApplyExecute, serverUpdateApplyStart, serverUpdateLogsExecute, serverUpdateLogsStart, serverUpdateStatusExecute, serverUpdateStatusStart } from "~/sdk/server-ops"
 
 export const Route = createFileRoute("/$projectSlug/hosts/$host/updates")({
   component: UpdatesOperate,
@@ -31,6 +31,30 @@ function UpdatesOperate() {
   const config = cfg.data?.config as any
 
   const [targetHost, setTargetHost] = useState("")
+  const expectedApplyConfirm = `apply updates ${host}`.trim()
+  const [applyConfirm, setApplyConfirm] = useState("")
+
+  const [applyRunId, setApplyRunId] = useState<Id<"runs"> | null>(null)
+  const applyStart = useMutation({
+    mutationFn: async () =>
+      await serverUpdateApplyStart({ data: { projectId: projectId as Id<"projects">, host } }),
+    onSuccess: (res) => {
+      setApplyRunId(res.runId)
+      void serverUpdateApplyExecute({
+        data: {
+          projectId: projectId as Id<"projects">,
+          runId: res.runId,
+          host,
+          targetHost,
+          confirm: applyConfirm,
+        },
+      })
+      toast.info("Updater triggered")
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : String(err))
+    },
+  })
 
   const [statusRunId, setStatusRunId] = useState<Id<"runs"> | null>(null)
   const [statusResult, setStatusResult] = useState<any>(null)
@@ -111,6 +135,14 @@ function UpdatesOperate() {
               <Button
                 type="button"
                 variant="outline"
+                disabled={applyStart.isPending || !host || applyConfirm.trim() !== expectedApplyConfirm}
+                onClick={() => applyStart.mutate()}
+              >
+                Apply now
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
                 disabled={statusStart.isPending || !host}
                 onClick={() => statusStart.mutate()}
               >
@@ -125,6 +157,20 @@ function UpdatesOperate() {
               </Button>
               <div className="text-xs text-muted-foreground">
                 Uses <code>--ssh-tty=false</code>.
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Type to confirm</Label>
+                <Input
+                  value={applyConfirm}
+                  onChange={(e) => setApplyConfirm(e.target.value)}
+                  placeholder={expectedApplyConfirm}
+                />
+                <div className="text-xs text-muted-foreground">
+                  Expected: <code>{expectedApplyConfirm}</code>
+                </div>
               </div>
             </div>
           </div>
@@ -161,9 +207,9 @@ function UpdatesOperate() {
 
           {statusRunId ? <RunLogTail runId={statusRunId} /> : null}
           {logsRunId ? <RunLogTail runId={logsRunId} /> : null}
+          {applyRunId ? <RunLogTail runId={applyRunId} /> : null}
         </div>
       )}
     </div>
   )
 }
-

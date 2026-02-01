@@ -4,7 +4,7 @@ import { createFileRoute, Outlet, useNavigate, useRouterState } from "@tanstack/
 import { Tabs, TabsList, TabsTrigger } from "~/components/ui/tabs"
 import { projectsListQueryOptions } from "~/lib/query-options"
 
-const TABS = ["api-keys", "ssh-keys", "cache"] as const
+const TABS = ["api-keys", "ssh-keys"] as const
 type TabKey = (typeof TABS)[number]
 
 function resolveTab(pathname: string): TabKey {
@@ -29,7 +29,7 @@ function ProjectSecurityLayout() {
     <div className="space-y-6">
       <div className="space-y-1">
         <h1 className="text-2xl font-black tracking-tight">Security</h1>
-        <p className="text-muted-foreground">Project-wide credentials, SSH keys, and Nix cache policy.</p>
+        <p className="text-muted-foreground">Project-wide credentials and SSH keys.</p>
       </div>
 
       <Tabs
@@ -45,7 +45,6 @@ function ProjectSecurityLayout() {
         <TabsList>
           <TabsTrigger value="api-keys">API Keys</TabsTrigger>
           <TabsTrigger value="ssh-keys">SSH Keys</TabsTrigger>
-          <TabsTrigger value="cache">Nix Cache</TabsTrigger>
         </TabsList>
       </Tabs>
 

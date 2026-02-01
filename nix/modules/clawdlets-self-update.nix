@@ -34,6 +34,18 @@ in {
       description = "Trusted minisign public keys (newline-delimited).";
     };
 
+    previousPublicKeys = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = [];
+      description = "Key rotation safe mode: previous minisign public keys accepted until previousPublicKeysValidUntil.";
+    };
+
+    previousPublicKeysValidUntil = lib.mkOption {
+      type = lib.types.nullOr lib.types.str;
+      default = null;
+      description = "UTC timestamp (RFC3339/ISO) until which previousPublicKeys are accepted. After that, previous keys are rejected automatically.";
+    };
+
     allowUnsigned = lib.mkOption {
       type = lib.types.bool;
       default = false;
@@ -59,6 +71,10 @@ in {
         assertion = (!cfg.selfUpdate.enable) || (cfg.selfUpdate.baseUrls != [ ]);
         message = "clawdlets.selfUpdate.baseUrls must be set when self-update is enabled.";
       }
+      {
+        assertion = (cfg.selfUpdate.previousPublicKeys == [ ]) || (cfg.selfUpdate.previousPublicKeysValidUntil != null);
+        message = "clawdlets.selfUpdate.previousPublicKeysValidUntil must be set when previousPublicKeys is non-empty.";
+      }
     ];
 
     environment.etc."clawdlets/bin/update-fetch" = {
@@ -76,14 +92,14 @@ in {
       mode = "0755";
     };
 
-    environment.etc."clawdlets/bin/update-ingest" = {
-      source = ../scripts/update-ingest.sh;
-      mode = "0755";
-    };
-
     environment.etc."clawdlets/updater/manifest.keys" = lib.mkIf cfg.selfUpdate.enable {
       mode = "0444";
       text = lib.concatStringsSep "\n" cfg.selfUpdate.publicKeys + "\n";
+    };
+
+    environment.etc."clawdlets/updater/manifest.previous.keys" = lib.mkIf (cfg.selfUpdate.enable && cfg.selfUpdate.previousPublicKeys != [ ]) {
+      mode = "0444";
+      text = lib.concatStringsSep "\n" cfg.selfUpdate.previousPublicKeys + "\n";
     };
 
     systemd.services.clawdlets-update-fetch = lib.mkIf cfg.selfUpdate.enable {
@@ -95,6 +111,8 @@ in {
         CLAWDLETS_UPDATER_BASE_URLS = lib.concatStringsSep " " cfg.selfUpdate.baseUrls;
         CLAWDLETS_UPDATER_STATE_DIR = "/var/lib/clawdlets/updates";
         CLAWDLETS_UPDATER_KEYS_FILE = "/etc/clawdlets/updater/manifest.keys";
+        CLAWDLETS_UPDATER_PREVIOUS_KEYS_FILE = if cfg.selfUpdate.previousPublicKeys != [ ] then "/etc/clawdlets/updater/manifest.previous.keys" else "";
+        CLAWDLETS_UPDATER_PREVIOUS_KEYS_VALID_UNTIL = if cfg.selfUpdate.previousPublicKeysValidUntil != null then cfg.selfUpdate.previousPublicKeysValidUntil else "";
         CLAWDLETS_UPDATER_ALLOW_UNSIGNED = if cfg.selfUpdate.allowUnsigned then "true" else "false";
       };
       serviceConfig = {
@@ -127,6 +145,8 @@ in {
         CLAWDLETS_UPDATER_BASE_URLS = lib.concatStringsSep " " cfg.selfUpdate.baseUrls;
         CLAWDLETS_UPDATER_STATE_DIR = "/var/lib/clawdlets/updates";
         CLAWDLETS_UPDATER_KEYS_FILE = "/etc/clawdlets/updater/manifest.keys";
+        CLAWDLETS_UPDATER_PREVIOUS_KEYS_FILE = if cfg.selfUpdate.previousPublicKeys != [ ] then "/etc/clawdlets/updater/manifest.previous.keys" else "";
+        CLAWDLETS_UPDATER_PREVIOUS_KEYS_VALID_UNTIL = if cfg.selfUpdate.previousPublicKeysValidUntil != null then cfg.selfUpdate.previousPublicKeysValidUntil else "";
         CLAWDLETS_UPDATER_HOST_NAME = config.networking.hostName;
         CLAWDLETS_UPDATER_CHANNEL = cfg.selfUpdate.channel;
         CLAWDLETS_UPDATER_SECRETS_DIR = config.clawdlets.secrets.hostDir;

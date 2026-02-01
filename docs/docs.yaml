@@ -37,7 +37,7 @@ docs:
     summary: required tools and setup notes
   - path: docs/deploy.md
     when: updating a host
-    summary: deploy patterns; pin rev; rollback mental model
+    summary: update patterns; pin rev; rollback mental model
   - path: docs/image-based-provisioning.md
     when: image-based provisioning
     summary: phase-4 plan to reach cattle (image builds + upload + secrets injection)
@@ -61,15 +61,15 @@ docs:
     summary: secrets out of store; lockdown verification checks
   - path: docs/ops-invariants.md
     when: rules of engagement
-    summary: deploy-only policy; no manual host edits
+    summary: update-only policy; no manual host edits
   - path: docs/operations.md
     when: day-2 ops
-    summary: status/logs/restart/deploy patterns
+    summary: status/logs/restart/update patterns
   - path: docs/runbook.md
     when: day 0/day 2 checklist
     summary: bootstrap + routine ops + optional sync/snapshots
   - path: docs/troubleshooting.md
-    when: broken deploy
+    when: broken update
     summary: known errors and fixes
   - path: docs/publicing.md
     when: OSS prep

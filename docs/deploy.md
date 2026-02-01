@@ -56,8 +56,6 @@ Recommended: use the built-in workflow shipped by the project template (in your 
 - `.github/workflows/updates-publish.yml` writes `deploy/<host>/<channel>/<releaseId>.json`, signs it, and publishes to GitHub Pages (including `latest.json` pointer).
 - It also publishes an encrypted secrets bundle at `deploy/<host>/<channel>/secrets/<digest>.tgz` and pins it in the manifest (`secrets.url`).
 
-Optional: add a push-deploy workflow that joins the tailnet and runs `clawdlets server deploy --manifest ...` (signature verified).
-
 If you publish to GitHub Pages, enable it in your project repo:
 - Settings → Pages → Source: Deploy from a branch
 - Branch: `gh-pages` / root
@@ -65,27 +63,19 @@ If you publish to GitHub Pages, enable it in your project repo:
 Required for signed manifests:
 - `MINISIGN_PRIVATE_KEY` (passwordless; generated with `minisign -G -n`)
 
-If you add a push-deploy workflow:
-- `TAILSCALE_AUTHKEY`
-- `DEPLOY_SSH_KEY`
-
 Optional: set GitHub environment protection rules for `prod` to require approvals.
 
 Promote without rebuild (manual, approved):
 
 - publish once to `staging`, then publish a new `prod` manifest pointing at the same `toplevel` (new `releaseId`).
 
-### Deploy (switch by store path)
+### Apply now (operator)
 
 ```bash
-clawdlets server deploy --manifest deploy/<host>/prod/<releaseId>.json
+clawdlets server update apply --host <host>
 ```
 
-Manifest deploy requires signature verification:
-- provide `<manifest>.minisig`
-- set a public key (`config/manifest.minisign.pub`, `hosts.<host>.selfUpdate.publicKeys`, or `--manifest-public-key`)
-
-`server deploy` uploads secrets, ingests the manifest, and triggers the host-side updater apply unit.
+This triggers `systemctl start clawdlets-update-fetch.service` on the host (fetches pointer+manifest, verifies signature, then applies).
 
 ### Self-update (pull-based)
 
@@ -120,13 +110,16 @@ Key management + rotation:
 
 - **Where keys live**
   - CI signing key: GitHub Actions secret `MINISIGN_PRIVATE_KEY` (passwordless minisign secret key contents).
-  - Host trust roots: `hosts.<host>.selfUpdate.publicKeys` (supports multiple keys for rotation windows).
+  - Host trust roots: `hosts.<host>.selfUpdate.publicKeys` (optionally plus `previousPublicKeys` with a validity window).
 - **Rotate (planned)**
   1) Generate a new minisign keypair.
   2) Add the new public key to `hosts.<host>.selfUpdate.publicKeys` **alongside** the old key.
   3) Deploy so hosts trust both keys.
   4) Switch CI to sign with the new key.
   5) After a safe window, remove the old public key from `hosts.<host>.selfUpdate.publicKeys` and deploy again.
+- **Optional safe mode (auto-expire old keys)**
+  - Keep new keys in `hosts.<host>.selfUpdate.publicKeys`.
+  - Put old keys into `hosts.<host>.selfUpdate.previousPublicKeys` and set `hosts.<host>.selfUpdate.previousPublicKeysValidUntil` (UTC).
 - **Emergency revoke**
   - If a signing key is compromised, treat update trust as compromised. You must replace the trusted key on hosts (manual access / out-of-band channel may be required) and re-issue manifests signed by the new key.
 
@@ -150,6 +143,41 @@ Authenticated cache (private Garnix / Attic / Harmonia / etc):
 
 See `nix/modules/clawdlets-host-baseline.nix` (in this repo) for the module options.
 
+## Self-hosted cache servers (optional)
+
+If you cannot use Garnix, you can run your own binary cache server and point hosts at it via:
+
+- `hosts.<host>.cache.substituters`
+- `hosts.<host>.cache.trustedPublicKeys`
+- optional: `hosts.<host>.cache.netrc.*` for auth
+
+Clawdlets ships optional NixOS modules to run common cache servers:
+
+- Harmonia: `clawdlets.nixosModules.clawdletsCacheHarmoniaServer`
+- Attic: `clawdlets.nixosModules.clawdletsCacheAtticServer`
+
+Example (Harmonia behind nginx+ACME):
+
+```nix
+{
+  imports = [
+    clawdlets.nixosModules.clawdletsCacheHarmoniaServer
+  ];
+
+  clawdlets.cacheServers.harmonia = {
+    enable = true;
+    public = true;
+    domain = "cache.example.com";
+    acmeEmail = "ops@example.com";
+  };
+}
+```
+
+Example secrets (per-host sops file layout):
+
+- `secrets/hosts/<host>/harmonia_sign_key.yaml` (installed at `/var/lib/secrets/harmonia.secret`)
+- `secrets/hosts/<host>/atticd_env.yaml` (installed at `/etc/atticd.env`)
+
 ## Other options (tradeoffs)
 
 ### Local build (workstation)
@@ -160,4 +188,4 @@ macOS builders are not supported for NixOS system builds.
 ### Private base repo + PAT (bootstrap/lockdown)
 
 `bootstrap`/`lockdown` may still need `GITHUB_TOKEN` if your base flake is private.
-Deploys do not require GitHub access on the host.
+Updates do not require GitHub access on the host.

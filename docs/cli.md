@@ -17,7 +17,7 @@ Related
 - set SSH exposure for bootstrap: `clawdlets host set --ssh-exposure bootstrap`
 - init secrets: `clawdlets secrets init` (TTY defaults to interactive; non-interactive uses `--from-json .clawdlets/secrets.json`)
 - preflight: `clawdlets doctor --scope bootstrap`
-- deploy gate: `clawdlets doctor --scope server-deploy --strict`
+- updates gate: `clawdlets doctor --scope updates --strict`
 - bootstrap: `clawdlets bootstrap`
 - image build (optional): `clawdlets image build --host <host>`
 - image upload (optional): `clawdlets image upload --host <host> --image-url <url>`
@@ -35,7 +35,7 @@ Related
 - release manifest: `clawdlets release manifest build --host <host> --channel prod --release-id <releaseId> --out deploy/<host>/prod/<releaseId>.json`
 - sign manifest: `clawdlets release manifest sign --in deploy/<host>/prod/<releaseId>.json`
 - pointer: `clawdlets release pointer write --release-id <releaseId> --out deploy/<host>/prod/latest.json`
-- deploy pinned: `clawdlets server deploy --manifest deploy/<host>/prod/<releaseId>.json`
+- apply updates: `clawdlets server update apply --host <host>`
 - GitHub sync timers: `clawdlets server github-sync status --target-host <host>`
 - GitHub sync run: `clawdlets server github-sync run --target-host <host> --bot melinda`
 - GitHub sync logs: `clawdlets server github-sync logs --target-host <host> --bot melinda --follow`

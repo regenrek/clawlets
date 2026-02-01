@@ -32,9 +32,10 @@ export function validateHostSecretsYamlFiles(params: { secretsDir: string }): { 
     if (!isYamlFile(e.name)) continue;
     const filePath = path.join(dir, e.name);
     const expectedKey = e.name.replace(/\.ya?ml$/i, "");
+    const raw = fs.readFileSync(filePath, "utf8");
     let parsed: unknown;
     try {
-      parsed = YAML.parse(fs.readFileSync(filePath, "utf8"));
+      parsed = YAML.parse(raw);
     } catch (err) {
       violations.push({ filePath, message: `invalid YAML: ${String((err as Error)?.message || err)}` });
       continue;
@@ -54,6 +55,9 @@ export function validateHostSecretsYamlFiles(params: { secretsDir: string }): { 
     }
     if (!Object.prototype.hasOwnProperty.call(parsed, "sops")) {
       violations.push({ filePath, message: "missing sops metadata (file looks unencrypted)" });
+    }
+    if (!/ENC\[[A-Z0-9_]+,data:/.test(raw)) {
+      violations.push({ filePath, message: "missing ENC[...] payloads (file looks unencrypted)" });
     }
   }
 

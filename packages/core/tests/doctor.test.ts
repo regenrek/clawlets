@@ -187,10 +187,11 @@ describe("doctor", () => {
     );
 
     const secretsDir = path.join(repoRoot, "secrets", "hosts", "clawdbot-fleet-host");
-    await writeFile(path.join(secretsDir, "admin_password_hash.yaml"), "admin_password_hash: y\nsops: {}\n", "utf8");
-    await writeFile(path.join(secretsDir, "discord_token_alpha.yaml"), "discord_token_alpha: z\nsops: {}\n", "utf8");
-    await writeFile(path.join(secretsDir, "discord_token_beta.yaml"), "discord_token_beta: z2\nsops: {}\n", "utf8");
-    await writeFile(path.join(secretsDir, "z_ai_api_key.yaml"), "z_ai_api_key: k\nsops: {}\n", "utf8");
+    const enc = "ENC[AES256_GCM,data:abc,iv:def,tag:ghi,type:str]";
+    await writeFile(path.join(secretsDir, "admin_password_hash.yaml"), `admin_password_hash: ${enc}\nsops: {}\n`, "utf8");
+    await writeFile(path.join(secretsDir, "discord_token_alpha.yaml"), `discord_token_alpha: ${enc}\nsops: {}\n`, "utf8");
+    await writeFile(path.join(secretsDir, "discord_token_beta.yaml"), `discord_token_beta: ${enc}\nsops: {}\n`, "utf8");
+    await writeFile(path.join(secretsDir, "z_ai_api_key.yaml"), `z_ai_api_key: ${enc}\nsops: {}\n`, "utf8");
 
     await writeFile(
       path.join(repoRoot, ".clawdlets", "extra-files", "clawdbot-fleet-host", "var", "lib", "sops-nix", "key.txt"),
@@ -234,7 +235,7 @@ describe("doctor", () => {
     await writeFile(configPath, "{", "utf8");
 
     const { collectDoctorChecks } = await import("../src/doctor");
-    const checks = await collectDoctorChecks({ cwd: repoRoot, host: "clawdbot-fleet-host", scope: "server-deploy" });
+    const checks = await collectDoctorChecks({ cwd: repoRoot, host: "clawdbot-fleet-host", scope: "updates" });
     const check = checks.find((c) => c.label === "clawdlets config");
     expect(check?.status).toBe("warn");
 

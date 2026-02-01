@@ -4,6 +4,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import process from "node:process";
 import { run } from "./run.js";
+import { validateHostSecretsYamlFiles } from "./secrets-policy.js";
 
 async function sha256File(filePath: string): Promise<string> {
   return await new Promise((resolve, reject) => {
@@ -30,6 +31,13 @@ export async function createSecretsTar(params: {
 }): Promise<{ tarPath: string; digest: string; files: string[] }> {
   if (!fs.existsSync(params.localDir)) {
     throw new Error(`missing local secrets dir: ${params.localDir}`);
+  }
+
+  const policy = validateHostSecretsYamlFiles({ secretsDir: params.localDir });
+  if (!policy.ok) {
+    const lines = policy.violations.slice(0, 10).map((v) => `- ${path.basename(v.filePath)}: ${v.message}`);
+    const suffix = policy.violations.length > 10 ? `\n… and ${policy.violations.length - 10} more` : "";
+    throw new Error(`secrets policy violation (refusing to publish plaintext):\n${lines.join("\n")}${suffix}`);
   }
 
   const files = listYamlFiles(params.localDir);

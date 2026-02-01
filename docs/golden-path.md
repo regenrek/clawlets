@@ -24,7 +24,7 @@ After tailnet is up:
 ```bash
 clawdlets host set --target-host admin@<magicdns-or-100.x>
 clawdlets host set --ssh-exposure tailnet
-clawdlets server deploy --manifest deploy/<host>/prod/<releaseId>.json
+clawdlets server update apply --host <host>
 clawdlets lockdown
 ```
 
@@ -39,23 +39,34 @@ CI (Garnix + GH Actions):
   - requires enabling GitHub Pages (Deploy from branch: `gh-pages` / root)
   - alternative: publish the manifest artifacts to any HTTPS static host
 
-## 2) GitOps deploy (push-based)
+## 2) Apply updates (pull-only)
 
-Run deploy from your operator machine:
+Hosts apply desired state on a timer (`clawdlets.selfUpdate.interval`).
+To apply immediately from your operator machine:
 
 ```bash
-clawdlets server deploy --host <host> --manifest deploy/<host>/prod/<releaseId>.json --ssh-tty false
+clawdlets server update apply --host <host> --ssh-tty false
 ```
 
-Optional: wire this into CI (join tailnet + run the same command).
+To inspect:
 
-Promote to prod (manual approval):
+```bash
+clawdlets server update status --host <host>
+clawdlets server update logs --host <host> --since 5m
+```
 
-- Run workflow `updates: promote` (staging → prod) to publish a prod manifest pointing at an already-built toplevel (no rebuild).
+## 3) Promotion (staging → prod)
 
-## 3) Optional self-update (pull-based)
+Promote to prod (manual approval) without rebuild:
 
-Enable on the host:
+- Run workflow `updates: promote` (staging → prod) to publish a prod manifest pointing at an already-built toplevel (new `releaseId`).
+- Recommended rollout:
+  - Keep a small canary set on `staging` (`hosts.<host>.selfUpdate.channel = "staging"`).
+  - Validate `clawdlets server update status|logs` + your health gate on canaries.
+  - Promote the exact same `toplevel` to `prod` (new `releaseId`, re-signed).
+  - Rollback = publish a new prod manifest (higher `releaseId`) pointing at the previous `toplevel`.
+
+## 4) Enable self-update (host)
 
 ```nix
 clawdlets.selfUpdate.enable = true;

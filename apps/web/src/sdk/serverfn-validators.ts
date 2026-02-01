@@ -296,39 +296,6 @@ export function parseProjectRunHostConfirmInput(data: unknown): {
   }
 }
 
-export function parseServerDeployStartInput(data: unknown): {
-  projectId: Id<"projects">
-  host: string
-  manifestPath: string
-} {
-  const d = requireObject(data)
-  return {
-    projectId: parseConvexId(d["projectId"], "projectId"),
-    host: parseHostNameRequired(d["host"]),
-    manifestPath: parseOptionalString(d["manifestPath"], 4096),
-  }
-}
-
-export function parseServerDeployExecuteInput(data: unknown): {
-  projectId: Id<"projects">
-  runId: Id<"runs">
-  host: string
-  manifestPath: string
-  rev: string
-  targetHost: string
-  confirm: string
-} {
-  const base = parseProjectRunHostInput(data)
-  const d = requireObject(data)
-  return {
-    ...base,
-    manifestPath: parseOptionalString(d["manifestPath"], 4096),
-    rev: parseOptionalString(d["rev"], 256),
-    targetHost: parseOptionalString(d["targetHost"], 512),
-    confirm: typeof d["confirm"] === "string" ? d["confirm"] : "",
-  }
-}
-
 export function parseServerStatusStartInput(data: unknown): { projectId: Id<"projects">; host: string } {
   return parseProjectHostRequiredInput(data)
 }
@@ -439,6 +406,26 @@ export function parseServerUpdateLogsExecuteInput(data: unknown): {
     since: parseOptionalString(d["since"], 256),
     follow: Boolean(d["follow"]),
     targetHost: parseOptionalString(d["targetHost"], 512),
+  }
+}
+
+export function parseServerUpdateApplyStartInput(data: unknown): { projectId: Id<"projects">; host: string } {
+  return parseProjectHostRequiredInput(data)
+}
+
+export function parseServerUpdateApplyExecuteInput(data: unknown): {
+  projectId: Id<"projects">
+  runId: Id<"runs">
+  host: string
+  targetHost: string
+  confirm: string
+} {
+  const base = parseProjectRunHostInput(data)
+  const d = requireObject(data)
+  return {
+    ...base,
+    targetHost: parseOptionalString(d["targetHost"], 512),
+    confirm: typeof d["confirm"] === "string" ? d["confirm"] : "",
   }
 }
 
