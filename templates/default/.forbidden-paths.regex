@@ -2,7 +2,7 @@
 # Secrets/** is allowed but must be sops-encrypted.
 #
 # Local runtime + plaintext secrets
-(^|/)\\.clawdlets/
+(^|/)\\.clawlets/
 (^|/)\\.env($|/)
 (^|/)\\.env\\.
 
