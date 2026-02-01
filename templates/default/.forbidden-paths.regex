@@ -3,6 +3,7 @@
 #
 # Local runtime + plaintext secrets
 (^|/)\\.clawlets/
+(^|/)\\.clawdlets/
 (^|/)\\.env($|/)
 (^|/)\\.env\\.
 
