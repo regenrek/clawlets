@@ -12,7 +12,7 @@ import { HooksConfigCard } from "./cards/hooks-card"
 import { PluginsConfigCard } from "./cards/plugins-card"
 import { SecretWiringDetails } from "./secret-wiring"
 import { SkillsConfigCard } from "./cards/skills-card"
-import { isPlainObject, listEnabledChannels, readInlineSecretWarnings } from "./helpers"
+import { formatIssues, isPlainObject, listEnabledChannels, readInlineSecretWarnings } from "./helpers"
 import { configDotBatch, configDotSet } from "~/sdk/config"
 
 export function BotIntegrations(props: {
@@ -30,14 +30,6 @@ export function BotIntegrations(props: {
   canEdit: boolean
 }) {
   const queryClient = useQueryClient()
-
-  function formatIssues(issues: unknown): string {
-    const list = Array.isArray(issues) ? (issues as Array<any>) : []
-    const first = list[0]
-    const path = Array.isArray(first?.path) ? String(first.path.join(".")) : ""
-    const message = typeof first?.message === "string" ? first.message : "config rejected"
-    return path ? `${message} (${path})` : message
-  }
 
   const effectiveConfigForAnalysis = useMemo(() => {
     // For analysis (env refs + token warnings), treat first-class fields as part of the effective OpenClaw config.

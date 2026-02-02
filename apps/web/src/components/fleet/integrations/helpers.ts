@@ -4,6 +4,14 @@ export function isPlainObject(value: unknown): value is Record<string, unknown> 
   return Boolean(value) && typeof value === "object" && !Array.isArray(value)
 }
 
+export function formatIssues(issues: unknown): string {
+  const list = Array.isArray(issues) ? (issues as Array<any>) : []
+  const first = list[0]
+  const path = Array.isArray(first?.path) ? String(first.path.join(".")) : ""
+  const message = typeof first?.message === "string" ? first.message : "config rejected"
+  return path ? `${message} (${path})` : message
+}
+
 export function parseTextList(value: string): string[] {
   return value
     .split(/[\n,]+/)

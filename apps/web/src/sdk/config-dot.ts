@@ -219,7 +219,9 @@ export const configDotBatch = createServerFn({ method: "POST" })
       redactTokens,
       fn: async (emit) => {
         await emit({ level: "info", message: `Updating ${plannedPaths.length} config path(s)` })
-        for (const p of plannedPaths) await emit({ level: "info", message: `Updating ${p}` })
+        if (plannedPaths.length <= 5) {
+          for (const p of plannedPaths) await emit({ level: "info", message: `Updating ${p}` })
+        }
         await writeClawletsConfig({ configPath, config: validated.data })
       },
       onSuccess: () => ({ ok: true as const, runId }),

@@ -9,7 +9,7 @@ import { Badge } from "~/components/ui/badge"
 import { Button } from "~/components/ui/button"
 import { Input } from "~/components/ui/input"
 import { configDotBatch, configDotSet } from "~/sdk/config"
-import { getEnvMapping } from "./helpers"
+import { formatIssues, getEnvMapping } from "./helpers"
 
 function isValidEnvVarName(envVar: string): boolean {
   return /^[A-Z_][A-Z0-9_]*$/.test(envVar)
@@ -37,14 +37,6 @@ export function SecretWiringDetails(props: {
 }) {
   const queryClient = useQueryClient()
   const [draftSecretByEnvVar, setDraftSecretByEnvVar] = useState<Record<string, string>>({})
-
-  function formatIssues(issues: unknown): string {
-    const list = Array.isArray(issues) ? (issues as Array<any>) : []
-    const first = list[0]
-    const path = Array.isArray(first?.path) ? String(first.path.join(".")) : ""
-    const message = typeof first?.message === "string" ? first.message : "config rejected"
-    return path ? `${message} (${path})` : message
-  }
 
   const wireEnv = useMutation({
     mutationFn: async (params: { envVar: string; scope: "bot" | "fleet"; secretName: string }) => {
