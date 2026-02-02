@@ -185,7 +185,7 @@ const getPinnedRevFromFlake = (): string | null => {
     const flakeLockPath = path.join(repoRoot, "flake.lock");
     if (!fs.existsSync(flakeLockPath)) return null;
     const lock = readJson<{ nodes?: Record<string, { locked?: { rev?: string } }> }>(flakeLockPath);
-    const rev = lock?.nodes?.["clawdbot-src"]?.locked?.rev;
+    const rev = lock?.nodes?.["openclaw-src"]?.locked?.rev ?? lock?.nodes?.["clawdbot-src"]?.locked?.rev;
     return typeof rev === "string" && rev.trim() ? rev.trim() : null;
   } catch {
     return null;
@@ -202,24 +202,27 @@ const ensureClawdbotDeps = (src: string) => {
 };
 
 const main = async () => {
-  const src = argValue("--src") ?? process.env.CLAWDBOT_SRC;
+  const src = argValue("--src") ?? process.env.OPENCLAW_SRC ?? process.env.CLAWDBOT_SRC;
   if (!src) {
-    console.error("error: missing --src <clawdbot repo path> (or set CLAWDBOT_SRC)");
+    console.error("error: missing --src <openclaw repo path> (or set OPENCLAW_SRC)");
     process.exit(1);
   }
 
   const pinnedRev = getPinnedRevFromFlake();
-  const allowMismatch = process.argv.includes("--allow-mismatch") || process.env.CLAWDBOT_ALLOW_MISMATCH === "1";
-  const rev = argValue("--rev") ?? process.env.CLAWDBOT_REV ?? pinnedRev ?? getGitRev(src);
+  const allowMismatch =
+    process.argv.includes("--allow-mismatch") ||
+    process.env.OPENCLAW_ALLOW_MISMATCH === "1" ||
+    process.env.CLAWDBOT_ALLOW_MISMATCH === "1";
+  const rev = argValue("--rev") ?? process.env.OPENCLAW_REV ?? process.env.CLAWDBOT_REV ?? pinnedRev ?? getGitRev(src);
   if (pinnedRev && rev !== pinnedRev && !allowMismatch) {
-    console.error(`error: clawdbot rev mismatch (flake.lock=${pinnedRev} provided=${rev})`);
+    console.error(`error: openclaw rev mismatch (flake.lock=${pinnedRev} provided=${rev})`);
     console.error("hint: pass --rev to match flake.lock or use --allow-mismatch for local debugging");
     process.exit(1);
   }
   if (fs.existsSync(path.join(src, ".git"))) {
     const actualRev = getGitRev(src);
     if (actualRev !== "unknown" && rev !== actualRev && !allowMismatch) {
-      console.error(`error: clawdbot source rev mismatch (src=${actualRev} expected=${rev})`);
+      console.error(`error: source rev mismatch (src=${actualRev} expected=${rev})`);
       console.error("hint: checkout the pinned revision or pass --allow-mismatch for local debugging");
       process.exit(1);
     }

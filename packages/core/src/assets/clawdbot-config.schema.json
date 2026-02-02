@@ -8525,6 +8525,18 @@
                 },
                 "additionalProperties": false
               },
+              "pluralkit": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "token": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              },
               "accounts": {
                 "type": "object",
                 "propertyNames": {
@@ -9081,6 +9093,18 @@
                         },
                         "guildMembers": {
                           "type": "boolean"
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    "pluralkit": {
+                      "type": "object",
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean"
+                        },
+                        "token": {
+                          "type": "string"
                         }
                       },
                       "additionalProperties": false
@@ -15128,6 +15152,23 @@
                 },
                 "additionalProperties": false
               },
+              "minimax-portal-auth": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "config": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": false,
+                    "properties": {}
+                  }
+                },
+                "additionalProperties": false
+              },
               "msteams": {
                 "type": "object",
                 "properties": {
@@ -16815,6 +16856,15 @@
       "label": "Discord Guild Members Intent",
       "help": "Enable the Guild Members privileged intent. Must also be enabled in the Discord Developer Portal. Default: false."
     },
+    "channels.discord.pluralkit.enabled": {
+      "label": "Discord PluralKit Enabled",
+      "help": "Resolve PluralKit proxied messages and treat system members as distinct senders."
+    },
+    "channels.discord.pluralkit.token": {
+      "label": "Discord PluralKit Token",
+      "help": "Optional PluralKit token for resolving private systems or members.",
+      "sensitive": true
+    },
     "channels.slack.dm.policy": {
       "label": "Slack DM Policy",
       "help": "Direct message access control (\"pairing\" recommended). \"open\" requires channels.slack.dm.allowFrom=[\"*\"]."
@@ -17230,6 +17280,17 @@
       "label": "Auto-Recall",
       "help": "Automatically inject relevant memories into context"
     },
+    "plugins.entries.minimax-portal-auth": {
+      "label": "MiniMax OAuth",
+      "help": "OAuth flow for MiniMax models (plugin: minimax-portal-auth)"
+    },
+    "plugins.entries.minimax-portal-auth.enabled": {
+      "label": "Enable MiniMax OAuth"
+    },
+    "plugins.entries.minimax-portal-auth.config": {
+      "label": "MiniMax OAuth Config",
+      "help": "Plugin-defined config payload for minimax-portal-auth."
+    },
     "plugins.entries.msteams": {
       "label": "Microsoft Teams",
       "help": "Microsoft Teams channel plugin (Bot Framework) (plugin: msteams)"
@@ -17582,7 +17643,7 @@
       "placeholder": "last"
     }
   },
-  "version": "2026.1.29",
-  "generatedAt": "2026-01-29T17:31:39Z",
-  "clawdbotRev": "c9fe062824cabdf919cfbedc1b915375b5e684d1"
+  "version": "2026.1.30",
+  "generatedAt": "2026-02-01T15:14:55-08:00",
+  "clawdbotRev": "92112a61db519296a7258d508677aa6c49f9a558"
 }
