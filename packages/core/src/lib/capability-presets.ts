@@ -107,6 +107,11 @@ function ensureEnvRef(obj: Record<string, unknown>, envRef: EnvVarRef): void {
 
 const CHANNEL_PRESET_OVERRIDES: Record<string, Partial<CapabilityPreset>> = {
   whatsapp: {
+    patch: {
+      // WhatsApp doesn't support a simple `enabled` toggle, but we still want the preset to
+      // materialize the channel config so security defaults can be applied.
+      channels: { whatsapp: {} },
+    },
     warnings: ["WhatsApp requires stateful login on the gateway host (clawdbot channels login)."],
   },
 };

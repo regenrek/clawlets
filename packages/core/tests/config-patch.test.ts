@@ -41,7 +41,7 @@ describe("config patch channel presets", () => {
     const { applyCapabilityPreset, getChannelCapabilityPreset } = await import("../src/lib/capability-presets");
 
     const res = applyCapabilityPreset({ openclaw: {}, channels: {}, preset: getChannelCapabilityPreset("whatsapp") });
-    expect(res.channels).toMatchObject({ whatsapp: { enabled: true } });
+    expect(res.channels).toMatchObject({ whatsapp: { dmPolicy: "pairing", groupPolicy: "allowlist" } });
     expect(res.warnings.join("\n")).toMatch(/stateful login/i);
   });
 });

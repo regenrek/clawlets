@@ -41,7 +41,10 @@ const CHANNEL_UI_OVERRIDES: Record<string, ChannelUiOverride> = {
     ],
   },
   whatsapp: {
+    allowFrom: true,
     runtimeOps: ["login", "logout"],
+    // WhatsApp doesn't expose a single `channels.whatsapp.enabled` toggle (accounts + linking instead).
+    supportsEnabled: false,
   },
 }
 

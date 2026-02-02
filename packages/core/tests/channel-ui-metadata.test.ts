@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest"
 import { getPinnedChannelUiModel, listPinnedChannelUiModels } from "../src/lib/channel-ui-metadata"
 
 describe("channel ui metadata", () => {
-  it("exposes allowFrom only for telegram", () => {
+  it("exposes allowFrom for telegram + whatsapp", () => {
     const telegram = getPinnedChannelUiModel("telegram")
+    const whatsapp = getPinnedChannelUiModel("whatsapp")
     const discord = getPinnedChannelUiModel("discord")
     expect(telegram?.allowFrom).toBe(true)
+    expect(whatsapp?.allowFrom).toBe(true)
     expect(discord?.allowFrom).toBe(false)
   })
 
