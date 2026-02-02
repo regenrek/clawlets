@@ -15,7 +15,7 @@ import {
   resolveHostName,
   writeClawletsConfig,
 } from "@clawlets/core/lib/clawlets-config";
-import { migrateClawletsConfigToV12 } from "@clawlets/core/lib/clawlets-config-migrate";
+import { migrateClawletsConfigToLatest } from "@clawlets/core/lib/clawlets-config-migrate";
 import { validateClawletsConfig } from "@clawlets/core/lib/clawlets-config-validate";
 import { buildFleetSecretsPlan } from "@clawlets/core/lib/fleet-secrets-plan";
 import { applySecretsAutowire, planSecretsAutowire, type SecretsAutowireScope } from "@clawlets/core/lib/secrets-autowire";
@@ -318,7 +318,7 @@ const set = defineCommand({
 const migrate = defineCommand({
   meta: { name: "migrate", description: "Migrate fleet/clawlets.json to a new schema version." },
   args: {
-    to: { type: "string", description: "Target schema version (only v12 supported).", default: "v12" },
+    to: { type: "string", description: "Target schema version (only v14 supported).", default: "v14" },
     "dry-run": { type: "boolean", description: "Print planned write without writing.", default: false },
   },
   async run({ args }) {
@@ -334,12 +334,12 @@ const migrate = defineCommand({
       throw new Error(`invalid JSON: ${configPath}`);
     }
 
-    const to = String((args as any).to || "v12").trim().toLowerCase();
-    if (to !== "v12" && to !== "12") throw new Error(`unsupported --to: ${to} (expected v12)`);
+    const to = String((args as any).to || "v14").trim().toLowerCase();
+    if (to !== "v14" && to !== "14") throw new Error(`unsupported --to: ${to} (expected v14)`);
 
-    const res = migrateClawletsConfigToV12(parsed);
+    const res = migrateClawletsConfigToLatest(parsed);
     if (!res.changed) {
-      console.log("ok: already schemaVersion 12");
+      console.log("ok: already schemaVersion 14");
       return;
     }
 
@@ -353,7 +353,7 @@ const migrate = defineCommand({
 
     await ensureDir(path.dirname(configPath));
     await writeClawletsConfig({ configPath, config: validated });
-    console.log(`ok: migrated to schemaVersion 12: ${path.relative(repoRoot, configPath)}`);
+    console.log(`ok: migrated to schemaVersion 14: ${path.relative(repoRoot, configPath)}`);
     for (const w of res.warnings) console.log(`warn: ${w}`);
   },
 });

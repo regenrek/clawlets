@@ -38,6 +38,22 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value)
 }
 
+function buildEffectiveClawdbotConfig(bot: Record<string, unknown>): Record<string, unknown> {
+  const clawdbot = isPlainObject(bot["clawdbot"]) ? (bot["clawdbot"] as Record<string, unknown>) : {}
+  const out: Record<string, unknown> = { ...clawdbot }
+  const channels = bot["channels"]
+  const agents = bot["agents"]
+  const hooks = bot["hooks"]
+  const skills = bot["skills"]
+  const plugins = bot["plugins"]
+  if (isPlainObject(channels)) out["channels"] = channels
+  if (isPlainObject(agents)) out["agents"] = agents
+  if (isPlainObject(hooks)) out["hooks"] = hooks
+  if (isPlainObject(skills)) out["skills"] = skills
+  if (isPlainObject(plugins)) out["plugins"] = plugins
+  return out
+}
+
 function resolvePreset(kind: string, presetId: string): CapabilityPreset {
   if (kind === "channel") return getChannelCapabilityPreset(presetId)
   throw new Error("unsupported preset kind")
@@ -177,8 +193,9 @@ export const applyBotCapabilityPreset = createServerFn({ method: "POST" })
 
     let warnings: string[] = []
     try {
-      const result = applyCapabilityPreset({ clawdbot: existingBot.clawdbot, preset })
+      const result = applyCapabilityPreset({ clawdbot: existingBot.clawdbot, channels: existingBot.channels, preset })
       existingBot.clawdbot = result.clawdbot
+      existingBot.channels = result.channels
       warnings = result.warnings
       const secretEnv = ensureBotProfileSecretEnv(existingBot)
       for (const envVar of result.requiredEnv) {
@@ -188,7 +205,8 @@ export const applyBotCapabilityPreset = createServerFn({ method: "POST" })
       return { ok: false as const, issues: mapSchemaFailure(String((err as Error)?.message || err)) }
     }
 
-    const schemaValidation = validateClawdbotConfig(existingBot.clawdbot)
+    const effectiveConfig = buildEffectiveClawdbotConfig(existingBot as Record<string, unknown>)
+    const schemaValidation = validateClawdbotConfig(effectiveConfig)
     if (!schemaValidation.ok) {
       return { ok: false as const, issues: mapSchemaIssues(schemaValidation.issues) }
     }
@@ -204,7 +222,7 @@ export const applyBotCapabilityPreset = createServerFn({ method: "POST" })
         if (!live.ok) {
           return { ok: false as const, issues: mapSchemaFailure(live.message || LIVE_SCHEMA_ERROR_FALLBACK) }
         }
-        const liveValidation = validateClawdbotConfig(existingBot.clawdbot, live.schema.schema as Record<string, unknown>)
+        const liveValidation = validateClawdbotConfig(effectiveConfig, live.schema.schema as Record<string, unknown>)
         if (!liveValidation.ok) {
           return { ok: false as const, issues: mapSchemaIssues(liveValidation.issues) }
         }
@@ -262,8 +280,9 @@ export const previewBotCapabilityPreset = createServerFn({ method: "POST" })
     let warnings: string[] = []
     let requiredEnv: string[] = []
     try {
-      const result = applyCapabilityPreset({ clawdbot: (nextBot as any).clawdbot, preset })
+      const result = applyCapabilityPreset({ clawdbot: (nextBot as any).clawdbot, channels: (nextBot as any).channels, preset })
       ;(nextBot as any).clawdbot = result.clawdbot
+      ;(nextBot as any).channels = result.channels
       warnings = result.warnings
       requiredEnv = result.requiredEnv
       const secretEnv = ensureBotProfileSecretEnv(nextBot)
@@ -274,7 +293,7 @@ export const previewBotCapabilityPreset = createServerFn({ method: "POST" })
       return { ok: false as const, issues: mapSchemaFailure(String((err as Error)?.message || err)) }
     }
 
-    const schemaValidation = validateClawdbotConfig((nextBot as any).clawdbot)
+    const schemaValidation = validateClawdbotConfig(buildEffectiveClawdbotConfig(nextBot))
     const diff = diffConfig(existingBot, nextBot, `fleet.bots.${botId}`)
 
     return {
@@ -340,10 +359,11 @@ export const hardenBotClawdbotConfig = createServerFn({ method: "POST" })
     const existingBot = next?.fleet?.bots?.[botId]
     if (!existingBot || typeof existingBot !== "object") throw new Error("bot not found")
 
-    const hardened = applySecurityDefaults({ clawdbot: existingBot.clawdbot })
+    const hardened = applySecurityDefaults({ clawdbot: existingBot.clawdbot, channels: existingBot.channels })
     if (hardened.changes.length === 0) return { ok: true as const, changes: [], warnings: [] }
 
     existingBot.clawdbot = hardened.clawdbot
+    existingBot.channels = hardened.channels
     const validated = ClawletsConfigSchema.safeParse(next)
     if (!validated.success) return { ok: false as const, issues: mapValidationIssues(validated.error.issues as unknown[]) }
 
@@ -372,7 +392,7 @@ export const hardenBotClawdbotConfig = createServerFn({ method: "POST" })
       runId,
       redactTokens,
       fn: async (emit) => {
-        await emit({ level: "info", message: `Hardening fleet.bots.${botId}.clawdbot` })
+        await emit({ level: "info", message: `Hardening fleet.bots.${botId}` })
         for (const w of hardened.warnings) await emit({ level: "warn", message: w })
         await writeClawletsConfig({ configPath, config: validated.data })
         await emit({ level: "info", message: "Done." })

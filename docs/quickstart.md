@@ -127,6 +127,6 @@ clawlets server logs --target-host admin@<ipv4> --unit clawdbot-maren.service --
 - Add/enable a skill:
   - add it to `fleet/bundled-skills.json` (if bundled)
   - allow it per-bot via canonical config:
-    - `clawlets config set --path fleet.bots.<bot>.profile.skills.allowBundled --value-json '["github","brave-search"]'`
+    - `clawlets config set --path fleet.bots.<bot>.skills.allowBundled --value-json '["github","brave-search"]'`
   - if it needs secrets: add `secrets/hosts/<host>/<secret>.yaml`, then publish + apply updates
 - Add another operator machine: add their age public key to `secrets/.sops.yaml` recipients for that host and re-encrypt.

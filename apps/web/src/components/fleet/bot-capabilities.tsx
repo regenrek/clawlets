@@ -3,28 +3,12 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import type { Id } from "../../../convex/_generated/dataModel"
 import { listPinnedChannels } from "@clawlets/core/lib/channel-registry"
+import { listEnabledChannels } from "./bot-integrations-helpers"
 import { Badge } from "~/components/ui/badge"
 import { Button } from "~/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select"
 import { Switch } from "~/components/ui/switch"
 import { applyBotCapabilityPreset, previewBotCapabilityPreset } from "~/sdk/bots"
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value)
-}
-
-function listEnabledChannels(clawdbot: unknown): string[] {
-  const cfg = isPlainObject(clawdbot) ? clawdbot : null
-  const channels = cfg ? cfg["channels"] : undefined
-  if (!isPlainObject(channels)) return []
-  return Object.keys(channels)
-    .filter((k) => {
-      const entry = channels[k]
-      if (!isPlainObject(entry)) return true
-      return entry["enabled"] !== false
-    })
-    .sort()
-}
 
 export function BotCapabilities(props: {
   projectId: string

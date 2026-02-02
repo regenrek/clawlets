@@ -1,4 +1,5 @@
-export type ClawdbotSecurityDefaultsChange = {
+export type BotSecurityDefaultsChange = {
+  scope: "clawdbot" | "channels";
   path: string;
 };
 
@@ -19,12 +20,13 @@ function setValue(params: {
   key: string;
   value: unknown;
   pathLabel: string;
-  changes: ClawdbotSecurityDefaultsChange[];
+  scope: BotSecurityDefaultsChange["scope"];
+  changes: BotSecurityDefaultsChange[];
 }): void {
   const existing = params.obj[params.key];
   if (existing === params.value) return;
   params.obj[params.key] = params.value;
-  params.changes.push({ path: params.pathLabel });
+  params.changes.push({ scope: params.scope, path: params.pathLabel });
 }
 
 function isEnabledChannel(channelCfg: unknown): boolean {
@@ -34,11 +36,19 @@ function isEnabledChannel(channelCfg: unknown): boolean {
 
 export function applySecurityDefaults(params: {
   clawdbot: unknown;
-}): { clawdbot: Record<string, unknown>; warnings: string[]; changes: ClawdbotSecurityDefaultsChange[] } {
-  const base = isPlainObject(params.clawdbot) ? params.clawdbot : {};
-  const clawdbot = structuredClone(base) as Record<string, unknown>;
+  channels?: unknown;
+}): {
+  clawdbot: Record<string, unknown>;
+  channels: Record<string, unknown>;
+  warnings: string[];
+  changes: BotSecurityDefaultsChange[];
+} {
+  const baseClawdbot = isPlainObject(params.clawdbot) ? params.clawdbot : {};
+  const clawdbot = structuredClone(baseClawdbot) as Record<string, unknown>;
+  const baseChannels = isPlainObject(params.channels) ? params.channels : {};
+  const channels = structuredClone(baseChannels) as Record<string, unknown>;
   const warnings: string[] = [];
-  const changes: ClawdbotSecurityDefaultsChange[] = [];
+  const changes: BotSecurityDefaultsChange[] = [];
 
   {
     const logging = ensureObject(clawdbot, "logging");
@@ -49,6 +59,7 @@ export function applySecurityDefaults(params: {
         key: "redactSensitive",
         value: "tools",
         pathLabel: "logging.redactSensitive",
+        scope: "clawdbot",
         changes,
       });
     }
@@ -63,14 +74,11 @@ export function applySecurityDefaults(params: {
         key: "dmScope",
         value: "per-channel-peer",
         pathLabel: "session.dmScope",
+        scope: "clawdbot",
         changes,
       });
     }
   }
-
-  const channelsValue = clawdbot["channels"];
-  if (!isPlainObject(channelsValue)) return { clawdbot, warnings, changes };
-  const channels = channelsValue as Record<string, unknown>;
 
   const setDmPolicy = (params: {
     channelId: string;
@@ -89,7 +97,8 @@ export function applySecurityDefaults(params: {
         obj: chan,
         key: params.policyKey,
         value: policyNext,
-        pathLabel: `channels.${params.channelId}.${params.policyKey}`,
+        pathLabel: `${params.channelId}.${params.policyKey}`,
+        scope: "channels",
         changes,
       });
       if (policyRaw === "open") warnings.push(`${params.label}: changed dmPolicy from "open" to "pairing" (safer default).`);
@@ -123,7 +132,8 @@ export function applySecurityDefaults(params: {
         obj: chan,
         key: "groupPolicy",
         value: "allowlist",
-        pathLabel: `channels.${params.channelId}.groupPolicy`,
+        pathLabel: `${params.channelId}.groupPolicy`,
+        scope: "channels",
         changes,
       });
       if (policyRaw === "open") warnings.push(`${params.label}: changed groupPolicy from "open" to "allowlist" (safer default).`);
@@ -152,7 +162,8 @@ export function applySecurityDefaults(params: {
           obj: dm,
           key: "policy",
           value: policyNext,
-          pathLabel: "channels.discord.dm.policy",
+          pathLabel: "discord.dm.policy",
+          scope: "channels",
           changes,
         });
         if (policyRaw === "open") warnings.push(`Discord: changed dm.policy from "open" to "pairing" (safer default).`);
@@ -179,7 +190,8 @@ export function applySecurityDefaults(params: {
           obj: dm,
           key: "policy",
           value: policyNext,
-          pathLabel: "channels.slack.dm.policy",
+          pathLabel: "slack.dm.policy",
+          scope: "channels",
           changes,
         });
         if (policyRaw === "open") warnings.push(`Slack: changed dm.policy from "open" to "pairing" (safer default).`);
@@ -192,5 +204,5 @@ export function applySecurityDefaults(params: {
     }
   }
 
-  return { clawdbot, warnings, changes };
+  return { clawdbot, channels, warnings, changes };
 }

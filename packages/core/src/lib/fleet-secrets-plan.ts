@@ -27,6 +27,7 @@ import {
 import type { ClawletsConfig } from "./clawlets-config.js";
 import type { SecretFileSpec } from "./secret-wiring.js";
 import type { MissingSecretConfig, SecretSource, SecretSpec, SecretsPlanWarning } from "./secrets-plan.js";
+import { buildClawdbotBotConfig } from "./clawdbot-config-invariants.js";
 
 export type MissingFleetSecretConfig = MissingSecretConfig;
 
@@ -155,11 +156,15 @@ export function buildFleetSecretsPlan(params: { config: ClawletsConfig; hostName
   };
 
   const envVarAliasMap = buildEnvVarAliasMap();
+  const ignoredEnvVars = new Set<string>([
+    // Managed by the Nix runtime (generated/injected), not by fleet.secretEnv/profile.secretEnv.
+    "CLAWDBOT_GATEWAY_TOKEN",
+  ]);
 
   for (const bot of bots) {
     const botCfg = (botConfigs as any)?.[bot] || {};
     const profile = (botCfg as any)?.profile || {};
-    const clawdbot = (botCfg as any)?.clawdbot || {};
+    const clawdbot = buildClawdbotBotConfig({ config: params.config, bot }).merged;
 
     const baseSecretEnv = buildBaseSecretEnv({
       globalEnv: fleetSecretEnv,
@@ -168,8 +173,8 @@ export function buildFleetSecretsPlan(params: { config: ClawletsConfig; hostName
       warnings,
       bot,
     });
-    const derivedEntries = collectDerivedSecretEnvEntries(profile);
-    const derivedSecretEnv = buildDerivedSecretEnv(profile);
+    const derivedEntries = collectDerivedSecretEnvEntries(botCfg);
+    const derivedSecretEnv = buildDerivedSecretEnv(botCfg);
     const secretEnv = { ...baseSecretEnv, ...derivedSecretEnv };
     const derivedDupes = derivedEntries
       .map((entry) => entry.envVar)
@@ -198,6 +203,7 @@ export function buildFleetSecretsPlan(params: { config: ClawletsConfig; hostName
     for (const [envVar, paths] of Object.entries(envVarRefsRaw.pathsByVar)) {
       const canonical = canonicalizeEnvVar(envVar, envVarAliasMap);
       if (!canonical) continue;
+      if (ignoredEnvVars.has(canonical)) continue;
       envVarPathsByVar[canonical] = (envVarPathsByVar[canonical] || []).concat(paths);
     }
     const envVarRefs = {

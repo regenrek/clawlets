@@ -6,7 +6,7 @@ describe("clawlets config validate", () => {
     const { validateClawletsConfig } = await import("../src/lib/clawlets-config-validate");
 
     const cfg = ClawletsConfigSchema.parse({
-      schemaVersion: 12,
+      schemaVersion: 14,
       fleet: {
         botOrder: ["maren"],
         secretEnv: { OPENAI_API_KEY: "openai_api_key" },
@@ -37,15 +37,13 @@ describe("clawlets config validate", () => {
     const { validateClawletsConfig } = await import("../src/lib/clawlets-config-validate");
 
     const cfg = ClawletsConfigSchema.parse({
-      schemaVersion: 12,
+      schemaVersion: 14,
       fleet: {
         botOrder: ["maren"],
         secretEnv: { OPENAI_API_KEY: "openai_api_key" },
         bots: {
           maren: {
-            clawdbot: {
-              channels: { discord: { enabled: true, groupPolicy: "allowlist" } },
-            },
+            channels: { discord: { groupPolicy: "allowlist" } },
           },
         },
       },
@@ -63,16 +61,16 @@ describe("clawlets config validate", () => {
     const { validateClawletsConfig } = await import("../src/lib/clawlets-config-validate");
 
     const cfg = ClawletsConfigSchema.parse({
-      schemaVersion: 12,
+      schemaVersion: 14,
       fleet: {
         botOrder: ["maren"],
         secretEnv: { OPENAI_API_KEY: "openai_api_key" },
         bots: {
           maren: {
             profile: { secretEnv: { DISCORD_BOT_TOKEN: "discord_token_maren" } },
+            channels: { discord: { groupPolicy: "allowlist", token: "inline-token" } },
             clawdbot: {
               commands: { native: "auto", nativeSkills: "auto" },
-              channels: { discord: { enabled: true, token: "inline-token" } },
             },
           },
         },
@@ -91,7 +89,7 @@ describe("clawlets config validate", () => {
     const { validateClawletsConfig } = await import("../src/lib/clawlets-config-validate");
 
     const cfg = ClawletsConfigSchema.parse({
-      schemaVersion: 12,
+      schemaVersion: 14,
       fleet: {
         botOrder: ["maren"],
         secretEnv: {},
@@ -101,9 +99,9 @@ describe("clawlets config validate", () => {
               secretEnv: { DISCORD_BOT_TOKEN: "discord_token_maren" },
               secretEnvAllowlist: ["SLACK_BOT_TOKEN"],
             },
+            channels: { discord: { groupPolicy: "allowlist", token: "${DISCORD_BOT_TOKEN}" } },
             clawdbot: {
               commands: { native: "auto", nativeSkills: "auto" },
-              channels: { discord: { enabled: true, token: "${DISCORD_BOT_TOKEN}" } },
             },
           },
         },
@@ -127,16 +125,14 @@ describe("clawlets config validate", () => {
     const { validateClawletsConfig } = await import("../src/lib/clawlets-config-validate");
 
     const cfg = ClawletsConfigSchema.parse({
-      schemaVersion: 12,
+      schemaVersion: 14,
       fleet: {
         botOrder: ["maren"],
         secretEnv: {},
         bots: {
           maren: {
-            profile: {
-              secretEnv: { CLAWDBOT_HOOKS_TOKEN: "hooks_token_override" },
-              hooks: { tokenSecret: "hooks_token" },
-            },
+            profile: { secretEnv: { CLAWDBOT_HOOKS_TOKEN: "hooks_token_override" } },
+            hooks: { tokenSecret: "hooks_token" },
           },
         },
       },

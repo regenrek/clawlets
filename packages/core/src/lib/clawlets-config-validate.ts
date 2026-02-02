@@ -74,7 +74,7 @@ export function validateClawletsConfig(params: {
       warnings: [],
       bot,
     });
-    const derivedSecretEnv = buildDerivedSecretEnv(profile);
+    const derivedSecretEnv = buildDerivedSecretEnv(botCfg);
     const derivedDupes = Object.keys(derivedSecretEnv).filter((envVar) =>
       Object.prototype.hasOwnProperty.call(baseSecretEnv, envVar),
     );

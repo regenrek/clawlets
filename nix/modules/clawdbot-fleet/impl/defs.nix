@@ -3,6 +3,7 @@
 let
   cfg = config.services.clawdbotFleet;
   knownBundledSkills = builtins.fromJSON (builtins.readFile (project.root + "/fleet/bundled-skills.json"));
+  invariants = builtins.fromJSON (builtins.readFile (project.root + "/nix/lib/clawdbot-invariants.json"));
 
   defaultHostSecretsDir = "/var/lib/clawlets/secrets/hosts/${config.networking.hostName}";
   resolvedSopsDir =
@@ -169,6 +170,7 @@ in
   inherit
     cfg
     knownBundledSkills
+    invariants
     resolvedSopsDir
     mkSopsSecretFor
     resticPaths

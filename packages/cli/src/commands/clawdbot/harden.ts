@@ -27,7 +27,11 @@ export const clawdbotHarden = defineCommand({
 
     const next = structuredClone(validated) as any;
 
-    const updates: Array<{ bot: string; changes: string[]; warnings: string[] }> = [];
+    const updates: Array<{
+      bot: string;
+      changes: Array<{ scope: "clawdbot" | "channels"; path: string }>;
+      warnings: string[];
+    }> = [];
 
     for (const bot of bots) {
       const botId = String(bot || "").trim();
@@ -35,13 +39,14 @@ export const clawdbotHarden = defineCommand({
       const existing = next?.fleet?.bots?.[botId];
       if (!existing || typeof existing !== "object") throw new Error(`unknown bot id: ${botId}`);
 
-      const patched = applySecurityDefaults({ clawdbot: (existing as any).clawdbot });
+      const patched = applySecurityDefaults({ clawdbot: (existing as any).clawdbot, channels: (existing as any).channels });
       if (patched.changes.length === 0) continue;
 
       (existing as any).clawdbot = patched.clawdbot;
+      (existing as any).channels = patched.channels;
       updates.push({
         bot: botId,
-        changes: patched.changes.map((c) => c.path),
+        changes: patched.changes,
         warnings: patched.warnings,
       });
     }
@@ -66,7 +71,7 @@ export const clawdbotHarden = defineCommand({
       }
       console.log(`planned: update ${path.relative(repoRoot, configPath)}`);
       for (const u of updates) {
-        for (const p of u.changes) console.log(`- fleet.bots.${u.bot}.clawdbot.${p}`);
+        for (const c of u.changes) console.log(`- fleet.bots.${u.bot}.${c.scope}.${c.path}`);
       }
       console.log("run with --write to apply changes");
       return;
@@ -82,8 +87,7 @@ export const clawdbotHarden = defineCommand({
 
     console.log(`ok: updated ${path.relative(repoRoot, configPath)}`);
     for (const u of updates) {
-      for (const p of u.changes) console.log(`- fleet.bots.${u.bot}.clawdbot.${p}`);
+      for (const c of u.changes) console.log(`- fleet.bots.${u.bot}.${c.scope}.${c.path}`);
     }
   },
 });
-

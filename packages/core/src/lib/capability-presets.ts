@@ -19,6 +19,7 @@ export type CapabilityPreset = {
 };
 
 export type CapabilityPresetApplyResult = {
+  channels: Record<string, unknown>;
   clawdbot: Record<string, unknown>;
   warnings: string[];
   requiredEnv: string[];
@@ -191,26 +192,27 @@ export function getChannelCapabilityPreset(channelId: string): CapabilityPreset 
 
 export function applyCapabilityPreset(params: {
   clawdbot: unknown;
+  channels: unknown;
   preset: CapabilityPreset;
 }): CapabilityPresetApplyResult {
   const base = isPlainObject(params.clawdbot) ? params.clawdbot : {};
+  const baseChannels = isPlainObject(params.channels) ? params.channels : {};
   const envVarRefs = params.preset.envVarRefs ?? [];
+  const rootBase: Record<string, unknown> = { clawdbot: structuredClone(base), channels: structuredClone(baseChannels) };
   for (const ref of envVarRefs) {
-    const current = getAtPath(base, ref.path);
+    const current = getAtPath(rootBase, ref.path);
     const refValue = `\${${ref.envVar}}`;
     if (current === undefined || current === null || current === "") continue;
-    if (typeof current !== "string") {
-      throw new Error(`${ref.path} must be a string env ref like ${refValue}`);
-    }
-    if (current !== refValue) {
-      throw new Error(`${ref.path} already set; remove inline value and use ${refValue}`);
-    }
+    if (typeof current !== "string") throw new Error(`${ref.path} must be a string env ref like ${refValue}`);
+    if (current !== refValue) throw new Error(`${ref.path} already set; remove inline value and use ${refValue}`);
   }
-  const patched = applyMergePatch(structuredClone(base), params.preset.patch) as Record<string, unknown>;
-  for (const ref of envVarRefs) ensureEnvRef(patched, ref);
-  const hardened = applySecurityDefaults({ clawdbot: patched });
+  const patchedRoot = applyMergePatch(structuredClone(rootBase), params.preset.patch) as Record<string, unknown>;
+  for (const ref of envVarRefs) ensureEnvRef(patchedRoot, ref);
+
+  const hardened = applySecurityDefaults({ clawdbot: patchedRoot["clawdbot"], channels: patchedRoot["channels"] });
   return {
     clawdbot: hardened.clawdbot,
+    channels: hardened.channels,
     warnings: [...(params.preset.warnings ?? []), ...hardened.warnings],
     requiredEnv: params.preset.requiredEnv ?? [],
     envVarRefs,

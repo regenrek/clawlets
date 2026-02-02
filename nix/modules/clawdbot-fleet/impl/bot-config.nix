@@ -7,6 +7,7 @@ let
     resolveBotWorkspace
     botGatewayPort
     isNonEmptyString
+    invariants
     envRef
     hooksTokenEnvVar
     hooksGmailPushTokenEnvVar
@@ -80,14 +81,15 @@ let
         // lib.optionalAttrs (hooksConfig != {}) { hooks = hooksConfig; }
         // lib.optionalAttrs ((mkSkillsConfig b) != {}) { skills = mkSkillsConfig b; }
       );
+      gatewayDefaults = invariants.gateway;
       invariants = {
         gateway = {
-          mode = "local";
-          bind = "loopback";
+          mode = gatewayDefaults.mode;
+          bind = gatewayDefaults.bind;
           port = gatewayPort;
           auth = {
-            mode = "token";
-            token = "\${CLAWDBOT_GATEWAY_TOKEN}";
+            mode = gatewayDefaults.auth.mode;
+            token = gatewayDefaults.auth.token;
           };
         };
         agents = {

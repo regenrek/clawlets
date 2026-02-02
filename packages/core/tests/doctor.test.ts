@@ -108,26 +108,41 @@ describe("doctor", () => {
     await writeFile(operatorKey, "AGE-SECRET-KEY-TEST\n", "utf8");
 
     const clawletsConfig = {
-      schemaVersion: 12,
+      schemaVersion: 14,
       defaultHost: "clawdbot-fleet-host",
       baseFlake: "",
       fleet: {
         secretEnv: { ZAI_API_KEY: "z_ai_api_key" },
+        secretFiles: {},
         sshAuthorizedKeys: ["ssh-ed25519 AAAATEST test"],
         sshKnownHosts: [],
         botOrder: ["alpha", "beta"],
         bots: {
           alpha: {
-            profile: { secretEnv: { DISCORD_BOT_TOKEN: "discord_token_alpha" } },
-            clawdbot: { channels: { discord: { enabled: true, token: "${DISCORD_BOT_TOKEN}" } } },
+            profile: { secretEnv: { DISCORD_BOT_TOKEN: "discord_token_alpha" }, secretFiles: {} },
+            channels: { discord: { enabled: true, allowFrom: ["discord user:123"] } },
+            clawdbot: {},
           },
           beta: {
-            profile: { secretEnv: { DISCORD_BOT_TOKEN: "discord_token_beta" } },
-            clawdbot: { channels: { discord: { enabled: true, token: "${DISCORD_BOT_TOKEN}" } } },
+            profile: { secretEnv: { DISCORD_BOT_TOKEN: "discord_token_beta" }, secretFiles: {} },
+            channels: { discord: { enabled: true, allowFrom: ["discord user:456"] } },
+            clawdbot: {},
           },
         },
         codex: { enable: false, bots: [] },
         backups: { restic: { enable: false, repository: "" } },
+      },
+      cattle: {
+        enabled: false,
+        hetzner: {
+          image: "",
+          serverType: "cx22",
+          location: "nbg1",
+          maxInstances: 10,
+          defaultTtl: "2h",
+          labels: { "managed-by": "clawlets" },
+        },
+        defaults: { autoShutdown: true, callbackUrl: "" },
       },
       hosts: {
         "clawdbot-fleet-host": {
@@ -135,7 +150,7 @@ describe("doctor", () => {
           diskDevice: "/dev/disk/by-id/TEST",
           flakeHost: "",
           hetzner: { serverType: "cx43" },
-          provisioning: { adminCidr: "203.0.113.10/32", sshPubkeyFile: "id_ed25519.pub" },
+          provisioning: { adminCidr: "203.0.113.10/32", adminCidrAllowWorldOpen: false, sshPubkeyFile: "id_ed25519.pub" },
           sshExposure: { mode: "tailnet" },
           tailnet: { mode: "none" },
           agentModelPrimary: "zai/glm-4.7",

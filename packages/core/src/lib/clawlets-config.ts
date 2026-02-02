@@ -19,7 +19,7 @@ export type SshExposureMode = z.infer<typeof SshExposureModeSchema>;
 export const TAILNET_MODES = ["none", "tailscale"] as const;
 export const TailnetModeSchema = z.enum(TAILNET_MODES);
 export type TailnetMode = z.infer<typeof TailnetModeSchema>;
-export const CLAWLETS_CONFIG_SCHEMA_VERSION = 12 as const;
+export const CLAWLETS_CONFIG_SCHEMA_VERSION = 14 as const;
 
 const JsonObjectSchema: z.ZodType<Record<string, unknown>> = z.record(z.string(), z.any());
 
@@ -49,14 +49,159 @@ const FleetBotProfileSchema = z
   .passthrough()
   .default(() => ({ secretEnv: {}, secretFiles: {} }));
 
+const FleetBotChannelsSchema = z
+  .object({
+    discord: z
+      .object({
+        // Matches `clawdbot-config.schema.json` for channels.discord.
+        enabled: z.boolean().default(true),
+        groupPolicy: z.enum(["open", "disabled", "allowlist"]).default("allowlist"),
+      })
+      .passthrough()
+      .optional(),
+    telegram: z
+      .object({
+        enabled: z.boolean().default(true),
+        allowFrom: z.array(z.union([z.string().trim().min(1), z.number()])).default(() => []),
+        groups: JsonObjectSchema.default(() => ({})),
+      })
+      .passthrough()
+      .optional(),
+  })
+  .passthrough()
+  .default(() => ({}));
+
+const ThinkingDefaultSchema = z.enum(["off", "minimal", "low", "medium", "high", "xhigh"]);
+
+const FleetBotAgentsDefaultsSchema = z
+  .object({
+    model: z
+      .object({
+        primary: z.string().trim().min(1),
+        fallbacks: z.array(z.string().trim().min(1)).default(() => []),
+      })
+      .passthrough()
+      .optional(),
+    thinkingDefault: ThinkingDefaultSchema.optional(),
+    maxConcurrent: z.number().int().positive().optional(),
+  })
+  .passthrough()
+  .default(() => ({}));
+
+const FleetBotAgentsSchema = z
+  .object({
+    defaults: FleetBotAgentsDefaultsSchema,
+  })
+  .passthrough()
+  .default(() => ({ defaults: {} }));
+
+const FleetBotHooksSchema = z
+  .object({
+    enabled: z.boolean().optional(),
+    token: z.string().trim().min(1).optional(),
+    tokenSecret: SecretNameSchema.optional(),
+    gmailPushTokenSecret: SecretNameSchema.optional(),
+    gmail: JsonObjectSchema.optional(),
+  })
+  .passthrough()
+  .default(() => ({}));
+
+const FleetBotSkillEntrySchema = z
+  .object({
+    enabled: z.boolean().optional(),
+    apiKey: z.string().trim().min(1).optional(),
+    apiKeySecret: SecretNameSchema.optional(),
+    env: JsonObjectSchema.optional(),
+    config: JsonObjectSchema.optional(),
+  })
+  .passthrough()
+  .default(() => ({}));
+
+const FleetBotSkillsSchema = z
+  .object({
+    allowBundled: z.array(BotIdSchema).optional(),
+    load: z
+      .object({
+        extraDirs: z.array(z.string().trim().min(1)).optional(),
+      })
+      .passthrough()
+      .optional(),
+    entries: z.record(BotIdSchema, FleetBotSkillEntrySchema).optional(),
+  })
+  .passthrough()
+  .default(() => ({}));
+
+const FleetBotPluginsSchema = z
+  .object({
+    enabled: z.boolean().optional(),
+    allow: z.array(z.string().trim().min(1)).optional(),
+    deny: z.array(z.string().trim().min(1)).optional(),
+    load: z
+      .object({
+        paths: z.array(z.string().trim().min(1)).optional(),
+      })
+      .passthrough()
+      .optional(),
+    entries: JsonObjectSchema.optional(),
+  })
+  .passthrough()
+  .default(() => ({}));
+
 const FleetBotSchema = z
   .object({
     profile: FleetBotProfileSchema,
+    channels: FleetBotChannelsSchema,
+    agents: FleetBotAgentsSchema,
+    hooks: FleetBotHooksSchema,
+    skills: FleetBotSkillsSchema,
+    plugins: FleetBotPluginsSchema,
     clawdbot: JsonObjectSchema.default(() => ({})),
     clf: JsonObjectSchema.default(() => ({})),
   })
+  .superRefine((bot, ctx) => {
+    // No backwards-compat: typed surfaces must not be set under fleet.bots.<bot>.clawdbot.*.
+    const legacy = bot.clawdbot as any;
+    const rejectLegacy = (key: string) => {
+      if (legacy?.[key] === undefined) return;
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["clawdbot", key],
+        message: `Do not set fleet.bots.<bot>.clawdbot.${key}; use fleet.bots.<bot>.${key} instead.`,
+      });
+    };
+    rejectLegacy("channels");
+    rejectLegacy("agents");
+    rejectLegacy("hooks");
+    rejectLegacy("skills");
+    rejectLegacy("plugins");
+
+    const profile = bot.profile as any;
+    if (profile?.hooks !== undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["profile", "hooks"],
+        message: "Do not set fleet.bots.<bot>.profile.hooks; use fleet.bots.<bot>.hooks instead.",
+      });
+    }
+    if (profile?.skills !== undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["profile", "skills"],
+        message: "Do not set fleet.bots.<bot>.profile.skills; use fleet.bots.<bot>.skills instead.",
+      });
+    }
+  })
   .passthrough()
-  .default(() => ({ profile: { secretEnv: {}, secretFiles: {} }, clawdbot: {}, clf: {} }));
+  .default(() => ({
+    profile: { secretEnv: {}, secretFiles: {} },
+    channels: {},
+    agents: { defaults: {} },
+    hooks: {},
+    skills: {},
+    plugins: {},
+    clawdbot: {},
+    clf: {},
+  }));
 
 const FleetSchema = z
   .object({

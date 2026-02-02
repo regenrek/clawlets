@@ -5,7 +5,7 @@ let
 
   _ =
     if builtins.hasAttr "guildId" fleetCfg
-    then builtins.throw "fleet.guildId was removed; configure Discord in fleet.bots.<bot>.clawdbot instead"
+    then builtins.throw "fleet.guildId was removed; configure Discord in fleet.bots.<bot>.channels.discord instead"
     else if builtins.hasAttr "modelSecrets" fleetCfg
     then builtins.throw "fleet.modelSecrets was removed; use fleet.secretEnv (ENV_VAR -> sops secret name)"
     else null;
@@ -28,6 +28,7 @@ let
     secretEnv = {};
     secretEnvAllowlist = null;
     secretFiles = {};
+    hooks = {};
     skills = {
       # Explicit allowlist required on servers. Avoid null (typically means “allow all bundled skills”).
       allowBundled = [ ];
@@ -48,9 +49,31 @@ let
         then builtins.throw "fleet.bots.<bot>.profile.modelSecrets was removed; use profile.secretEnv (OPENAI_API_KEY/etc)"
         else null;
       clawdbot = botCfg.clawdbot or { };
-      merged = lib.recursiveUpdate baseBot profile;
+      channels = botCfg.channels or { };
+      agents = botCfg.agents or { };
+      hooks = botCfg.hooks or { };
+      skills = botCfg.skills or { };
+      plugins = botCfg.plugins or { };
+      merged =
+        let
+          baseMerged = lib.recursiveUpdate baseBot profile;
+          mergedSkills =
+            if skills == { }
+            then baseMerged.skills or { }
+            else lib.recursiveUpdate (baseMerged.skills or { }) skills;
+        in
+          baseMerged // { hooks = hooks; skills = mergedSkills; };
     in
-      merged // { passthrough = lib.recursiveUpdate (merged.passthrough or { }) clawdbot; };
+      merged // {
+        passthrough =
+          lib.recursiveUpdate
+            (lib.recursiveUpdate (merged.passthrough or { }) clawdbot)
+            {
+              channels = channels;
+              agents = agents;
+              plugins = plugins;
+            };
+      };
 in {
   inherit bots;
 

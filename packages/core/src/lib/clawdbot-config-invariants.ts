@@ -1,9 +1,11 @@
 import type { ClawletsConfig } from "./clawlets-config.js";
 import { getAtPath } from "./object-path.js";
+import { skillApiKeyEnvVar } from "./fleet-secrets-plan-helpers.js";
+import invariantSpec from "../assets/clawdbot-invariants.json" with { type: "json" };
 
-const DEFAULT_GATEWAY_PORT_BASE = 18789;
-const DEFAULT_GATEWAY_PORT_STRIDE = 20;
-const DEFAULT_STATE_DIR_BASE = "/srv/clawdbot";
+const DEFAULT_GATEWAY_PORT_BASE = invariantSpec.defaults.gatewayPortBase;
+const DEFAULT_GATEWAY_PORT_STRIDE = invariantSpec.defaults.gatewayPortStride;
+const DEFAULT_STATE_DIR_BASE = invariantSpec.defaults.stateDirBase;
 const DEFAULT_COMMANDS = { native: "auto", nativeSkills: "auto" };
 
 export type ClawdbotInvariantWarning = {
@@ -36,6 +38,44 @@ function toCleanNumber(value: unknown): number | undefined {
 function toCleanBoolean(value: unknown): boolean | undefined {
   if (typeof value === "boolean") return value;
   return undefined;
+}
+
+function normalizeHooks(raw: Record<string, unknown>): Record<string, unknown> {
+  const hooks = structuredClone(raw);
+  const tokenSecret = toCleanString(hooks["tokenSecret"]);
+  if (tokenSecret && hooks["token"] === undefined) {
+    hooks["token"] = "${CLAWDBOT_HOOKS_TOKEN}";
+  }
+  delete (hooks as any).tokenSecret;
+
+  const gmailPushTokenSecret = toCleanString(hooks["gmailPushTokenSecret"]);
+  if (gmailPushTokenSecret) {
+    const gmail = isPlainObject(hooks["gmail"]) ? (hooks["gmail"] as Record<string, unknown>) : {};
+    if (gmail["pushToken"] === undefined) {
+      gmail["pushToken"] = "${CLAWDBOT_HOOKS_GMAIL_PUSH_TOKEN}";
+    }
+    hooks["gmail"] = gmail;
+  }
+  delete (hooks as any).gmailPushTokenSecret;
+
+  return hooks;
+}
+
+function normalizeSkills(raw: Record<string, unknown>): Record<string, unknown> {
+  const skills = structuredClone(raw);
+  const entries = isPlainObject(skills["entries"]) ? (skills["entries"] as Record<string, unknown>) : null;
+  if (entries) {
+    for (const [skill, entryRaw] of Object.entries(entries)) {
+      if (!isPlainObject(entryRaw)) continue;
+      const entry = entryRaw as Record<string, unknown>;
+      const apiKeySecret = toCleanString(entry["apiKeySecret"]);
+      if (apiKeySecret && entry["apiKey"] === undefined) {
+        entry["apiKey"] = `\${${skillApiKeyEnvVar(skill)}}`;
+      }
+      delete (entry as any).apiKeySecret;
+    }
+  }
+  return skills;
 }
 
 function deepMerge(base: Record<string, unknown>, override: Record<string, unknown>): Record<string, unknown> {
@@ -112,20 +152,31 @@ export function buildClawdbotBotConfig(params: {
   const botCfgObj = isPlainObject(botCfg) ? botCfg : {};
   const profile = isPlainObject(botCfgObj["profile"]) ? (botCfgObj["profile"] as Record<string, unknown>) : {};
   const base = isPlainObject(botCfgObj["clawdbot"]) ? (botCfgObj["clawdbot"] as Record<string, unknown>) : {};
-  const baseWithDefaults = deepMerge({ commands: DEFAULT_COMMANDS }, base);
+  const typedChannels = isPlainObject(botCfgObj["channels"]) ? (botCfgObj["channels"] as Record<string, unknown>) : {};
+  const typedAgents = isPlainObject(botCfgObj["agents"]) ? (botCfgObj["agents"] as Record<string, unknown>) : {};
+  const typedHooksRaw = isPlainObject(botCfgObj["hooks"]) ? (botCfgObj["hooks"] as Record<string, unknown>) : {};
+  const typedSkillsRaw = isPlainObject(botCfgObj["skills"]) ? (botCfgObj["skills"] as Record<string, unknown>) : {};
+  const typedPlugins = isPlainObject(botCfgObj["plugins"]) ? (botCfgObj["plugins"] as Record<string, unknown>) : {};
+  const typedHooks = normalizeHooks(typedHooksRaw);
+  const typedSkills = normalizeSkills(typedSkillsRaw);
+  const baseWithDefaults = deepMerge(
+    deepMerge({ commands: DEFAULT_COMMANDS }, base),
+    { channels: typedChannels, agents: typedAgents, hooks: typedHooks, skills: typedSkills, plugins: typedPlugins },
+  );
 
   const gatewayPort = resolveGatewayPort({ config: params.config, bot: params.bot, profile });
   const workspaceDir = resolveWorkspaceDir({ bot: params.bot, profile });
   const skipBootstrap = resolveSkipBootstrap({ profile });
 
+  const gatewayDefaults = invariantSpec.gateway;
   const invariants: Record<string, unknown> = {
     gateway: {
-      mode: "local",
-      bind: "loopback",
+      mode: gatewayDefaults.mode,
+      bind: gatewayDefaults.bind,
       port: gatewayPort,
       auth: {
-        mode: "token",
-        token: "${CLAWDBOT_GATEWAY_TOKEN}",
+        mode: gatewayDefaults.auth.mode,
+        token: gatewayDefaults.auth.token,
       },
     },
     agents: {
@@ -142,10 +193,10 @@ export function buildClawdbotBotConfig(params: {
     if (w) warnings.push(w);
   };
 
-  warn(["gateway", "mode"], "local");
-  warn(["gateway", "bind"], "loopback");
+  warn(["gateway", "mode"], gatewayDefaults.mode);
+  warn(["gateway", "bind"], gatewayDefaults.bind);
   warn(["gateway", "port"], gatewayPort);
-  warn(["gateway", "auth"], { mode: "token", token: "${CLAWDBOT_GATEWAY_TOKEN}" });
+  warn(["gateway", "auth"], { mode: gatewayDefaults.auth.mode, token: gatewayDefaults.auth.token });
   warn(["agents", "defaults", "workspace"], workspaceDir);
   warn(["agents", "defaults", "skipBootstrap"], skipBootstrap);
 

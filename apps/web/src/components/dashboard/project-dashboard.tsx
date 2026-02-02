@@ -8,7 +8,7 @@ import { useConvexAuth } from "convex/react"
 import { api } from "../../../convex/_generated/api"
 import type { Id } from "../../../convex/_generated/dataModel"
 import { getDashboardOverview } from "~/sdk/dashboard"
-import { migrateClawletsConfigFileToV12 } from "~/sdk/config-migrate"
+import { migrateClawletsConfigFileToV14 } from "~/sdk/config-migrate"
 import { Badge } from "~/components/ui/badge"
 import {
   Card,
@@ -87,11 +87,11 @@ export function ProjectDashboard(props: {
   const migrate = useMutation({
     mutationFn: async () => {
       if (!project) throw new Error("project not loaded")
-      return await migrateClawletsConfigFileToV12({ data: { projectId: project.projectId } })
+      return await migrateClawletsConfigFileToV14({ data: { projectId: project.projectId } })
     },
     onSuccess: (res) => {
       if (res.ok) {
-        toast.success(res.changed ? "Migrated config" : "Config already schemaVersion 12")
+        toast.success(res.changed ? "Migrated config" : "Config already schemaVersion 14")
         void queryClient.invalidateQueries({ queryKey: ["dashboardOverview"] })
         void queryClient.invalidateQueries({
           queryKey: ["dashboardRecentRuns", project?.projectId ?? null],

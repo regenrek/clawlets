@@ -127,13 +127,13 @@ clawlets host set --agent-model-primary zai/glm-4.7
 Optional extra model entries (per-bot):
 
 ```bash
-clawlets config set --path fleet.bots.melinda.clawdbot.agents.defaults.models.fast --value-json '{"alias":"fast"}'
+clawlets config set --path fleet.bots.melinda.agents.defaults.models.fast --value-json '{"alias":"fast"}'
 ```
 
 Per-bot override:
 
 ```bash
-clawlets config set --path fleet.bots.melinda.clawdbot.agents.defaults.model.primary --value zai/glm-4.7
+clawlets config set --path fleet.bots.melinda.agents.defaults.model.primary --value zai/glm-4.7
 ```
 
 Provider API keys (provider -> sops secret name):
@@ -158,8 +158,8 @@ clawlets config set --path fleet.codex.bots --value-json '["gunnar","maren"]'
 Then allow bundled `coding-agent` for those bots:
 
 ```bash
-clawlets config set --path fleet.bots.gunnar.profile.skills.allowBundled --value-json '["github","coding-agent"]'
-clawlets config set --path fleet.bots.maren.profile.skills.allowBundled --value-json '["github","brave-search","coding-agent"]'
+clawlets config set --path fleet.bots.gunnar.skills.allowBundled --value-json '["github","coding-agent"]'
+clawlets config set --path fleet.bots.maren.skills.allowBundled --value-json '["github","brave-search","coding-agent"]'
 ```
 
 One-time login (headless):
@@ -216,13 +216,13 @@ Optional seed-once:
 
 Allowlist bundled skills:
 
-- `fleet.bots.<bot>.profile.skills.allowBundled = [ "github" "brave-search" ... ]`
+- `fleet.bots.<bot>.skills.allowBundled = [ "github" "brave-search" ... ]`
 
 Treat `allowBundled` as required on servers. Avoid `null` (typically means “allow all bundled skills”).
 
 Per-skill secrets (recommended):
 
-- `fleet.bots.<bot>.profile.skills.entries."<skill>".apiKeySecret = "<sops_secret_name>"`
+- `fleet.bots.<bot>.skills.entries."<skill>".apiKeySecret = "<sops_secret_name>"`
 
 ### Per-bot secret env overrides
 
@@ -238,12 +238,12 @@ enabled) or use a bigger build machine.
 
 Secrets:
 
-- `fleet.bots.<bot>.profile.hooks.tokenSecret = "<sops_secret_name>"`
-- `fleet.bots.<bot>.profile.hooks.gmailPushTokenSecret = "<sops_secret_name>"`
+- `fleet.bots.<bot>.hooks.tokenSecret = "<sops_secret_name>"`
+- `fleet.bots.<bot>.hooks.gmailPushTokenSecret = "<sops_secret_name>"`
 
 Non-secret config:
 
-- set non-secret hook config in raw clawdbot config: `fleet.bots.<bot>.clawdbot.hooks.*`
+- set non-secret hook config in typed hooks: `fleet.bots.<bot>.hooks.*`
 
 ### GitHub App auth (maren)
 

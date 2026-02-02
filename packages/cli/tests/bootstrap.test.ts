@@ -106,7 +106,7 @@ function setConfig(hostOverrides: Partial<typeof baseHost>) {
     layout: getRepoLayout("/repo"),
     configPath: "/repo/fleet/clawlets.json",
     config: {
-      schemaVersion: 12,
+      schemaVersion: 14,
       fleet: { sshAuthorizedKeys: [], sshKnownHosts: [] },
       hosts: {
         [hostName]: { ...baseHost, ...hostOverrides },

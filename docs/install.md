@@ -307,7 +307,7 @@ ran out of RAM (OOM killer).
 Fix (pick one):
 
 - Reduce closure size: don’t enable `"coding-agent"` / Codex during bootstrap (it pulls in heavy Node deps).
-  Example: `clawlets config set --path fleet.bots.maren.profile.skills.allowBundled --value-json '["github","brave-search"]'`
+  Example: `clawlets config set --path fleet.bots.maren.skills.allowBundled --value-json '["github","brave-search"]'`
 - Use a bigger Hetzner server type for bootstrap (`SERVER_TYPE=...` in `.env`).
 - Add swap on the target (best long-term anyway). For swap at install time, you need a custom disk layout (advanced; edit `flake.nix`).
 

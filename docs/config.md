@@ -37,7 +37,12 @@ Fleet (`fleet.*`):
     - `profile.secretEnvAllowlist`: optional allowlist of env vars written into the bot env file (least-privilege)
     - `profile.secretFiles`: bot-scoped secret files (id -> `{ secretName, targetPath, ... }`)
     - other keys are forwarded into Nix `services.clawdbotFleet.botProfiles.<bot>` (forward compatible)
-  - `clawdbot`: raw clawdbot config (canonical; channels/routing/agents/tools/etc)
+  - `channels`: typed channel config (discord/telegram/etc)
+  - `agents`: typed agent defaults (model/thinking/maxConcurrent/etc)
+  - `hooks`: typed hooks config (token + Gmail push wiring)
+  - `skills`: typed skills config (allowBundled/load/entries)
+  - `plugins`: typed plugin config (allow/deny/load/entries)
+  - `clawdbot`: raw clawdbot config passthrough (advanced/edge cases)
   - `clf`: clawlets/clf policy (bot access to orchestrator/queue)
 
 Host entry (`hosts.<host>`):
@@ -91,7 +96,7 @@ Cattle (`cattle.*`):
 - host secret files: `fleet.secretFiles` → `targetPath` must be under `/var/lib/clawlets/`
 - bot secret files: `fleet.bots.<bot>.profile.secretFiles` → `targetPath` must be under `/var/lib/clawlets/secrets/bots/<bot>/`
 
-Clawdbot config should use `${ENV_VAR}` (uppercase/underscores). Clawlets scans `fleet.bots.<bot>.clawdbot` for `${ENV_VAR}` refs plus channel tokens, hooks tokens, skill apiKey fields, and provider `apiKey` fields to build the secrets plan.
+Clawdbot config should use `${ENV_VAR}` (uppercase/underscores). Clawlets scans the effective bot config (typed fields + `fleet.bots.<bot>.clawdbot` passthrough) for `${ENV_VAR}` refs plus channel tokens, hooks tokens, skill apiKey fields, and provider `apiKey` fields to build the secrets plan.
 
 - Inline tokens/API keys emit warnings; strict mode fails them.
 - Escape literal `${ENV_VAR}` as `$${ENV_VAR}`.
@@ -101,7 +106,7 @@ Hooks + skills env wiring:
 - `hooks.gmail.pushToken` → `${CLAWDBOT_HOOKS_GMAIL_PUSH_TOKEN}`
 - `skills.entries.<skill>.apiKey` → `${CLAWDBOT_SKILL_<SKILL>_API_KEY}`
 
-If you set `profile.hooks.*Secret` or `profile.skills.entries.*.apiKeySecret`, clawlets derives the env mapping automatically.
+If you set `fleet.bots.<bot>.hooks.*Secret` or `fleet.bots.<bot>.skills.entries.*.apiKeySecret`, clawlets derives the env mapping automatically.
 
 ## Autowire missing secretEnv
 
@@ -134,11 +139,14 @@ Default autowire scope:
 - v11: Cache settings are `hosts.<host>.cache.{substituters,trustedPublicKeys,netrc}`.
 - v10: SSH keys are project-scoped under `fleet.sshAuthorizedKeys`/`fleet.sshKnownHosts` (no longer per-host).
 - v9: inline secrets are deprecated; move tokens/api keys to `${ENV_VAR}` wiring and secretEnv mappings (hooks/skills included).
+- v13: bot channels are first-class under `fleet.bots.<bot>.channels` (do not use `fleet.bots.<bot>.clawdbot.channels`).
+- v14: bot agent defaults are first-class under `fleet.bots.<bot>.agents.defaults` (model + thinkingDefault + maxConcurrent).
+- v14: bot hooks/skills/plugins are first-class under `fleet.bots.<bot>.hooks|skills|plugins` (avoid `fleet.bots.<bot>.clawdbot.*`).
 ## Example
 
 ```json
 {
-  "schemaVersion": 12,
+  "schemaVersion": 14,
   "defaultHost": "clawdbot-fleet-host",
   "baseFlake": "",
   "fleet": {
@@ -150,14 +158,32 @@ Default autowire scope:
     "bots": {
       "maren": {
         "profile": { "secretEnv": { "DISCORD_BOT_TOKEN": "discord_token_maren" }, "secretFiles": {} },
-        "clawdbot": {
-          "channels": {
-            "discord": {
-              "enabled": true,
-              "token": "${DISCORD_BOT_TOKEN}",
-              "dm": { "enabled": true, "policy": "pairing" }
-            }
+        "channels": {
+          "discord": {
+            "groupPolicy": "allowlist",
+            "enabled": true,
+            "token": "${DISCORD_BOT_TOKEN}"
           }
+        },
+        "agents": {
+          "defaults": {
+            "model": { "primary": "zai/glm-4.7" },
+            "thinkingDefault": "low",
+            "maxConcurrent": 4
+          }
+        },
+        "hooks": {
+          "enabled": true,
+          "tokenSecret": "hooks_token"
+        },
+        "skills": {
+          "allowBundled": ["brave-search"],
+          "entries": {
+            "brave-search": { "apiKeySecret": "brave_api_key" }
+          }
+        },
+        "clawdbot": {
+          "models": { "providers": { "moonshot": { "apiKey": "${MOONSHOT_API_KEY}" } } }
         }
       }
     },

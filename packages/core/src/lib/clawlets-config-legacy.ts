@@ -29,7 +29,7 @@ export function assertNoLegacyEnvSecrets(parsed: unknown): void {
       throw new Error("fleet.modelSecrets was removed; use fleet.secretEnv (e.g. OPENAI_API_KEY -> openai_api_key)");
     }
     if ("guildId" in fleet) {
-      throw new Error("fleet.guildId was removed; configure Discord in clawdbot config (fleet.bots.<bot>.clawdbot)");
+      throw new Error("fleet.guildId was removed; configure Discord in fleet.bots.<bot>.channels.discord");
     }
     const bots = fleet.bots;
     if (bots && typeof bots === "object" && !Array.isArray(bots)) {
@@ -59,9 +59,22 @@ export function assertNoLegacyEnvSecrets(parsed: unknown): void {
               if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
               if ("envSecrets" in (entry as any)) {
                 throw new Error(
-                  `fleet.bots.${bot}.profile.skills.entries.${skill}.envSecrets was removed; use apiKeySecret or inline config`,
+                  `fleet.bots.${bot}.profile.skills.entries.${skill}.envSecrets was removed; use fleet.bots.${bot}.skills.entries.${skill}.apiKeySecret or apiKey`,
                 );
               }
+            }
+          }
+        }
+
+        const botSkills = (botCfg as any).skills;
+        const botSkillEntries = botSkills?.entries;
+        if (botSkillEntries && typeof botSkillEntries === "object" && !Array.isArray(botSkillEntries)) {
+          for (const [skill, entry] of Object.entries(botSkillEntries as Record<string, unknown>)) {
+            if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+            if ("envSecrets" in (entry as any)) {
+              throw new Error(
+                `fleet.bots.${bot}.skills.entries.${skill}.envSecrets was removed; use fleet.bots.${bot}.skills.entries.${skill}.apiKeySecret or apiKey`,
+              );
             }
           }
         }

@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 
 function baseConfig(host: string) {
   return {
-    schemaVersion: 12,
+    schemaVersion: 14,
     defaultHost: host,
     baseFlake: "",
     fleet: {
@@ -17,11 +17,10 @@ function baseConfig(host: string) {
       bots: {
         agent: {
           profile: { secretEnv: {}, secretFiles: {} },
-          clawdbot: {
-            channels: {
-              whatsapp: { enabled: true, dmPolicy: "open", allowFrom: ["*"] },
-            },
+          channels: {
+            whatsapp: { enabled: true, dmPolicy: "open", allowFrom: ["*"] },
           },
+          clawdbot: {},
           clf: {},
         },
       },
@@ -110,8 +109,8 @@ describe("clawdbot harden command", () => {
     expect(out).toMatch(/planned: update fleet\/clawlets\.json/);
     expect(out).toMatch(/fleet\.bots\.agent\.clawdbot\.logging\.redactSensitive/);
     expect(out).toMatch(/fleet\.bots\.agent\.clawdbot\.session\.dmScope/);
-    expect(out).toMatch(/fleet\.bots\.agent\.clawdbot\.channels\.whatsapp\.dmPolicy/);
-    expect(out).toMatch(/fleet\.bots\.agent\.clawdbot\.channels\.whatsapp\.groupPolicy/);
+    expect(out).toMatch(/fleet\.bots\.agent\.channels\.whatsapp\.dmPolicy/);
+    expect(out).toMatch(/fleet\.bots\.agent\.channels\.whatsapp\.groupPolicy/);
   });
 
   it("writes changes when --write is set", async () => {
@@ -121,7 +120,7 @@ describe("clawdbot harden command", () => {
     const parsed = JSON.parse(raw);
     expect(parsed.fleet.bots.agent.clawdbot.logging.redactSensitive).toBe("tools");
     expect(parsed.fleet.bots.agent.clawdbot.session.dmScope).toBe("per-channel-peer");
-    expect(parsed.fleet.bots.agent.clawdbot.channels.whatsapp.dmPolicy).toBe("pairing");
-    expect(parsed.fleet.bots.agent.clawdbot.channels.whatsapp.groupPolicy).toBe("allowlist");
+    expect(parsed.fleet.bots.agent.channels.whatsapp.dmPolicy).toBe("pairing");
+    expect(parsed.fleet.bots.agent.channels.whatsapp.groupPolicy).toBe("allowlist");
   });
 });

@@ -103,3 +103,106 @@ export const configDotSet = createServerFn({ method: "POST" })
       onError: (message) => ({ ok: false as const, issues: [{ code: "error", path: [], message }] }),
     })
   })
+
+export const configDotBatch = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => {
+    const base = parseProjectIdInput(data)
+    const d = data as Record<string, unknown>
+    const opsRaw = d["ops"]
+    if (!Array.isArray(opsRaw)) throw new Error("missing ops")
+    if (opsRaw.length === 0) throw new Error("missing ops")
+    if (opsRaw.length > 100) throw new Error("too many ops (max 100)")
+    const ops = opsRaw.map((op, i) => {
+      if (!op || typeof op !== "object" || Array.isArray(op)) throw new Error(`invalid op at index ${i}`)
+      const o = op as Record<string, unknown>
+      const path = String(o["path"] || "")
+      const del = Boolean(o["del"])
+      const value = o["value"] === undefined ? undefined : String(o["value"])
+      const valueJson = o["valueJson"] === undefined ? undefined : String(o["valueJson"])
+      if (!path.trim()) throw new Error(`missing path at index ${i}`)
+      if (!del && value === undefined && valueJson === undefined) throw new Error(`missing value for op at index ${i}`)
+      return { path, value, valueJson, del }
+    })
+
+    return { ...base, ops }
+  })
+  .handler(async ({ data }) => {
+    const client = createConvexClient()
+    const { repoRoot } = await getAdminProjectContext(client, data.projectId)
+    const redactTokens = await readClawletsEnvTokens(repoRoot)
+    const { configPath, config: raw } = loadClawletsConfigRaw({ repoRoot })
+    const next = structuredClone(raw) as any
+
+    const plannedPaths: string[] = []
+
+    for (const op of data.ops) {
+      const parts = splitDotPath(op.path)
+      plannedPaths.push(parts.join("."))
+
+      if (isBotClawdbotPath(parts)) {
+        return {
+          ok: false as const,
+          issues: [
+            {
+              code: "policy",
+              path: parts,
+              message: BOT_CLAWDBOT_POLICY_MESSAGE,
+            },
+          ],
+        }
+      }
+
+      if (op.del) {
+        const ok = deleteAtPath(next, parts)
+        if (!ok) throw new Error(`path not found: ${parts.join(".")}`)
+        continue
+      }
+
+      if (op.valueJson !== undefined) {
+        let parsed: unknown
+        try {
+          parsed = JSON.parse(op.valueJson)
+        } catch {
+          throw new Error(`invalid JSON value at ${parts.join(".")}`)
+        }
+        setAtPath(next, parts, parsed)
+        continue
+      }
+
+      if (op.value !== undefined) {
+        setAtPath(next, parts, op.value)
+        continue
+      }
+
+      throw new Error(`missing value (or set del=true) for ${parts.join(".")}`)
+    }
+
+    const validated = ClawletsConfigSchema.safeParse(next)
+    if (!validated.success) return { ok: false as const, issues: mapValidationIssues(validated.error.issues as unknown[]) }
+
+    const title =
+      plannedPaths.length === 1
+        ? `config set ${plannedPaths[0] || "unknown"}`
+        : `config set ${plannedPaths[0] || "unknown"} (+${plannedPaths.length - 1} more)`
+
+    const { runId } = await client.mutation(api.runs.create, {
+      projectId: data.projectId,
+      kind: "config_write",
+      title,
+    })
+
+    type ConfigDotBatchResult = { ok: true; runId: typeof runId } | { ok: false; issues: ValidationIssue[] }
+
+    return await runWithEventsAndStatus<ConfigDotBatchResult>({
+      client,
+      runId,
+      redactTokens,
+      fn: async (emit) => {
+        await emit({ level: "info", message: `Updating ${plannedPaths.length} config path(s)` })
+        for (const p of plannedPaths) await emit({ level: "info", message: `Updating ${p}` })
+        await writeClawletsConfig({ configPath, config: validated.data })
+      },
+      onSuccess: () => ({ ok: true as const, runId }),
+      onError: (message) => ({ ok: false as const, issues: [{ code: "error", path: [], message }] }),
+    })
+  })

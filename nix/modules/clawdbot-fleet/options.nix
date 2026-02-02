@@ -5,6 +5,7 @@ let
   clawdbotPkgs =
     nix-clawdbot.packages.${system} or
       (throw "nix-clawdbot.packages.${system} missing (must consume flake outputs, not outPath internals)");
+  invariants = builtins.fromJSON (builtins.readFile ../../lib/clawdbot-invariants.json);
 
   normalizeJson = v: builtins.fromJSON (builtins.toJSON v);
 in {
@@ -94,13 +95,13 @@ in {
 
     gatewayPortBase = lib.mkOption {
       type = lib.types.int;
-      default = 18789;
+      default = invariants.defaults.gatewayPortBase;
       description = "Base port for per-bot gateway servers.";
     };
 
     gatewayPortStride = lib.mkOption {
       type = lib.types.int;
-      default = 20;
+      default = invariants.defaults.gatewayPortStride;
       description = "Port stride per bot (port = base + bot index * stride).";
     };
 
@@ -470,7 +471,7 @@ in {
 
     stateDirBase = lib.mkOption {
       type = lib.types.str;
-      default = "/srv/clawdbot";
+      default = invariants.defaults.stateDirBase;
       description = "Base directory for per-bot state dirs.";
     };
   };

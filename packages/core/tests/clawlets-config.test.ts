@@ -18,7 +18,7 @@ describe("clawlets config schema", () => {
     const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
     expect(() =>
       ClawletsConfigSchema.parse({
-        schemaVersion: 12,
+        schemaVersion: 14,
         fleet: { botOrder: ["maren"], bots: { maren: {} } },
         hosts: {
           "../pwn": {
@@ -37,7 +37,7 @@ describe("clawlets config schema", () => {
     const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
     expect(() =>
       ClawletsConfigSchema.parse({
-        schemaVersion: 12,
+        schemaVersion: 14,
         fleet: { botOrder: ["maren", "maren"], bots: { maren: {} } },
         hosts: {
           "clawdbot-fleet-host": {
@@ -56,7 +56,7 @@ describe("clawlets config schema", () => {
     const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
     expect(() =>
       ClawletsConfigSchema.parse({
-        schemaVersion: 12,
+        schemaVersion: 14,
         fleet: { botOrder: [], bots: { maren: {} } },
         hosts: {
           "clawdbot-fleet-host": {
@@ -75,7 +75,7 @@ describe("clawlets config schema", () => {
     const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
     expect(() =>
       ClawletsConfigSchema.parse({
-        schemaVersion: 12,
+        schemaVersion: 14,
         fleet: { botOrder: ["maren", "ghost"], bots: { maren: {} } },
         hosts: {
           "clawdbot-fleet-host": {
@@ -94,7 +94,7 @@ describe("clawlets config schema", () => {
     const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
     expect(() =>
       ClawletsConfigSchema.parse({
-        schemaVersion: 12,
+        schemaVersion: 14,
         fleet: { botOrder: ["maren"], bots: { maren: {}, sonja: {} } },
         hosts: {
           "clawdbot-fleet-host": {
@@ -113,7 +113,7 @@ describe("clawlets config schema", () => {
     const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
     expect(() =>
       ClawletsConfigSchema.parse({
-        schemaVersion: 12,
+        schemaVersion: 14,
         fleet: { botOrder: ["maren"], bots: { maren: {} } },
         hosts: {
           "clawdbot-fleet-host": {
@@ -133,7 +133,7 @@ describe("clawlets config schema", () => {
     const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
     expect(() =>
       ClawletsConfigSchema.parse({
-        schemaVersion: 12,
+        schemaVersion: 14,
         fleet: { botOrder: ["maren"], bots: { maren: {} } },
         hosts: {
           "clawdbot-fleet-host": {
@@ -153,7 +153,7 @@ describe("clawlets config schema", () => {
     const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
     expect(() =>
       ClawletsConfigSchema.parse({
-        schemaVersion: 12,
+        schemaVersion: 14,
         fleet: { botOrder: ["maren"], bots: { maren: {} } },
         hosts: {
           "clawdbot-fleet-host": {
@@ -201,7 +201,7 @@ describe("clawlets config schema", () => {
     } as const;
 
     const cfgA = ClawletsConfigSchema.parse({
-      schemaVersion: 12,
+      schemaVersion: 14,
       fleet: { botOrder: ["maren"], bots: { maren: {} } },
       hosts: { "clawdbot-fleet-host": baseHost },
     }) as any;
@@ -210,7 +210,7 @@ describe("clawlets config schema", () => {
     cfgA.fleet.bots.maren.profile.secretEnv.LOCAL_ENV_VAR = "local_secret";
 
     const cfgB = ClawletsConfigSchema.parse({
-      schemaVersion: 12,
+      schemaVersion: 14,
       fleet: { botOrder: ["maren"], bots: { maren: {} } },
       hosts: { "clawdbot-fleet-host": baseHost },
     }) as any;
@@ -223,7 +223,7 @@ describe("clawlets config schema", () => {
     const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
     expect(() =>
       ClawletsConfigSchema.parse({
-        schemaVersion: 12,
+        schemaVersion: 14,
         defaultHost: "missing-host",
         fleet: { botOrder: ["maren"], bots: { maren: {} } },
         hosts: {
@@ -398,7 +398,7 @@ describe("clawlets config schema", () => {
     const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
     expect(() =>
       ClawletsConfigSchema.parse({
-        schemaVersion: 12,
+        schemaVersion: 14,
         fleet: {
           botOrder: ["maren"],
           secretEnv: { "bad-key": "../pwn" },
@@ -439,7 +439,7 @@ describe("clawlets config schema", () => {
     const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
     expect(() =>
       ClawletsConfigSchema.parse({
-        schemaVersion: 12,
+        schemaVersion: 14,
         cattle: { enabled: true, hetzner: { image: "img-1", defaultTtl: "2 hours" } },
         fleet: { botOrder: ["maren"], bots: { maren: {} } },
         hosts: {
@@ -453,7 +453,7 @@ describe("clawlets config schema", () => {
     const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
     expect(() =>
       ClawletsConfigSchema.parse({
-        schemaVersion: 12,
+        schemaVersion: 14,
         cattle: { enabled: true, hetzner: { image: "" } },
         fleet: { botOrder: ["maren"], bots: { maren: {} } },
         hosts: {
@@ -467,7 +467,7 @@ describe("clawlets config schema", () => {
     const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
     expect(() =>
       ClawletsConfigSchema.parse({
-        schemaVersion: 12,
+        schemaVersion: 14,
         cattle: { enabled: false, hetzner: { labels: { "bad key": "x" } } },
         fleet: { botOrder: ["maren"], bots: { maren: {} } },
         hosts: {

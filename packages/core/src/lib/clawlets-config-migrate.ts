@@ -34,6 +34,27 @@ function ensureObject(parent: Record<string, unknown>, key: string): Record<stri
   return next;
 }
 
+function mergeLegacyIntoExisting(params: {
+  existing: Record<string, unknown>;
+  legacy: Record<string, unknown>;
+  context: string;
+}): boolean {
+  let changed = false;
+  for (const [key, legacyValue] of Object.entries(params.legacy)) {
+    assertSafeRecordKey({ key, context: params.context });
+    const existingValue = params.existing[key];
+    if (existingValue === undefined) {
+      params.existing[key] = legacyValue;
+      changed = true;
+      continue;
+    }
+    if (isPlainObject(existingValue) && isPlainObject(legacyValue)) {
+      if (mergeLegacyIntoExisting({ existing: existingValue, legacy: legacyValue, context: params.context })) changed = true;
+    }
+  }
+  return changed;
+}
+
 function ensureStringRecord(parent: Record<string, unknown>, key: string): Record<string, string> {
   const existing = parent[key];
   assertSafeRecordKey({ key, context: "migrate ensureStringRecord" });
@@ -101,6 +122,20 @@ export type MigrateToV11Result = {
 };
 
 export type MigrateToV12Result = {
+  ok: true;
+  changed: boolean;
+  warnings: string[];
+  migrated: unknown;
+};
+
+export type MigrateToV13Result = {
+  ok: true;
+  changed: boolean;
+  warnings: string[];
+  migrated: unknown;
+};
+
+export type MigrateToV14Result = {
   ok: true;
   changed: boolean;
   warnings: string[];
@@ -414,4 +449,127 @@ export function migrateClawletsConfigToV12(raw: unknown): MigrateToV12Result {
   }
 
   return { ok: true, changed, warnings, migrated: next };
+}
+
+export function migrateClawletsConfigToV13(raw: unknown): MigrateToV13Result {
+  if (!isPlainObject(raw)) throw new Error("invalid config (expected JSON object)");
+
+  const next = structuredClone(raw) as Record<string, unknown>;
+  const warnings: string[] = [];
+
+  const schemaVersion = Number(next["schemaVersion"] ?? 0);
+  if (schemaVersion === 13) return { ok: true, changed: false, warnings, migrated: next };
+  if (schemaVersion !== 12) throw new Error(`unsupported schemaVersion: ${schemaVersion} (expected 12)`);
+
+  let changed = false;
+  next["schemaVersion"] = 13;
+  changed = true;
+
+  const fleet = next["fleet"];
+  if (isPlainObject(fleet)) {
+    const bots = fleet["bots"];
+    if (isPlainObject(bots)) {
+      for (const [botId, botCfgRaw] of Object.entries(bots)) {
+        if (!isPlainObject(botCfgRaw)) continue;
+        const botCfg = botCfgRaw as Record<string, unknown>;
+
+        const moveLegacySurface = (params: { sourceLabel: string; source: Record<string, unknown>; key: string }) => {
+          if (!(params.key in params.source)) return;
+          const legacyValue = params.source[params.key];
+          delete params.source[params.key];
+          changed = true;
+
+          if (!isPlainObject(legacyValue) || Object.keys(legacyValue).length === 0) {
+            if (legacyValue !== undefined) warnings.push(`bot ${botId}: dropped ${params.sourceLabel}.${params.key} (expected object)`);
+            return;
+          }
+
+          const dest = ensureObject(botCfg, params.key);
+          const merged = mergeLegacyIntoExisting({
+            existing: dest,
+            legacy: legacyValue,
+            context: `migrate ${params.sourceLabel}.${params.key}`,
+          });
+          if (merged) changed = true;
+          warnings.push(`bot ${botId}: moved ${params.sourceLabel}.${params.key} -> ${params.key}`);
+        };
+
+        const profile = botCfg["profile"];
+        if (isPlainObject(profile)) {
+          moveLegacySurface({ sourceLabel: "profile", source: profile, key: "hooks" });
+          moveLegacySurface({ sourceLabel: "profile", source: profile, key: "skills" });
+        }
+
+        const clawdbot = botCfg["clawdbot"];
+        if (isPlainObject(clawdbot)) {
+          moveLegacySurface({ sourceLabel: "clawdbot", source: clawdbot, key: "channels" });
+          moveLegacySurface({ sourceLabel: "clawdbot", source: clawdbot, key: "agents" });
+          moveLegacySurface({ sourceLabel: "clawdbot", source: clawdbot, key: "hooks" });
+          moveLegacySurface({ sourceLabel: "clawdbot", source: clawdbot, key: "skills" });
+          moveLegacySurface({ sourceLabel: "clawdbot", source: clawdbot, key: "plugins" });
+        }
+      }
+    }
+  }
+
+  return { ok: true, changed, warnings, migrated: next };
+}
+
+export function migrateClawletsConfigToV14(raw: unknown): MigrateToV14Result {
+  if (!isPlainObject(raw)) throw new Error("invalid config (expected JSON object)");
+
+  const next = structuredClone(raw) as Record<string, unknown>;
+  const warnings: string[] = [];
+
+  const schemaVersion = Number(next["schemaVersion"] ?? 0);
+  if (schemaVersion === 14) return { ok: true, changed: false, warnings, migrated: next };
+  if (schemaVersion !== 13) throw new Error(`unsupported schemaVersion: ${schemaVersion} (expected 13)`);
+
+  next["schemaVersion"] = 14;
+  return { ok: true, changed: true, warnings, migrated: next };
+}
+
+export type MigrateToLatestResult = {
+  ok: true;
+  changed: boolean;
+  warnings: string[];
+  migrated: Record<string, unknown>;
+};
+
+export function migrateClawletsConfigToLatest(raw: unknown): MigrateToLatestResult {
+  if (!isPlainObject(raw)) throw new Error("invalid config (expected JSON object)");
+  const warnings: string[] = [];
+  let changed = false;
+  let current: unknown = raw;
+
+  const schemaVersion = Number((raw as any)["schemaVersion"] ?? 0);
+  if (schemaVersion === 14) return { ok: true, changed: false, warnings, migrated: structuredClone(raw) as Record<string, unknown> };
+
+  if (schemaVersion < 12) {
+    const r12 = migrateClawletsConfigToV12(current);
+    warnings.push(...r12.warnings);
+    if (r12.changed) changed = true;
+    current = r12.migrated;
+  }
+
+  const v12 = Number((current as any)["schemaVersion"] ?? 0);
+  if (v12 === 12) {
+    const r13 = migrateClawletsConfigToV13(current);
+    warnings.push(...r13.warnings);
+    if (r13.changed) changed = true;
+    current = r13.migrated;
+  }
+
+  const v13 = Number((current as any)["schemaVersion"] ?? 0);
+  if (v13 === 13) {
+    const r14 = migrateClawletsConfigToV14(current);
+    warnings.push(...r14.warnings);
+    if (r14.changed) changed = true;
+    current = r14.migrated;
+  }
+
+  const v14 = Number((current as any)["schemaVersion"] ?? 0);
+  if (v14 !== 14) throw new Error(`unsupported schemaVersion: ${v14} (expected 14)`);
+
+  return { ok: true, changed, warnings, migrated: current as Record<string, unknown> };
 }

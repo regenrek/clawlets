@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 12,
+  "schemaVersion": 14,
   "defaultHost": "clawdbot-fleet-host",
   "baseFlake": "",
   "fleet": {
@@ -11,9 +11,12 @@
     "bots": {
       "agent": {
         "profile": { "secretEnv": {}, "secretFiles": {} },
-        "clawdbot": {
-          "channels": {}
-        }
+        "channels": {},
+        "agents": { "defaults": {} },
+        "hooks": {},
+        "skills": {},
+        "plugins": {},
+        "clawdbot": {}
       }
     },
     "codex": { "enable": false, "bots": [] },

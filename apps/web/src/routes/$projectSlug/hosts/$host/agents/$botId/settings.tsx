@@ -41,6 +41,11 @@ function AgentSettings() {
   const config = cfg.data?.config
   const botCfg = config?.fleet?.bots?.[botId] as any
   const clawdbotCfg = botCfg?.clawdbot ?? {}
+  const channelsCfg = botCfg?.channels ?? {}
+  const agentsCfg = botCfg?.agents ?? {}
+  const hooksCfg = botCfg?.hooks ?? {}
+  const skillsCfg = botCfg?.skills ?? {}
+  const pluginsCfg = botCfg?.plugins ?? {}
   const profile = botCfg?.profile ?? {}
   const fleetSecretEnv = (config?.fleet as any)?.secretEnv
 
@@ -66,6 +71,11 @@ function AgentSettings() {
         projectId={projectId}
         botId={botId}
         host={host}
+        channels={channelsCfg}
+        agents={agentsCfg}
+        hooks={hooksCfg}
+        skills={skillsCfg}
+        plugins={pluginsCfg}
         clawdbot={clawdbotCfg}
         profile={profile}
         fleetSecretEnv={fleetSecretEnv}

@@ -6,20 +6,16 @@ describe("secrets autowire", () => {
     const { planSecretsAutowire } = await import("../src/lib/secrets-autowire");
 
     const cfg = ClawletsConfigSchema.parse({
-      schemaVersion: 12,
+      schemaVersion: 14,
       fleet: {
         botOrder: ["alpha", "beta"],
         secretEnv: {},
         bots: {
           alpha: {
-            clawdbot: {
-              channels: { discord: { enabled: true, token: "${DISCORD_BOT_TOKEN}" } },
-            },
+            channels: { discord: { enabled: true, allowFrom: [], token: "${DISCORD_BOT_TOKEN}" } },
           },
           beta: {
-            clawdbot: {
-              channels: { telegram: { enabled: true, botToken: "${TELEGRAM_BOT_TOKEN}" } },
-            },
+            channels: { telegram: { enabled: true, allowFrom: [], botToken: "${TELEGRAM_BOT_TOKEN}" } },
           },
         },
       },
@@ -42,16 +38,14 @@ describe("secrets autowire", () => {
     const { planSecretsAutowire } = await import("../src/lib/secrets-autowire");
 
     const cfg = ClawletsConfigSchema.parse({
-      schemaVersion: 12,
+      schemaVersion: 14,
       fleet: {
         botOrder: ["maren"],
         secretEnv: { OPENAI_API_KEY: "openai_api_key" },
         bots: {
           maren: {
             profile: { secretEnv: { DISCORD_BOT_TOKEN: "discord_token_maren" } },
-            clawdbot: {
-              channels: { discord: { enabled: true, token: "${DISCORD_BOT_TOKEN}" } },
-            },
+            channels: { discord: { enabled: true, allowFrom: [], token: "${DISCORD_BOT_TOKEN}" } },
           },
         },
       },

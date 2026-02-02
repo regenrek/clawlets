@@ -94,4 +94,28 @@ describe("config write failures", () => {
     expect(statusCalls).toHaveLength(1)
     expect(statusCalls[0]?.errorMessage).toBe("run failed")
   })
+
+  it("configDotBatch returns ok:false and marks run failed", async () => {
+    const { mod, mutation, runWithEvents } = await loadConfigForWrite()
+    const res = await runWithStartContext(
+      { request: new Request("http://localhost"), contextAfterGlobalMiddlewares: {}, executedRequestMiddlewares: new Set() },
+      async () =>
+        await mod.configDotBatch({
+          data: {
+            projectId: "p1" as any,
+            ops: [{ path: "fleet.codex.enable", valueJson: "true", del: false }],
+          },
+        }),
+    )
+    expect(res.ok).toBe(false)
+    if (!res.ok) {
+      expect(res.issues[0]?.message).toBe("run failed")
+    }
+    expect(runWithEvents).toHaveBeenCalled()
+    const statusCalls = mutation.mock.calls
+      .map(([, payload]) => payload)
+      .filter((payload) => payload?.status === "failed")
+    expect(statusCalls).toHaveLength(1)
+    expect(statusCalls[0]?.errorMessage).toBe("run failed")
+  })
 })

@@ -1,91 +1,27 @@
-import { useEffect, useMemo, useState } from "react"
+import { useMemo } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import type { Id } from "../../../convex/_generated/dataModel"
 import { findEnvVarRefs } from "@clawlets/core/lib/env-var-refs"
-import { suggestSecretNameForEnvVar } from "@clawlets/core/lib/fleet-secrets-plan-helpers"
-import { getKnownLlmProviders, getProviderRequiredEnvVars } from "@clawlets/shared/lib/llm-provider-env"
-import { RunLogTail } from "~/components/run-log-tail"
-import { Badge } from "~/components/ui/badge"
-import { Button } from "~/components/ui/button"
-import { Input } from "~/components/ui/input"
-import { configDotSet } from "~/sdk/config"
-import { serverChannelsExecute, serverChannelsStart } from "~/sdk/server-channels"
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value)
-}
-
-function getEnvMapping(params: {
-  envVar: string
-  fleetSecretEnv: unknown
-  botSecretEnv: unknown
-}): { secretName: string; scope: "bot" | "fleet" } | null {
-  const envVar = params.envVar
-  if (isPlainObject(params.botSecretEnv)) {
-    const v = params.botSecretEnv[envVar]
-    if (typeof v === "string" && v.trim()) return { secretName: v.trim(), scope: "bot" }
-  }
-  if (isPlainObject(params.fleetSecretEnv)) {
-    const v = params.fleetSecretEnv[envVar]
-    if (typeof v === "string" && v.trim()) return { secretName: v.trim(), scope: "fleet" }
-  }
-  return null
-}
-
-const SHAREABLE_ENV_VARS = (() => {
-  const out = new Set<string>()
-  for (const provider of getKnownLlmProviders()) {
-    for (const envVar of getProviderRequiredEnvVars(provider)) out.add(envVar)
-  }
-  return out
-})()
-
-function isShareableEnvVar(envVar: string): boolean {
-  return SHAREABLE_ENV_VARS.has(envVar)
-}
-
-function readChannelTokenWarnings(clawdbot: any): string[] {
-  const warnings: string[] = []
-  const channels = clawdbot?.channels
-  if (!isPlainObject(channels)) return warnings
-  const discordToken = (channels as any)?.discord?.token
-  if (typeof discordToken === "string" && discordToken.trim() && !discordToken.includes("${")) {
-    warnings.push("Discord token looks inline (avoid secrets in config; use ${DISCORD_BOT_TOKEN}).")
-  }
-  const telegramToken = (channels as any)?.telegram?.botToken
-  if (typeof telegramToken === "string" && telegramToken.trim() && !telegramToken.includes("${")) {
-    warnings.push("Telegram botToken looks inline (avoid secrets in config; use ${TELEGRAM_BOT_TOKEN}).")
-  }
-  const slackBotToken = (channels as any)?.slack?.botToken
-  if (typeof slackBotToken === "string" && slackBotToken.trim() && !slackBotToken.includes("${")) {
-    warnings.push("Slack botToken looks inline (avoid secrets in config; use ${SLACK_BOT_TOKEN}).")
-  }
-  const slackAppToken = (channels as any)?.slack?.appToken
-  if (typeof slackAppToken === "string" && slackAppToken.trim() && !slackAppToken.includes("${")) {
-    warnings.push("Slack appToken looks inline (avoid secrets in config; use ${SLACK_APP_TOKEN}).")
-  }
-
-  return warnings
-}
-
-function listEnabledChannels(clawdbot: any): string[] {
-  const channels = clawdbot?.channels
-  if (!isPlainObject(channels)) return []
-  return Object.keys(channels)
-    .filter((k) => {
-      const entry = (channels as any)?.[k]
-      if (!isPlainObject(entry)) return true
-      if (entry.enabled === false) return false
-      return true
-    })
-    .sort()
-}
+import { BotIdSchema, SecretNameSchema } from "@clawlets/shared/lib/identifiers"
+import { ChannelsRuntimeCard } from "./bot-integrations-channels-runtime-card"
+import { ChannelsConfigCard } from "./bot-integrations-channels-card"
+import { HooksConfigCard } from "./bot-integrations-hooks-card"
+import { PluginsConfigCard } from "./bot-integrations-plugins-card"
+import { SecretWiringDetails } from "./bot-integrations-secret-wiring"
+import { SkillsConfigCard } from "./bot-integrations-skills-card"
+import { isPlainObject, listEnabledChannels, readInlineSecretWarnings } from "./bot-integrations-helpers"
+import { configDotBatch, configDotSet } from "~/sdk/config"
 
 export function BotIntegrations(props: {
   projectId: string
   botId: string
   host: string
+  channels: unknown
+  agents: unknown
+  hooks: unknown
+  skills: unknown
+  plugins: unknown
   clawdbot: unknown
   profile: unknown
   fleetSecretEnv: unknown
@@ -93,148 +29,315 @@ export function BotIntegrations(props: {
 }) {
   const queryClient = useQueryClient()
 
-  const envRefs = useMemo(() => findEnvVarRefs(props.clawdbot ?? {}), [props.clawdbot])
-  const enabledChannels = useMemo(() => listEnabledChannels(props.clawdbot), [props.clawdbot])
-  const tokenWarnings = useMemo(() => readChannelTokenWarnings(props.clawdbot), [props.clawdbot])
+  function formatIssues(issues: unknown): string {
+    const list = Array.isArray(issues) ? (issues as Array<any>) : []
+    const first = list[0]
+    const path = Array.isArray(first?.path) ? String(first.path.join(".")) : ""
+    const message = typeof first?.message === "string" ? first.message : "config rejected"
+    return path ? `${message} (${path})` : message
+  }
 
-  const [draftSecretByEnvVar, setDraftSecretByEnvVar] = useState<Record<string, string>>({})
+  const effectiveConfigForAnalysis = useMemo(() => {
+    // For analysis (env refs + token warnings), treat first-class fields as part of the effective Clawdbot config.
+    const base = isPlainObject(props.clawdbot) ? { ...(props.clawdbot as any) } : {}
+    if (isPlainObject(props.channels)) base.channels = props.channels
+    if (isPlainObject(props.agents)) base.agents = props.agents
+    if (isPlainObject(props.hooks)) base.hooks = props.hooks
+    if (isPlainObject(props.skills)) base.skills = props.skills
+    if (isPlainObject(props.plugins)) base.plugins = props.plugins
+    return base
+  }, [props.clawdbot, props.channels, props.agents, props.hooks, props.skills, props.plugins])
 
-  useEffect(() => {
-    setDraftSecretByEnvVar((prev) => {
-      const next = { ...prev }
-      for (const envVar of envRefs.vars) {
-        if (!next[envVar]) next[envVar] = suggestSecretNameForEnvVar(envVar, props.botId)
-      }
-      return next
-    })
-  }, [envRefs.vars, props.botId])
-
-
-  const [runId, setRunId] = useState<Id<"runs"> | null>(null)
-  const runChannels = useMutation({
-    mutationFn: async (params: {
-      op: "status" | "login" | "logout" | "capabilities"
-      channel?: string
-      account?: string
-      target?: string
-      timeout?: string
-      json?: boolean
-      probe?: boolean
-      verbose?: boolean
-    }) => {
-      if (!props.host.trim()) throw new Error("missing host")
-      const started = await serverChannelsStart({
-        data: {
-          projectId: props.projectId as Id<"projects">,
-          host: props.host,
-          botId: props.botId,
-          op: params.op,
-        },
-      })
-      return { runId: started.runId, params }
-    },
-    onSuccess: (res) => {
-      setRunId(res.runId)
-      void serverChannelsExecute({
-        data: {
-          projectId: props.projectId as Id<"projects">,
-          runId: res.runId,
-          host: props.host,
-          botId: props.botId,
-          op: res.params.op,
-          channel: res.params.channel || "",
-          account: res.params.account || "",
-          target: res.params.target || "",
-          timeout: res.params.timeout || "10000",
-          json: Boolean(res.params.json),
-          probe: Boolean(res.params.probe),
-          verbose: Boolean(res.params.verbose),
-        },
-      })
-      toast.info(`Started channels ${res.params.op}`)
-    },
-    onError: (err) => toast.error(String(err)),
-  })
-
-  const wireEnv = useMutation({
-    mutationFn: async (params: { envVar: string; scope: "bot" | "fleet"; secretName: string }) => {
-      const envVar = params.envVar.trim()
-      const secretName = params.secretName.trim()
-      if (!envVar) throw new Error("missing env var")
-      if (!secretName) throw new Error("missing secret name")
-
-      const path =
-        params.scope === "bot"
-          ? `fleet.bots.${props.botId}.profile.secretEnv.${envVar}`
-          : `fleet.secretEnv.${envVar}`
-
-      return await configDotSet({
-        data: {
-          projectId: props.projectId as Id<"projects">,
-          path,
-          value: secretName,
-          del: false,
-        },
-      })
-    },
-    onSuccess: (res) => {
-      if (!res.ok) {
-        toast.error("Failed to write mapping")
-        return
-      }
-      toast.success("Secret wiring updated")
-      void queryClient.invalidateQueries({ queryKey: ["clawletsConfig", props.projectId] })
-    },
-    onError: (err) => toast.error(String(err)),
-  })
+  const envRefs = useMemo(() => findEnvVarRefs(effectiveConfigForAnalysis), [effectiveConfigForAnalysis])
+  const enabledChannels = useMemo(() => listEnabledChannels(effectiveConfigForAnalysis), [effectiveConfigForAnalysis])
+  const tokenWarnings = useMemo(() => readInlineSecretWarnings(effectiveConfigForAnalysis), [effectiveConfigForAnalysis])
 
   const botSecretEnv = (props.profile as any)?.secretEnv
 
-  const promoteToFleet = useMutation({
-    mutationFn: async (params: { envVar: string; secretName: string }) => {
-      const envVar = params.envVar.trim()
-      const secretName = params.secretName.trim()
-      if (!envVar) throw new Error("missing env var")
-      if (!secretName) throw new Error("missing secret name")
+  const hasWhatsApp = enabledChannels.includes("whatsapp")
 
-      const fleetRes = await configDotSet({
-        data: {
-          projectId: props.projectId as Id<"projects">,
-          path: `fleet.secretEnv.${envVar}`,
-          value: secretName,
-          del: false,
-        },
-      })
-      if (!fleetRes.ok) throw new Error("Failed to promote mapping")
+  const channelsObj = isPlainObject(props.channels) ? (props.channels as Record<string, unknown>) : {}
+  const telegramObj = isPlainObject(channelsObj["telegram"]) ? (channelsObj["telegram"] as Record<string, unknown>) : {}
+  const telegramAllowFrom = Array.isArray(telegramObj["allowFrom"]) ? (telegramObj["allowFrom"] as unknown[]) : []
+  const telegramAllowFromText = telegramAllowFrom.map(String).join("\n")
+  const channelsKey = `${props.botId}:${telegramAllowFromText}`
 
-      if (isPlainObject(botSecretEnv) && typeof botSecretEnv[envVar] === "string") {
-        const botRes = await configDotSet({
-          data: {
-            projectId: props.projectId as Id<"projects">,
-            path: `fleet.bots.${props.botId}.profile.secretEnv.${envVar}`,
-            del: true,
-          },
-        })
-        if (!botRes.ok) throw new Error("Failed to clear bot mapping")
-      }
+  const hooksObj = isPlainObject(props.hooks) ? (props.hooks as Record<string, unknown>) : {}
+  const skillsObj = isPlainObject(props.skills) ? (props.skills as Record<string, unknown>) : {}
+  const pluginsObj = isPlainObject(props.plugins) ? (props.plugins as Record<string, unknown>) : {}
 
-      return { ok: true as const }
+  const hooksTokenSecret = typeof hooksObj["tokenSecret"] === "string" ? String(hooksObj["tokenSecret"]) : ""
+  const hooksGmailPushTokenSecret =
+    typeof hooksObj["gmailPushTokenSecret"] === "string" ? String(hooksObj["gmailPushTokenSecret"]) : ""
+  const hooksKey = `${props.botId}:${hooksTokenSecret}:${hooksGmailPushTokenSecret}`
+
+  const allowBundled = Array.isArray(skillsObj["allowBundled"]) ? (skillsObj["allowBundled"] as unknown[]) : []
+  const skillsLoad = isPlainObject(skillsObj["load"]) ? (skillsObj["load"] as Record<string, unknown>) : {}
+  const skillsExtraDirs = Array.isArray(skillsLoad["extraDirs"]) ? (skillsLoad["extraDirs"] as unknown[]) : []
+  const skillEntriesObj = isPlainObject(skillsObj["entries"]) ? (skillsObj["entries"] as Record<string, unknown>) : {}
+
+  const pluginsAllow = Array.isArray(pluginsObj["allow"]) ? (pluginsObj["allow"] as unknown[]) : []
+  const pluginsDeny = Array.isArray(pluginsObj["deny"]) ? (pluginsObj["deny"] as unknown[]) : []
+  const pluginsLoad = isPlainObject(pluginsObj["load"]) ? (pluginsObj["load"] as Record<string, unknown>) : {}
+  const pluginsPaths = Array.isArray(pluginsLoad["paths"]) ? (pluginsLoad["paths"] as unknown[]) : []
+
+  const allowBundledDefault = allowBundled.map(String).join("\n")
+  const extraDirsDefault = skillsExtraDirs.map(String).join("\n")
+  const pluginsAllowDefault = pluginsAllow.map(String).join("\n")
+  const pluginsDenyDefault = pluginsDeny.map(String).join("\n")
+  const pluginsPathsDefault = pluginsPaths.map(String).join("\n")
+  const skillEntriesKey = Object.entries(skillEntriesObj)
+    .filter(([, entry]) => isPlainObject(entry))
+    .map(([skill, entryRaw]) => {
+      const entry = entryRaw as Record<string, unknown>
+      const secret = typeof entry["apiKeySecret"] === "string" ? String(entry["apiKeySecret"]) : ""
+      const hasInline = typeof entry["apiKey"] === "string" && Boolean(String(entry["apiKey"]).trim()) && !secret
+      return `${skill}:${secret}:${hasInline ? 1 : 0}`
+    })
+    .sort()
+    .join("|")
+  const skillsKey = `${props.botId}:${allowBundledDefault}:${extraDirsDefault}:${skillEntriesKey}`
+  const pluginsKey = `${props.botId}:${pluginsAllowDefault}:${pluginsDenyDefault}:${pluginsPathsDefault}`
+
+	  const writeChannels = useMutation({
+	    mutationFn: async (params: {
+	      channel: "discord" | "telegram"
+	      enabled?: boolean
+	      allowFrom?: string[]
+	    }) => {
+	      const ops: Array<{ path: string; value?: string; valueJson?: string; del: boolean }> = []
+
+	      if (params.enabled !== undefined) {
+	        ops.push({
+	          path: `fleet.bots.${props.botId}.channels.${params.channel}.enabled`,
+	          valueJson: JSON.stringify(params.enabled),
+	          del: false,
+	        })
+	      }
+
+	      if (params.allowFrom !== undefined) {
+	        if (params.channel === "discord") {
+	          throw new Error("Discord allowFrom is not supported; use groupPolicy/token/etc under channels.discord.")
+	        }
+	        ops.push({
+	          path: `fleet.bots.${props.botId}.channels.${params.channel}.allowFrom`,
+	          valueJson: JSON.stringify(params.allowFrom),
+	          del: false,
+	        })
+	      }
+
+	      if (ops.length === 0) return { ok: true as const }
+	      const res = await configDotBatch({ data: { projectId: props.projectId as Id<"projects">, ops } })
+	      if (!res.ok) throw new Error(formatIssues(res.issues))
+	      return { ok: true as const }
+	    },
+	    onSuccess: async () => {
+	      toast.success("Channel config updated")
+      await queryClient.invalidateQueries({ queryKey: ["clawletsConfig", props.projectId] })
     },
-    onSuccess: () => {
-      toast.success("Promoted to fleet")
-      void queryClient.invalidateQueries({ queryKey: ["clawletsConfig", props.projectId] })
-    },
-    onError: (err) => toast.error(String(err)),
+    onError: (err) => toast.error(err instanceof Error ? err.message : String(err)),
   })
 
-  const hasWhatsApp = enabledChannels.includes("whatsapp")
+  const writeConfig = useMutation({
+    mutationFn: async (params: {
+      path: string
+      value?: string
+      valueJson?: string
+      del?: boolean
+      successMessage?: string
+    }) => {
+      const data: Record<string, unknown> = {
+        projectId: props.projectId as Id<"projects">,
+        path: params.path,
+        del: Boolean(params.del),
+      }
+      if (params.valueJson !== undefined) data.valueJson = params.valueJson
+      if (params.value !== undefined) data.value = params.value
+      const res = await configDotSet({ data })
+      if (!res.ok) throw new Error(formatIssues(res.issues))
+      return params.successMessage ?? "Config updated"
+    },
+    onSuccess: async (message) => {
+      toast.success(message)
+      await queryClient.invalidateQueries({ queryKey: ["clawletsConfig", props.projectId] })
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : String(err)),
+  })
+
+	  const writeSkillEntry = useMutation({
+	    mutationFn: async (params: { skill: string; apiKeySecret: string; clearInline?: boolean }) => {
+	      const skill = params.skill.trim()
+	      const secret = params.apiKeySecret.trim()
+      if (!skill) throw new Error("Missing skill id")
+      if (!secret) throw new Error("Missing apiKeySecret")
+      const parsedSkill = BotIdSchema.safeParse(skill)
+      if (!parsedSkill.success) throw new Error(parsedSkill.error.issues[0]?.message || "Invalid skill id")
+	      const parsedSecret = SecretNameSchema.safeParse(secret)
+	      if (!parsedSecret.success) throw new Error(parsedSecret.error.issues[0]?.message || "Invalid secret name")
+
+	      const ops: Array<{ path: string; value?: string; valueJson?: string; del: boolean }> = [
+	        {
+	          path: `fleet.bots.${props.botId}.skills.entries.${parsedSkill.data}.apiKeySecret`,
+	          value: secret,
+	          del: false,
+	        },
+	      ]
+	      if (params.clearInline) {
+	        ops.push({
+	          path: `fleet.bots.${props.botId}.skills.entries.${parsedSkill.data}.apiKey`,
+	          del: true,
+	        })
+	      }
+	      const res = await configDotBatch({ data: { projectId: props.projectId as Id<"projects">, ops } })
+	      if (!res.ok) throw new Error(formatIssues(res.issues))
+	      return "Skill secret updated"
+	    },
+	    onSuccess: async (message) => {
+	      toast.success(message)
+      await queryClient.invalidateQueries({ queryKey: ["clawletsConfig", props.projectId] })
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : String(err)),
+  })
 
   return (
     <div className="space-y-4">
-      <div>
-        <div className="font-medium">Channels runtime</div>
-        <div className="text-xs text-muted-foreground">Run status/login/logout for gateway channels.</div>
-      </div>
+      <ChannelsRuntimeCard
+        projectId={props.projectId}
+        botId={props.botId}
+        host={props.host}
+        canEdit={props.canEdit}
+        hasWhatsApp={hasWhatsApp}
+      />
+
+      <ChannelsConfigCard
+        key={channelsKey}
+        botId={props.botId}
+        channels={props.channels}
+        canEdit={props.canEdit}
+        pending={writeChannels.isPending}
+        initialTelegramAllowFromText={telegramAllowFromText}
+        onToggleChannel={({ channel, enabled }) => writeChannels.mutate({ channel, enabled })}
+        onSaveTelegramAllowFrom={(allowFrom) => writeChannels.mutate({ channel: "telegram", allowFrom })}
+      />
+
+      <HooksConfigCard
+        key={hooksKey}
+        botId={props.botId}
+        hooks={props.hooks}
+        canEdit={props.canEdit}
+        pending={writeConfig.isPending}
+        initialTokenSecret={hooksTokenSecret}
+        initialGmailPushTokenSecret={hooksGmailPushTokenSecret}
+        onToggleEnabled={(enabled) =>
+          writeConfig.mutate({
+            path: `fleet.bots.${props.botId}.hooks.enabled`,
+            valueJson: JSON.stringify(enabled),
+            del: false,
+            successMessage: "Hooks updated",
+          })
+        }
+        onSaveTokenSecret={(raw) => {
+          const value = raw.trim()
+          writeConfig.mutate({
+            path: `fleet.bots.${props.botId}.hooks.tokenSecret`,
+            value: value || undefined,
+            del: !value,
+            successMessage: "Hooks updated",
+          })
+        }}
+        onSaveGmailPushTokenSecret={(raw) => {
+          const value = raw.trim()
+          writeConfig.mutate({
+            path: `fleet.bots.${props.botId}.hooks.gmailPushTokenSecret`,
+            value: value || undefined,
+            del: !value,
+            successMessage: "Hooks updated",
+          })
+        }}
+      />
+
+      <SkillsConfigCard
+        key={skillsKey}
+        botId={props.botId}
+        skills={props.skills}
+        canEdit={props.canEdit}
+        pending={writeConfig.isPending}
+        skillEntryPending={writeSkillEntry.isPending}
+        initialAllowBundledText={allowBundledDefault}
+        initialExtraDirsText={extraDirsDefault}
+        onSaveAllowBundled={(allowBundled) =>
+          writeConfig.mutate({
+            path: `fleet.bots.${props.botId}.skills.allowBundled`,
+            valueJson: JSON.stringify(allowBundled),
+            del: false,
+            successMessage: "Skills updated",
+          })
+        }
+        onSaveExtraDirs={(extraDirs) =>
+          writeConfig.mutate({
+            path: `fleet.bots.${props.botId}.skills.load.extraDirs`,
+            valueJson: JSON.stringify(extraDirs),
+            del: false,
+            successMessage: "Skills updated",
+          })
+        }
+        onSaveSkillSecret={(params) => writeSkillEntry.mutateAsync(params)}
+        onRemoveSkillEntry={(skill) => {
+          const parsed = BotIdSchema.safeParse(skill)
+          if (!parsed.success) {
+            toast.error(parsed.error.issues[0]?.message || "Invalid skill id")
+            return
+          }
+          writeConfig.mutate({
+            path: `fleet.bots.${props.botId}.skills.entries.${parsed.data}`,
+            del: true,
+            successMessage: "Skill entry removed",
+          })
+        }}
+      />
+
+      <PluginsConfigCard
+        key={pluginsKey}
+        botId={props.botId}
+        plugins={props.plugins}
+        canEdit={props.canEdit}
+        pending={writeConfig.isPending}
+        initialAllowText={pluginsAllowDefault}
+        initialDenyText={pluginsDenyDefault}
+        initialPathsText={pluginsPathsDefault}
+        onToggleEnabled={(enabled) =>
+          writeConfig.mutate({
+            path: `fleet.bots.${props.botId}.plugins.enabled`,
+            valueJson: JSON.stringify(enabled),
+            del: false,
+            successMessage: "Plugins updated",
+          })
+        }
+        onSaveAllow={(allow) =>
+          writeConfig.mutate({
+            path: `fleet.bots.${props.botId}.plugins.allow`,
+            valueJson: JSON.stringify(allow),
+            del: false,
+            successMessage: "Plugins updated",
+          })
+        }
+        onSaveDeny={(deny) =>
+          writeConfig.mutate({
+            path: `fleet.bots.${props.botId}.plugins.deny`,
+            valueJson: JSON.stringify(deny),
+            del: false,
+            successMessage: "Plugins updated",
+          })
+        }
+        onSavePaths={(paths) =>
+          writeConfig.mutate({
+            path: `fleet.bots.${props.botId}.plugins.load.paths`,
+            valueJson: JSON.stringify(paths),
+            del: false,
+            successMessage: "Plugins updated",
+          })
+        }
+      />
 
       {tokenWarnings.length > 0 ? (
         <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm space-y-1">
@@ -246,132 +349,14 @@ export function BotIntegrations(props: {
           </ul>
         </div>
       ) : null}
-
-      <div className="flex flex-wrap items-center gap-2">
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={!props.canEdit || runChannels.isPending || !props.host.trim()}
-          onClick={() => runChannels.mutate({ op: "status", probe: true })}
-        >
-          Channels status
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={!props.canEdit || runChannels.isPending || !hasWhatsApp || !props.host.trim()}
-          onClick={() => runChannels.mutate({ op: "login", channel: "whatsapp", verbose: true })}
-        >
-          WhatsApp login
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={!props.canEdit || runChannels.isPending || !hasWhatsApp || !props.host.trim()}
-          onClick={() => runChannels.mutate({ op: "logout", channel: "whatsapp" })}
-        >
-          WhatsApp logout
-        </Button>
-        {!props.host.trim() ? (
-          <span className="text-xs text-muted-foreground">
-            Set <code>defaultHost</code> to run host operations.
-          </span>
-        ) : null}
-      </div>
-
-      {runId ? <RunLogTail runId={runId} /> : null}
-
-      <details className="rounded-lg border bg-card p-4">
-        <summary className="cursor-pointer select-none text-sm font-medium">
-          Secret wiring (advanced)
-          <span className="ml-2 text-xs font-normal text-muted-foreground">
-            ({envRefs.vars.length} env vars referenced)
-          </span>
-        </summary>
-
-        <div className="mt-4 space-y-3">
-          {envRefs.vars.length === 0 ? (
-            <div className="text-xs text-muted-foreground">
-              No <code>${"{ENV}"}</code> refs found in this bot’s clawdbot config.
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {envRefs.vars.map((envVar) => {
-                const mapping = getEnvMapping({
-                  envVar,
-                  fleetSecretEnv: props.fleetSecretEnv,
-                  botSecretEnv,
-                })
-                const draft = (draftSecretByEnvVar[envVar] || "").trim()
-                const hasMapping = Boolean(mapping?.secretName)
-                const canPromote = Boolean(mapping && mapping.scope === "bot" && isShareableEnvVar(envVar))
-                return (
-                  <div key={envVar} className="rounded-md border bg-muted/20 p-3 space-y-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className="text-sm font-medium">
-                          <code>{envVar}</code>
-                        </div>
-                        <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-2">
-                          {hasMapping ? (
-                            <>
-                              mapped to <code>{mapping!.secretName}</code> ({mapping!.scope})
-                            </>
-                          ) : (
-                            <>missing mapping</>
-                          )}
-                          {canPromote ? (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={!props.canEdit || promoteToFleet.isPending}
-                              onClick={() => promoteToFleet.mutate({ envVar, secretName: mapping!.secretName })}
-                            >
-                              Promote to fleet
-                            </Button>
-                          ) : null}
-                        </div>
-                      </div>
-                      {hasMapping ? <Badge variant="secondary">ok</Badge> : <Badge variant="destructive">missing</Badge>}
-                    </div>
-
-                    {!hasMapping ? (
-                      <div className="grid gap-2 md:grid-cols-[1fr_auto_auto] items-end">
-                        <div className="space-y-1">
-                          <div className="text-xs font-medium text-muted-foreground">Secret name</div>
-                          <Input
-                            value={draft}
-                            onChange={(e) =>
-                              setDraftSecretByEnvVar((prev) => ({ ...prev, [envVar]: e.target.value }))
-                            }
-                            disabled={!props.canEdit}
-                          />
-                        </div>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={!props.canEdit || wireEnv.isPending || !draft}
-                          onClick={() => wireEnv.mutate({ envVar, scope: "fleet", secretName: draft })}
-                        >
-                          Map (fleet)
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={!props.canEdit || wireEnv.isPending || !draft}
-                          onClick={() => wireEnv.mutate({ envVar, scope: "bot", secretName: draft })}
-                        >
-                          Map (bot)
-                        </Button>
-                      </div>
-                    ) : null}
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-      </details>
+      <SecretWiringDetails
+        projectId={props.projectId}
+        botId={props.botId}
+        canEdit={props.canEdit}
+        envVars={envRefs.vars}
+        fleetSecretEnv={props.fleetSecretEnv}
+        botSecretEnv={botSecretEnv}
+      />
     </div>
   )
 }

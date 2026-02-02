@@ -148,17 +148,17 @@ export function skillApiKeyEnvVar(skill: string): string {
 }
 export type DerivedSecretEnvEntry = { envVar: string; secretName: string; path: string; help?: string };
 
-export function collectDerivedSecretEnvEntries(profile: unknown): DerivedSecretEnvEntry[] {
+export function collectDerivedSecretEnvEntries(botCfg: unknown): DerivedSecretEnvEntry[] {
   const entries: DerivedSecretEnvEntry[] = [];
-  if (!isPlainObject(profile)) return entries;
-  const hooks = profile.hooks;
+  if (!isPlainObject(botCfg)) return entries;
+  const hooks = (botCfg as any).hooks;
   if (isPlainObject(hooks)) {
     const tokenSecret = String((hooks as any).tokenSecret || "").trim();
     if (tokenSecret) {
       entries.push({
         envVar: HOOKS_TOKEN_ENV_VAR,
         secretName: tokenSecret,
-        path: "profile.hooks.tokenSecret",
+        path: "hooks.tokenSecret",
         help: ENV_VAR_HELP[HOOKS_TOKEN_ENV_VAR],
       });
     }
@@ -167,12 +167,12 @@ export function collectDerivedSecretEnvEntries(profile: unknown): DerivedSecretE
       entries.push({
         envVar: HOOKS_GMAIL_PUSH_TOKEN_ENV_VAR,
         secretName: gmailSecret,
-        path: "profile.hooks.gmailPushTokenSecret",
+        path: "hooks.gmailPushTokenSecret",
         help: ENV_VAR_HELP[HOOKS_GMAIL_PUSH_TOKEN_ENV_VAR],
       });
     }
   }
-  const skills = (profile as any).skills;
+  const skills = (botCfg as any).skills;
   const skillEntries = isPlainObject(skills) ? (skills as any).entries : null;
   if (isPlainObject(skillEntries)) {
     for (const [skill, entry] of Object.entries(skillEntries)) {
@@ -182,7 +182,7 @@ export function collectDerivedSecretEnvEntries(profile: unknown): DerivedSecretE
       entries.push({
         envVar: skillApiKeyEnvVar(skill),
         secretName,
-        path: `profile.skills.entries.${skill}.apiKeySecret`,
+        path: `skills.entries.${skill}.apiKeySecret`,
         help: `Skill ${skill} API key`,
       });
     }
@@ -190,9 +190,9 @@ export function collectDerivedSecretEnvEntries(profile: unknown): DerivedSecretE
   return entries;
 }
 
-export function buildDerivedSecretEnv(profile: unknown): Record<string, string> {
+export function buildDerivedSecretEnv(botCfg: unknown): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const entry of collectDerivedSecretEnvEntries(profile)) {
+  for (const entry of collectDerivedSecretEnvEntries(botCfg)) {
     if (!entry.envVar || !entry.secretName) continue;
     out[entry.envVar] = entry.secretName;
   }

@@ -1,12 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 
+import { KNOWN_TOKEN_PATTERNS } from "@clawlets/shared/lib/token-patterns";
+
 const CLAWDBOT_SECRET_PATTERNS: { label: string; regex: RegExp }[] = [
-  { label: "openai sk- token", regex: /\bsk-[A-Za-z0-9]{16,}\b/ },
-  { label: "github token", regex: /\bghp_[A-Za-z0-9]{20,}\b/ },
-  { label: "github fine-grained token", regex: /\bgithub_pat_[A-Za-z0-9_]{20,}\b/ },
-  { label: "slack token", regex: /\bxox[baprs]-[A-Za-z0-9-]{10,}\b/ },
-  { label: "google api key", regex: /\bAIza[0-9A-Za-z_-]{20,}\b/ },
+  ...KNOWN_TOKEN_PATTERNS,
   { label: "literal token assignment", regex: /"token"\s*:\s*"(?!\$\{)(?!CHANGE_ME)(?!REDACTED)[^"]{16,}"/ },
 ];
 

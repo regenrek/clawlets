@@ -38,7 +38,7 @@ clawlets bot add --bot <id>
 
 2) Add secret + config:
    - `fleet.bots.<id>.profile.secretEnv.DISCORD_BOT_TOKEN = "discord_token_<id>"`
-   - clawdbot config: `fleet.bots.<id>.clawdbot.channels.discord = { enabled: true, token: "${DISCORD_BOT_TOKEN}" }`
+  - clawdbot config: `fleet.bots.<id>.channels.discord = { enabled: true, token: "${DISCORD_BOT_TOKEN}" }`
 
 Then:
 ```bash
@@ -51,9 +51,9 @@ clawlets server update apply --host <host>
 1) If bundled: add id to `fleet/bundled-skills.json`
 2) Allow per-bot (example):
 ```bash
-clawlets config set --path fleet.bots.maren.profile.skills.allowBundled --value-json '["github","brave-search"]'
+clawlets config set --path fleet.bots.maren.skills.allowBundled --value-json '["github","brave-search"]'
 ```
-3) If it needs secrets: add `secrets/hosts/<host>/<secret>.yaml` and reference in `fleet.bots.<bot>.profile.skills.entries.\"<skill>\".*Secret`
+3) If it needs secrets: add `secrets/hosts/<host>/<secret>.yaml` and reference in `fleet.bots.<bot>.skills.entries.\"<skill>\".apiKeySecret`
 4) Sync + deploy:
 ```bash
 clawlets secrets sync

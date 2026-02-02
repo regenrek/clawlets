@@ -6,8 +6,21 @@ describe("secrets write allowlist", () => {
     const { assertSecretsAreManaged, buildManagedHostSecretNameAllowlist } = await import("../src/sdk/secrets-allowlist")
 
     const config = ClawletsConfigSchema.parse({
-      schemaVersion: 12,
-      fleet: { botOrder: [], bots: {}, secretEnv: {} },
+      schemaVersion: 14,
+      baseFlake: "",
+      cattle: {
+        enabled: false,
+        hetzner: {
+          image: "",
+          serverType: "cx22",
+          location: "nbg1",
+          maxInstances: 10,
+          defaultTtl: "2h",
+          labels: { "managed-by": "clawlets" },
+        },
+        defaults: { autoShutdown: true, callbackUrl: "" },
+      },
+      fleet: { botOrder: [], bots: {}, secretEnv: {}, secretFiles: {} },
       hosts: { alpha: { tailnet: { mode: "none" }, agentModelPrimary: "zai/glm-4.7" } },
     })
 
@@ -22,11 +35,25 @@ describe("secrets write allowlist", () => {
     const { buildManagedHostSecretNameAllowlist } = await import("../src/sdk/secrets-allowlist")
 
     const config = ClawletsConfigSchema.parse({
-      schemaVersion: 12,
+      schemaVersion: 14,
+      baseFlake: "",
+      cattle: {
+        enabled: false,
+        hetzner: {
+          image: "",
+          serverType: "cx22",
+          location: "nbg1",
+          maxInstances: 10,
+          defaultTtl: "2h",
+          labels: { "managed-by": "clawlets" },
+        },
+        defaults: { autoShutdown: true, callbackUrl: "" },
+      },
       fleet: {
         botOrder: [],
         bots: {},
         secretEnv: {},
+        secretFiles: {},
         backups: { restic: { enable: true, repository: "s3://restic" } },
       },
       hosts: {
