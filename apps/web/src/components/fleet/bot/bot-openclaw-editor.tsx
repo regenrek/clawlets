@@ -233,6 +233,8 @@ export function BotOpenclawEditor(props: {
   const pinnedSchemaRev = pinnedSchema?.clawdbotRev || ""
   const pinnedVsNixOpenclawMismatch = Boolean(pinnedNixOpenclawRev && pinnedSchemaRev && pinnedNixOpenclawRev !== pinnedSchemaRev)
   const pinnedVsUpstreamMismatch = Boolean(upstreamOpenclawRev && pinnedSchemaRev && upstreamOpenclawRev !== pinnedSchemaRev)
+  const inlineSecretFindings = securityReport?.findings?.filter((f) => f.id.startsWith("inlineSecret.")) ?? []
+  const hasInlineSecrets = inlineSecretFindings.length > 0
 
   return (
     <div className="space-y-3">
@@ -257,13 +259,28 @@ export function BotOpenclawEditor(props: {
               saving: save.isPending,
               parsedOk: parsed.ok,
               hasSchemaErrors,
-            })}
+            }) || hasInlineSecrets}
             onClick={() => save.mutate()}
           >
             Save
           </Button>
         </div>
       </div>
+
+      {hasInlineSecrets ? (
+        <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm space-y-2">
+          <div className="font-medium">Inline secret warnings</div>
+          <div className="text-xs text-muted-foreground">
+            Do not paste tokens/API keys into OpenClaw config. Use env var refs (for example <code>{"${OPENCLAW_GATEWAY_TOKEN}"}</code>) and
+            wire them via secrets.
+          </div>
+          <ul className="list-disc pl-5 text-muted-foreground">
+            {inlineSecretFindings.slice(0, 6).map((f) => (
+              <li key={f.id}>{f.detail}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       <div className="rounded-md border bg-muted/20 p-3 space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-3">

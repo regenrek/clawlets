@@ -13,7 +13,10 @@ describe("openclaw parse scheduler", () => {
       setTimeout: globalThis.setTimeout,
       clearTimeout: globalThis.clearTimeout,
     })
-    const lintSpy = vi.fn(() => ({ ok: true }))
+    const lintSpy = vi.fn(() => ({
+      summary: { critical: 1, warn: 0, info: 0 },
+      findings: [{ id: "inlineSecret.gateway.auth.token", severity: "critical", title: "inline", detail: "inline", remediation: "" }],
+    }))
     vi.doMock("@clawlets/core/lib/openclaw-security-lint", () => ({
       lintOpenclawSecurityConfig: lintSpy,
     }))
@@ -34,12 +37,16 @@ describe("openclaw parse scheduler", () => {
     scheduler.schedule()
     text = "{\"ok\":1}"
     scheduler.schedule()
-    text = "{\"ok\":2}"
+    text = "{\"gateway\":{\"auth\":{\"token\":\"not-an-env-ref\"}}}"
     scheduler.schedule()
 
     await vi.runAllTimersAsync()
     expect(onParsed).toHaveBeenCalledTimes(1)
     expect(lintSpy).toHaveBeenCalledTimes(1)
+    expect(lintSpy).toHaveBeenCalledWith({ openclaw: { gateway: { auth: { token: "not-an-env-ref" } } }, botId: "bot1" })
+    expect(onSecurity).toHaveBeenCalledTimes(1)
+    const report = onSecurity.mock.calls[0]?.[0] as any
+    expect(report.findings.map((f: any) => f.id)).toContain("inlineSecret.gateway.auth.token")
     scheduler.cancel()
   })
 })

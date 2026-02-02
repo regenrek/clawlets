@@ -6,6 +6,7 @@ import { validateClawdbotConfig } from "@clawlets/core/lib/clawdbot-schema-valid
 import { diffChannelSchemasFromArtifacts } from "@clawlets/core/lib/clawdbot-schema-diff"
 import { getPinnedClawdbotSchema } from "@clawlets/core/lib/clawdbot-schema"
 import { suggestSecretNameForEnvVar } from "@clawlets/core/lib/fleet-secrets-plan-helpers"
+import { lintOpenclawSecurityConfig } from "@clawlets/core/lib/openclaw-security-lint"
 import {
   ClawletsConfigSchema,
   loadClawletsConfigRaw,
@@ -138,6 +139,22 @@ export const setBotOpenclawConfig = createServerFn({ method: "POST" })
       return {
         ok: false as const,
         issues: mapSchemaIssues(schemaValidation.issues),
+      }
+    }
+
+    const securityReport = lintOpenclawSecurityConfig({ openclaw: existingBot.openclaw, botId })
+    const inlineSecrets = securityReport.findings.filter((f) => f.id.startsWith("inlineSecret."))
+    if (inlineSecrets.length > 0) {
+      return {
+        ok: false as const,
+        issues: inlineSecrets.slice(0, 20).map((f) => ({
+          code: "security",
+          path: f.id
+            .slice("inlineSecret.".length)
+            .split(".")
+            .filter(Boolean),
+          message: f.detail,
+        })),
       }
     }
 

@@ -114,4 +114,28 @@ describe("setBotOpenclawConfig schema error mapping", () => {
       .filter((payload) => payload?.kind)
     expect(runCreates).toHaveLength(0)
   })
+
+  it("rejects inline secrets before writing config", async () => {
+    const { mod, mutation } = await loadBots({})
+    const res = await runWithStartContext(context, async () =>
+      mod.setBotOpenclawConfig({
+        data: {
+          projectId: "p1" as any,
+          botId: "bot1",
+          host: "",
+          schemaMode: "pinned",
+          openclaw: { gateway: { auth: { token: "not-an-env-ref" } } },
+        },
+      }),
+    )
+    expect(res.ok).toBe(false)
+    if (!res.ok) {
+      expect(res.issues[0]?.code).toBe("security")
+      expect(res.issues[0]?.path).toEqual(["gateway", "auth", "token"])
+    }
+    const runCreates = mutation.mock.calls
+      .map(([, payload]) => payload)
+      .filter((payload) => payload?.kind)
+    expect(runCreates).toHaveLength(0)
+  })
 })

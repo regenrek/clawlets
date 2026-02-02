@@ -55,4 +55,23 @@ describe("openclaw security lint", () => {
     expect(res.summary.warn).toBe(1);
     expect(res.findings[0]?.id).toBe("session.dmScope.multi_user_dm");
   });
+
+  it("flags inline secrets in known token fields", async () => {
+    const { lintOpenclawSecurityConfig } = await import("../src/lib/openclaw-security-lint");
+
+    const res = lintOpenclawSecurityConfig({
+      botId: "agent",
+      openclaw: {
+        gateway: { auth: { token: "ghp_aaaaaaaaaaaaaaaaaaaaaaaaaaaa" } },
+        hooks: { token: "not-an-env-ref" },
+        skills: { entries: { "brave-search": { apiKey: "AIzaaaaaaaaaaaaaaaaaaaaa" } } },
+      },
+    });
+
+    const ids = res.findings.map((f) => f.id);
+    expect(ids).toContain("inlineSecret.gateway.auth.token");
+    expect(ids).toContain("inlineSecret.hooks.token");
+    expect(ids).toContain("inlineSecret.skills.entries.brave-search.apiKey");
+    expect(res.summary.critical).toBe(3);
+  });
 });

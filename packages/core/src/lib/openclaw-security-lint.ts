@@ -1,4 +1,6 @@
 import { getAtPath } from "./object-path.js";
+import { listPinnedChannelUiModels } from "./channel-ui-metadata.js";
+import { HOOKS_GMAIL_PUSH_TOKEN_ENV_VAR, HOOKS_TOKEN_ENV_VAR, skillApiKeyEnvVar } from "./fleet-secrets-plan-helpers.js";
 
 export type OpenclawSecuritySeverity = "info" | "warn" | "critical";
 
@@ -32,6 +34,21 @@ function readString(value: unknown): string {
 function readStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.map((v) => String(v ?? "").trim()).filter(Boolean);
+}
+
+function hasEnvVarRef(value: string): boolean {
+  return value.includes("${");
+}
+
+function envVarRef(envVar: string): string {
+  return "${" + envVar + "}";
+}
+
+function splitDotPath(path: string): string[] {
+  return path
+    .split(".")
+    .map((part) => part.trim())
+    .filter(Boolean);
 }
 
 function summarize(findings: OpenclawSecurityFinding[]): OpenclawSecuritySummary {
@@ -166,6 +183,24 @@ const GROUP_POLICY_SPECS: GroupPolicySpec[] = [
   },
 ];
 
+function addInlineSecretFinding(params: {
+  botLabel: string;
+  findings: OpenclawSecurityFinding[];
+  path: string[];
+  title: string;
+  expected?: string;
+  remediation: string;
+}): void {
+  const pathLabel = params.path.join(".");
+  params.findings.push({
+    id: `inlineSecret.${pathLabel}`,
+    severity: "critical",
+    title: `${params.botLabel}${params.title}`,
+    detail: params.expected ? `${pathLabel} is set inline (expected ${params.expected}).` : `${pathLabel} is set inline.`,
+    remediation: params.remediation,
+  });
+}
+
 export function lintOpenclawSecurityConfig(params: {
   openclaw: unknown;
   botId?: string;
@@ -173,6 +208,85 @@ export function lintOpenclawSecurityConfig(params: {
   const cfg = isPlainObject(params.openclaw) ? params.openclaw : {};
   const findings: OpenclawSecurityFinding[] = [];
   const botLabel = params.botId ? `bot=${params.botId} ` : "";
+
+  for (const channel of listPinnedChannelUiModels()) {
+    for (const tokenField of channel.tokenFields) {
+      const value = readString(getAtPath(cfg, splitDotPath(tokenField.path)));
+      if (!value) continue;
+      if (hasEnvVarRef(value)) continue;
+      addInlineSecretFinding({
+        botLabel,
+        findings,
+        path: splitDotPath(tokenField.path),
+        title: `${channel.name} token looks inline`,
+        expected: `"${envVarRef(tokenField.envVar)}"`,
+        remediation: `Replace with "${envVarRef(tokenField.envVar)}" and wire the env var via secrets (do not store tokens in config).`,
+      });
+    }
+  }
+
+  {
+    const token = readString(getAtPath(cfg, ["gateway", "auth", "token"]));
+    if (token && !hasEnvVarRef(token)) {
+      addInlineSecretFinding({
+        botLabel,
+        findings,
+        path: ["gateway", "auth", "token"],
+        title: "Gateway auth token looks inline",
+        expected: `"${envVarRef("OPENCLAW_GATEWAY_TOKEN")}"`,
+        remediation: `Remove the inline value. clawlets manages the gateway token at runtime; do not store it in config.`,
+      });
+    }
+  }
+
+  {
+    const token = readString(getAtPath(cfg, ["hooks", "token"]));
+    if (token && !hasEnvVarRef(token)) {
+      addInlineSecretFinding({
+        botLabel,
+        findings,
+        path: ["hooks", "token"],
+        title: "Hooks token looks inline",
+        expected: `"${envVarRef(HOOKS_TOKEN_ENV_VAR)}"`,
+        remediation: `Replace with "${envVarRef(HOOKS_TOKEN_ENV_VAR)}" and wire it via secrets (do not store tokens in config).`,
+      });
+    }
+  }
+
+  {
+    const token = readString(getAtPath(cfg, ["hooks", "gmail", "pushToken"]));
+    if (token && !hasEnvVarRef(token)) {
+      addInlineSecretFinding({
+        botLabel,
+        findings,
+        path: ["hooks", "gmail", "pushToken"],
+        title: "Hooks Gmail push token looks inline",
+        expected: `"${envVarRef(HOOKS_GMAIL_PUSH_TOKEN_ENV_VAR)}"`,
+        remediation: `Replace with "${envVarRef(HOOKS_GMAIL_PUSH_TOKEN_ENV_VAR)}" and wire it via secrets (do not store tokens in config).`,
+      });
+    }
+  }
+
+  {
+    const entries = getAtPath(cfg, ["skills", "entries"]);
+    if (isPlainObject(entries)) {
+      for (const [skill, entry] of Object.entries(entries)) {
+        if (!isPlainObject(entry)) continue;
+        const apiKey = readString((entry as any).apiKey);
+        if (!apiKey) continue;
+        if (hasEnvVarRef(apiKey)) continue;
+        const envVar = skillApiKeyEnvVar(skill);
+        addInlineSecretFinding({
+          botLabel,
+          findings,
+          path: ["skills", "entries", skill, "apiKey"],
+          title: `Skill ${skill} apiKey looks inline`,
+          expected: `"${envVarRef(envVar)}"`,
+          remediation: `Replace with "${envVarRef(envVar)}" and wire the env var via secrets (do not store API keys in config).`,
+        });
+      }
+    }
+  }
 
   {
     const tailscaleMode = readString(getAtPath(cfg, ["gateway", "tailscale", "mode"]));
