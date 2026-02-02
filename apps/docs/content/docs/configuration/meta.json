@@ -5,6 +5,7 @@
   "pages": [
     "index",
     "config",
+    "channels",
     "typed-surfaces",
     "openclaw-config",
     "agent-config",
