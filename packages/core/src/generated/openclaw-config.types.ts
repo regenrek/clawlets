@@ -22,33 +22,7 @@ export interface OpenClawConfig {
       blockStreamingDefault?: "off" | "on";
       bootstrapMaxChars?: number;
       cliBackends?: {
-        [k: string]: {
-          args?: string[];
-          clearEnv?: string[];
-          command: string;
-          env?: {
-            [k: string]: string;
-          };
-          imageArg?: string;
-          imageMode?: "repeat" | "list";
-          input?: "arg" | "stdin";
-          maxPromptArgChars?: number;
-          modelAliases?: {
-            [k: string]: string;
-          };
-          modelArg?: string;
-          output?: "json" | "text" | "jsonl";
-          resumeArgs?: string[];
-          resumeOutput?: "json" | "text" | "jsonl";
-          serialize?: boolean;
-          sessionArg?: string;
-          sessionArgs?: string[];
-          sessionIdFields?: string[];
-          sessionMode?: "always" | "existing" | "none";
-          systemPromptArg?: string;
-          systemPromptMode?: "append" | "replace";
-          systemPromptWhen?: "first" | "always" | "never";
-        };
+        [k: string]: unknown;
       };
       compaction?: {
         maxHistoryShare?: number;
@@ -155,7 +129,7 @@ export interface OpenClawConfig {
             wait?: boolean;
           };
           headers?: {
-            [k: string]: string;
+            [k: string]: unknown;
           };
         };
         sources?: ("memory" | "sessions")[];
@@ -184,12 +158,7 @@ export interface OpenClawConfig {
         primary?: string;
       };
       models?: {
-        [k: string]: {
-          alias?: string;
-          params?: {
-            [k: string]: unknown;
-          };
-        };
+        [k: string]: unknown;
       };
       repoRoot?: string;
       sandbox?: {
@@ -214,7 +183,7 @@ export interface OpenClawConfig {
           cpus?: number;
           dns?: string[];
           env?: {
-            [k: string]: string;
+            [k: string]: unknown;
           };
           extraHosts?: string[];
           image?: string;
@@ -227,13 +196,7 @@ export interface OpenClawConfig {
           setupCommand?: string;
           tmpfs?: string[];
           ulimits?: {
-            [k: string]:
-              | string
-              | number
-              | {
-                  hard?: number;
-                  soft?: number;
-                };
+            [k: string]: unknown;
           };
           user?: string;
           workdir?: string;
@@ -345,7 +308,7 @@ export interface OpenClawConfig {
             wait?: boolean;
           };
           headers?: {
-            [k: string]: string;
+            [k: string]: unknown;
           };
         };
         sources?: ("memory" | "sessions")[];
@@ -398,7 +361,7 @@ export interface OpenClawConfig {
           cpus?: number;
           dns?: string[];
           env?: {
-            [k: string]: string;
+            [k: string]: unknown;
           };
           extraHosts?: string[];
           image?: string;
@@ -411,13 +374,7 @@ export interface OpenClawConfig {
           setupCommand?: string;
           tmpfs?: string[];
           ulimits?: {
-            [k: string]:
-              | string
-              | number
-              | {
-                  hard?: number;
-                  soft?: number;
-                };
+            [k: string]: unknown;
           };
           user?: string;
           workdir?: string;
@@ -446,17 +403,12 @@ export interface OpenClawConfig {
         allow?: string[];
         alsoAllow?: string[];
         byProvider?: {
-          [k: string]: {
-            allow?: string[];
-            alsoAllow?: string[];
-            deny?: string[];
-            profile?: "minimal" | "coding" | "messaging" | "full";
-          };
+          [k: string]: unknown;
         };
         deny?: string[];
         elevated?: {
           allowFrom?: {
-            [k: string]: (string | number)[];
+            [k: string]: unknown;
           };
           enabled?: boolean;
         };
@@ -513,20 +465,16 @@ export interface OpenClawConfig {
     cooldowns?: {
       billingBackoffHours?: number;
       billingBackoffHoursByProvider?: {
-        [k: string]: number;
+        [k: string]: unknown;
       };
       billingMaxHours?: number;
       failureWindowHours?: number;
     };
     order?: {
-      [k: string]: string[];
+      [k: string]: unknown;
     };
     profiles?: {
-      [k: string]: {
-        email?: string;
-        mode: "api_key" | "oauth" | "token";
-        provider: string;
-      };
+      [k: string]: unknown;
     };
   };
   bindings?: {
@@ -544,7 +492,7 @@ export interface OpenClawConfig {
   }[];
   broadcast?: {
     strategy?: "parallel" | "sequential";
-    [k: string]: string[];
+    [k: string]: unknown;
   };
   browser?: {
     attachOnly?: boolean;
@@ -557,12 +505,7 @@ export interface OpenClawConfig {
     headless?: boolean;
     noSandbox?: boolean;
     profiles?: {
-      [k: string]: {
-        cdpPort?: number;
-        cdpUrl?: string;
-        color: string;
-        driver?: "openclaw" | "extension";
-      };
+      [k: string]: unknown;
     };
     remoteCdpHandshakeTimeoutMs?: number;
     remoteCdpTimeoutMs?: number;
@@ -579,37 +522,7 @@ export interface OpenClawConfig {
   channels?: {
     bluebubbles?: {
       accounts?: {
-        [k: string]: {
-          allowFrom?: (string | number)[];
-          blockStreaming?: boolean;
-          chunkMode?: "length" | "newline";
-          dmHistoryLimit?: number;
-          dmPolicy?: "pairing" | "allowlist" | "open" | "disabled";
-          enabled?: boolean;
-          groupAllowFrom?: (string | number)[];
-          groupPolicy?: "open" | "disabled" | "allowlist";
-          groups?: {
-            [k: string]: {
-              requireMention?: boolean;
-              tools?: {
-                allow?: string[];
-                alsoAllow?: string[];
-                deny?: string[];
-              };
-            };
-          };
-          historyLimit?: number;
-          markdown?: {
-            tables?: "off" | "bullets" | "code";
-          };
-          mediaMaxMb?: number;
-          name?: string;
-          password?: string;
-          sendReadReceipts?: boolean;
-          serverUrl?: string;
-          textChunkLimit?: number;
-          webhookPath?: string;
-        };
+        [k: string]: unknown;
       };
       actions?: {
         addParticipant: boolean;
@@ -633,14 +546,7 @@ export interface OpenClawConfig {
       groupAllowFrom?: (string | number)[];
       groupPolicy?: "open" | "disabled" | "allowlist";
       groups?: {
-        [k: string]: {
-          requireMention?: boolean;
-          tools?: {
-            allow?: string[];
-            alsoAllow?: string[];
-            deny?: string[];
-          };
-        };
+        [k: string]: unknown;
       };
       historyLimit?: number;
       markdown?: {
@@ -656,135 +562,7 @@ export interface OpenClawConfig {
     };
     discord?: {
       accounts?: {
-        [k: string]: {
-          actions?: {
-            channelInfo?: boolean;
-            channels?: boolean;
-            emojiUploads?: boolean;
-            events?: boolean;
-            memberInfo?: boolean;
-            messages?: boolean;
-            moderation?: boolean;
-            permissions?: boolean;
-            pins?: boolean;
-            polls?: boolean;
-            reactions?: boolean;
-            roleInfo?: boolean;
-            roles?: boolean;
-            search?: boolean;
-            stickers?: boolean;
-            stickerUploads?: boolean;
-            threads?: boolean;
-            voiceStatus?: boolean;
-          };
-          allowBots?: boolean;
-          blockStreaming?: boolean;
-          blockStreamingCoalesce?: {
-            idleMs?: number;
-            maxChars?: number;
-            minChars?: number;
-          };
-          capabilities?: string[];
-          chunkMode?: "length" | "newline";
-          commands?: {
-            native?: boolean | "auto";
-            nativeSkills?: boolean | "auto";
-          };
-          configWrites?: boolean;
-          dm?: {
-            allowFrom?: (string | number)[];
-            enabled?: boolean;
-            groupChannels?: (string | number)[];
-            groupEnabled?: boolean;
-            policy: "pairing" | "allowlist" | "open" | "disabled";
-          };
-          dmHistoryLimit?: number;
-          dms?: {
-            [k: string]: {
-              historyLimit?: number;
-            };
-          };
-          enabled?: boolean;
-          execApprovals?: {
-            agentFilter?: string[];
-            approvers?: (string | number)[];
-            enabled?: boolean;
-            sessionFilter?: string[];
-          };
-          groupPolicy: "open" | "disabled" | "allowlist";
-          guilds?: {
-            [k: string]: {
-              channels?: {
-                [k: string]: {
-                  allow?: boolean;
-                  autoThread?: boolean;
-                  enabled?: boolean;
-                  requireMention?: boolean;
-                  skills?: string[];
-                  systemPrompt?: string;
-                  tools?: {
-                    allow?: string[];
-                    alsoAllow?: string[];
-                    deny?: string[];
-                  };
-                  toolsBySender?: {
-                    [k: string]: {
-                      allow?: string[];
-                      alsoAllow?: string[];
-                      deny?: string[];
-                    };
-                  };
-                  users?: (string | number)[];
-                };
-              };
-              reactionNotifications?: "off" | "own" | "all" | "allowlist";
-              requireMention?: boolean;
-              slug?: string;
-              tools?: {
-                allow?: string[];
-                alsoAllow?: string[];
-                deny?: string[];
-              };
-              toolsBySender?: {
-                [k: string]: {
-                  allow?: string[];
-                  alsoAllow?: string[];
-                  deny?: string[];
-                };
-              };
-              users?: (string | number)[];
-            };
-          };
-          heartbeat?: {
-            showAlerts?: boolean;
-            showOk?: boolean;
-            useIndicator?: boolean;
-          };
-          historyLimit?: number;
-          intents?: {
-            guildMembers?: boolean;
-            presence?: boolean;
-          };
-          markdown?: {
-            tables?: "off" | "bullets" | "code";
-          };
-          maxLinesPerMessage?: number;
-          mediaMaxMb?: number;
-          name?: string;
-          pluralkit?: {
-            enabled?: boolean;
-            token?: string;
-          };
-          replyToMode?: "off" | "first" | "all";
-          retry?: {
-            attempts?: number;
-            jitter?: number;
-            maxDelayMs?: number;
-            minDelayMs?: number;
-          };
-          textChunkLimit?: number;
-          token?: string;
-        };
+        [k: string]: unknown;
       };
       actions?: {
         channelInfo?: boolean;
@@ -829,9 +607,7 @@ export interface OpenClawConfig {
       };
       dmHistoryLimit?: number;
       dms?: {
-        [k: string]: {
-          historyLimit?: number;
-        };
+        [k: string]: unknown;
       };
       enabled?: boolean;
       execApprovals?: {
@@ -842,47 +618,7 @@ export interface OpenClawConfig {
       };
       groupPolicy: "open" | "disabled" | "allowlist";
       guilds?: {
-        [k: string]: {
-          channels?: {
-            [k: string]: {
-              allow?: boolean;
-              autoThread?: boolean;
-              enabled?: boolean;
-              requireMention?: boolean;
-              skills?: string[];
-              systemPrompt?: string;
-              tools?: {
-                allow?: string[];
-                alsoAllow?: string[];
-                deny?: string[];
-              };
-              toolsBySender?: {
-                [k: string]: {
-                  allow?: string[];
-                  alsoAllow?: string[];
-                  deny?: string[];
-                };
-              };
-              users?: (string | number)[];
-            };
-          };
-          reactionNotifications?: "off" | "own" | "all" | "allowlist";
-          requireMention?: boolean;
-          slug?: string;
-          tools?: {
-            allow?: string[];
-            alsoAllow?: string[];
-            deny?: string[];
-          };
-          toolsBySender?: {
-            [k: string]: {
-              allow?: string[];
-              alsoAllow?: string[];
-              deny?: string[];
-            };
-          };
-          users?: (string | number)[];
-        };
+        [k: string]: unknown;
       };
       heartbeat?: {
         showAlerts?: boolean;
@@ -916,62 +652,7 @@ export interface OpenClawConfig {
     };
     googlechat?: {
       accounts?: {
-        [k: string]: {
-          actions?: {
-            reactions?: boolean;
-          };
-          allowBots?: boolean;
-          audience?: string;
-          audienceType?: "app-url" | "project-number";
-          blockStreaming?: boolean;
-          blockStreamingCoalesce?: {
-            idleMs?: number;
-            maxChars?: number;
-            minChars?: number;
-          };
-          botUser?: string;
-          capabilities?: string[];
-          chunkMode?: "length" | "newline";
-          configWrites?: boolean;
-          dm?: {
-            allowFrom?: (string | number)[];
-            enabled?: boolean;
-            policy: "pairing" | "allowlist" | "open" | "disabled";
-          };
-          dmHistoryLimit?: number;
-          dms?: {
-            [k: string]: {
-              historyLimit?: number;
-            };
-          };
-          enabled?: boolean;
-          groupAllowFrom?: (string | number)[];
-          groupPolicy: "open" | "disabled" | "allowlist";
-          groups?: {
-            [k: string]: {
-              allow?: boolean;
-              enabled?: boolean;
-              requireMention?: boolean;
-              systemPrompt?: string;
-              users?: (string | number)[];
-            };
-          };
-          historyLimit?: number;
-          mediaMaxMb?: number;
-          name?: string;
-          replyToMode?: "off" | "first" | "all";
-          requireMention?: boolean;
-          serviceAccount?:
-            | string
-            | {
-                [k: string]: unknown;
-              };
-          serviceAccountFile?: string;
-          textChunkLimit?: number;
-          typingIndicator?: "none" | "message" | "reaction";
-          webhookPath?: string;
-          webhookUrl?: string;
-        };
+        [k: string]: unknown;
       };
       actions?: {
         reactions?: boolean;
@@ -997,21 +678,13 @@ export interface OpenClawConfig {
       };
       dmHistoryLimit?: number;
       dms?: {
-        [k: string]: {
-          historyLimit?: number;
-        };
+        [k: string]: unknown;
       };
       enabled?: boolean;
       groupAllowFrom?: (string | number)[];
       groupPolicy: "open" | "disabled" | "allowlist";
       groups?: {
-        [k: string]: {
-          allow?: boolean;
-          enabled?: boolean;
-          requireMention?: boolean;
-          systemPrompt?: string;
-          users?: (string | number)[];
-        };
+        [k: string]: unknown;
       };
       historyLimit?: number;
       mediaMaxMb?: number;
@@ -1031,63 +704,7 @@ export interface OpenClawConfig {
     };
     imessage?: {
       accounts?: {
-        [k: string]: {
-          allowFrom?: (string | number)[];
-          blockStreaming?: boolean;
-          blockStreamingCoalesce?: {
-            idleMs?: number;
-            maxChars?: number;
-            minChars?: number;
-          };
-          capabilities?: string[];
-          chunkMode?: "length" | "newline";
-          cliPath?: string;
-          configWrites?: boolean;
-          dbPath?: string;
-          dmHistoryLimit?: number;
-          dmPolicy: "pairing" | "allowlist" | "open" | "disabled";
-          dms?: {
-            [k: string]: {
-              historyLimit?: number;
-            };
-          };
-          enabled?: boolean;
-          groupAllowFrom?: (string | number)[];
-          groupPolicy: "open" | "disabled" | "allowlist";
-          groups?: {
-            [k: string]: {
-              requireMention?: boolean;
-              tools?: {
-                allow?: string[];
-                alsoAllow?: string[];
-                deny?: string[];
-              };
-              toolsBySender?: {
-                [k: string]: {
-                  allow?: string[];
-                  alsoAllow?: string[];
-                  deny?: string[];
-                };
-              };
-            };
-          };
-          heartbeat?: {
-            showAlerts?: boolean;
-            showOk?: boolean;
-            useIndicator?: boolean;
-          };
-          historyLimit?: number;
-          includeAttachments?: boolean;
-          markdown?: {
-            tables?: "off" | "bullets" | "code";
-          };
-          mediaMaxMb?: number;
-          name?: string;
-          region?: string;
-          remoteHost?: string;
-          service?: "imessage" | "sms" | "auto";
-          textChunkLimit?: number;
-        };
+        [k: string]: unknown;
       };
       allowFrom?: (string | number)[];
       blockStreaming?: boolean;
@@ -1104,29 +721,13 @@ export interface OpenClawConfig {
       dmHistoryLimit?: number;
       dmPolicy: "pairing" | "allowlist" | "open" | "disabled";
       dms?: {
-        [k: string]: {
-          historyLimit?: number;
-        };
+        [k: string]: unknown;
       };
       enabled?: boolean;
       groupAllowFrom?: (string | number)[];
       groupPolicy: "open" | "disabled" | "allowlist";
       groups?: {
-        [k: string]: {
-          requireMention?: boolean;
-          tools?: {
-            allow?: string[];
-            alsoAllow?: string[];
-            deny?: string[];
-          };
-          toolsBySender?: {
-            [k: string]: {
-              allow?: string[];
-              alsoAllow?: string[];
-              deny?: string[];
-            };
-          };
-        };
+        [k: string]: unknown;
       };
       heartbeat?: {
         showAlerts?: boolean;
@@ -1147,29 +748,7 @@ export interface OpenClawConfig {
     };
     line?: {
       accounts?: {
-        [k: string]: {
-          allowFrom?: (string | number)[];
-          channelAccessToken?: string;
-          channelSecret?: string;
-          dmPolicy: "open" | "allowlist" | "pairing" | "disabled";
-          enabled?: boolean;
-          groupAllowFrom?: (string | number)[];
-          groupPolicy: "open" | "allowlist" | "disabled";
-          groups?: {
-            [k: string]: {
-              allowFrom?: (string | number)[];
-              enabled?: boolean;
-              requireMention?: boolean;
-              skills?: string[];
-              systemPrompt?: string;
-            };
-          };
-          mediaMaxMb?: number;
-          name?: string;
-          secretFile?: string;
-          tokenFile?: string;
-          webhookPath?: string;
-        };
+        [k: string]: unknown;
       };
       allowFrom?: (string | number)[];
       channelAccessToken?: string;
@@ -1179,13 +758,7 @@ export interface OpenClawConfig {
       groupAllowFrom?: (string | number)[];
       groupPolicy: "open" | "allowlist" | "disabled";
       groups?: {
-        [k: string]: {
-          allowFrom?: (string | number)[];
-          enabled?: boolean;
-          requireMention?: boolean;
-          skills?: string[];
-          systemPrompt?: string;
-        };
+        [k: string]: unknown;
       };
       mediaMaxMb?: number;
       name?: string;
@@ -1217,20 +790,7 @@ export interface OpenClawConfig {
       groupAllowFrom?: (string | number)[];
       groupPolicy?: "open" | "disabled" | "allowlist";
       groups?: {
-        [k: string]: {
-          allow?: boolean;
-          autoReply?: boolean;
-          enabled?: boolean;
-          requireMention?: boolean;
-          skills?: string[];
-          systemPrompt?: string;
-          tools?: {
-            allow?: string[];
-            alsoAllow?: string[];
-            deny?: string[];
-          };
-          users?: (string | number)[];
-        };
+        [k: string]: unknown;
       };
       homeserver?: string;
       initialSyncLimit?: number;
@@ -1242,20 +802,7 @@ export interface OpenClawConfig {
       password?: string;
       replyToMode?: "off" | "first" | "all";
       rooms?: {
-        [k: string]: {
-          allow?: boolean;
-          autoReply?: boolean;
-          enabled?: boolean;
-          requireMention?: boolean;
-          skills?: string[];
-          systemPrompt?: string;
-          tools?: {
-            allow?: string[];
-            alsoAllow?: string[];
-            deny?: string[];
-          };
-          users?: (string | number)[];
-        };
+        [k: string]: unknown;
       };
       textChunkLimit?: number;
       threadReplies?: "off" | "inbound" | "always";
@@ -1263,32 +810,7 @@ export interface OpenClawConfig {
     };
     mattermost?: {
       accounts?: {
-        [k: string]: {
-          allowFrom?: (string | number)[];
-          baseUrl?: string;
-          blockStreaming?: boolean;
-          blockStreamingCoalesce?: {
-            idleMs?: number;
-            maxChars?: number;
-            minChars?: number;
-          };
-          botToken?: string;
-          capabilities?: string[];
-          chatmode?: "oncall" | "onmessage" | "onchar";
-          chunkMode?: "length" | "newline";
-          configWrites?: boolean;
-          dmPolicy: "pairing" | "allowlist" | "open" | "disabled";
-          enabled?: boolean;
-          groupAllowFrom?: (string | number)[];
-          groupPolicy: "open" | "disabled" | "allowlist";
-          markdown?: {
-            tables?: "off" | "bullets" | "code";
-          };
-          name?: string;
-          oncharPrefixes?: string[];
-          requireMention?: boolean;
-          textChunkLimit?: number;
-        };
+        [k: string]: unknown;
       };
       allowFrom?: (string | number)[];
       baseUrl?: string;
@@ -1330,9 +852,7 @@ export interface OpenClawConfig {
       dmHistoryLimit?: number;
       dmPolicy: "pairing" | "allowlist" | "open" | "disabled";
       dms?: {
-        [k: string]: {
-          historyLimit?: number;
-        };
+        [k: string]: unknown;
       };
       enabled?: boolean;
       groupAllowFrom?: string[];
@@ -1352,40 +872,7 @@ export interface OpenClawConfig {
       requireMention?: boolean;
       sharePointSiteId?: string;
       teams?: {
-        [k: string]: {
-          channels?: {
-            [k: string]: {
-              replyStyle?: "thread" | "top-level";
-              requireMention?: boolean;
-              tools?: {
-                allow?: string[];
-                alsoAllow?: string[];
-                deny?: string[];
-              };
-              toolsBySender?: {
-                [k: string]: {
-                  allow?: string[];
-                  alsoAllow?: string[];
-                  deny?: string[];
-                };
-              };
-            };
-          };
-          replyStyle?: "thread" | "top-level";
-          requireMention?: boolean;
-          tools?: {
-            allow?: string[];
-            alsoAllow?: string[];
-            deny?: string[];
-          };
-          toolsBySender?: {
-            [k: string]: {
-              allow?: string[];
-              alsoAllow?: string[];
-              deny?: string[];
-            };
-          };
-        };
+        [k: string]: unknown;
       };
       tenantId?: string;
       textChunkLimit?: number;
@@ -1396,57 +883,7 @@ export interface OpenClawConfig {
     };
     "nextcloud-talk"?: {
       accounts?: {
-        [k: string]: {
-          allowFrom?: string[];
-          apiPassword?: string;
-          apiPasswordFile?: string;
-          apiUser?: string;
-          baseUrl?: string;
-          blockStreaming?: boolean;
-          blockStreamingCoalesce?: {
-            idleMs?: number;
-            maxChars?: number;
-            minChars?: number;
-          };
-          botSecret?: string;
-          botSecretFile?: string;
-          chunkMode?: "length" | "newline";
-          dmHistoryLimit?: number;
-          dmPolicy: "pairing" | "allowlist" | "open" | "disabled";
-          dms?: {
-            [k: string]: {
-              historyLimit?: number;
-            };
-          };
-          enabled?: boolean;
-          groupAllowFrom?: string[];
-          groupPolicy: "open" | "disabled" | "allowlist";
-          historyLimit?: number;
-          markdown?: {
-            tables?: "off" | "bullets" | "code";
-          };
-          mediaMaxMb?: number;
-          name?: string;
-          rooms?: {
-            [k: string]: {
-              allowFrom?: string[];
-              enabled?: boolean;
-              requireMention?: boolean;
-              skills?: string[];
-              systemPrompt?: string;
-              tools?: {
-                allow?: string[];
-                alsoAllow?: string[];
-                deny?: string[];
-              };
-            };
-          };
-          textChunkLimit?: number;
-          webhookHost?: string;
-          webhookPath?: string;
-          webhookPort?: number;
-          webhookPublicUrl?: string;
-        };
+        [k: string]: unknown;
       };
       allowFrom?: string[];
       apiPassword?: string;
@@ -1465,9 +902,7 @@ export interface OpenClawConfig {
       dmHistoryLimit?: number;
       dmPolicy: "pairing" | "allowlist" | "open" | "disabled";
       dms?: {
-        [k: string]: {
-          historyLimit?: number;
-        };
+        [k: string]: unknown;
       };
       enabled?: boolean;
       groupAllowFrom?: string[];
@@ -1479,18 +914,7 @@ export interface OpenClawConfig {
       mediaMaxMb?: number;
       name?: string;
       rooms?: {
-        [k: string]: {
-          allowFrom?: string[];
-          enabled?: boolean;
-          requireMention?: boolean;
-          skills?: string[];
-          systemPrompt?: string;
-          tools?: {
-            allow?: string[];
-            alsoAllow?: string[];
-            deny?: string[];
-          };
-        };
+        [k: string]: unknown;
       };
       textChunkLimit?: number;
       webhookHost?: string;
@@ -1522,57 +946,7 @@ export interface OpenClawConfig {
     signal?: {
       account?: string;
       accounts?: {
-        [k: string]: {
-          account?: string;
-          actions?: {
-            reactions?: boolean;
-          };
-          allowFrom?: (string | number)[];
-          autoStart?: boolean;
-          blockStreaming?: boolean;
-          blockStreamingCoalesce?: {
-            idleMs?: number;
-            maxChars?: number;
-            minChars?: number;
-          };
-          capabilities?: string[];
-          chunkMode?: "length" | "newline";
-          cliPath?: string;
-          configWrites?: boolean;
-          dmHistoryLimit?: number;
-          dmPolicy: "pairing" | "allowlist" | "open" | "disabled";
-          dms?: {
-            [k: string]: {
-              historyLimit?: number;
-            };
-          };
-          enabled?: boolean;
-          groupAllowFrom?: (string | number)[];
-          groupPolicy: "open" | "disabled" | "allowlist";
-          heartbeat?: {
-            showAlerts?: boolean;
-            showOk?: boolean;
-            useIndicator?: boolean;
-          };
-          historyLimit?: number;
-          httpHost?: string;
-          httpPort?: number;
-          httpUrl?: string;
-          ignoreAttachments?: boolean;
-          ignoreStories?: boolean;
-          markdown?: {
-            tables?: "off" | "bullets" | "code";
-          };
-          mediaMaxMb?: number;
-          name?: string;
-          reactionAllowlist?: (string | number)[];
-          reactionLevel?: "off" | "ack" | "minimal" | "extensive";
-          reactionNotifications?: "off" | "own" | "all" | "allowlist";
-          receiveMode?: "on-start" | "manual";
-          sendReadReceipts?: boolean;
-          startupTimeoutMs?: number;
-          textChunkLimit?: number;
-        };
+        [k: string]: unknown;
       };
       actions?: {
         reactions?: boolean;
@@ -1592,9 +966,7 @@ export interface OpenClawConfig {
       dmHistoryLimit?: number;
       dmPolicy: "pairing" | "allowlist" | "open" | "disabled";
       dms?: {
-        [k: string]: {
-          historyLimit?: number;
-        };
+        [k: string]: unknown;
       };
       enabled?: boolean;
       groupAllowFrom?: (string | number)[];
@@ -1625,109 +997,7 @@ export interface OpenClawConfig {
     };
     slack?: {
       accounts?: {
-        [k: string]: {
-          actions?: {
-            channelInfo?: boolean;
-            emojiList?: boolean;
-            memberInfo?: boolean;
-            messages?: boolean;
-            permissions?: boolean;
-            pins?: boolean;
-            reactions?: boolean;
-            search?: boolean;
-          };
-          allowBots?: boolean;
-          appToken?: string;
-          blockStreaming?: boolean;
-          blockStreamingCoalesce?: {
-            idleMs?: number;
-            maxChars?: number;
-            minChars?: number;
-          };
-          botToken?: string;
-          capabilities?: string[];
-          channels?: {
-            [k: string]: {
-              allow?: boolean;
-              allowBots?: boolean;
-              enabled?: boolean;
-              requireMention?: boolean;
-              skills?: string[];
-              systemPrompt?: string;
-              tools?: {
-                allow?: string[];
-                alsoAllow?: string[];
-                deny?: string[];
-              };
-              toolsBySender?: {
-                [k: string]: {
-                  allow?: string[];
-                  alsoAllow?: string[];
-                  deny?: string[];
-                };
-              };
-              users?: (string | number)[];
-            };
-          };
-          chunkMode?: "length" | "newline";
-          commands?: {
-            native?: boolean | "auto";
-            nativeSkills?: boolean | "auto";
-          };
-          configWrites?: boolean;
-          dm?: {
-            allowFrom?: (string | number)[];
-            enabled?: boolean;
-            groupChannels?: (string | number)[];
-            groupEnabled?: boolean;
-            policy: "pairing" | "allowlist" | "open" | "disabled";
-            replyToMode?: "off" | "first" | "all";
-          };
-          dmHistoryLimit?: number;
-          dms?: {
-            [k: string]: {
-              historyLimit?: number;
-            };
-          };
-          enabled?: boolean;
-          groupPolicy: "open" | "disabled" | "allowlist";
-          heartbeat?: {
-            showAlerts?: boolean;
-            showOk?: boolean;
-            useIndicator?: boolean;
-          };
-          historyLimit?: number;
-          markdown?: {
-            tables?: "off" | "bullets" | "code";
-          };
-          mediaMaxMb?: number;
-          mode?: "socket" | "http";
-          name?: string;
-          reactionAllowlist?: (string | number)[];
-          reactionNotifications?: "off" | "own" | "all" | "allowlist";
-          replyToMode?: "off" | "first" | "all";
-          replyToModeByChatType?: {
-            channel?: "off" | "first" | "all";
-            direct?: "off" | "first" | "all";
-            group?: "off" | "first" | "all";
-          };
-          requireMention?: boolean;
-          signingSecret?: string;
-          slashCommand?: {
-            enabled?: boolean;
-            ephemeral?: boolean;
-            name?: string;
-            sessionPrefix?: string;
-          };
-          textChunkLimit?: number;
-          thread?: {
-            historyScope?: "thread" | "channel";
-            inheritParent?: boolean;
-          };
-          userToken?: string;
-          userTokenReadOnly: boolean;
-          webhookPath?: string;
-        };
+        [k: string]: unknown;
       };
       actions?: {
         channelInfo?: boolean;
@@ -1750,27 +1020,7 @@ export interface OpenClawConfig {
       botToken?: string;
       capabilities?: string[];
       channels?: {
-        [k: string]: {
-          allow?: boolean;
-          allowBots?: boolean;
-          enabled?: boolean;
-          requireMention?: boolean;
-          skills?: string[];
-          systemPrompt?: string;
-          tools?: {
-            allow?: string[];
-            alsoAllow?: string[];
-            deny?: string[];
-          };
-          toolsBySender?: {
-            [k: string]: {
-              allow?: string[];
-              alsoAllow?: string[];
-              deny?: string[];
-            };
-          };
-          users?: (string | number)[];
-        };
+        [k: string]: unknown;
       };
       chunkMode?: "length" | "newline";
       commands?: {
@@ -1788,9 +1038,7 @@ export interface OpenClawConfig {
       };
       dmHistoryLimit?: number;
       dms?: {
-        [k: string]: {
-          historyLimit?: number;
-        };
+        [k: string]: unknown;
       };
       enabled?: boolean;
       groupPolicy: "open" | "disabled" | "allowlist";
@@ -1833,114 +1081,7 @@ export interface OpenClawConfig {
     };
     telegram?: {
       accounts?: {
-        [k: string]: {
-          actions?: {
-            deleteMessage?: boolean;
-            reactions?: boolean;
-            sendMessage?: boolean;
-            sticker?: boolean;
-          };
-          allowFrom?: (string | number)[];
-          blockStreaming?: boolean;
-          blockStreamingCoalesce?: {
-            idleMs?: number;
-            maxChars?: number;
-            minChars?: number;
-          };
-          botToken?: string;
-          capabilities?:
-            | string[]
-            | {
-                inlineButtons?: "off" | "dm" | "group" | "all" | "allowlist";
-              };
-          chunkMode?: "length" | "newline";
-          commands?: {
-            native?: boolean | "auto";
-            nativeSkills?: boolean | "auto";
-          };
-          configWrites?: boolean;
-          customCommands?: {
-            command: unknown;
-            description: unknown;
-          }[];
-          dmHistoryLimit?: number;
-          dmPolicy: "pairing" | "allowlist" | "open" | "disabled";
-          dms?: {
-            [k: string]: {
-              historyLimit?: number;
-            };
-          };
-          draftChunk?: {
-            breakPreference?: "paragraph" | "newline" | "sentence";
-            maxChars?: number;
-            minChars?: number;
-          };
-          enabled?: boolean;
-          groupAllowFrom?: (string | number)[];
-          groupPolicy: "open" | "disabled" | "allowlist";
-          groups?: {
-            [k: string]: {
-              allowFrom?: (string | number)[];
-              enabled?: boolean;
-              requireMention?: boolean;
-              skills?: string[];
-              systemPrompt?: string;
-              tools?: {
-                allow?: string[];
-                alsoAllow?: string[];
-                deny?: string[];
-              };
-              toolsBySender?: {
-                [k: string]: {
-                  allow?: string[];
-                  alsoAllow?: string[];
-                  deny?: string[];
-                };
-              };
-              topics?: {
-                [k: string]: {
-                  allowFrom?: (string | number)[];
-                  enabled?: boolean;
-                  requireMention?: boolean;
-                  skills?: string[];
-                  systemPrompt?: string;
-                };
-              };
-            };
-          };
-          heartbeat?: {
-            showAlerts?: boolean;
-            showOk?: boolean;
-            useIndicator?: boolean;
-          };
-          historyLimit?: number;
-          linkPreview?: boolean;
-          markdown?: {
-            tables?: "off" | "bullets" | "code";
-          };
-          mediaMaxMb?: number;
-          name?: string;
-          network?: {
-            autoSelectFamily?: boolean;
-          };
-          proxy?: string;
-          reactionLevel?: "off" | "ack" | "minimal" | "extensive";
-          reactionNotifications?: "off" | "own" | "all";
-          replyToMode?: "off" | "first" | "all";
-          retry?: {
-            attempts?: number;
-            jitter?: number;
-            maxDelayMs?: number;
-            minDelayMs?: number;
-          };
-          streamMode: "off" | "partial" | "block";
-          textChunkLimit?: number;
-          timeoutSeconds?: number;
-          tokenFile?: string;
-          webhookPath?: string;
-          webhookSecret?: string;
-          webhookUrl?: string;
-        };
+        [k: string]: unknown;
       };
       actions?: {
         deleteMessage?: boolean;
@@ -1974,9 +1115,7 @@ export interface OpenClawConfig {
       dmHistoryLimit?: number;
       dmPolicy: "pairing" | "allowlist" | "open" | "disabled";
       dms?: {
-        [k: string]: {
-          historyLimit?: number;
-        };
+        [k: string]: unknown;
       };
       draftChunk?: {
         breakPreference?: "paragraph" | "newline" | "sentence";
@@ -1987,34 +1126,7 @@ export interface OpenClawConfig {
       groupAllowFrom?: (string | number)[];
       groupPolicy: "open" | "disabled" | "allowlist";
       groups?: {
-        [k: string]: {
-          allowFrom?: (string | number)[];
-          enabled?: boolean;
-          requireMention?: boolean;
-          skills?: string[];
-          systemPrompt?: string;
-          tools?: {
-            allow?: string[];
-            alsoAllow?: string[];
-            deny?: string[];
-          };
-          toolsBySender?: {
-            [k: string]: {
-              allow?: string[];
-              alsoAllow?: string[];
-              deny?: string[];
-            };
-          };
-          topics?: {
-            [k: string]: {
-              allowFrom?: (string | number)[];
-              enabled?: boolean;
-              requireMention?: boolean;
-              skills?: string[];
-              systemPrompt?: string;
-            };
-          };
-        };
+        [k: string]: unknown;
       };
       heartbeat?: {
         showAlerts?: boolean;
@@ -2051,24 +1163,11 @@ export interface OpenClawConfig {
     };
     tlon?: {
       accounts?: {
-        [k: string]: {
-          autoDiscoverChannels?: boolean;
-          code?: string;
-          dmAllowlist?: string[];
-          enabled?: boolean;
-          groupChannels?: string[];
-          name?: string;
-          ship?: string;
-          showModelSignature?: boolean;
-          url?: string;
-        };
+        [k: string]: unknown;
       };
       authorization?: {
         channelRules?: {
-          [k: string]: {
-            allowedShips?: string[];
-            mode?: "restricted" | "open";
-          };
+          [k: string]: unknown;
         };
       };
       autoDiscoverChannels?: boolean;
@@ -2111,85 +1210,12 @@ export interface OpenClawConfig {
           name?: string;
         } & {
           accounts: {
-            [k: string]: {
-              accessToken: string;
-              allowedRoles?: ("moderator" | "owner" | "vip" | "subscriber" | "all")[];
-              allowFrom?: string[];
-              channel: string;
-              clientId?: string;
-              clientSecret?: string;
-              enabled?: boolean;
-              expiresIn?: number | null;
-              obtainmentTimestamp?: number;
-              refreshToken?: string;
-              requireMention?: boolean;
-              username: string;
-            };
+            [k: string]: unknown;
           };
         });
     whatsapp?: {
       accounts?: {
-        [k: string]: {
-          ackReaction?: {
-            direct: boolean;
-            emoji?: string;
-            group: "always" | "mentions" | "never";
-          };
-          allowFrom?: string[];
-          authDir?: string;
-          blockStreaming?: boolean;
-          blockStreamingCoalesce?: {
-            idleMs?: number;
-            maxChars?: number;
-            minChars?: number;
-          };
-          capabilities?: string[];
-          chunkMode?: "length" | "newline";
-          configWrites?: boolean;
-          debounceMs: number;
-          dmHistoryLimit?: number;
-          dmPolicy: "pairing" | "allowlist" | "open" | "disabled";
-          dms?: {
-            [k: string]: {
-              historyLimit?: number;
-            };
-          };
-          enabled?: boolean;
-          groupAllowFrom?: string[];
-          groupPolicy: "open" | "disabled" | "allowlist";
-          groups?: {
-            [k: string]: {
-              requireMention?: boolean;
-              tools?: {
-                allow?: string[];
-                alsoAllow?: string[];
-                deny?: string[];
-              };
-              toolsBySender?: {
-                [k: string]: {
-                  allow?: string[];
-                  alsoAllow?: string[];
-                  deny?: string[];
-                };
-              };
-            };
-          };
-          heartbeat?: {
-            showAlerts?: boolean;
-            showOk?: boolean;
-            useIndicator?: boolean;
-          };
-          historyLimit?: number;
-          markdown?: {
-            tables?: "off" | "bullets" | "code";
-          };
-          mediaMaxMb?: number;
-          messagePrefix?: string;
-          name?: string;
-          selfChatMode?: boolean;
-          sendReadReceipts?: boolean;
-          textChunkLimit?: number;
-        };
+        [k: string]: unknown;
       };
       ackReaction?: {
         direct: boolean;
@@ -2215,28 +1241,12 @@ export interface OpenClawConfig {
       dmHistoryLimit?: number;
       dmPolicy: "pairing" | "allowlist" | "open" | "disabled";
       dms?: {
-        [k: string]: {
-          historyLimit?: number;
-        };
+        [k: string]: unknown;
       };
       groupAllowFrom?: string[];
       groupPolicy: "open" | "disabled" | "allowlist";
       groups?: {
-        [k: string]: {
-          requireMention?: boolean;
-          tools?: {
-            allow?: string[];
-            alsoAllow?: string[];
-            deny?: string[];
-          };
-          toolsBySender?: {
-            [k: string]: {
-              allow?: string[];
-              alsoAllow?: string[];
-              deny?: string[];
-            };
-          };
-        };
+        [k: string]: unknown;
       };
       heartbeat?: {
         showAlerts?: boolean;
@@ -2255,22 +1265,7 @@ export interface OpenClawConfig {
     };
     zalo?: {
       accounts?: {
-        [k: string]: {
-          allowFrom?: (string | number)[];
-          botToken?: string;
-          dmPolicy?: "pairing" | "allowlist" | "open" | "disabled";
-          enabled?: boolean;
-          markdown?: {
-            tables?: "off" | "bullets" | "code";
-          };
-          mediaMaxMb?: number;
-          name?: string;
-          proxy?: string;
-          tokenFile?: string;
-          webhookPath?: string;
-          webhookSecret?: string;
-          webhookUrl?: string;
-        };
+        [k: string]: unknown;
       };
       allowFrom?: (string | number)[];
       botToken?: string;
@@ -2290,29 +1285,7 @@ export interface OpenClawConfig {
     };
     zalouser?: {
       accounts?: {
-        [k: string]: {
-          allowFrom?: (string | number)[];
-          dmPolicy?: "pairing" | "allowlist" | "open" | "disabled";
-          enabled?: boolean;
-          groupPolicy?: "disabled" | "allowlist" | "open";
-          groups?: {
-            [k: string]: {
-              allow?: boolean;
-              enabled?: boolean;
-              tools?: {
-                allow?: string[];
-                alsoAllow?: string[];
-                deny?: string[];
-              };
-            };
-          };
-          markdown?: {
-            tables?: "off" | "bullets" | "code";
-          };
-          messagePrefix?: string;
-          name?: string;
-          profile?: string;
-        };
+        [k: string]: unknown;
       };
       allowFrom?: (string | number)[];
       defaultAccount?: string;
@@ -2320,15 +1293,7 @@ export interface OpenClawConfig {
       enabled?: boolean;
       groupPolicy?: "disabled" | "allowlist" | "open";
       groups?: {
-        [k: string]: {
-          allow?: boolean;
-          enabled?: boolean;
-          tools?: {
-            allow?: string[];
-            alsoAllow?: string[];
-            deny?: string[];
-          };
-        };
+        [k: string]: unknown;
       };
       markdown?: {
         tables?: "off" | "bullets" | "code";
@@ -2370,7 +1335,7 @@ export interface OpenClawConfig {
       endpoint?: string;
       flushIntervalMs?: number;
       headers?: {
-        [k: string]: string;
+        [k: string]: unknown;
       };
       logs?: boolean;
       metrics?: boolean;
@@ -2395,9 +1360,9 @@ export interface OpenClawConfig {
       timeoutMs?: number;
     };
     vars?: {
-      [k: string]: string;
+      [k: string]: unknown;
     };
-    [k: string]: string;
+    [k: string]: unknown;
   };
   gateway?: {
     auth?: {
@@ -2509,12 +1474,7 @@ export interface OpenClawConfig {
     internal?: {
       enabled?: boolean;
       entries?: {
-        [k: string]: {
-          enabled?: boolean;
-          env?: {
-            [k: string]: string;
-          };
-        };
+        [k: string]: unknown;
       };
       handlers?: {
         event: string;
@@ -2522,15 +1482,7 @@ export interface OpenClawConfig {
         module: string;
       }[];
       installs?: {
-        [k: string]: {
-          hooks?: string[];
-          installedAt?: string;
-          installPath?: string;
-          source: "npm" | "archive" | "path";
-          sourcePath?: string;
-          spec?: string;
-          version?: string;
-        };
+        [k: string]: unknown;
       };
       load?: {
         extraDirs?: string[];
@@ -2586,7 +1538,7 @@ export interface OpenClawConfig {
     };
     inbound?: {
       byChannel?: {
-        [k: string]: number;
+        [k: string]: unknown;
       };
       debounceMs?: number;
     };
@@ -2606,7 +1558,7 @@ export interface OpenClawConfig {
       cap?: number;
       debounceMs?: number;
       debounceMsByChannel?: {
-        [k: string]: number;
+        [k: string]: unknown;
       };
       drop?: "old" | "new" | "summarize";
       mode?: "steer" | "followup" | "collect" | "steer-backlog" | "steer+backlog" | "queue" | "interrupt";
@@ -2682,52 +1634,7 @@ export interface OpenClawConfig {
     };
     mode?: "merge" | "replace";
     providers?: {
-      [k: string]: {
-        api?:
-          | "openai-completions"
-          | "openai-responses"
-          | "anthropic-messages"
-          | "google-generative-ai"
-          | "github-copilot"
-          | "bedrock-converse-stream";
-        apiKey?: string;
-        auth?: "api-key" | "aws-sdk" | "oauth" | "token";
-        authHeader?: boolean;
-        baseUrl: string;
-        headers?: {
-          [k: string]: string;
-        };
-        models: {
-          api?:
-            | "openai-completions"
-            | "openai-responses"
-            | "anthropic-messages"
-            | "google-generative-ai"
-            | "github-copilot"
-            | "bedrock-converse-stream";
-          compat?: {
-            maxTokensField?: "max_completion_tokens" | "max_tokens";
-            supportsDeveloperRole?: boolean;
-            supportsReasoningEffort?: boolean;
-            supportsStore?: boolean;
-          };
-          contextWindow?: number;
-          cost?: {
-            cacheRead?: number;
-            cacheWrite?: number;
-            input?: number;
-            output?: number;
-          };
-          headers?: {
-            [k: string]: string;
-          };
-          id: string;
-          input?: ("text" | "image")[];
-          maxTokens?: number;
-          name: string;
-          reasoning?: boolean;
-        }[];
-      };
+      [k: string]: unknown;
     };
   };
   nodeHost?: {
@@ -2996,22 +1903,10 @@ export interface OpenClawConfig {
         config?: {};
         enabled?: boolean;
       };
-      [k: string]: {
-        config?: {
-          [k: string]: unknown;
-        };
-        enabled?: boolean;
-      };
+      [k: string]: unknown;
     };
     installs?: {
-      [k: string]: {
-        installedAt?: string;
-        installPath?: string;
-        source: "npm" | "archive" | "path";
-        sourcePath?: string;
-        spec?: string;
-        version?: string;
-      };
+      [k: string]: unknown;
     };
     load?: {
       paths?: string[];
@@ -3026,7 +1921,7 @@ export interface OpenClawConfig {
     };
     dmScope?: "main" | "per-peer" | "per-channel-peer" | "per-account-channel-peer";
     identityLinks?: {
-      [k: string]: string[];
+      [k: string]: unknown;
     };
     idleMinutes?: number;
     mainKey?: string;
@@ -3036,11 +1931,7 @@ export interface OpenClawConfig {
       mode?: "daily" | "idle";
     };
     resetByChannel?: {
-      [k: string]: {
-        atHour?: number;
-        idleMinutes?: number;
-        mode?: "daily" | "idle";
-      };
+      [k: string]: unknown;
     };
     resetByType?: {
       dm?: {
@@ -3079,16 +1970,7 @@ export interface OpenClawConfig {
   skills?: {
     allowBundled?: string[];
     entries?: {
-      [k: string]: {
-        apiKey?: string;
-        config?: {
-          [k: string]: unknown;
-        };
-        enabled?: boolean;
-        env?: {
-          [k: string]: string;
-        };
-      };
+      [k: string]: unknown;
     };
     install?: {
       nodeManager?: "npm" | "pnpm" | "yarn" | "bun";
@@ -3106,7 +1988,7 @@ export interface OpenClawConfig {
     modelId?: string;
     outputFormat?: string;
     voiceAliases?: {
-      [k: string]: string;
+      [k: string]: unknown;
     };
     voiceId?: string;
   };
@@ -3118,17 +2000,12 @@ export interface OpenClawConfig {
     allow?: string[];
     alsoAllow?: string[];
     byProvider?: {
-      [k: string]: {
-        allow?: string[];
-        alsoAllow?: string[];
-        deny?: string[];
-        profile?: "minimal" | "coding" | "messaging" | "full";
-      };
+      [k: string]: unknown;
     };
     deny?: string[];
     elevated?: {
       allowFrom?: {
-        [k: string]: (string | number)[];
+        [k: string]: unknown;
       };
       enabled?: boolean;
     };
@@ -3185,7 +2062,7 @@ export interface OpenClawConfig {
         };
         enabled?: boolean;
         headers?: {
-          [k: string]: string;
+          [k: string]: unknown;
         };
         language?: string;
         maxBytes?: number;
@@ -3201,7 +2078,7 @@ export interface OpenClawConfig {
             smartFormat?: boolean;
           };
           headers?: {
-            [k: string]: string;
+            [k: string]: unknown;
           };
           language?: string;
           maxBytes?: number;
@@ -3212,18 +2089,14 @@ export interface OpenClawConfig {
           prompt?: string;
           provider?: string;
           providerOptions?: {
-            [k: string]: {
-              [k: string]: string | number | boolean;
-            };
+            [k: string]: unknown;
           };
           timeoutSeconds?: number;
           type?: "provider" | "cli";
         }[];
         prompt?: string;
         providerOptions?: {
-          [k: string]: {
-            [k: string]: string | number | boolean;
-          };
+          [k: string]: unknown;
         };
         scope?: {
           default?: "allow" | "deny";
@@ -3253,7 +2126,7 @@ export interface OpenClawConfig {
         };
         enabled?: boolean;
         headers?: {
-          [k: string]: string;
+          [k: string]: unknown;
         };
         language?: string;
         maxBytes?: number;
@@ -3269,7 +2142,7 @@ export interface OpenClawConfig {
             smartFormat?: boolean;
           };
           headers?: {
-            [k: string]: string;
+            [k: string]: unknown;
           };
           language?: string;
           maxBytes?: number;
@@ -3280,18 +2153,14 @@ export interface OpenClawConfig {
           prompt?: string;
           provider?: string;
           providerOptions?: {
-            [k: string]: {
-              [k: string]: string | number | boolean;
-            };
+            [k: string]: unknown;
           };
           timeoutSeconds?: number;
           type?: "provider" | "cli";
         }[];
         prompt?: string;
         providerOptions?: {
-          [k: string]: {
-            [k: string]: string | number | boolean;
-          };
+          [k: string]: unknown;
         };
         scope?: {
           default?: "allow" | "deny";
@@ -3317,7 +2186,7 @@ export interface OpenClawConfig {
           smartFormat?: boolean;
         };
         headers?: {
-          [k: string]: string;
+          [k: string]: unknown;
         };
         language?: string;
         maxBytes?: number;
@@ -3328,9 +2197,7 @@ export interface OpenClawConfig {
         prompt?: string;
         provider?: string;
         providerOptions?: {
-          [k: string]: {
-            [k: string]: string | number | boolean;
-          };
+          [k: string]: unknown;
         };
         timeoutSeconds?: number;
         type?: "provider" | "cli";
@@ -3349,7 +2216,7 @@ export interface OpenClawConfig {
         };
         enabled?: boolean;
         headers?: {
-          [k: string]: string;
+          [k: string]: unknown;
         };
         language?: string;
         maxBytes?: number;
@@ -3365,7 +2232,7 @@ export interface OpenClawConfig {
             smartFormat?: boolean;
           };
           headers?: {
-            [k: string]: string;
+            [k: string]: unknown;
           };
           language?: string;
           maxBytes?: number;
@@ -3376,18 +2243,14 @@ export interface OpenClawConfig {
           prompt?: string;
           provider?: string;
           providerOptions?: {
-            [k: string]: {
-              [k: string]: string | number | boolean;
-            };
+            [k: string]: unknown;
           };
           timeoutSeconds?: number;
           type?: "provider" | "cli";
         }[];
         prompt?: string;
         providerOptions?: {
-          [k: string]: {
-            [k: string]: string | number | boolean;
-          };
+          [k: string]: unknown;
         };
         scope?: {
           default?: "allow" | "deny";
@@ -3489,8 +2352,8 @@ export interface OpenClawConfig {
 }
 
 export const OPENCLAW_REV = "92112a61db519296a7258d508677aa6c49f9a558" as const;
-export type OpenclawChannels = OpenclawConfig["channels"];
-export type OpenclawAgents = OpenclawConfig["agents"];
-export type OpenclawHooks = OpenclawConfig["hooks"];
-export type OpenclawSkills = OpenclawConfig["skills"];
-export type OpenclawPlugins = OpenclawConfig["plugins"];
+export type OpenclawChannels = OpenClawConfig["channels"];
+export type OpenclawAgents = OpenClawConfig["agents"];
+export type OpenclawHooks = OpenClawConfig["hooks"];
+export type OpenclawSkills = OpenClawConfig["skills"];
+export type OpenclawPlugins = OpenClawConfig["plugins"];

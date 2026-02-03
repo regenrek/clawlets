@@ -50,6 +50,83 @@ function writeText(filePath: string, contents: string): void {
   fs.writeFileSync(filePath, contents.endsWith("\n") ? contents : `${contents}\n`, "utf8");
 }
 
+function relaxIndexSignatures(types: string): string {
+  // Some upstream schemas intentionally mix `additionalProperties` (index sig)
+  // with explicit properties of different types. TS index signatures apply to
+  // all keys (incl. explicit ones), so we must widen them to keep the output
+  // valid TypeScript.
+  //
+  // json-schema-to-typescript may emit multi-line index signature types:
+  //   [k: string]: { ... };
+  // So we need a small parser to skip until the terminating `;`.
+  const needle = "[k: string]:";
+  let out = "";
+  let i = 0;
+  while (i < types.length) {
+    const idx = types.indexOf(needle, i);
+    if (idx === -1) return out + types.slice(i);
+
+    out += types.slice(i, idx);
+    out += `${needle} unknown`;
+
+    let j = idx + needle.length;
+    let depthBrace = 0;
+    let depthBracket = 0;
+    let depthParen = 0;
+    let depthAngle = 0;
+    let inSingle = false;
+    let inDouble = false;
+    let inTemplate = false;
+
+    for (; j < types.length; j += 1) {
+      const ch = types[j]!;
+      const prev = j > 0 ? types[j - 1]! : "";
+
+      if (inSingle) {
+        if (ch === "'" && prev !== "\\") inSingle = false;
+        continue;
+      }
+      if (inDouble) {
+        if (ch === '"' && prev !== "\\") inDouble = false;
+        continue;
+      }
+      if (inTemplate) {
+        if (ch === "`" && prev !== "\\") inTemplate = false;
+        continue;
+      }
+
+      if (ch === "'") {
+        inSingle = true;
+        continue;
+      }
+      if (ch === '"') {
+        inDouble = true;
+        continue;
+      }
+      if (ch === "`") {
+        inTemplate = true;
+        continue;
+      }
+
+      if (ch === "{") depthBrace += 1;
+      else if (ch === "}") depthBrace = Math.max(0, depthBrace - 1);
+      else if (ch === "[") depthBracket += 1;
+      else if (ch === "]") depthBracket = Math.max(0, depthBracket - 1);
+      else if (ch === "(") depthParen += 1;
+      else if (ch === ")") depthParen = Math.max(0, depthParen - 1);
+      else if (ch === "<") depthAngle += 1;
+      else if (ch === ">") depthAngle = Math.max(0, depthAngle - 1);
+
+      if (ch === ";" && depthBrace === 0 && depthBracket === 0 && depthParen === 0 && depthAngle === 0) break;
+    }
+
+    if (j >= types.length) return out;
+    out += ";";
+    i = j + 1;
+  }
+  return out;
+}
+
 function readPinnedOpenclawRev(repoRoot: string): string {
   const lockPath = path.join(repoRoot, "flake.lock");
   const lock = readJson<any>(lockPath);
@@ -288,19 +365,20 @@ async function generateArtifacts(params: { repoRoot: string; openclawSrc: string
     additionalProperties: true,
     style: { singleQuote: false },
   });
+  const compiledRelaxed = relaxIndexSignatures(compiled);
 
   const extra = [
     "",
     "export const OPENCLAW_REV = " + JSON.stringify(openclawRev) + " as const;",
-    "export type OpenclawChannels = OpenclawConfig[\"channels\"];",
-    "export type OpenclawAgents = OpenclawConfig[\"agents\"];",
-    "export type OpenclawHooks = OpenclawConfig[\"hooks\"];",
-    "export type OpenclawSkills = OpenclawConfig[\"skills\"];",
-    "export type OpenclawPlugins = OpenclawConfig[\"plugins\"];",
+    "export type OpenclawChannels = OpenClawConfig[\"channels\"];",
+    "export type OpenclawAgents = OpenClawConfig[\"agents\"];",
+    "export type OpenclawHooks = OpenClawConfig[\"hooks\"];",
+    "export type OpenclawSkills = OpenClawConfig[\"skills\"];",
+    "export type OpenclawPlugins = OpenClawConfig[\"plugins\"];",
     "",
   ].join("\n");
   const typesPath = path.join(params.outDir, "openclaw-config.types.ts");
-  writeText(typesPath, `${compiled.trimEnd()}\n${extra}`);
+  writeText(typesPath, `${compiledRelaxed.trimEnd()}\n${extra}`);
 
   console.log(`ok: wrote ${path.relative(params.repoRoot, schemaPath)}`);
   console.log(`ok: wrote ${path.relative(params.repoRoot, typesPath)}`);
@@ -324,7 +402,9 @@ function copyFromNix(params: { repoRoot: string; outDir: string }): void {
     const src = path.join(outPath, file);
     const dest = path.join(params.outDir, file);
     if (!fs.existsSync(src)) throw new Error(`missing file in nix output: ${src}`);
+    if (fs.existsSync(dest)) fs.chmodSync(dest, 0o644);
     fs.copyFileSync(src, dest);
+    fs.chmodSync(dest, 0o644);
   }
 
   console.log(`ok: synced from nix store path ${outPath}`);
