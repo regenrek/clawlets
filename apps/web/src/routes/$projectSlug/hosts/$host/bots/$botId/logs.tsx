@@ -1,10 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router"
 
-export const Route = createFileRoute("/$projectSlug/hosts/$host/agents/$botId/logs")({
-  component: AgentLogs,
+export const Route = createFileRoute("/$projectSlug/hosts/$host/bots/$botId/logs")({
+  component: BotLogs,
 })
 
-function AgentLogs() {
+function BotLogs() {
   return (
     <div className="rounded-lg border bg-card p-6 text-sm text-muted-foreground">
       Logs placeholder. Hook in run log tail / agent logs here.

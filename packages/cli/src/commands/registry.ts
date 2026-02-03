@@ -1,4 +1,4 @@
-import { gateway } from "./bot.js";
+import { gateway } from "./gateway.js";
 import { bootstrap } from "./bootstrap.js";
 import { openclaw } from "./openclaw.js";
 import { config } from "./config.js";

@@ -23,11 +23,11 @@ export function getEnvMapping(params: {
   envVar: string
   fleetSecretEnv: unknown
   botSecretEnv: unknown
-}): { secretName: string; scope: "bot" | "fleet" } | null {
+}): { secretName: string; scope: "gateway" | "fleet" } | null {
   const envVar = params.envVar
   if (isPlainObject(params.botSecretEnv)) {
     const v = params.botSecretEnv[envVar]
-    if (typeof v === "string" && v.trim()) return { secretName: v.trim(), scope: "bot" }
+    if (typeof v === "string" && v.trim()) return { secretName: v.trim(), scope: "gateway" }
   }
   if (isPlainObject(params.fleetSecretEnv)) {
     const v = params.fleetSecretEnv[envVar]

@@ -10,6 +10,22 @@ Clawlets has **two** levels of "agents" that are easy to mix up:
 
 In the dashboard UI we call a **gateway instance** a **Bot** (because "gateway" is accurate but not very approachable).
 
+## Prereqs
+
+- Access to `fleet/clawlets.json` in your repo.
+- Clawlets CLI installed (for validation) or dashboard access.
+
+## Steps
+
+<Steps>
+  <Step>Choose the architecture (Option A or Option B below).</Step>
+  <Step>Update `fleet.gatewayOrder` and `fleet.gateways` to match the chosen shape.</Step>
+  <Step>
+    (Optional) Set `fleet.gatewayArchitecture` to `multi` or `single` to match the dashboard preference.
+  </Step>
+  <Step>Validate the config: <code>clawlets config validate --host &lt;host&gt;</code>.</Step>
+</Steps>
+
 ## Two common setups
 
 ### Option A: multiple gateways (multiple bots)
@@ -76,3 +92,20 @@ Workspace docs are layered:
 - per-gateway overrides: `fleet/workspaces/gateways/<gatewayId>/`
 
 At runtime, the gateway workspace is seeded from common + the gateway overlay (if present).
+
+## Verify
+
+- `clawlets config validate --host <host>` returns `ok`.
+- The expected gateway ids appear in `fleet.gatewayOrder`.
+- For Option B, `agents.list[]` contains at most one `default: true`.
+
+## Troubleshooting
+
+- **"invalid gateway id"**: use lowercase letters, numbers, `_` or `-` (example: `main`, `rescue_1`).
+- **"invalid secret name (looks like a token)"**: use an identifier like `brave_api_key`, not a raw API key.
+- **"multiple default personas"**: only one entry in `agents.list[]` can set `default: true`.
+
+## Links
+
+- [Gateway reference](/reference/gateway)
+- [Config schema](/configuration/config)

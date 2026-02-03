@@ -4,19 +4,20 @@ import { createFileRoute } from "@tanstack/react-router"
 import { useConvexAuth } from "convex/react"
 import type { Id } from "../../../../../../../convex/_generated/dataModel"
 import { api } from "../../../../../../../convex/_generated/api"
-import { BotCapabilities } from "~/components/fleet/bot/bot-capabilities"
-import { BotOpenclawEditor } from "~/components/fleet/bot/bot-openclaw-editor"
-import { BotIntegrations } from "~/components/fleet/integrations/bot-integrations"
-import { BotWorkspaceDocs } from "~/components/fleet/bot/bot-workspace-docs"
+import { BotCapabilities } from "~/components/fleet/bot/gateway-capabilities"
+import { BotOpenclawEditor } from "~/components/fleet/bot/gateway-openclaw-editor"
+import { GatewayPersonas } from "~/components/fleet/bot/gateway-personas"
+import { BotIntegrations } from "~/components/fleet/integrations/gateway-integrations"
+import { BotWorkspaceDocs } from "~/components/fleet/bot/gateway-workspace-docs"
 import { authClient } from "~/lib/auth-client"
 import { useProjectBySlug } from "~/lib/project-data"
 import { getClawletsConfig } from "~/sdk/config"
 
-export const Route = createFileRoute("/$projectSlug/hosts/$host/agents/$botId/settings")({
-  component: AgentSettings,
+export const Route = createFileRoute("/$projectSlug/hosts/$host/bots/$botId/settings")({
+  component: BotSettings,
 })
 
-function AgentSettings() {
+function BotSettings() {
   const { projectSlug, host, botId } = Route.useParams()
   const projectQuery = useProjectBySlug(projectSlug)
   const projectId = projectQuery.projectId
@@ -39,7 +40,7 @@ function AgentSettings() {
   })
 
   const config = cfg.data?.config
-  const botCfg = config?.fleet?.bots?.[botId] as any
+  const botCfg = config?.fleet?.gateways?.[botId] as any
   const openclawCfg = botCfg?.openclaw ?? {}
   const channelsCfg = botCfg?.channels ?? {}
   const agentsCfg = botCfg?.agents ?? {}
@@ -55,7 +56,7 @@ function AgentSettings() {
   if (cfg.isPending) return <div className="text-muted-foreground">Loading…</div>
   if (cfg.error) return <div className="text-sm text-destructive">{String(cfg.error)}</div>
   if (!config) return <div className="text-muted-foreground">Missing config.</div>
-  if (!botCfg) return <div className="text-muted-foreground">Agent not found.</div>
+  if (!botCfg) return <div className="text-muted-foreground">Bot not found.</div>
 
   return (
     <div className="space-y-6">
@@ -81,6 +82,8 @@ function AgentSettings() {
         fleetSecretEnv={fleetSecretEnv}
         canEdit={canEdit}
       />
+
+      <GatewayPersonas projectId={projectId} botId={botId} agents={agentsCfg} canEdit={canEdit} />
 
       <BotWorkspaceDocs projectId={projectId} botId={botId} canEdit={canEdit} />
 

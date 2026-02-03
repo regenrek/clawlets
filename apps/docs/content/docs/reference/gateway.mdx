@@ -12,6 +12,11 @@ If a bot user is compromised, it should not be able to read or write another bot
 state or workspace. Isolation also reduces the blast radius for credentials, sessions,
 tools, and config.
 
+## Prereqs
+
+- Access to `fleet/clawlets.json`.
+- Clawlets CLI installed (for validation).
+
 ## Gateway instances vs agents
 
 - **Gateway instance (bot)**: one OpenClaw gateway process with its own state dir, ports, and OS user.
@@ -19,6 +24,14 @@ tools, and config.
 
 Use agents when you want multiple personas sharing the same gateway process. Use multiple gateways when you need hard
 isolation per persona.
+
+## Steps
+
+<Steps>
+  <Step>Define gateway ids in <code>fleet.gatewayOrder</code> and <code>fleet.gateways</code>.</Step>
+  <Step>Override a base port per gateway if needed via <code>fleet.gateways.&lt;id&gt;.profile.gatewayPort</code>.</Step>
+  <Step>Validate the config: <code>clawlets config validate --host &lt;host&gt;</code>.</Step>
+</Steps>
 
 ## Gateway architecture
 
@@ -107,3 +120,19 @@ Token source (per bot):
 Generated automatically by:
 
 - `openclaw-gateway-token-<bot>.service` (oneshot)
+
+## Verify
+
+- `clawlets config validate --host <host>` returns `ok`.
+- Each gateway resolves to a unique base port (no overlaps).
+- `gateway.auth.mode` is `token` in the rendered OpenClaw config.
+
+## Troubleshooting
+
+- **Port collisions**: ensure `fleet.gatewayOrder` is stable and `gatewayPort` overrides do not overlap.
+- **Missing auth token**: verify the gateway credential service ran and the `gateway.env` file exists.
+
+## Links
+
+- [Gateways and personas](/configuration/gateways-and-personas)
+- [Config schema](/configuration/config)

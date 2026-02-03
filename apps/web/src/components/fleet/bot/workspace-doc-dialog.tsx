@@ -36,14 +36,14 @@ export function WorkspaceDocDialog(props: {
   })
 
   const override = useQuery({
-    queryKey: ["workspaceDoc", props.projectId, props.botId, "bot", docName],
+    queryKey: ["workspaceDoc", props.projectId, props.botId, "gateway", docName],
     enabled,
     queryFn: async () =>
       await readWorkspaceDoc({
         data: {
           projectId: props.projectId as Id<"projects">,
           botId: props.botId,
-          scope: "bot",
+          scope: "gateway",
           name: docName,
         },
       }),
@@ -72,7 +72,7 @@ export function WorkspaceDocDialog(props: {
       await writeWorkspaceDoc({
         data: {
           projectId: props.projectId as Id<"projects">,
-          scope: "bot",
+          scope: "gateway",
           botId: props.botId,
           name: docName,
           content: text,
@@ -116,7 +116,7 @@ export function WorkspaceDocDialog(props: {
   const pathLabel = override.data?.exists
     ? override.data.pathRel
     : props.docName
-      ? `fleet/workspaces/bots/${props.botId}/${props.docName}`
+      ? `fleet/workspaces/gateways/${props.botId}/${props.docName}`
       : ""
 
   return (

@@ -1,7 +1,7 @@
 import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router"
 import { Tabs, TabsList, TabsTrigger } from "~/components/ui/tabs"
 
-const TABS = ["overview", "logs", "settings", "skills"] as const
+const TABS = ["overview", "logs", "settings", "personas", "skills"] as const
 type TabKey = (typeof TABS)[number]
 
 function resolveTab(pathname: string): TabKey {
@@ -9,11 +9,11 @@ function resolveTab(pathname: string): TabKey {
   return TABS.includes(last as TabKey) ? (last as TabKey) : "overview"
 }
 
-export const Route = createFileRoute("/$projectSlug/hosts/$host/agents/$botId")({
-  component: AgentDetailLayout,
+export const Route = createFileRoute("/$projectSlug/hosts/$host/bots/$botId")({
+  component: BotDetailLayout,
 })
 
-function AgentDetailLayout() {
+function BotDetailLayout() {
   const { projectSlug, host, botId } = Route.useParams()
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const navigate = useNavigate()
@@ -24,11 +24,11 @@ function AgentDetailLayout() {
       <div className="space-y-1">
         <div className="text-xs text-muted-foreground">
           <Link
-            to="/$projectSlug/hosts/$host/agents"
+            to="/$projectSlug/hosts/$host/bots"
             params={{ projectSlug, host }}
             className="hover:underline"
           >
-            Agents
+            Bots
           </Link>{" "}
           / <code>{botId}</code>
         </div>
@@ -40,7 +40,7 @@ function AgentDetailLayout() {
         onValueChange={(value) => {
           const tab = TABS.includes(value as TabKey) ? (value as TabKey) : "overview"
           void navigate({
-            to: "/$projectSlug/hosts/$host/agents/$botId/" + tab,
+            to: "/$projectSlug/hosts/$host/bots/$botId/" + tab,
             params: { projectSlug, host, botId },
           })
         }}
@@ -49,6 +49,7 @@ function AgentDetailLayout() {
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="logs">Logs</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
+          <TabsTrigger value="personas">Personas</TabsTrigger>
           <TabsTrigger value="skills">Skills</TabsTrigger>
         </TabsList>
       </Tabs>

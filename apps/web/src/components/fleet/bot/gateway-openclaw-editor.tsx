@@ -83,7 +83,7 @@ export function BotOpenclawEditor(props: {
     if (!parseRunnerRef.current) {
       parseRunnerRef.current = createOpenclawParseScheduler({
         getText: () => textRef.current,
-        getBotId: () => botIdRef.current,
+        getGatewayId: () => botIdRef.current,
         onParsed: setParsed,
         onSecurity: setSecurityReport,
         delayMs: 400,

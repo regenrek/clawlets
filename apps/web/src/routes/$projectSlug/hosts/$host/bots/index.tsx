@@ -1,6 +1,6 @@
 import { convexQuery } from "@convex-dev/react-query"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useMemo, useState } from "react"
 import { toast } from "sonner"
 import { useConvexAuth } from "convex/react"
@@ -14,15 +14,17 @@ import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, Di
 import { InputGroup, InputGroupAddon, InputGroupInput } from "~/components/ui/input-group"
 import { Label } from "~/components/ui/label"
 import { PageHeader } from "~/components/ui/page-header"
+import { RadioGroup, RadioGroupItem } from "~/components/ui/radio-group"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select"
 import { StackedField } from "~/components/ui/stacked-field"
 import { useProjectBySlug } from "~/lib/project-data"
-import { BotRoster, getBotChannels } from "~/components/fleet/bot/bot-roster"
-import { addBot, getClawletsConfig } from "~/sdk/config"
+import { BotRoster, getBotChannels } from "~/components/fleet/bot/gateway-roster"
+import { addBot, getClawletsConfig, setGatewayArchitecture } from "~/sdk/config"
 import { authClient } from "~/lib/auth-client"
+import type { GatewayArchitecture } from "@clawlets/core/lib/clawlets-config"
 
-export const Route = createFileRoute("/$projectSlug/hosts/$host/agents/")({
-  component: AgentsSetup,
+export const Route = createFileRoute("/$projectSlug/hosts/$host/bots/")({
+  component: BotsSetup,
 })
 
 const SAFE_BOT_ID_RE = /^[a-z][a-z0-9_-]*$/
@@ -36,13 +38,13 @@ function slugifyBotId(raw: string): string {
     .replace(/-+/g, "-")
     .replace(/^[-_]+|[-_]+$/g, "")
 
-  if (!cleaned) return "agent"
+  if (!cleaned) return "bot"
   if (/^[a-z]/.test(cleaned)) return cleaned
-  return `agent-${cleaned}`
+  return `bot-${cleaned}`
 }
 
 function suggestUniqueBotId(params: { displayName: string; taken: Set<string> }): string {
-  const base = slugifyBotId(params.displayName || "agent")
+  const base = slugifyBotId(params.displayName || "bot")
   if (!params.taken.has(base)) return base
   for (let i = 2; i < 1_000; i++) {
     const candidate = `${base}-${i}`
@@ -51,8 +53,9 @@ function suggestUniqueBotId(params: { displayName: string; taken: Set<string> })
   return `${base}-${Date.now().toString(36)}`
 }
 
-function AgentsSetup() {
+function BotsSetup() {
   const { projectSlug, host } = Route.useParams()
+  const navigate = useNavigate()
   const projectQuery = useProjectBySlug(projectSlug)
   const projectId = projectQuery.projectId
   const queryClient = useQueryClient()
@@ -75,6 +78,11 @@ function AgentsSetup() {
   })
   const config = cfg.data?.config
   const bots = useMemo(() => (config?.fleet?.gatewayOrder as string[]) || [], [config])
+  const gatewayArchitecture = (config?.fleet as { gatewayArchitecture?: GatewayArchitecture } | undefined)
+    ?.gatewayArchitecture
+  const hasGateways = bots.length > 0
+  const isSingleArchitecture = gatewayArchitecture === "single"
+  const primaryGatewayId = bots[0] ? String(bots[0]) : ""
 
   const takenIds = useMemo(() => new Set(bots.map((b) => String(b || "").trim()).filter(Boolean)), [bots])
 
@@ -111,6 +119,9 @@ function AgentsSetup() {
   const [displayName, setDisplayName] = useState("")
   const [botIdOverride, setBotIdOverride] = useState("")
   const [botIdOverrideEnabled, setBotIdOverrideEnabled] = useState(false)
+  const [architectureDraft, setArchitectureDraft] = useState<GatewayArchitecture>("multi")
+
+  const needsArchitectureChoice = !gatewayArchitecture && !hasGateways
 
   const suggestedBotId = useMemo(
     () => suggestUniqueBotId({ displayName, taken: takenIds }),
@@ -120,9 +131,15 @@ function AgentsSetup() {
 
   const addBotMutation = useMutation({
     mutationFn: async (bot: string) =>
-      await addBot({ data: { projectId: projectId as Id<"projects">, bot } }),
+      await addBot({
+        data: {
+          projectId: projectId as Id<"projects">,
+          bot,
+          architecture: needsArchitectureChoice ? architectureDraft : "",
+        },
+      }),
     onSuccess: () => {
-      toast.success("Agent added")
+      toast.success("Bot added")
       setAddOpen(false)
       setDisplayName("")
       setBotIdOverride("")
@@ -134,7 +151,21 @@ function AgentsSetup() {
     },
   })
 
-  const addAgentDialog = (
+  const setArchitecture = useMutation({
+    mutationFn: async (architecture: GatewayArchitecture) =>
+      await setGatewayArchitecture({
+        data: { projectId: projectId as Id<"projects">, architecture },
+      }),
+    onSuccess: () => {
+      toast.success("Gateway architecture updated")
+      void queryClient.invalidateQueries({ queryKey: ["clawletsConfig", projectId] })
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : String(err))
+    },
+  })
+
+  const addBotDialog = (
     <Dialog
       open={addOpen}
       onOpenChange={(next) => {
@@ -143,25 +174,60 @@ function AgentsSetup() {
           setDisplayName("")
           setBotIdOverride("")
           setBotIdOverrideEnabled(false)
+          setArchitectureDraft("multi")
+        } else {
+          setArchitectureDraft(gatewayArchitecture ?? "multi")
         }
       }}
     >
       <DialogTrigger
         render={
           <Button type="button" disabled={!canEdit}>
-            Add agent
+            Add bot
           </Button>
         }
       />
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Add agent</DialogTitle>
+          <DialogTitle>Add bot</DialogTitle>
           <DialogDescription>
             Pick a display name. We'll generate a safe id you can override in advanced options.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
+          {needsArchitectureChoice ? (
+            <StackedField
+              id="gatewayArchitecture"
+              label="Gateway architecture"
+              description="Pick how you want to scale: multiple isolated gateways or one gateway with multiple agents."
+            >
+              <RadioGroup
+                value={architectureDraft}
+                onValueChange={(value) => setArchitectureDraft(value as GatewayArchitecture)}
+                className="gap-3"
+              >
+                <label className="flex items-start gap-3 rounded-md border bg-muted/10 p-3">
+                  <RadioGroupItem value="multi" />
+                  <span className="space-y-1">
+                    <span className="block text-sm font-medium">Multiple gateways</span>
+                    <span className="block text-xs text-muted-foreground">
+                      Each bot runs as its own gateway instance with isolated ports and state.
+                    </span>
+                  </span>
+                </label>
+                <label className="flex items-start gap-3 rounded-md border bg-muted/10 p-3">
+                  <RadioGroupItem value="single" />
+                  <span className="space-y-1">
+                    <span className="block text-sm font-medium">One gateway, multiple agents</span>
+                    <span className="block text-xs text-muted-foreground">
+                      One gateway process, multiple personas under agents.list.
+                    </span>
+                  </span>
+                </label>
+              </RadioGroup>
+            </StackedField>
+          ) : null}
           <StackedField id="agentDisplayName" label="Display name">
             <Input
               id="agentDisplayName"
@@ -181,7 +247,7 @@ function AgentsSetup() {
                 <div className="space-y-3">
                   <StackedField
                     id="agentId"
-                    label="Agent id"
+                    label="Bot id"
                     description="Used in config paths and as a stable identifier. Allowed: [a-z][a-z0-9_-]*."
                   >
                     <Input
@@ -214,11 +280,11 @@ function AgentsSetup() {
             onClick={() => {
               if (!effectiveBotId) return
               if (!SAFE_BOT_ID_RE.test(effectiveBotId)) {
-                toast.error("Invalid agent id (use [a-z][a-z0-9_-]*)")
+                toast.error("Invalid bot id (use [a-z][a-z0-9_-]*)")
                 return
               }
               if (takenIds.has(effectiveBotId)) {
-                toast.error("That agent id already exists")
+                toast.error("That bot id already exists")
                 return
               }
               addBotMutation.mutate(effectiveBotId)
@@ -234,10 +300,56 @@ function AgentsSetup() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Agents"
-        description="Add/remove agents and configure per-agent settings."
-        actions={addAgentDialog}
+        title="Bots"
+        description="Add/remove bots and configure per-bot settings."
+        actions={
+          isSingleArchitecture && hasGateways ? (
+            <Button
+              type="button"
+              disabled={!canEdit || !primaryGatewayId}
+              onClick={() => {
+                if (!primaryGatewayId) return
+                void navigate({
+                  to: "/$projectSlug/hosts/$host/bots/$botId/personas",
+                  params: { projectSlug, host, botId: primaryGatewayId },
+                })
+              }}
+            >
+              Add agent
+            </Button>
+          ) : (
+            addBotDialog
+          )
+        }
       />
+
+      <div className="rounded-lg border bg-card p-4 space-y-3">
+        <div>
+          <div className="text-sm font-medium">Gateway architecture</div>
+          <div className="text-xs text-muted-foreground">
+            Choose how bots map to OpenClaw gateways. This is a UI preference stored in the config.
+          </div>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <Select
+            value={gatewayArchitecture || ""}
+            onValueChange={(value) => setArchitecture.mutate(value as GatewayArchitecture)}
+          >
+            <SelectTrigger className="w-full sm:w-64" disabled={!canEdit || setArchitecture.isPending || !projectId}>
+              <SelectValue placeholder="Choose architecture" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value="multi">Multiple gateways</SelectItem>
+                <SelectItem value="single">One gateway, multiple agents</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+          <div className="text-xs text-muted-foreground">
+            Changing this does not migrate existing gateways or agents.
+          </div>
+        </div>
+      </div>
 
       {projectQuery.isPending ? (
         <div className="text-muted-foreground">Loading…</div>
@@ -255,17 +367,17 @@ function AgentsSetup() {
         <div className="space-y-3">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <div className="flex-1">
-              <Label htmlFor="agents-search" className="sr-only">
-                Search agents
+              <Label htmlFor="bots-search" className="sr-only">
+                Search bots
               </Label>
               <InputGroup className="bg-input/30 border-input/30 shadow-none">
                 <InputGroupAddon className="pl-2">
                   <MagnifyingGlassIcon className="size-4 shrink-0 opacity-50" />
                 </InputGroupAddon>
                 <InputGroupInput
-                  id="agents-search"
+                  id="bots-search"
                   type="search"
-                  placeholder="Search agents…"
+                  placeholder="Search bots…"
                   value={rosterQuery}
                   onChange={(e) => setRosterQuery(e.target.value)}
                   autoCapitalize="none"
@@ -302,7 +414,7 @@ function AgentsSetup() {
             bots={filteredBots}
             config={config}
             canEdit={canEdit}
-            emptyText={hasRosterQuery || channelFilter !== "all" ? "No matches." : "No agents yet."}
+            emptyText={hasRosterQuery || channelFilter !== "all" ? "No matches." : "No bots yet."}
           />
         </div>
       )}

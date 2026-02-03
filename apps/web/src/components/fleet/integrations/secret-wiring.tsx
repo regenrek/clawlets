@@ -39,7 +39,7 @@ export function SecretWiringDetails(props: {
   const [draftSecretByEnvVar, setDraftSecretByEnvVar] = useState<Record<string, string>>({})
 
   const wireEnv = useMutation({
-    mutationFn: async (params: { envVar: string; scope: "bot" | "fleet"; secretName: string }) => {
+    mutationFn: async (params: { envVar: string; scope: "gateway" | "fleet"; secretName: string }) => {
       const envVar = params.envVar.trim()
       const secretName = params.secretName.trim()
       if (!envVar) throw new Error("missing env var")
@@ -49,7 +49,9 @@ export function SecretWiringDetails(props: {
       if (!parsed.success) throw new Error(parsed.error.issues[0]?.message || "invalid secret name")
 
       const path =
-        params.scope === "bot" ? `fleet.gateways.${props.botId}.profile.secretEnv.${envVar}` : `fleet.secretEnv.${envVar}`
+        params.scope === "gateway"
+          ? `fleet.gateways.${props.botId}.profile.secretEnv.${envVar}`
+          : `fleet.secretEnv.${envVar}`
 
       const res = await configDotSet({
         data: {
@@ -131,7 +133,7 @@ export function SecretWiringDetails(props: {
               const draft = rawDraft.trim()
 
               const hasMapping = Boolean(mapping?.secretName)
-              const canPromote = Boolean(mapping && mapping.scope === "bot" && isShareableEnvVar(envVar))
+              const canPromote = Boolean(mapping && mapping.scope === "gateway" && isShareableEnvVar(envVar))
 
               return (
                 <div key={envVar} className="rounded-md border bg-muted/20 p-3 space-y-2">
@@ -143,7 +145,8 @@ export function SecretWiringDetails(props: {
                       <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-2">
                         {hasMapping ? (
                           <>
-                            mapped to <code>{mapping!.secretName}</code> ({mapping!.scope})
+                            mapped to <code>{mapping!.secretName}</code> (
+                            {mapping!.scope === "gateway" ? "bot" : "fleet"})
                           </>
                         ) : (
                           <>missing mapping</>
@@ -185,7 +188,7 @@ export function SecretWiringDetails(props: {
                         size="sm"
                         variant="outline"
                         disabled={!props.canEdit || wireEnv.isPending || !draft || !isValidEnvVarName(envVar)}
-                        onClick={() => wireEnv.mutate({ envVar, scope: "bot", secretName: draft })}
+                        onClick={() => wireEnv.mutate({ envVar, scope: "gateway", secretName: draft })}
                       >
                         Map (bot)
                       </Button>

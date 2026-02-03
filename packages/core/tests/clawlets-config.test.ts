@@ -109,6 +109,25 @@ describe("clawlets config schema", () => {
     ).toThrow(/gatewayOrder missing gateways/i);
   });
 
+  it("rejects legacy fleet.bots and fleet.botOrder", async () => {
+    const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
+    expect(() =>
+      ClawletsConfigSchema.parse({
+        schemaVersion: 16,
+        fleet: { botOrder: ["maren"], bots: { maren: {} } },
+        hosts: {
+          "openclaw-fleet-host": {
+            enable: false,
+            diskDevice: "/dev/sda",
+            sshExposure: { mode: "tailnet" },
+            tailnet: { mode: "none" },
+            agentModelPrimary: "zai/glm-4.7",
+          },
+        },
+      }),
+    ).toThrow(/fleet\.bots/i);
+  });
+
   it("rejects invalid adminCidr values", async () => {
     const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
     expect(() =>

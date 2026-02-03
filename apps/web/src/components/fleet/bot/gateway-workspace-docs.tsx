@@ -58,7 +58,7 @@ export function BotWorkspaceDocs(props: { projectId: string; botId: string; canE
         <div className="font-medium">Workspace docs</div>
         <div className="text-xs text-muted-foreground">
           Defaults live in <code>fleet/workspaces/common/</code>. Overrides live in{" "}
-          <code>fleet/workspaces/bots/{props.botId}/</code>.
+          <code>fleet/workspaces/gateways/{props.botId}/</code>.
         </div>
       </div>
 

@@ -26,7 +26,7 @@ describe("openclaw parse scheduler", () => {
     const onSecurity = vi.fn()
     const scheduler = mod.createOpenclawParseScheduler({
       getText: () => text,
-      getBotId: () => "bot1",
+      getGatewayId: () => "bot1",
       onParsed,
       onSecurity,
       delayMs: 200,
@@ -43,7 +43,7 @@ describe("openclaw parse scheduler", () => {
     await vi.runAllTimersAsync()
     expect(onParsed).toHaveBeenCalledTimes(1)
     expect(lintSpy).toHaveBeenCalledTimes(1)
-    expect(lintSpy).toHaveBeenCalledWith({ openclaw: { gateway: { auth: { token: "not-an-env-ref" } } }, botId: "bot1" })
+    expect(lintSpy).toHaveBeenCalledWith({ openclaw: { gateway: { auth: { token: "not-an-env-ref" } } }, gatewayId: "bot1" })
     expect(onSecurity).toHaveBeenCalledTimes(1)
     const report = onSecurity.mock.calls[0]?.[0] as any
     expect(report.findings.map((f: any) => f.id)).toContain("inlineSecret.gateway.auth.token")

@@ -21,6 +21,10 @@ export const TailnetModeSchema = z.enum(TAILNET_MODES);
 export type TailnetMode = z.infer<typeof TailnetModeSchema>;
 export const CLAWLETS_CONFIG_SCHEMA_VERSION = 16 as const;
 
+export const GATEWAY_ARCHITECTURES = ["multi", "single"] as const;
+export const GatewayArchitectureSchema = z.enum(GATEWAY_ARCHITECTURES);
+export type GatewayArchitecture = z.infer<typeof GatewayArchitectureSchema>;
+
 const JsonObjectSchema: z.ZodType<Record<string, unknown>> = z.record(z.string(), z.any());
 
 function parseCidr(value: string): { ip: string; prefix: number; family: 4 | 6 } | null {
@@ -258,6 +262,7 @@ const FleetSchema = z
     secretFiles: SecretFilesSchema,
     sshAuthorizedKeys: z.array(z.string().trim().min(1)).default(() => []),
     sshKnownHosts: z.array(z.string().trim().min(1)).default(() => []),
+    gatewayArchitecture: GatewayArchitectureSchema.optional(),
     gatewayOrder: z.array(GatewayIdSchema).default(() => []),
     gateways: z.record(GatewayIdSchema, FleetGatewaySchema).default(() => ({})),
     codex: z
@@ -277,6 +282,7 @@ const FleetSchema = z
       })
       .default(() => ({ restic: { enable: false, repository: "" } })),
   })
+  .passthrough()
   .superRefine((fleet, ctx) => {
     if ((fleet as any).botOrder !== undefined || (fleet as any).bots !== undefined) {
       ctx.addIssue({

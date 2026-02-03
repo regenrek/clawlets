@@ -23,7 +23,7 @@ export function parseOpenclawConfigText(text: string): ParsedOpenclawConfig {
 
 export function createOpenclawParseScheduler(params: {
   getText: () => string
-  getBotId: () => string
+  getGatewayId: () => string
   onParsed: (parsed: ParsedOpenclawConfig) => void
   onSecurity: (report: ReturnType<typeof lintOpenclawSecurityConfig> | null) => void
   delayMs?: number
@@ -39,7 +39,7 @@ export function createOpenclawParseScheduler(params: {
         params.onSecurity(null)
         return
       }
-      const report = lintOpenclawSecurityConfig({ openclaw: parsed.value, gatewayId: params.getBotId() })
+      const report = lintOpenclawSecurityConfig({ openclaw: parsed.value, gatewayId: params.getGatewayId() })
       params.onSecurity(report)
     },
   })

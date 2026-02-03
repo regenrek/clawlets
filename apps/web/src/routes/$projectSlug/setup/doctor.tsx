@@ -42,7 +42,7 @@ function pickFixLink(
     ? ({ to: `${hostBase}/audit`, label: "Open Audit" })
     : toHosts()
   const toBotSettings = (botId: string) => hostBase
-    ? ({ to: `${hostBase}/agents/${encodeURIComponent(botId)}/settings`, label: "Open Bot Settings" })
+    ? ({ to: `${hostBase}/bots/${encodeURIComponent(botId)}/settings`, label: "Open Bot Settings" })
     : toHosts()
 
   const botFromLabel = () => {
@@ -50,13 +50,13 @@ function pickFixLink(
     return match?.[1]?.trim() || ""
   }
   const botFromDetail = () => {
-    const match = detail.match(/fleet\.bots\.([a-z0-9_-]+)/i)
+    const match = detail.match(/fleet\.gateways\.([a-z0-9_-]+)/i)
     return match?.[1]?.trim() || ""
   }
   const botId = botFromLabel() || botFromDetail()
 
   if (label.includes("clawlets config") || label.includes("fleet config")) return toFleet()
-  if (label.includes("fleet policy") || label.includes("fleet bots") || label.includes("services.clawdbotfleet.enable")) return toFleet()
+  if (label.includes("fleet policy") || label.includes("fleet gateways") || label.includes("fleet bots") || label.includes("services.clawdbotfleet.enable")) return toFleet()
   if (label.includes("host config") || label.includes("targethost") || label.includes("sshexposure") || label.includes("diskdevice")) return toHosts()
   if (label.includes("provisioning") || label.includes("admin cidr") || label.includes("ssh pubkey")) return toHosts()
   if (label.includes("hcloud_token") || label.includes("github_token") || label.includes("sops_age_key_file")) return toProjectSecrets()
