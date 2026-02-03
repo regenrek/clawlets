@@ -43,6 +43,7 @@ Fleet settings define secret wiring and global policy shared across hosts.
 - `fleet.secretEnv`: env var name → sops secret name (global defaults)
 - `fleet.secretFiles`: host‑scoped secret files (id → `{ secretName, targetPath, ... }`)
 - `fleet.sshAuthorizedKeys` / `fleet.sshKnownHosts` (project-scoped SSH policy)
+- `fleet.gatewayArchitecture` (optional): dashboard UI preference (`multi|single`, no auto-migration)
 - `fleet.codex` (optional): Codex CLI enablement policy
 - `fleet.backups` (optional): restic config
 

@@ -1,7 +1,24 @@
 {
   "nodes": {
+    "clawdbot-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1769707899,
+        "narHash": "sha256-oOQyqtZbdNm9uN1AwTslo4QRokctqjJM/8w9guZDA4c=",
+        "owner": "moltbot",
+        "repo": "moltbot",
+        "rev": "c9fe062824cabdf919cfbedc1b915375b5e684d1",
+        "type": "github"
+      },
+      "original": {
+        "owner": "moltbot",
+        "repo": "moltbot",
+        "type": "github"
+      }
+    },
     "clawlets": {
       "inputs": {
+        "clawdbot-src": "clawdbot-src",
         "disko": "disko",
         "nix-clawdbot": "nix-clawdbot",
         "nixos-generators": "nixos-generators",
@@ -9,11 +26,11 @@
         "sops-nix": "sops-nix"
       },
       "locked": {
-        "lastModified": 1768731740,
-        "narHash": "sha256-1dS33lF2mKmGfZ5pPrwJN2GPCXxeFCBhdnc6isNj+vg=",
+        "lastModified": 1769981782,
+        "narHash": "sha256-fDMOtmh65DdNShxhlpliFFyLT1eUEiP+YdRnNsDIYvw=",
         "owner": "regenrek",
         "repo": "clawlets",
-        "rev": "59456730ea27c0d96d60097e47a7ef43aeda4792",
+        "rev": "63d691fbea363c891269c25d9754e1f458b7d399",
         "type": "github"
       },
       "original": {
@@ -30,11 +47,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1766150702,
-        "narHash": "sha256-P0kM+5o+DKnB6raXgFEk3azw8Wqg5FL6wyl9jD+G5a4=",
+        "lastModified": 1769524058,
+        "narHash": "sha256-zygdD6X1PcVNR2PsyK4ptzrVEiAdbMqLos7utrMDEWE=",
         "owner": "nix-community",
         "repo": "disko",
-        "rev": "916506443ecd0d0b4a0f4cf9d40a3c22ce39b378",
+        "rev": "71a3fc97d80881e91710fe721f1158d3b96ae14d",
         "type": "github"
       },
       "original": {
@@ -94,11 +111,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1768563173,
-        "narHash": "sha256-cAs6RrIOdDARUOjEbjdUzt7gTT4oaJYQZDT6nrP0SiA=",
+        "lastModified": 1769709249,
+        "narHash": "sha256-4/j9WCGqlxdXxxOx3AaewH+HYMDvxkSjg3OkTX6W0Sw=",
         "owner": "clawdbot",
         "repo": "nix-clawdbot",
-        "rev": "c0b61a3e363a8f38527ac28a74887fe53dd40018",
+        "rev": "b8625be32194bf8b80ed9239a0d646ceccdf792f",
         "type": "github"
       },
       "original": {
@@ -112,15 +129,15 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1768399770,
-        "narHash": "sha256-PQDfBODJ/CZbodvo+rLVxhq4GYFzGyr5iSYXmzCz8xw=",
-        "owner": "clawdbot",
+        "lastModified": 1769632524,
+        "narHash": "sha256-lDGYIwZUPXF+FoqE9fATn8sqDjfpM7Iy81KhHvqFjyw=",
+        "owner": "moltbot",
         "repo": "nix-steipete-tools",
-        "rev": "7e0aef78a05ef0c51a10278d610b9d14ee840ea9",
+        "rev": "53ead4d5fd722020dddaede861745a32e39d284e",
         "type": "github"
       },
       "original": {
-        "owner": "clawdbot",
+        "owner": "moltbot",
         "repo": "nix-steipete-tools",
         "type": "github"
       }
@@ -207,11 +224,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1768481291,
-        "narHash": "sha256-NjKtkJraCZEnLHAJxLTI+BfdU//9coAz9p5TqveZwPU=",
+        "lastModified": 1769469829,
+        "narHash": "sha256-wFcr32ZqspCxk4+FvIxIL0AZktRs6DuF8oOsLt59YBU=",
         "owner": "Mic92",
         "repo": "sops-nix",
-        "rev": "e085e303dfcce21adcb5fec535d65aacb066f101",
+        "rev": "c5eebd4eb2e3372fe12a8d70a248a6ee9dd02eff",
         "type": "github"
       },
       "original": {

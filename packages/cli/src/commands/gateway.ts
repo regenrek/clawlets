@@ -45,7 +45,7 @@ const add = defineCommand({
       const tips = resolved.tips.length > 0 ? `; ${resolved.tips.join("; ")}` : "";
       throw new Error(`${resolved.message}${tips}`);
     }
-    const hostCfg = (config.hosts as any)?.[resolved.host];
+    const hostCfg = config.hosts?.[resolved.host];
     if (!hostCfg) throw new Error(`missing host in config.hosts: ${resolved.host}`);
 
     let gatewayId = String(args.gateway || "").trim();
@@ -65,7 +65,9 @@ const add = defineCommand({
     const err = validateGatewayId(gatewayId);
     if (err) throw new Error(err);
 
-    const existingBots = Array.isArray(hostCfg.botsOrder) ? hostCfg.botsOrder : [];
+    const existingBots: string[] = Array.isArray(hostCfg.botsOrder)
+      ? hostCfg.botsOrder.map((value: unknown) => String(value))
+      : [];
     const botsById = (hostCfg.bots as any) || {};
     if (existingBots.includes(gatewayId) || botsById[gatewayId]) {
       console.log(`ok: already present: ${gatewayId} (host=${resolved.host})`);
@@ -101,11 +103,13 @@ const rm = defineCommand({
       const tips = resolved.tips.length > 0 ? `; ${resolved.tips.join("; ")}` : "";
       throw new Error(`${resolved.message}${tips}`);
     }
-    const hostCfg = (config.hosts as any)?.[resolved.host];
+    const hostCfg = config.hosts?.[resolved.host];
     if (!hostCfg) throw new Error(`missing host in config.hosts: ${resolved.host}`);
     const gatewayId = String(args.gateway || "").trim();
     if (!gatewayId) throw new Error("missing --gateway");
-    const existingBots = Array.isArray(hostCfg.botsOrder) ? hostCfg.botsOrder : [];
+    const existingBots: string[] = Array.isArray(hostCfg.botsOrder)
+      ? hostCfg.botsOrder.map((value: unknown) => String(value))
+      : [];
     const botsById = (hostCfg.bots as any) || {};
     if (!existingBots.includes(gatewayId) && !botsById[gatewayId]) {
       throw new Error(`bot not found on host=${resolved.host}: ${gatewayId}`);

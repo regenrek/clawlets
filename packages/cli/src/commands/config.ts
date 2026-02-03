@@ -201,9 +201,13 @@ const deriveAllowlist = defineCommand({
 
     const plan = buildFleetSecretsPlan({ config: validated, hostName: resolved.host });
     const gatewayArg = args.gateway ? String(args.gateway).trim() : "";
-    const hostCfg = (validated.hosts as any)?.[resolved.host];
+    const hostCfg = validated.hosts?.[resolved.host];
     if (!hostCfg) throw new Error(`missing host in config.hosts: ${resolved.host}`);
-    const gateways = gatewayArg ? [gatewayArg] : hostCfg.botsOrder || [];
+    const gateways: string[] = gatewayArg
+      ? [gatewayArg]
+      : Array.isArray(hostCfg.botsOrder)
+        ? hostCfg.botsOrder.map((value) => String(value))
+        : [];
     if (gateways.length === 0) throw new Error(`hosts.${resolved.host}.botsOrder is empty (set bots in fleet/clawlets.json)`);
 
     const updates = gateways.map((gatewayId) => {

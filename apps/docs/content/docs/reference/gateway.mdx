@@ -35,6 +35,8 @@ isolation per persona.
 
 ## Gateway architecture
 
+The dashboard stores the chosen shape in `fleet.gatewayArchitecture` (`multi|single`). This is a UI preference only; it does not rewrite or migrate your config.
+
 ### Option A — multiple gateways (`multi`)
 
 Each bot is its own gateway instance.
@@ -53,7 +55,7 @@ Each bot is its own gateway instance.
 }
 ```
 
-### Option B — one gateway, multiple agents
+### Option B — one gateway, multiple agents (`single`)
 
 One gateway process, multiple agents via `agents.list[]`.
 
