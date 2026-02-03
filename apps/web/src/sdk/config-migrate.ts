@@ -10,7 +10,7 @@ import { mapValidationIssues, runWithEventsAndStatus, type ValidationIssue } fro
 import { readFile } from "node:fs/promises"
 import { parseProjectIdInput } from "~/sdk/serverfn-validators"
 
-export const migrateClawletsConfigFileToV15 = createServerFn({ method: "POST" })
+export const migrateClawletsConfigFileToLatest = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => {
     return parseProjectIdInput(data)
   })

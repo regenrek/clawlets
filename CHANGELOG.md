@@ -10,14 +10,16 @@ The format is based on Keep a Changelog and this project follows SemVer for npm 
 - Pinned upstream OpenClaw JSON Schema snapshot + deterministic TS type generation (Nix/CI guarded).
 
 ### Changed
-- Bots are now host-scoped: `hosts.<host>.botsOrder` / `hosts.<host>.bots` replace `fleet.gatewayOrder` / `fleet.gateways` (schema bumped to v17; manual update required, no auto-migration).
+- Bots are now host-scoped: `hosts.<host>.botsOrder` / `hosts.<host>.bots` replace `fleet.gatewayOrder` / `fleet.gateways` (schema bumped to v17; migrate supported when target host is unambiguous).
 - `fleet.codex.gateways` replaced by `fleet.codex.bots` (if used).
 - Rename `clawdbot` → `openclaw` across config, CLI, docs, and Nix; schema bumped to v15 with migration path.
 - Validate `hosts.<host>.bots.<bot>.openclaw` passthrough against pinned upstream schema (fail fast, full-path errors).
+- Template/Nix: add `flakeInfo.clawletsInput` (clawlets input revision) alongside `flakeInfo.clawlets` (project revision).
 
 ### Fixed
 - Config batch validation now rejects ambiguous ops early; migration now moves legacy `openclaw.*` typed surfaces.
 - Prevent bots/gateways from fan-out across all enabled hosts by enforcing host-scoped bot lists.
+- Web add-bot flow now reconciles `hosts.<host>.botsOrder` and `hosts.<host>.bots` instead of silently leaving partial state.
 
 ## [0.4.4] - 2026-02-01
 ### Added
@@ -32,7 +34,7 @@ The format is based on Keep a Changelog and this project follows SemVer for npm 
 - Default web auth to Better Auth (remove legacy auth-disabled path) and enforce sign-in redirect.
 - Regenerate pinned OpenClaw schema to include channel plugin schemas for capability selection.
 - Move SSH keys from host scope to project scope (`fleet.sshAuthorizedKeys` / `fleet.sshKnownHosts`) and update migrations/UI accordingly.
-- Rename clawdlets → clawlets across CLI, docs, templates, and runtime (`.clawlets/`).
+- Rename project to clawlets across CLI, docs, templates, and runtime (`.clawlets/`).
 
 ### Fixed
 - Allow `deploy` run kinds in web/Convex schema.

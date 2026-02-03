@@ -13,6 +13,50 @@ import { getAdminProjectContext } from "~/sdk/repo-root"
 import { runWithEventsAndStatus } from "~/sdk/run-with-events"
 import { parseProjectIdInput } from "~/sdk/serverfn-validators"
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value)
+}
+
+export function ensureHostBotEntry(params: { hostCfg: Record<string, unknown>; botId: string }): { changed: boolean } {
+  const botId = params.botId.trim()
+  if (!botId) throw new Error("missing bot id")
+
+  const botsOrder = Array.isArray(params.hostCfg.botsOrder) ? (params.hostCfg.botsOrder as unknown[]).filter((v): v is string => typeof v === "string") : []
+  const botsRaw = params.hostCfg.bots
+  const bots = isPlainObject(botsRaw) ? (botsRaw as Record<string, unknown>) : {}
+
+  let changed = false
+  if (!Array.isArray(params.hostCfg.botsOrder)) {
+    params.hostCfg.botsOrder = botsOrder
+    changed = true
+  }
+  if (!isPlainObject(botsRaw)) {
+    params.hostCfg.bots = bots
+    changed = true
+  }
+
+  const inOrder = botsOrder.includes(botId)
+  const inBots = Object.prototype.hasOwnProperty.call(bots, botId)
+
+  if (inBots && !isPlainObject(bots[botId])) {
+    throw new Error(`invalid bot config for ${botId} (expected object)`)
+  }
+
+  if (!inOrder) {
+    botsOrder.push(botId)
+    params.hostCfg.botsOrder = botsOrder
+    changed = true
+  }
+
+  if (!inBots) {
+    bots[botId] = {}
+    params.hostCfg.bots = bots
+    changed = true
+  }
+
+  return { changed }
+}
+
 export const addBot = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => {
     const base = parseProjectIdInput(data)
@@ -41,23 +85,26 @@ export const addBot = createServerFn({ method: "POST" })
     const architecture = data.architecture.trim()
     const parsedBot = GatewayIdSchema.safeParse(botId)
     if (!parsedBot.success) throw new Error("invalid bot id")
+
+    let changed = false
     if (architecture) {
       const parsedArchitecture = GatewayArchitectureSchema.safeParse(architecture)
       if (!parsedArchitecture.success) throw new Error("invalid gateway architecture")
-      if (next.fleet.gatewayArchitecture && next.fleet.gatewayArchitecture !== parsedArchitecture.data) {
-        throw new Error(`gateway architecture already set to ${next.fleet.gatewayArchitecture}`)
+      const existingArch = next.fleet.gatewayArchitecture
+      if (existingArch && existingArch !== parsedArchitecture.data) {
+        throw new Error(`gateway architecture already set to ${existingArch}`)
       }
-      next.fleet.gatewayArchitecture = parsedArchitecture.data
+      if (!existingArch) {
+        next.fleet.gatewayArchitecture = parsedArchitecture.data
+        changed = true
+      }
     }
-    hostCfg.botsOrder = Array.isArray(hostCfg.botsOrder) ? hostCfg.botsOrder : []
-    hostCfg.bots =
-      hostCfg.bots && typeof hostCfg.bots === "object" && !Array.isArray(hostCfg.bots) ? hostCfg.bots : {}
-    if (hostCfg.botsOrder.includes(botId) || hostCfg.bots[botId]) return { ok: true as const }
-    hostCfg.botsOrder = [...hostCfg.botsOrder, botId]
-    // New bots should be channel-agnostic by default.
-    // Integrations can be enabled later via per-bot config (and then wire secrets as needed).
-    hostCfg.bots[botId] = {}
+
+    const res = ensureHostBotEntry({ hostCfg, botId })
+    if (res.changed) changed = true
     next.hosts[hostName] = hostCfg
+
+    if (!changed) return { ok: true as const }
 
     const validated = ClawletsConfigSchema.parse(next)
     const { runId } = await client.mutation(api.runs.create, {

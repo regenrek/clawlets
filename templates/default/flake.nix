@@ -36,8 +36,14 @@
 
       flakeInfo = {
         clawlets = {
+          kind = "project";
           rev = self.rev or null;
           lastModifiedDate = self.lastModifiedDate or null;
+        };
+        clawletsInput = {
+          kind = "input";
+          rev = clawlets.rev or null;
+          lastModifiedDate = clawlets.lastModifiedDate or null;
         };
         nixpkgs = {
           rev = nixpkgs.rev or null;
