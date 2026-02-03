@@ -5,8 +5,8 @@ import { findRepoRoot } from "@clawlets/core/lib/repo";
 import { ClawletsConfigSchema, loadClawletsConfig, writeClawletsConfig } from "@clawlets/core/lib/clawlets-config";
 import { cancelFlow, navOnCancel, NAV_EXIT } from "../lib/wizard.js";
 
-function validateBotId(value: string): string | undefined {
-  const v = value.trim();
+function validateBotId(value: string | undefined): string | undefined {
+  const v = String(value || "").trim();
   if (!v) return "bot id required";
   if (!/^[a-z][a-z0-9_-]*$/.test(v)) return "use: [a-z][a-z0-9_-]*";
   return undefined;
