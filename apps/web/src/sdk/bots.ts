@@ -359,11 +359,11 @@ export const verifyBotOpenclawSchema = createServerFn({ method: "POST" })
     let liveSchema: Record<string, unknown> | null = null
     try {
       const { fetchOpenclawSchemaLive } = await import("~/server/openclaw-schema.server")
-        const live = await fetchOpenclawSchemaLive({
-          projectId: data.projectId,
-          host: hostName,
-          botId,
-        })
+      const live = await fetchOpenclawSchemaLive({
+        projectId: data.projectId,
+        host: hostName,
+        botId,
+      })
       if (!live.ok) {
         return { ok: false as const, issues: mapSchemaFailure(live.message || LIVE_SCHEMA_ERROR_FALLBACK) }
       }
