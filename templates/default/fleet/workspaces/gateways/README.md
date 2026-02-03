@@ -1,6 +1,6 @@
-# Per-bot workspace overrides
+# Per-gateway workspace overrides
 
-Create `fleet/workspaces/bots/<bot>/` to override files from `fleet/workspaces/common/` for that bot.
+Create `fleet/workspaces/gateways/<gatewayId>/` to override files from `fleet/workspaces/common/` for that bot/gateway.
 
 Used in two phases:
 
@@ -20,5 +20,5 @@ Used in two phases:
 - also syncs `skills/` (custom/local skills) into the workspace:
   - `skills/<skill>/SKILL.md`
 
-Example override dir (not used unless you actually have a bot named `_example`):
-- `fleet/workspaces/bots/_example/`
+Example override dir (not used unless you actually have a bot/gateway named `_example`):
+- `fleet/workspaces/gateways/_example/`
