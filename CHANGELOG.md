@@ -20,6 +20,7 @@ The format is based on Keep a Changelog and this project follows SemVer for npm 
 - Config batch validation now rejects ambiguous ops early; migration now moves legacy `openclaw.*` typed surfaces.
 - Prevent bots/gateways from fan-out across all enabled hosts by enforcing host-scoped bot lists.
 - Web add-bot flow now reconciles `hosts.<host>.botsOrder` and `hosts.<host>.bots` instead of silently leaving partial state.
+- Fix `clawlets project init` by updating the pinned default template ref; add CI gate to validate the pin stays compatible.
 
 ## [0.4.4] - 2026-02-01
 ### Added

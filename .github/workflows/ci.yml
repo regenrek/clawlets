@@ -200,8 +200,9 @@ jobs:
           set -euo pipefail
           echo "repo=$(jq -r '.repo' config/template-source.json)" >> "$GITHUB_OUTPUT"
           echo "path=$(jq -r '.path' config/template-source.json)" >> "$GITHUB_OUTPUT"
+          echo "ref_pinned=$(jq -r '.ref' config/template-source.json)" >> "$GITHUB_OUTPUT"
           # Use current commit SHA for CI to test the actual templates in this PR/push
-          echo "ref=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          echo "ref_ci=${{ github.sha }}" >> "$GITHUB_OUTPUT"
 
       - name: Project init from template repo
         run: |
@@ -212,7 +213,20 @@ jobs:
             --git-init false \
             --template "${{ steps.template.outputs.repo }}" \
             --template-path "${{ steps.template.outputs.path }}" \
-            --template-ref "${{ steps.template.outputs.ref }}"
+            --template-ref "${{ steps.template.outputs.ref_ci }}"
+          (cd "${tmpdir}/clawlets-project" && node "${GITHUB_WORKSPACE}/packages/cli/dist/main.mjs" doctor --scope repo)
+          (cd "${tmpdir}/clawlets-project" && node "${GITHUB_WORKSPACE}/packages/cli/dist/main.mjs" config validate --strict)
+
+      - name: Project init from pinned template ref
+        run: |
+          set -euo pipefail
+          tmpdir="$(mktemp -d)"
+          node "${GITHUB_WORKSPACE}/packages/cli/dist/main.mjs" project init \
+            --dir "${tmpdir}/clawlets-project" \
+            --git-init false \
+            --template "${{ steps.template.outputs.repo }}" \
+            --template-path "${{ steps.template.outputs.path }}" \
+            --template-ref "${{ steps.template.outputs.ref_pinned }}"
           (cd "${tmpdir}/clawlets-project" && node "${GITHUB_WORKSPACE}/packages/cli/dist/main.mjs" doctor --scope repo)
           (cd "${tmpdir}/clawlets-project" && node "${GITHUB_WORKSPACE}/packages/cli/dist/main.mjs" config validate --strict)
 
