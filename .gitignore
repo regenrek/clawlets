@@ -12,7 +12,6 @@ packages/core/tests/.template/
 .env.local
 .env.prod
 .clawlets/
-.clawdlets/
 .alchemy/
 .tanstack/
 .wrangler/

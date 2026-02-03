@@ -9,12 +9,19 @@ let
 
   cfg = defs.cfg;
 
+  projectInfo =
+    if flakeInfo ? project
+    then flakeInfo.project
+    else if flakeInfo ? clawlets && (flakeInfo.clawlets.kind or null) != "input"
+    then flakeInfo.clawlets
+    else { };
+
 in
 {
   config = lib.mkIf cfg.enable {
     assertions = [
       {
-        assertion = (flakeInfo.clawlets.rev or null) != null;
+        assertion = (projectInfo.rev or null) != null;
         message = "refusing to build: flake source has no git revision (dirty tree or non-git source); deploy by pinning a git commit (?rev=<sha>)";
       }
       {
