@@ -32,6 +32,13 @@ let
 
   sopsSecrets = import ../lib/sops-secrets.nix { };
   mkSopsSecret = secretName: (sopsSecrets.mkSopsSecretFor { hostDir = hostSecretsDir; }) secretName;
+
+  projectInfo =
+    if flakeInfo ? project
+    then flakeInfo.project
+    else if flakeInfo ? clawlets && (flakeInfo.clawlets.kind or null) != "input"
+    then flakeInfo.clawlets
+    else { };
 in
 {
   options.clawlets = {
@@ -192,7 +199,7 @@ in
   config = {
     clawlets.secrets.hostDir = lib.mkDefault defaultHostSecretsDir;
 
-    system.configurationRevision = lib.mkDefault (flakeInfo.clawlets.rev or null);
+    system.configurationRevision = lib.mkDefault (projectInfo.rev or null);
 
     swapDevices = lib.mkDefault [
       {
