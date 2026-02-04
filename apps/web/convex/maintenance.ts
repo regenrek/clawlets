@@ -5,7 +5,6 @@ import { v } from "convex/values";
 const WIPE_TABLES = [
   "runEvents",
   "runs",
-  "bots",
   "providers",
   "projectConfigs",
   "projectMembers",

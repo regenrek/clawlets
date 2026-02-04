@@ -21,7 +21,14 @@ describe("secrets write allowlist", () => {
         defaults: { autoShutdown: true, callbackUrl: "" },
       },
       fleet: { secretEnv: {}, secretFiles: {} },
-      hosts: { alpha: { botsOrder: [], bots: {}, tailnet: { mode: "none" }, agentModelPrimary: "zai/glm-4.7" } },
+      hosts: {
+        alpha: {
+          gatewaysOrder: ["main"],
+          gateways: { main: {} },
+          tailnet: { mode: "none" },
+          agentModelPrimary: "zai/glm-4.7",
+        },
+      },
     })
 
     const allowlist = buildManagedHostSecretNameAllowlist({ config, host: "alpha" })
@@ -56,10 +63,11 @@ describe("secrets write allowlist", () => {
       },
       hosts: {
         alpha: {
-          botsOrder: [],
-          bots: {},
+          gatewaysOrder: ["main"],
+          gateways: { main: {} },
           tailnet: { mode: "tailscale" },
           cache: { netrc: { enable: true, secretName: "garnix_netrc" } },
+          agentModelPrimary: "zai/glm-4.7",
         },
       },
     })

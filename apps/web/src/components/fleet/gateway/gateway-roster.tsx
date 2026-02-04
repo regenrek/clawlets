@@ -7,13 +7,13 @@ import { Item, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } f
 import { cn } from "~/lib/utils"
 import { buildOpenClawGatewayConfig } from "@clawlets/core/lib/openclaw-config-invariants"
 
-export function getBotChannels(params: { config: unknown; host: string; botId: string }): string[] {
+export function getGatewayChannels(params: { config: unknown; host: string; gatewayId: string }): string[] {
   const hostCfg = (params.config as any)?.hosts?.[params.host]
-  const botCfg = hostCfg?.bots?.[params.botId] || {}
-  const openclawCfg = botCfg?.openclaw || {}
+  const gatewayCfg = hostCfg?.gateways?.[params.gatewayId] || {}
+  const openclawCfg = gatewayCfg?.openclaw || {}
   const typedChannels =
-    botCfg?.channels && typeof botCfg.channels === "object" && !Array.isArray(botCfg.channels)
-      ? Object.keys(botCfg.channels)
+    gatewayCfg?.channels && typeof gatewayCfg.channels === "object" && !Array.isArray(gatewayCfg.channels)
+      ? Object.keys(gatewayCfg.channels)
       : []
   const openclawChannels =
     openclawCfg?.channels && typeof openclawCfg.channels === "object" && !Array.isArray(openclawCfg.channels)
@@ -28,9 +28,13 @@ export function formatChannelsLabel(channels: string[]): string {
   return `${channels.slice(0, 4).join(", ")} (+${channels.length - 4})`
 }
 
-function getGatewayPort(params: { config: unknown; host: string; botId: string }): number | null {
+function getGatewayPort(params: { config: unknown; host: string; gatewayId: string }): number | null {
   try {
-    const res = buildOpenClawGatewayConfig({ config: params.config as any, hostName: params.host, botId: params.botId })
+    const res = buildOpenClawGatewayConfig({
+      config: params.config as any,
+      hostName: params.host,
+      gatewayId: params.gatewayId,
+    })
     const port = (res.invariants as any)?.gateway?.port
     if (typeof port === "number") return port
     if (typeof port === "string") {
@@ -43,39 +47,39 @@ function getGatewayPort(params: { config: unknown; host: string; botId: string }
   return null
 }
 
-export function BotRoster(props: {
+export function GatewayRoster(props: {
   projectSlug: string
   host: string
   projectId: string
-  bots: string[]
+  gateways: string[]
   config: any
   canEdit: boolean
   emptyText?: string
 }) {
-  if (props.bots.length === 0) {
-    return <div className="text-muted-foreground">{props.emptyText ?? "No bots yet."}</div>
+  if (props.gateways.length === 0) {
+    return <div className="text-muted-foreground">{props.emptyText ?? "No gateways yet."}</div>
   }
 
-  const portByBot = useMemo(() => {
+  const portByGateway = useMemo(() => {
     const next = new Map<string, number | null>()
-    for (const botId of props.bots) {
-      next.set(botId, getGatewayPort({ config: props.config, host: props.host, botId }))
+    for (const gatewayId of props.gateways) {
+      next.set(gatewayId, getGatewayPort({ config: props.config, host: props.host, gatewayId }))
     }
     return next
-  }, [props.bots, props.config])
+  }, [props.gateways, props.config])
 
   const portConflicts = useMemo(() => {
     const byPort = new Map<number, string[]>()
-    for (const [botId, port] of portByBot.entries()) {
+    for (const [gatewayId, port] of portByGateway.entries()) {
       if (typeof port !== "number") continue
       const bucket = byPort.get(port) ?? []
-      bucket.push(botId)
+      bucket.push(gatewayId)
       byPort.set(port, bucket)
     }
     return Array.from(byPort.entries())
-      .filter(([, bots]) => bots.length > 1)
+      .filter(([, gateways]) => gateways.length > 1)
       .sort(([a], [b]) => a - b)
-  }, [portByBot])
+  }, [portByGateway])
 
   return (
     <div className="w-full space-y-3">
@@ -83,9 +87,9 @@ export function BotRoster(props: {
         <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs">
           <div className="font-medium text-destructive">Gateway port conflicts detected</div>
           <ul className="mt-1 list-disc pl-5 text-muted-foreground">
-            {portConflicts.map(([port, bots]) => (
+            {portConflicts.map(([port, gateways]) => (
               <li key={port}>
-                port {port}: {bots.join(", ")}
+                port {port}: {gateways.join(", ")}
               </li>
             ))}
           </ul>
@@ -94,25 +98,25 @@ export function BotRoster(props: {
 
       <div className="w-full overflow-hidden rounded-lg border">
         <ItemGroup className="gap-0">
-          {props.bots.map((botId) => {
-            const channels = getBotChannels({ config: props.config, host: props.host, botId })
+          {props.gateways.map((gatewayId) => {
+            const channels = getGatewayChannels({ config: props.config, host: props.host, gatewayId })
             const channelsLabel = formatChannelsLabel(channels)
-            const port = portByBot.get(botId)
+            const port = portByGateway.get(gatewayId)
             const portLabel = typeof port === "number" ? `port ${port}` : null
 
           return (
             <div
-              key={botId}
+              key={gatewayId}
               className="group relative flex items-center justify-between gap-3 border-b px-4 py-3 last:border-b-0"
             >
               <Item variant="default" className="relative z-10 border-0 rounded-none px-0 py-0 flex-1">
                 <ItemMedia>
                   <Avatar>
-                    <AvatarFallback>{botId.charAt(0).toUpperCase()}</AvatarFallback>
+                    <AvatarFallback>{gatewayId.charAt(0).toUpperCase()}</AvatarFallback>
                   </Avatar>
                 </ItemMedia>
                 <ItemContent className="gap-0">
-                  <ItemTitle className="text-base">{botId}</ItemTitle>
+                  <ItemTitle className="text-base">{gatewayId}</ItemTitle>
                   <ItemDescription className="text-xs">
                     channels: <code>{channelsLabel}</code>
                     {portLabel ? ` · ${portLabel}` : ""}
@@ -130,9 +134,9 @@ export function BotRoster(props: {
               </span>
 
               <Link
-                to="/$projectSlug/hosts/$host/bots/$botId/overview"
-                params={{ projectSlug: props.projectSlug, host: props.host, botId }}
-                aria-label={`Manage ${botId}`}
+                to="/$projectSlug/hosts/$host/gateways/$gatewayId/overview"
+                params={{ projectSlug: props.projectSlug, host: props.host, gatewayId }}
+                aria-label={`Manage ${gatewayId}`}
                 className="absolute inset-0 z-20 rounded-md transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               />
             </div>

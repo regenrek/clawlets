@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest"
 import { AsyncLocalStorage } from "node:async_hooks"
 
-import { LIVE_SCHEMA_ERROR_FALLBACK } from "~/sdk/bots"
+import { LIVE_SCHEMA_ERROR_FALLBACK } from "~/sdk/gateways"
 
 const GLOBAL_STORAGE_KEY = Symbol.for("tanstack-start:start-storage-context")
 const globalObj = globalThis as { [GLOBAL_STORAGE_KEY]?: AsyncLocalStorage<unknown> }
@@ -10,7 +10,7 @@ const startStorage = globalObj[GLOBAL_STORAGE_KEY]
 const runWithStartContext = <T>(context: unknown, fn: () => Promise<T>) =>
   startStorage?.run(context, fn) as Promise<T>
 
-async function loadBots(options: {
+async function loadGateways(options: {
   fetchLive?: () => Promise<{ ok: boolean; message?: string; schema?: { schema: Record<string, unknown> } }>
   validate?: () => { ok: boolean; issues?: Array<{ path: Array<string | number>; message: string }> }
 }) {
@@ -39,7 +39,7 @@ async function loadBots(options: {
       },
       loadClawletsConfigRaw: () => ({
         configPath: "/tmp/fleet/clawlets.json",
-        config: { hosts: { h1: { botsOrder: ["bot1"], bots: { bot1: { openclaw: {} } } } } },
+        config: { hosts: { h1: { gatewaysOrder: ["gateway1"], gateways: { gateway1: { openclaw: {} } } } } },
       }),
       writeClawletsConfig: async () => {},
     }
@@ -49,11 +49,11 @@ async function loadBots(options: {
       options.fetchLive ?? (async () => ({ ok: true, schema: { schema: { type: "object" } } })),
   }))
 
-  const mod = await import("~/sdk/bots")
+  const mod = await import("~/sdk/gateways")
   return { mod, mutation }
 }
 
-describe("setBotOpenclawConfig schema error mapping", () => {
+describe("setGatewayOpenclawConfig schema error mapping", () => {
   const context = {
     request: new Request("http://localhost"),
     contextAfterGlobalMiddlewares: {},
@@ -61,12 +61,12 @@ describe("setBotOpenclawConfig schema error mapping", () => {
   }
 
   it("returns schema error when live schema returns ok:false", async () => {
-    const { mod, mutation } = await loadBots({
+    const { mod, mutation } = await loadGateways({
       fetchLive: async () => ({ ok: false, message: "too many requests" }),
     })
     const res = await runWithStartContext(context, async () =>
-      mod.setBotOpenclawConfig({
-        data: { projectId: "p1" as any, botId: "bot1", host: "h1", schemaMode: "live", openclaw: {} },
+      mod.setGatewayOpenclawConfig({
+        data: { projectId: "p1" as any, gatewayId: "gateway1", host: "h1", schemaMode: "live", openclaw: {} },
       }),
     )
     expect(res.ok).toBe(false)
@@ -80,14 +80,14 @@ describe("setBotOpenclawConfig schema error mapping", () => {
   })
 
   it("returns sanitized schema error when live schema throws", async () => {
-    const { mod } = await loadBots({
+    const { mod } = await loadGateways({
       fetchLive: async () => {
         throw new Error("ssh: connect to host 10.0.0.1 port 22: Connection timed out; cmd: bash -lc 'secret'")
       },
     })
     const res = await runWithStartContext(context, async () =>
-      mod.setBotOpenclawConfig({
-        data: { projectId: "p1" as any, botId: "bot1", host: "h1", schemaMode: "live", openclaw: {} },
+      mod.setGatewayOpenclawConfig({
+        data: { projectId: "p1" as any, gatewayId: "gateway1", host: "h1", schemaMode: "live", openclaw: {} },
       }),
     )
     expect(res.ok).toBe(false)
@@ -97,12 +97,12 @@ describe("setBotOpenclawConfig schema error mapping", () => {
   })
 
   it("maps schema validation issues when pinned schema rejects", async () => {
-    const { mod, mutation } = await loadBots({
+    const { mod, mutation } = await loadGateways({
       validate: () => ({ ok: false, issues: [{ path: ["name"], message: "name: required" }] }),
     })
     const res = await runWithStartContext(context, async () =>
-      mod.setBotOpenclawConfig({
-        data: { projectId: "p1" as any, botId: "bot1", host: "h1", schemaMode: "pinned", openclaw: {} },
+      mod.setGatewayOpenclawConfig({
+        data: { projectId: "p1" as any, gatewayId: "gateway1", host: "h1", schemaMode: "pinned", openclaw: {} },
       }),
     )
     expect(res.ok).toBe(false)
@@ -116,12 +116,12 @@ describe("setBotOpenclawConfig schema error mapping", () => {
   })
 
   it("rejects inline secrets before writing config", async () => {
-    const { mod, mutation } = await loadBots({})
+    const { mod, mutation } = await loadGateways({})
     const res = await runWithStartContext(context, async () =>
-      mod.setBotOpenclawConfig({
+      mod.setGatewayOpenclawConfig({
         data: {
           projectId: "p1" as any,
-          botId: "bot1",
+          gatewayId: "gateway1",
           host: "h1",
           schemaMode: "pinned",
           openclaw: { gateway: { auth: { token: "not-an-env-ref" } } },

@@ -29,7 +29,7 @@ function readSkillEntries(skills: unknown): SkillEntryView[] {
 
 export function SkillsConfigCard(props: {
   host: string
-  botId: string
+  gatewayId: string
   skills: unknown
   canEdit: boolean
   pending: boolean
@@ -96,7 +96,10 @@ export function SkillsConfigCard(props: {
   }
 
   return (
-    <ConfigCard title="Skills config (first-class)" configPath={buildGatewayConfigPath(props.host, props.botId, "skills")}>
+    <ConfigCard
+      title="Skills config (first-class)"
+      configPath={buildGatewayConfigPath(props.host, props.gatewayId, "skills")}
+    >
       <div className="grid gap-4 md:grid-cols-2">
         <TextListField
           label="allowBundled (one per line)"

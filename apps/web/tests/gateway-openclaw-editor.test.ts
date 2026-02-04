@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { shouldDisableSave } from "~/components/fleet/bot/gateway-openclaw-editor"
+import { shouldDisableSave } from "~/components/fleet/gateway/gateway-openclaw-editor"
 
 describe("gateway openclaw editor save gating", () => {
   it("disables save when schema errors present", () => {

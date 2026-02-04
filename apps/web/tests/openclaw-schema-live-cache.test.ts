@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest"
 
 describe("openclaw live schema cache", () => {
-  it("caches live schema per host/bot", async () => {
+  it("caches live schema per host/gateway", async () => {
     vi.useFakeTimers()
     vi.resetModules()
     vi.doMock("node:crypto", () => ({
@@ -23,7 +23,7 @@ describe("openclaw live schema cache", () => {
       loadClawletsConfig: () => ({
         config: {
           defaultHost: "h1",
-          hosts: { h1: { targetHost: "root@127.0.0.1", botsOrder: ["bot1"], bots: { bot1: {} } } },
+          hosts: { h1: { targetHost: "root@127.0.0.1", gatewaysOrder: ["bot1"], gateways: { bot1: {} } } },
         },
       }),
     }))
@@ -38,12 +38,12 @@ describe("openclaw live schema cache", () => {
       sshCapture,
     }))
     const { fetchOpenclawSchemaLive } = await import("~/server/openclaw-schema.server")
-    const first = await fetchOpenclawSchemaLive({ projectId: "p1" as any, host: "h1", botId: "bot1" })
-    const second = await fetchOpenclawSchemaLive({ projectId: "p1" as any, host: "h1", botId: "bot1" })
+    const first = await fetchOpenclawSchemaLive({ projectId: "p1" as any, host: "h1", gatewayId: "bot1" })
+    const second = await fetchOpenclawSchemaLive({ projectId: "p1" as any, host: "h1", gatewayId: "bot1" })
     expect(first).toEqual(second)
     expect(query).toHaveBeenCalledTimes(2)
     expect(mutation).toHaveBeenCalledTimes(1)
-    expect(mutation.mock.calls[0]?.[1]).toMatchObject({ projectId: "p1", host: "h1", botId: "bot1" })
+    expect(mutation.mock.calls[0]?.[1]).toMatchObject({ projectId: "p1", host: "h1", gatewayId: "bot1" })
     expect(sshCapture).toHaveBeenCalledTimes(1)
     expect(sshCapture.mock.calls[0]?.[0]).toBe("root@127.0.0.1")
     expect(sshCapture.mock.calls[0]?.[2]).toMatchObject({
@@ -80,7 +80,7 @@ describe("openclaw live schema cache", () => {
       loadClawletsConfig: () => ({
         config: {
           defaultHost: "h1",
-          hosts: { h1: { targetHost: "root@127.0.0.1", botsOrder: ["bot1"], bots: { bot1: {} } } },
+          hosts: { h1: { targetHost: "root@127.0.0.1", gatewaysOrder: ["bot1"], gateways: { bot1: {} } } },
         },
       }),
     }))
@@ -95,8 +95,8 @@ describe("openclaw live schema cache", () => {
       sshCapture,
     }))
     const { fetchOpenclawSchemaLive } = await import("~/server/openclaw-schema.server")
-    const firstPromise = fetchOpenclawSchemaLive({ projectId: "p1" as any, host: "h1", botId: "bot1" })
-    const secondPromise = fetchOpenclawSchemaLive({ projectId: "p1" as any, host: "h1", botId: "bot1" })
+    const firstPromise = fetchOpenclawSchemaLive({ projectId: "p1" as any, host: "h1", gatewayId: "bot1" })
+    const secondPromise = fetchOpenclawSchemaLive({ projectId: "p1" as any, host: "h1", gatewayId: "bot1" })
     await new Promise((resolve) => setImmediate(resolve))
     expect(sshCapture).toHaveBeenCalledTimes(1)
     resolveGate!()
@@ -129,7 +129,7 @@ describe("openclaw live schema cache", () => {
       loadClawletsConfig: () => ({
         config: {
           defaultHost: "h1",
-          hosts: { h1: { targetHost: "root@127.0.0.1", botsOrder: ["bot1"], bots: { bot1: {} } } },
+          hosts: { h1: { targetHost: "root@127.0.0.1", gatewaysOrder: ["bot1"], gateways: { bot1: {} } } },
         },
       }),
     }))
@@ -144,11 +144,11 @@ describe("openclaw live schema cache", () => {
       sshCapture,
     }))
     const { fetchOpenclawSchemaLive } = await import("~/server/openclaw-schema.server")
-    const firstPromise = fetchOpenclawSchemaLive({ projectId: "p1" as any, host: "h1", botId: "bot1" })
+    const firstPromise = fetchOpenclawSchemaLive({ projectId: "p1" as any, host: "h1", gatewayId: "bot1" })
     await vi.advanceTimersByTimeAsync(5_000)
     const first = await firstPromise
     await vi.advanceTimersByTimeAsync(14_999)
-    const second = await fetchOpenclawSchemaLive({ projectId: "p1" as any, host: "h1", botId: "bot1" })
+    const second = await fetchOpenclawSchemaLive({ projectId: "p1" as any, host: "h1", gatewayId: "bot1" })
     expect(first).toEqual(second)
     expect(sshCapture).toHaveBeenCalledTimes(1)
     vi.useRealTimers()
@@ -178,7 +178,7 @@ describe("openclaw live schema cache", () => {
       loadClawletsConfig: () => ({
         config: {
           defaultHost: "h1",
-          hosts: { h1: { targetHost: "root@127.0.0.1", botsOrder: ["bot1"], bots: { bot1: {} } } },
+          hosts: { h1: { targetHost: "root@127.0.0.1", gatewaysOrder: ["bot1"], gateways: { bot1: {} } } },
         },
       }),
     }))
@@ -193,8 +193,8 @@ describe("openclaw live schema cache", () => {
       sshCapture,
     }))
     const { fetchOpenclawSchemaLive } = await import("~/server/openclaw-schema.server")
-    const adminResult = await fetchOpenclawSchemaLive({ projectId: "p1" as any, host: "h1", botId: "bot1" })
-    const viewerResult = await fetchOpenclawSchemaLive({ projectId: "p1" as any, host: "h1", botId: "bot1" })
+    const adminResult = await fetchOpenclawSchemaLive({ projectId: "p1" as any, host: "h1", gatewayId: "bot1" })
+    const viewerResult = await fetchOpenclawSchemaLive({ projectId: "p1" as any, host: "h1", gatewayId: "bot1" })
     expect(adminResult.ok).toBe(true)
     expect(viewerResult.ok).toBe(false)
     if (!viewerResult.ok) expect(viewerResult.message).toBe("admin required")
@@ -217,7 +217,7 @@ describe("openclaw live schema cache", () => {
       sshCapture,
     }))
     const { fetchOpenclawSchemaLive } = await import("~/server/openclaw-schema.server")
-    const res = await fetchOpenclawSchemaLive({ projectId: "p1" as any, host: "h1", botId: "bot1" })
+    const res = await fetchOpenclawSchemaLive({ projectId: "p1" as any, host: "h1", gatewayId: "bot1" })
     expect(res.ok).toBe(false)
     if (!res.ok) expect(res.message).toBe("admin required")
     expect(mutation).not.toHaveBeenCalled()
@@ -245,7 +245,7 @@ describe("openclaw live schema cache", () => {
       loadClawletsConfig: () => ({
         config: {
           defaultHost: "h1",
-          hosts: { h1: { targetHost: "root@127.0.0.1", botsOrder: ["bot1"], bots: { bot1: {} } } },
+          hosts: { h1: { targetHost: "root@127.0.0.1", gatewaysOrder: ["bot1"], gateways: { bot1: {} } } },
         },
       }),
     }))
@@ -260,7 +260,7 @@ describe("openclaw live schema cache", () => {
       sshCapture,
     }))
     const { fetchOpenclawSchemaLive } = await import("~/server/openclaw-schema.server")
-    const res = await fetchOpenclawSchemaLive({ projectId: "p1" as any, host: "h1", botId: "bot1" })
+    const res = await fetchOpenclawSchemaLive({ projectId: "p1" as any, host: "h1", gatewayId: "bot1" })
     expect(res.ok).toBe(false)
     if (!res.ok) expect(res.message).toBe("too many requests")
     expect(sshCapture).not.toHaveBeenCalled()
@@ -285,7 +285,7 @@ describe("openclaw live schema cache", () => {
       loadClawletsConfig: () => ({
         config: {
           defaultHost: "h1",
-          hosts: { h1: { targetHost: "root@127.0.0.1", botsOrder: ["bot1"], bots: { bot1: {} } } },
+          hosts: { h1: { targetHost: "root@127.0.0.1", gatewaysOrder: ["bot1"], gateways: { bot1: {} } } },
         },
       }),
     }))
@@ -300,8 +300,8 @@ describe("openclaw live schema cache", () => {
       sshCapture,
     }))
     const { fetchOpenclawSchemaLive } = await import("~/server/openclaw-schema.server")
-    const first = await fetchOpenclawSchemaLive({ projectId: "p1" as any, host: "h1", botId: "bot1" })
-    const second = await fetchOpenclawSchemaLive({ projectId: "p1" as any, host: "h1", botId: "bot1" })
+    const first = await fetchOpenclawSchemaLive({ projectId: "p1" as any, host: "h1", gatewayId: "bot1" })
+    const second = await fetchOpenclawSchemaLive({ projectId: "p1" as any, host: "h1", gatewayId: "bot1" })
     expect(first).toEqual(second)
     expect(first.ok).toBe(false)
     expect(sshCapture).toHaveBeenCalledTimes(1)

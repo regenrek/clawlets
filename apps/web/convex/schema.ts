@@ -15,7 +15,7 @@ export const ProjectStatus = v.union(v.literal("creating"), v.literal("ready"), 
 export const ProjectConfigType = v.union(
   v.literal("fleet"),
   v.literal("host"),
-  v.literal("bot"),
+  v.literal("gateway"),
   v.literal("provider"),
   v.literal("raw"),
 );
@@ -101,18 +101,6 @@ const schema = defineSchema({
   })
     .index("by_project", ["projectId"])
     .index("by_project_type", ["projectId", "type"]),
-
-  bots: defineTable({
-    projectId: v.id("projects"),
-    botId: v.string(),
-    enabled: v.boolean(),
-    providerBindings: v.optional(v.any()),
-    metadata: v.optional(v.any()),
-    createdAt: v.number(),
-    updatedAt: v.number(),
-  })
-    .index("by_project", ["projectId"])
-    .index("by_project_botId", ["projectId", "botId"]),
 
   auditLogs: defineTable({
     ts: v.number(),

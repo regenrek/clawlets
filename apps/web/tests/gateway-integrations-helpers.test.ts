@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { readInlineSecretWarnings } from "../src/components/fleet/integrations/helpers"
 
-describe("bot integrations helpers", () => {
+describe("gateway integrations helpers", () => {
   it("warns on inline channel tokens via metadata", () => {
     const warnings = readInlineSecretWarnings({
       channels: {

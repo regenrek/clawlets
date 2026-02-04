@@ -99,7 +99,7 @@ export function ProjectDashboard(props: {
     )
   }
 
-  const botsValue = project.cfg.error ? "—" : project.cfg.botsTotal.toLocaleString()
+  const gatewaysValue = project.cfg.error ? "—" : project.cfg.gatewaysTotal.toLocaleString()
   const hostsValue = project.cfg.error
     ? "—"
     : `${project.cfg.hostsEnabled.toLocaleString()} / ${project.cfg.hostsTotal.toLocaleString()}`
@@ -154,7 +154,7 @@ export function ProjectDashboard(props: {
       </div>
 
       <div className="grid auto-rows-min gap-4 md:grid-cols-3">
-        <KpiCard title="Bots" value={botsValue} subtext="Configured" />
+        <KpiCard title="Gateways" value={gatewaysValue} subtext="Configured" />
         <KpiCard title="Hosts" value={hostsValue} subtext="Enabled / total" />
         <KpiCard title="Default host" value={defaultHost} subtext="From config" />
       </div>
@@ -186,7 +186,7 @@ export function ProjectDashboard(props: {
                 </div>
               <div className="text-muted-foreground mt-3 text-xs">
                 This repo does <span className="font-medium">not</span> support config migrations or legacy keys.
-                Fix <code>fleet/clawlets.json</code> to the current schema (v15) or re-initialize it and reapply your changes.
+                Fix <code>fleet/clawlets.json</code> to the current schema (v18) or re-initialize it and reapply your changes.
                 {canWrite ? null : " (Admin required to write config.)"}
               </div>
               </div>

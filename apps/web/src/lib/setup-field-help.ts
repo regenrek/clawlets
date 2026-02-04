@@ -34,8 +34,8 @@ export const setupFieldHelp = {
     dotValue: "Value to set as a string (use JSON value if you need objects/arrays/bools/numbers).",
     dotValueJson: "Value to set as JSON (e.g. `true`, `123`, `{...}`, `[...]`).",
   },
-  bots: {
-    botId: "Stable bot identifier (used in ports/services and config keys). Must match existing fleet conventions.",
+  gateways: {
+    gatewayId: "Stable gateway identifier (used in ports/services and config keys). Must match existing fleet conventions.",
   },
   secrets: {
     host: "Host whose encrypted secrets you’re initializing/verifying/syncing.",

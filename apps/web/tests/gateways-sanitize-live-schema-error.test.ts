@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest"
 
-import { LIVE_SCHEMA_ERROR_FALLBACK, sanitizeLiveSchemaError } from "~/sdk/bots"
+import { LIVE_SCHEMA_ERROR_FALLBACK, sanitizeLiveSchemaError } from "~/sdk/gateways"
 
-describe("setBotClawdbotConfig live schema errors", () => {
+describe("setGatewayOpenclawConfig live schema errors", () => {
   it("sanitizes unsafe schema errors", () => {
     const err = new Error("ssh: connect to host 10.0.0.1 port 22: Connection timed out; cmd: bash -lc 'secret'")
     expect(sanitizeLiveSchemaError(err)).toBe(LIVE_SCHEMA_ERROR_FALLBACK)

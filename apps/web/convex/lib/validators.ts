@@ -83,18 +83,6 @@ export const ProviderDoc = v.object({
   updatedAt: v.number(),
 });
 
-export const BotDoc = v.object({
-  _id: v.id("bots"),
-  _creationTime: v.number(),
-  projectId: v.id("projects"),
-  botId: v.string(),
-  enabled: v.boolean(),
-  providerBindings: v.optional(v.any()),
-  metadata: v.optional(v.any()),
-  createdAt: v.number(),
-  updatedAt: v.number(),
-});
-
 export const AuditLogDoc = v.object({
   _id: v.id("auditLogs"),
   _creationTime: v.number(),

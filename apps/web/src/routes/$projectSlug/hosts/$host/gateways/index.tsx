@@ -18,18 +18,18 @@ import { RadioGroup, RadioGroupItem } from "~/components/ui/radio-group"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select"
 import { StackedField } from "~/components/ui/stacked-field"
 import { useProjectBySlug } from "~/lib/project-data"
-import { BotRoster, getBotChannels } from "~/components/fleet/bot/gateway-roster"
-import { addBot, getClawletsConfig, setGatewayArchitecture } from "~/sdk/config"
+import { GatewayRoster, getGatewayChannels } from "~/components/fleet/gateway/gateway-roster"
+import { addGateway, getClawletsConfig, setGatewayArchitecture } from "~/sdk/config"
 import { authClient } from "~/lib/auth-client"
 import type { GatewayArchitecture } from "@clawlets/core/lib/clawlets-config"
 
-export const Route = createFileRoute("/$projectSlug/hosts/$host/bots/")({
-  component: BotsSetup,
+export const Route = createFileRoute("/$projectSlug/hosts/$host/gateways/")({
+  component: GatewaysSetup,
 })
 
-const SAFE_BOT_ID_RE = /^[a-z][a-z0-9_-]*$/
+const SAFE_GATEWAY_ID_RE = /^[a-z][a-z0-9_-]*$/
 
-function slugifyBotId(raw: string): string {
+function slugifyGatewayId(raw: string): string {
   const cleaned = raw
     .trim()
     .toLowerCase()
@@ -38,13 +38,13 @@ function slugifyBotId(raw: string): string {
     .replace(/-+/g, "-")
     .replace(/^[-_]+|[-_]+$/g, "")
 
-  if (!cleaned) return "bot"
+  if (!cleaned) return "gateway"
   if (/^[a-z]/.test(cleaned)) return cleaned
-  return `bot-${cleaned}`
+  return `gateway-${cleaned}`
 }
 
-function suggestUniqueBotId(params: { displayName: string; taken: Set<string> }): string {
-  const base = slugifyBotId(params.displayName || "bot")
+function suggestUniqueGatewayId(params: { displayName: string; taken: Set<string> }): string {
+  const base = slugifyGatewayId(params.displayName || "gateway")
   if (!params.taken.has(base)) return base
   for (let i = 2; i < 1_000; i++) {
     const candidate = `${base}-${i}`
@@ -53,7 +53,7 @@ function suggestUniqueBotId(params: { displayName: string; taken: Set<string> })
   return `${base}-${Date.now().toString(36)}`
 }
 
-function BotsSetup() {
+function GatewaysSetup() {
   const { projectSlug, host } = Route.useParams()
   const navigate = useNavigate()
   const projectQuery = useProjectBySlug(projectSlug)
@@ -78,14 +78,17 @@ function BotsSetup() {
   })
   const config = cfg.data?.config
   const hostCfg = (config as any)?.hosts?.[host]
-  const bots = useMemo(() => (hostCfg?.botsOrder as string[]) || [], [hostCfg])
+  const gateways = useMemo(() => (hostCfg?.gatewaysOrder as string[]) || [], [hostCfg])
   const gatewayArchitecture = (config?.fleet as { gatewayArchitecture?: GatewayArchitecture } | undefined)
     ?.gatewayArchitecture
-  const hasGateways = bots.length > 0
+  const hasGateways = gateways.length > 0
   const isSingleArchitecture = gatewayArchitecture === "single"
-  const primaryGatewayId = bots[0] ? String(bots[0]) : ""
+  const primaryGatewayId = gateways[0] ? String(gateways[0]) : ""
 
-  const takenIds = useMemo(() => new Set(bots.map((b) => String(b || "").trim()).filter(Boolean)), [bots])
+  const takenIds = useMemo(
+    () => new Set(gateways.map((g) => String(g || "").trim()).filter(Boolean)),
+    [gateways],
+  )
 
   const [rosterQuery, setRosterQuery] = useState("")
   const [channelFilter, setChannelFilter] = useState("all")
@@ -96,56 +99,56 @@ function BotsSetup() {
   const allChannels = useMemo(() => {
     if (!config) return []
     const found = new Set<string>()
-    for (const botId of bots) {
-      for (const channel of getBotChannels({ config, host, botId })) {
+    for (const gatewayId of gateways) {
+      for (const channel of getGatewayChannels({ config, host, gatewayId })) {
         found.add(channel)
       }
     }
     return Array.from(found).sort()
-  }, [bots, config])
+  }, [gateways, config])
 
-  const filteredBots = useMemo(() => {
+  const filteredGateways = useMemo(() => {
     const query = normalizedQuery
     const filter = channelFilter
 
-    return bots.filter((botId) => {
-      if (query && !botId.toLowerCase().includes(query)) return false
+    return gateways.filter((gatewayId) => {
+      if (query && !gatewayId.toLowerCase().includes(query)) return false
       if (filter === "all") return true
       if (!config) return false
-      return getBotChannels({ config, host, botId }).includes(filter)
+      return getGatewayChannels({ config, host, gatewayId }).includes(filter)
     })
-  }, [bots, channelFilter, config, normalizedQuery])
+  }, [gateways, channelFilter, config, normalizedQuery])
 
   const [addOpen, setAddOpen] = useState(false)
   const [displayName, setDisplayName] = useState("")
-  const [botIdOverride, setBotIdOverride] = useState("")
-  const [botIdOverrideEnabled, setBotIdOverrideEnabled] = useState(false)
+  const [gatewayIdOverride, setGatewayIdOverride] = useState("")
+  const [gatewayIdOverrideEnabled, setGatewayIdOverrideEnabled] = useState(false)
   const [architectureDraft, setArchitectureDraft] = useState<GatewayArchitecture>("multi")
 
   const needsArchitectureChoice = !gatewayArchitecture && !hasGateways
 
-  const suggestedBotId = useMemo(
-    () => suggestUniqueBotId({ displayName, taken: takenIds }),
+  const suggestedGatewayId = useMemo(
+    () => suggestUniqueGatewayId({ displayName, taken: takenIds }),
     [displayName, takenIds],
   )
-  const effectiveBotId = (botIdOverrideEnabled ? botIdOverride : suggestedBotId).trim()
+  const effectiveGatewayId = (gatewayIdOverrideEnabled ? gatewayIdOverride : suggestedGatewayId).trim()
 
-  const addBotMutation = useMutation({
-    mutationFn: async (bot: string) =>
-      await addBot({
+  const addGatewayMutation = useMutation({
+    mutationFn: async (gatewayId: string) =>
+      await addGateway({
         data: {
           projectId: projectId as Id<"projects">,
           host,
-          bot,
+          gatewayId,
           architecture: needsArchitectureChoice ? architectureDraft : "",
         },
       }),
     onSuccess: () => {
-      toast.success("Bot added")
+      toast.success("Gateway added")
       setAddOpen(false)
       setDisplayName("")
-      setBotIdOverride("")
-      setBotIdOverrideEnabled(false)
+      setGatewayIdOverride("")
+      setGatewayIdOverrideEnabled(false)
       void queryClient.invalidateQueries({ queryKey: ["clawletsConfig", projectId] })
     },
     onError: (err) => {
@@ -167,15 +170,15 @@ function BotsSetup() {
     },
   })
 
-  const addBotDialog = (
+  const addGatewayDialog = (
     <Dialog
       open={addOpen}
       onOpenChange={(next) => {
         setAddOpen(next)
         if (!next) {
           setDisplayName("")
-          setBotIdOverride("")
-          setBotIdOverrideEnabled(false)
+          setGatewayIdOverride("")
+          setGatewayIdOverrideEnabled(false)
           setArchitectureDraft("multi")
         } else {
           setArchitectureDraft(gatewayArchitecture ?? "multi")
@@ -185,13 +188,13 @@ function BotsSetup() {
       <DialogTrigger
         render={
           <Button type="button" disabled={!canEdit}>
-            Add bot
+            Add gateway
           </Button>
         }
       />
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Add bot</DialogTitle>
+          <DialogTitle>Add gateway</DialogTitle>
           <DialogDescription>
             Pick a display name. We'll generate a safe id you can override in advanced options.
           </DialogDescription>
@@ -214,7 +217,7 @@ function BotsSetup() {
                   <span className="space-y-1">
                     <span className="block text-sm font-medium">Multiple gateways</span>
                     <span className="block text-xs text-muted-foreground">
-                      Each bot runs as its own gateway instance with isolated ports and state.
+                      Each entry runs as its own gateway instance with isolated ports and state.
                     </span>
                   </span>
                 </label>
@@ -248,17 +251,17 @@ function BotsSetup() {
               <AccordionContent className="pb-4">
                 <div className="space-y-3">
                   <StackedField
-                    id="agentId"
-                    label="Bot id"
+                    id="gatewayId"
+                    label="Gateway id"
                     description="Used in config paths and as a stable identifier. Allowed: [a-z][a-z0-9_-]*."
                   >
                     <Input
-                      id="agentId"
+                      id="gatewayId"
                       placeholder="openclaw"
-                      value={botIdOverrideEnabled ? botIdOverride : suggestedBotId}
+                      value={gatewayIdOverrideEnabled ? gatewayIdOverride : suggestedGatewayId}
                       onChange={(e) => {
-                        setBotIdOverrideEnabled(true)
-                        setBotIdOverride(e.target.value)
+                        setGatewayIdOverrideEnabled(true)
+                        setGatewayIdOverride(e.target.value)
                       }}
                     />
                   </StackedField>
@@ -274,22 +277,22 @@ function BotsSetup() {
             type="button"
             disabled={
               !canEdit ||
-              addBotMutation.isPending ||
-              !effectiveBotId ||
-              !SAFE_BOT_ID_RE.test(effectiveBotId) ||
-              takenIds.has(effectiveBotId)
+              addGatewayMutation.isPending ||
+              !effectiveGatewayId ||
+              !SAFE_GATEWAY_ID_RE.test(effectiveGatewayId) ||
+              takenIds.has(effectiveGatewayId)
             }
             onClick={() => {
-              if (!effectiveBotId) return
-              if (!SAFE_BOT_ID_RE.test(effectiveBotId)) {
-                toast.error("Invalid bot id (use [a-z][a-z0-9_-]*)")
+              if (!effectiveGatewayId) return
+              if (!SAFE_GATEWAY_ID_RE.test(effectiveGatewayId)) {
+                toast.error("Invalid gateway id (use [a-z][a-z0-9_-]*)")
                 return
               }
-              if (takenIds.has(effectiveBotId)) {
-                toast.error("That bot id already exists")
+              if (takenIds.has(effectiveGatewayId)) {
+                toast.error("That gateway id already exists")
                 return
               }
-              addBotMutation.mutate(effectiveBotId)
+              addGatewayMutation.mutate(effectiveGatewayId)
             }}
           >
             Add
@@ -302,8 +305,8 @@ function BotsSetup() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Bots"
-        description="Add/remove bots and configure per-bot settings."
+        title="Gateways"
+        description="Add/remove gateways and configure per-gateway settings."
         actions={
           isSingleArchitecture && hasGateways ? (
             <Button
@@ -312,15 +315,15 @@ function BotsSetup() {
               onClick={() => {
                 if (!primaryGatewayId) return
                 void navigate({
-                  to: "/$projectSlug/hosts/$host/bots/$botId/personas",
-                  params: { projectSlug, host, botId: primaryGatewayId },
+                  to: "/$projectSlug/hosts/$host/gateways/$gatewayId/personas",
+                  params: { projectSlug, host, gatewayId: primaryGatewayId },
                 })
               }}
             >
               Add agent
             </Button>
           ) : (
-            addBotDialog
+            addGatewayDialog
           )
         }
       />
@@ -329,7 +332,7 @@ function BotsSetup() {
         <div>
           <div className="text-sm font-medium">Gateway architecture</div>
           <div className="text-xs text-muted-foreground">
-            Choose how bots map to OpenClaw gateways. This is a UI preference stored in the config.
+            Choose how personas map to OpenClaw gateways. This is a UI preference stored in the config.
           </div>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -369,17 +372,17 @@ function BotsSetup() {
         <div className="space-y-3">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <div className="flex-1">
-              <Label htmlFor="bots-search" className="sr-only">
-                Search bots
+              <Label htmlFor="gateways-search" className="sr-only">
+                Search gateways
               </Label>
               <InputGroup className="bg-input/30 border-input/30 shadow-none">
                 <InputGroupAddon className="pl-2">
                   <MagnifyingGlassIcon className="size-4 shrink-0 opacity-50" />
                 </InputGroupAddon>
                 <InputGroupInput
-                  id="bots-search"
+                  id="gateways-search"
                   type="search"
-                  placeholder="Search bots…"
+                  placeholder="Search gateways…"
                   value={rosterQuery}
                   onChange={(e) => setRosterQuery(e.target.value)}
                   autoCapitalize="none"
@@ -409,17 +412,18 @@ function BotsSetup() {
             </div>
           </div>
 
-          <BotRoster
+          <GatewayRoster
             projectSlug={projectSlug}
             host={host}
             projectId={projectId}
-            bots={filteredBots}
+            gateways={filteredGateways}
             config={config}
             canEdit={canEdit}
-            emptyText={hasRosterQuery || channelFilter !== "all" ? "No matches." : "No bots yet."}
+            emptyText={hasRosterQuery || channelFilter !== "all" ? "No matches." : "No gateways yet."}
           />
         </div>
       )}
     </div>
   )
 }
+

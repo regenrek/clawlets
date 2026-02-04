@@ -17,54 +17,59 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value)
 }
 
-export function ensureHostBotEntry(params: { hostCfg: Record<string, unknown>; botId: string }): { changed: boolean } {
-  const botId = params.botId.trim()
-  if (!botId) throw new Error("missing bot id")
+export function ensureHostGatewayEntry(params: {
+  hostCfg: Record<string, unknown>
+  gatewayId: string
+}): { changed: boolean } {
+  const gatewayId = params.gatewayId.trim()
+  if (!gatewayId) throw new Error("missing gateway id")
 
-  const botsOrder = Array.isArray(params.hostCfg.botsOrder) ? (params.hostCfg.botsOrder as unknown[]).filter((v): v is string => typeof v === "string") : []
-  const botsRaw = params.hostCfg.bots
-  const bots = isPlainObject(botsRaw) ? (botsRaw as Record<string, unknown>) : {}
+  const gatewaysOrder = Array.isArray(params.hostCfg.gatewaysOrder)
+    ? (params.hostCfg.gatewaysOrder as unknown[]).filter((v): v is string => typeof v === "string")
+    : []
+  const gatewaysRaw = params.hostCfg.gateways
+  const gateways = isPlainObject(gatewaysRaw) ? (gatewaysRaw as Record<string, unknown>) : {}
 
   let changed = false
-  if (!Array.isArray(params.hostCfg.botsOrder)) {
-    params.hostCfg.botsOrder = botsOrder
+  if (!Array.isArray(params.hostCfg.gatewaysOrder)) {
+    params.hostCfg.gatewaysOrder = gatewaysOrder
     changed = true
   }
-  if (!isPlainObject(botsRaw)) {
-    params.hostCfg.bots = bots
+  if (!isPlainObject(gatewaysRaw)) {
+    params.hostCfg.gateways = gateways
     changed = true
   }
 
-  const inOrder = botsOrder.includes(botId)
-  const inBots = Object.prototype.hasOwnProperty.call(bots, botId)
+  const inOrder = gatewaysOrder.includes(gatewayId)
+  const inGateways = Object.prototype.hasOwnProperty.call(gateways, gatewayId)
 
-  if (inBots && !isPlainObject(bots[botId])) {
-    throw new Error(`invalid bot config for ${botId} (expected object)`)
+  if (inGateways && !isPlainObject(gateways[gatewayId])) {
+    throw new Error(`invalid gateway config for ${gatewayId} (expected object)`)
   }
 
   if (!inOrder) {
-    botsOrder.push(botId)
-    params.hostCfg.botsOrder = botsOrder
+    gatewaysOrder.push(gatewayId)
+    params.hostCfg.gatewaysOrder = gatewaysOrder
     changed = true
   }
 
-  if (!inBots) {
-    bots[botId] = {}
-    params.hostCfg.bots = bots
+  if (!inGateways) {
+    gateways[gatewayId] = {}
+    params.hostCfg.gateways = gateways
     changed = true
   }
 
   return { changed }
 }
 
-export const addBot = createServerFn({ method: "POST" })
+export const addGateway = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => {
     const base = parseProjectIdInput(data)
     const d = data as Record<string, unknown>
     return {
       ...base,
       host: String(d["host"] || ""),
-      bot: String(d["bot"] || ""),
+      gatewayId: String(d["gatewayId"] || ""),
       architecture: typeof d["architecture"] === "string" ? d["architecture"] : "",
     }
   })
@@ -81,10 +86,11 @@ export const addBot = createServerFn({ method: "POST" })
     if (!hostName) throw new Error("missing host")
     const hostCfg = next.hosts[hostName]
     if (!hostCfg || typeof hostCfg !== "object") throw new Error(`unknown host: ${hostName}`)
-    const botId = data.bot.trim()
+    const gatewayId = data.gatewayId.trim()
     const architecture = data.architecture.trim()
-    const parsedBot = GatewayIdSchema.safeParse(botId)
-    if (!parsedBot.success) throw new Error("invalid bot id")
+    const parsedGateway = GatewayIdSchema.safeParse(gatewayId)
+    if (!parsedGateway.success) throw new Error("invalid gateway id")
+
     let changed = false
     if (architecture) {
       const parsedArchitecture = GatewayArchitectureSchema.safeParse(architecture)
@@ -99,7 +105,7 @@ export const addBot = createServerFn({ method: "POST" })
       }
     }
 
-    const res = ensureHostBotEntry({ hostCfg, botId })
+    const res = ensureHostGatewayEntry({ hostCfg, gatewayId })
     if (res.changed) changed = true
     next.hosts[hostName] = hostCfg
 
@@ -109,14 +115,14 @@ export const addBot = createServerFn({ method: "POST" })
     const { runId } = await client.mutation(api.runs.create, {
       projectId: data.projectId,
       kind: "config_write",
-      title: `bot add ${hostName}/${botId}`,
+      title: `gateway add ${hostName}/${gatewayId}`,
     })
     return await runWithEventsAndStatus({
       client,
       runId,
       redactTokens,
       fn: async (emit) => {
-        await emit({ level: "info", message: `Adding bot ${botId} (host=${hostName})` })
+        await emit({ level: "info", message: `Adding gateway ${gatewayId} (host=${hostName})` })
         await writeClawletsConfig({ configPath, config: validated })
       },
       onSuccess: () => ({ ok: true as const, runId }),
@@ -155,9 +161,10 @@ export const addGatewayAgent = createServerFn({ method: "POST" })
     next.hosts = next.hosts && typeof next.hosts === "object" && !Array.isArray(next.hosts) ? next.hosts : {}
     const hostCfg = next.hosts[hostName]
     if (!hostCfg || typeof hostCfg !== "object") throw new Error(`unknown host: ${hostName}`)
-    hostCfg.bots = hostCfg.bots && typeof hostCfg.bots === "object" && !Array.isArray(hostCfg.bots) ? hostCfg.bots : {}
-    const gateway = hostCfg.bots[gatewayId]
-    if (!gateway || typeof gateway !== "object") throw new Error(`unknown bot id: ${gatewayId}`)
+    hostCfg.gateways =
+      hostCfg.gateways && typeof hostCfg.gateways === "object" && !Array.isArray(hostCfg.gateways) ? hostCfg.gateways : {}
+    const gateway = hostCfg.gateways[gatewayId]
+    if (!gateway || typeof gateway !== "object") throw new Error(`unknown gateway id: ${gatewayId}`)
 
     gateway.agents = gateway.agents && typeof gateway.agents === "object" && !Array.isArray(gateway.agents) ? gateway.agents : {}
     gateway.agents.list = Array.isArray(gateway.agents.list) ? gateway.agents.list : []
@@ -223,8 +230,8 @@ export const removeGatewayAgent = createServerFn({ method: "POST" })
     next.hosts = next.hosts && typeof next.hosts === "object" && !Array.isArray(next.hosts) ? next.hosts : {}
     const hostCfg = next.hosts[hostName]
     if (!hostCfg || typeof hostCfg !== "object") throw new Error(`unknown host: ${hostName}`)
-    const gateway = hostCfg.bots?.[gatewayId]
-    if (!gateway || typeof gateway !== "object") throw new Error(`unknown bot id: ${gatewayId}`)
+    const gateway = hostCfg.gateways?.[gatewayId]
+    if (!gateway || typeof gateway !== "object") throw new Error(`unknown gateway id: ${gatewayId}`)
     const list = Array.isArray(gateway.agents?.list) ? gateway.agents.list : []
     if (!list.some((entry: any) => entry?.id === agentId)) throw new Error(`agent not found: ${agentId}`)
     gateway.agents = gateway.agents && typeof gateway.agents === "object" && !Array.isArray(gateway.agents) ? gateway.agents : {}
@@ -248,11 +255,11 @@ export const removeGatewayAgent = createServerFn({ method: "POST" })
     })
   })
 
-export const removeBot = createServerFn({ method: "POST" })
+export const removeGateway = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => {
     const base = parseProjectIdInput(data)
     const d = data as Record<string, unknown>
-    return { ...base, host: String(d["host"] || ""), bot: String(d["bot"] || "") }
+    return { ...base, host: String(d["host"] || ""), gatewayId: String(d["gatewayId"] || "") }
   })
   .handler(async ({ data }) => {
     const client = createConvexClient()
@@ -262,27 +269,27 @@ export const removeBot = createServerFn({ method: "POST" })
 
     const hostName = data.host.trim()
     if (!hostName) throw new Error("missing host")
-    const botId = data.bot.trim()
+    const gatewayId = data.gatewayId.trim()
     const next = structuredClone(raw) as any
     next.hosts = next.hosts && typeof next.hosts === "object" && !Array.isArray(next.hosts) ? next.hosts : {}
     const hostCfg = next.hosts[hostName]
     if (!hostCfg || typeof hostCfg !== "object") throw new Error(`unknown host: ${hostName}`)
-    const existingOrder = Array.isArray(hostCfg.botsOrder) ? hostCfg.botsOrder : []
-    const existingBots =
-      hostCfg.bots && typeof hostCfg.bots === "object" && !Array.isArray(hostCfg.bots) ? hostCfg.bots : {}
-    if (!existingOrder.includes(botId) && !existingBots[botId]) throw new Error("bot not found")
+    const existingOrder = Array.isArray(hostCfg.gatewaysOrder) ? hostCfg.gatewaysOrder : []
+    const existingGateways =
+      hostCfg.gateways && typeof hostCfg.gateways === "object" && !Array.isArray(hostCfg.gateways) ? hostCfg.gateways : {}
+    if (!existingOrder.includes(gatewayId) && !existingGateways[gatewayId]) throw new Error("gateway not found")
 
-    hostCfg.botsOrder = existingOrder.filter((b: string) => b !== botId)
-    const botsRecord = { ...existingBots }
-    delete botsRecord[botId]
-    hostCfg.bots = botsRecord
+    hostCfg.gatewaysOrder = existingOrder.filter((b: string) => b !== gatewayId)
+    const gatewaysRecord = { ...existingGateways }
+    delete gatewaysRecord[gatewayId]
+    hostCfg.gateways = gatewaysRecord
     next.hosts[hostName] = hostCfg
-    if (Array.isArray(next.fleet?.codex?.bots)) {
+    if (Array.isArray(next.fleet?.codex?.gateways)) {
       const stillExists = Object.entries(next.hosts).some(
-        ([name, cfg]) => name !== hostName && Boolean((cfg as any)?.bots?.[botId]),
+        ([name, cfg]) => name !== hostName && Boolean((cfg as any)?.gateways?.[gatewayId]),
       )
       if (!stillExists) {
-        next.fleet.codex.bots = next.fleet.codex.bots.filter((b: string) => b !== botId)
+        next.fleet.codex.gateways = next.fleet.codex.gateways.filter((b: string) => b !== gatewayId)
       }
     }
 
@@ -290,14 +297,14 @@ export const removeBot = createServerFn({ method: "POST" })
     const { runId } = await client.mutation(api.runs.create, {
       projectId: data.projectId,
       kind: "config_write",
-      title: `bot rm ${hostName}/${botId}`,
+      title: `gateway rm ${hostName}/${gatewayId}`,
     })
     return await runWithEventsAndStatus({
       client,
       runId,
       redactTokens,
       fn: async (emit) => {
-        await emit({ level: "info", message: `Removing bot ${botId} (host=${hostName})` })
+        await emit({ level: "info", message: `Removing gateway ${gatewayId} (host=${hostName})` })
         await writeClawletsConfig({ configPath, config: validated })
       },
       onSuccess: () => ({ ok: true as const, runId }),
@@ -344,3 +351,4 @@ export const setGatewayArchitecture = createServerFn({ method: "POST" })
       onSuccess: () => ({ ok: true as const, runId }),
     })
   })
+

@@ -28,7 +28,7 @@ function RestartOperate() {
   })
   const config = cfg.data?.config as any
   const hostCfg = (config as any)?.hosts?.[host]
-  const bots = useMemo(() => (hostCfg?.botsOrder || []) as string[], [hostCfg])
+  const gateways = useMemo(() => (hostCfg?.gatewaysOrder || []) as string[], [hostCfg])
 
   const [unit, setUnit] = useState("clawdbot-*.service")
   const [targetHost, setTargetHost] = useState("")
@@ -84,9 +84,9 @@ function RestartOperate() {
                 <Label>Unit</Label>
                 <NativeSelect value={unit} onChange={(e) => setUnit(e.target.value)}>
                   <NativeSelectOption value="clawdbot-*.service">clawdbot-*.service</NativeSelectOption>
-                  {bots.map((b) => (
-                    <NativeSelectOption key={b} value={`clawdbot-${b}.service`}>
-                      clawdbot-{b}.service
+                  {gateways.map((gatewayId) => (
+                    <NativeSelectOption key={gatewayId} value={`clawdbot-${gatewayId}.service`}>
+                      clawdbot-{gatewayId}.service
                     </NativeSelectOption>
                   ))}
                 </NativeSelect>

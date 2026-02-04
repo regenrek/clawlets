@@ -21,13 +21,13 @@ function badgeFor(effective: WorkspaceDocListItem["effective"]) {
   return { label: "Missing", variant: "destructive" as const }
 }
 
-export function BotWorkspaceDocs(props: { projectId: string; botId: string; canEdit: boolean }) {
+export function GatewayWorkspaceDocs(props: { projectId: string; gatewayId: string; canEdit: boolean }) {
   const queryClient = useQueryClient()
   const docs = useQuery({
-    queryKey: ["workspaceDocs", props.projectId, props.botId],
+    queryKey: ["workspaceDocs", props.projectId, props.gatewayId],
     queryFn: async () =>
       await listWorkspaceDocs({
-        data: { projectId: props.projectId as Id<"projects">, botId: props.botId },
+        data: { projectId: props.projectId as Id<"projects">, gatewayId: props.gatewayId },
       }),
   })
 
@@ -42,12 +42,12 @@ export function BotWorkspaceDocs(props: { projectId: string; botId: string; canE
   const reset = useMutation({
     mutationFn: async (name: string) =>
       await resetWorkspaceDocOverride({
-        data: { projectId: props.projectId as Id<"projects">, botId: props.botId, name },
+        data: { projectId: props.projectId as Id<"projects">, gatewayId: props.gatewayId, name },
       }),
     onSuccess: (res) => {
       if (res.ok) {
         toast.success("Reset to default")
-        void queryClient.invalidateQueries({ queryKey: ["workspaceDocs", props.projectId, props.botId] })
+        void queryClient.invalidateQueries({ queryKey: ["workspaceDocs", props.projectId, props.gatewayId] })
       } else toast.error(res.message)
     },
   })
@@ -58,7 +58,7 @@ export function BotWorkspaceDocs(props: { projectId: string; botId: string; canE
         <div className="font-medium">Workspace docs</div>
         <div className="text-xs text-muted-foreground">
           Defaults live in <code>fleet/workspaces/common/</code>. Overrides live in{" "}
-          <code>fleet/workspaces/gateways/{props.botId}/</code>.
+          <code>fleet/workspaces/gateways/{props.gatewayId}/</code>.
         </div>
       </div>
 
@@ -108,7 +108,7 @@ export function BotWorkspaceDocs(props: { projectId: string; botId: string; canE
         open={Boolean(openDoc)}
         onOpenChange={(open) => setOpenDoc(open ? openDoc : null)}
         projectId={props.projectId}
-        botId={props.botId}
+        gatewayId={props.gatewayId}
         docName={openDoc}
         canEdit={props.canEdit}
         hasOverride={Boolean(openDocMeta?.hasOverride)}

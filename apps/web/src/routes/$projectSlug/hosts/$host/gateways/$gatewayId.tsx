@@ -9,12 +9,12 @@ function resolveTab(pathname: string): TabKey {
   return TABS.includes(last as TabKey) ? (last as TabKey) : "overview"
 }
 
-export const Route = createFileRoute("/$projectSlug/hosts/$host/bots/$botId")({
-  component: BotDetailLayout,
+export const Route = createFileRoute("/$projectSlug/hosts/$host/gateways/$gatewayId")({
+  component: GatewayDetailLayout,
 })
 
-function BotDetailLayout() {
-  const { projectSlug, host, botId } = Route.useParams()
+function GatewayDetailLayout() {
+  const { projectSlug, host, gatewayId } = Route.useParams()
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const navigate = useNavigate()
   const activeTab = resolveTab(pathname)
@@ -24,15 +24,15 @@ function BotDetailLayout() {
       <div className="space-y-1">
         <div className="text-xs text-muted-foreground">
           <Link
-            to="/$projectSlug/hosts/$host/bots"
+            to="/$projectSlug/hosts/$host/gateways"
             params={{ projectSlug, host }}
             className="hover:underline"
           >
-            Bots
+            Gateways
           </Link>{" "}
-          / <code>{botId}</code>
+          / <code>{gatewayId}</code>
         </div>
-        <h1 className="text-2xl font-black tracking-tight">{botId}</h1>
+        <h1 className="text-2xl font-black tracking-tight">{gatewayId}</h1>
       </div>
 
       <Tabs
@@ -40,8 +40,8 @@ function BotDetailLayout() {
         onValueChange={(value) => {
           const tab = TABS.includes(value as TabKey) ? (value as TabKey) : "overview"
           void navigate({
-            to: "/$projectSlug/hosts/$host/bots/$botId/" + tab,
-            params: { projectSlug, host, botId },
+            to: "/$projectSlug/hosts/$host/gateways/$gatewayId/" + tab,
+            params: { projectSlug, host, gatewayId },
           })
         }}
       >
@@ -58,3 +58,4 @@ function BotDetailLayout() {
     </div>
   )
 }
+

@@ -8,11 +8,11 @@ import { Badge } from "~/components/ui/badge"
 import { Button } from "~/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select"
 import { Switch } from "~/components/ui/switch"
-import { applyBotCapabilityPreset, previewBotCapabilityPreset } from "~/sdk/bots"
+import { applyGatewayCapabilityPreset, previewGatewayCapabilityPreset } from "~/sdk/gateways"
 
-export function BotCapabilities(props: {
+export function GatewayCapabilities(props: {
   projectId: string
-  botId: string
+  gatewayId: string
   host: string
   openclaw: unknown
   canEdit: boolean
@@ -26,10 +26,10 @@ export function BotCapabilities(props: {
 
   const preview = useMutation({
     mutationFn: async (presetId: string) =>
-      await previewBotCapabilityPreset({
+      await previewGatewayCapabilityPreset({
         data: {
           projectId: props.projectId as Id<"projects">,
-          botId: props.botId,
+          gatewayId: props.gatewayId,
           host: props.host,
           kind: "channel",
           presetId,
@@ -50,10 +50,10 @@ export function BotCapabilities(props: {
   const applyPreset = useMutation({
     mutationFn: async () => {
       if (!selected) throw new Error("missing capability")
-      return await applyBotCapabilityPreset({
+      return await applyGatewayCapabilityPreset({
         data: {
           projectId: props.projectId as Id<"projects">,
-          botId: props.botId,
+          gatewayId: props.gatewayId,
           host: props.host,
           kind: "channel",
           presetId: selected,

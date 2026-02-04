@@ -44,9 +44,9 @@ async function readTextIfExists(filePath: string): Promise<{ exists: boolean; te
 function resolveDocPath(params: {
   repoRoot: string
   scope: WorkspaceDocScope
-  botId?: string
+  gatewayId?: string
   name: string
-}): { commonPath: string; botPath: string } {
+}): { commonPath: string; gatewayPath: string } {
   if (!isFleetWorkspaceEditableDoc(params.name)) {
     throw new Error(`invalid doc name: ${params.name}`)
   }
@@ -54,29 +54,29 @@ function resolveDocPath(params: {
   const layout = getRepoLayout(params.repoRoot)
   const commonPath = path.join(layout.fleetWorkspacesCommonDir, params.name)
 
-  const botDir = params.botId ? getGatewayWorkspaceDir(layout, params.botId) : ""
-  const botPath = botDir ? path.join(botDir, params.name) : ""
+  const gatewayDir = params.gatewayId ? getGatewayWorkspaceDir(layout, params.gatewayId) : ""
+  const gatewayPath = gatewayDir ? path.join(gatewayDir, params.name) : ""
 
-  if (params.scope === "gateway" && !botPath) throw new Error("gateway id required for scope=gateway")
-  if (params.scope === "effective" && !botPath) throw new Error("gateway id required for scope=effective")
+  if (params.scope === "gateway" && !gatewayPath) throw new Error("gateway id required for scope=gateway")
+  if (params.scope === "effective" && !gatewayPath) throw new Error("gateway id required for scope=effective")
 
-  return { commonPath, botPath }
+  return { commonPath, gatewayPath }
 }
 
 export async function listWorkspaceDocsServer(params: {
   projectId: Id<"projects">
-  botId: string
+  gatewayId: string
 }): Promise<{ repoRoot: string; docs: WorkspaceDocListItem[] }> {
   const client = createConvexClient()
   const repoRoot = await getRepoRoot(client, params.projectId)
 
   const layout = getRepoLayout(repoRoot)
-  const botDir = getGatewayWorkspaceDir(layout, params.botId)
+  const gatewayDir = getGatewayWorkspaceDir(layout, params.gatewayId)
 
   const results: WorkspaceDocListItem[] = []
   for (const name of FLEET_WORKSPACE_EDITABLE_DOCS) {
     const defaultPath = path.join(layout.fleetWorkspacesCommonDir, name)
-    const overridePath = path.join(botDir, name)
+    const overridePath = path.join(gatewayDir, name)
     const [hasDefault, hasOverride] = await Promise.all([pathExists(defaultPath), pathExists(overridePath)])
     results.push({
       name,
@@ -94,17 +94,17 @@ export async function listWorkspaceDocsServer(params: {
 
 export async function readWorkspaceDocServer(params: {
   projectId: Id<"projects">
-  botId: string
+  gatewayId: string
   scope: WorkspaceDocScope
   name: string
 }): Promise<WorkspaceDocReadResult> {
   const client = createConvexClient()
   const repoRoot = await getRepoRoot(client, params.projectId)
 
-  const { commonPath, botPath } = resolveDocPath({
+  const { commonPath, gatewayPath } = resolveDocPath({
     repoRoot,
     scope: params.scope,
-    botId: params.botId || undefined,
+    gatewayId: params.gatewayId || undefined,
     name: params.name,
   })
 
@@ -113,8 +113,8 @@ export async function readWorkspaceDocServer(params: {
     params.scope === "common"
       ? commonPath
       : params.scope === "gateway"
-        ? botPath
-        : (await pathExists(botPath)) ? botPath : commonPath
+        ? gatewayPath
+        : (await pathExists(gatewayPath)) ? gatewayPath : commonPath
 
   const rel = path.relative(layout.repoRoot, chosen)
   const r = await readTextIfExists(chosen)
@@ -129,7 +129,7 @@ export async function readWorkspaceDocServer(params: {
 
 export async function writeWorkspaceDocServer(params: {
   projectId: Id<"projects">
-  botId: string
+  gatewayId: string
   scope: WorkspaceDocWriteScope
   name: string
   content: string
@@ -142,13 +142,13 @@ export async function writeWorkspaceDocServer(params: {
   const repoRoot = await getRepoRoot(client, params.projectId)
   const layout = getRepoLayout(repoRoot)
 
-  const { commonPath, botPath } = resolveDocPath({
+  const { commonPath, gatewayPath } = resolveDocPath({
     repoRoot,
     scope: params.scope,
-    botId: params.botId || undefined,
+    gatewayId: params.gatewayId || undefined,
     name: params.name,
   })
-  const targetPath = params.scope === "common" ? commonPath : botPath
+  const targetPath = params.scope === "common" ? commonPath : gatewayPath
 
   if (params.expectedSha256.trim()) {
     const existing = await readTextIfExists(targetPath)
@@ -167,7 +167,7 @@ export async function writeWorkspaceDocServer(params: {
     title:
       params.scope === "common"
         ? `workspace write common/${params.name}`
-        : `workspace write gateways/${params.botId}/${params.name}`,
+        : `workspace write gateways/${params.gatewayId}/${params.name}`,
   })
 
   return await runWithEventsAndStatus({
@@ -184,7 +184,7 @@ export async function writeWorkspaceDocServer(params: {
       await client.mutation(api.auditLogs.append, {
         projectId: params.projectId,
         action: params.scope === "common" ? "workspace.common.write" : "workspace.gateway.write",
-        target: params.scope === "common" ? { doc: params.name } : { botId: params.botId, doc: params.name },
+        target: params.scope === "common" ? { doc: params.name } : { gatewayId: params.gatewayId, doc: params.name },
         data: { runId },
       })
     },
@@ -194,7 +194,7 @@ export async function writeWorkspaceDocServer(params: {
 
 export async function resetWorkspaceDocOverrideServer(params: {
   projectId: Id<"projects">
-  botId: string
+  gatewayId: string
   name: string
   expectedSha256: string
 }): Promise<WorkspaceDocWriteResult> {
@@ -202,20 +202,20 @@ export async function resetWorkspaceDocOverrideServer(params: {
   const repoRoot = await getRepoRoot(client, params.projectId)
   const layout = getRepoLayout(repoRoot)
 
-  const { botPath } = resolveDocPath({
+  const { gatewayPath } = resolveDocPath({
     repoRoot,
     scope: "gateway",
-    botId: params.botId,
+    gatewayId: params.gatewayId,
     name: params.name,
   })
 
-  const exists = await pathExists(botPath)
+  const exists = await pathExists(gatewayPath)
   if (!exists) {
     return { ok: true }
   }
 
   if (params.expectedSha256.trim()) {
-    const existing = await readTextIfExists(botPath)
+    const existing = await readTextIfExists(gatewayPath)
     if (existing.exists) {
       const actual = sha256Hex(existing.text)
       if (actual !== params.expectedSha256.trim()) {
@@ -228,7 +228,7 @@ export async function resetWorkspaceDocOverrideServer(params: {
   const { runId } = await client.mutation(api.runs.create, {
     projectId: params.projectId,
     kind: "workspace_write",
-    title: `workspace reset gateways/${params.botId}/${params.name}`,
+    title: `workspace reset gateways/${params.gatewayId}/${params.name}`,
   })
 
   return await runWithEventsAndStatus({
@@ -236,15 +236,15 @@ export async function resetWorkspaceDocOverrideServer(params: {
     runId,
     redactTokens,
     fn: async (emit) => {
-      await emit({ level: "info", message: `Resetting ${path.relative(layout.repoRoot, botPath)}` })
-      await moveToTrash(botPath)
+      await emit({ level: "info", message: `Resetting ${path.relative(layout.repoRoot, gatewayPath)}` })
+      await moveToTrash(gatewayPath)
       await emit({ level: "info", message: "Moved to trash." })
     },
     onAfterEvents: async () => {
       await client.mutation(api.auditLogs.append, {
         projectId: params.projectId,
         action: "workspace.gateway.reset",
-        target: { botId: params.botId, doc: params.name },
+        target: { gatewayId: params.gatewayId, doc: params.name },
         data: { runId },
       })
     },

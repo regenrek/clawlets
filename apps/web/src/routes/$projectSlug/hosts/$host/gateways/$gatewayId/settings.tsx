@@ -4,21 +4,21 @@ import { createFileRoute } from "@tanstack/react-router"
 import { useConvexAuth } from "convex/react"
 import type { Id } from "../../../../../../../convex/_generated/dataModel"
 import { api } from "../../../../../../../convex/_generated/api"
-import { BotCapabilities } from "~/components/fleet/bot/gateway-capabilities"
-import { BotOpenclawEditor } from "~/components/fleet/bot/gateway-openclaw-editor"
-import { GatewayPersonas } from "~/components/fleet/bot/gateway-personas"
-import { BotIntegrations } from "~/components/fleet/integrations/gateway-integrations"
-import { BotWorkspaceDocs } from "~/components/fleet/bot/gateway-workspace-docs"
+import { GatewayCapabilities } from "~/components/fleet/gateway/gateway-capabilities"
+import { GatewayOpenclawEditor } from "~/components/fleet/gateway/gateway-openclaw-editor"
+import { GatewayPersonas } from "~/components/fleet/gateway/gateway-personas"
+import { GatewayIntegrations } from "~/components/fleet/integrations/gateway-integrations"
+import { GatewayWorkspaceDocs } from "~/components/fleet/gateway/gateway-workspace-docs"
 import { authClient } from "~/lib/auth-client"
 import { useProjectBySlug } from "~/lib/project-data"
 import { getClawletsConfig } from "~/sdk/config"
 
-export const Route = createFileRoute("/$projectSlug/hosts/$host/bots/$botId/settings")({
-  component: BotSettings,
+export const Route = createFileRoute("/$projectSlug/hosts/$host/gateways/$gatewayId/settings")({
+  component: GatewaySettingsRoute,
 })
 
-function BotSettings() {
-  const { projectSlug, host, botId } = Route.useParams()
+function GatewaySettingsRoute() {
+  const { projectSlug, host, gatewayId } = Route.useParams()
   const projectQuery = useProjectBySlug(projectSlug)
   const projectId = projectQuery.projectId
   const { data: session, isPending } = authClient.useSession()
@@ -40,14 +40,14 @@ function BotSettings() {
   })
 
   const config = cfg.data?.config
-  const botCfg = (config as any)?.hosts?.[host]?.bots?.[botId] as any
-  const openclawCfg = botCfg?.openclaw ?? {}
-  const channelsCfg = botCfg?.channels ?? {}
-  const agentsCfg = botCfg?.agents ?? {}
-  const hooksCfg = botCfg?.hooks ?? {}
-  const skillsCfg = botCfg?.skills ?? {}
-  const pluginsCfg = botCfg?.plugins ?? {}
-  const profile = botCfg?.profile ?? {}
+  const gatewayCfg = (config as any)?.hosts?.[host]?.gateways?.[gatewayId] as any
+  const openclawCfg = gatewayCfg?.openclaw ?? {}
+  const channelsCfg = gatewayCfg?.channels ?? {}
+  const agentsCfg = gatewayCfg?.agents ?? {}
+  const hooksCfg = gatewayCfg?.hooks ?? {}
+  const skillsCfg = gatewayCfg?.skills ?? {}
+  const pluginsCfg = gatewayCfg?.plugins ?? {}
+  const profile = gatewayCfg?.profile ?? {}
   const fleetSecretEnv = (config?.fleet as any)?.secretEnv
 
   if (projectQuery.isPending) return <div className="text-muted-foreground">Loading…</div>
@@ -56,21 +56,21 @@ function BotSettings() {
   if (cfg.isPending) return <div className="text-muted-foreground">Loading…</div>
   if (cfg.error) return <div className="text-sm text-destructive">{String(cfg.error)}</div>
   if (!config) return <div className="text-muted-foreground">Missing config.</div>
-  if (!botCfg) return <div className="text-muted-foreground">Bot not found.</div>
+  if (!gatewayCfg) return <div className="text-muted-foreground">Gateway not found.</div>
 
   return (
     <div className="space-y-6">
-      <BotCapabilities
+      <GatewayCapabilities
         projectId={projectId}
-        botId={botId}
+        gatewayId={gatewayId}
         host={host}
         openclaw={openclawCfg}
         canEdit={canEdit}
       />
 
-      <BotIntegrations
+      <GatewayIntegrations
         projectId={projectId}
-        botId={botId}
+        gatewayId={gatewayId}
         host={host}
         channels={channelsCfg}
         agents={agentsCfg}
@@ -83,13 +83,19 @@ function BotSettings() {
         canEdit={canEdit}
       />
 
-      <GatewayPersonas projectId={projectId} host={host} botId={botId} agents={agentsCfg} canEdit={canEdit} />
-
-      <BotWorkspaceDocs projectId={projectId} botId={botId} canEdit={canEdit} />
-
-      <BotOpenclawEditor
+      <GatewayPersonas
         projectId={projectId}
-        botId={botId}
+        host={host}
+        gatewayId={gatewayId}
+        agents={agentsCfg}
+        canEdit={canEdit}
+      />
+
+      <GatewayWorkspaceDocs projectId={projectId} gatewayId={gatewayId} canEdit={canEdit} />
+
+      <GatewayOpenclawEditor
+        projectId={projectId}
+        gatewayId={gatewayId}
         host={host}
         initial={openclawCfg}
         canEdit={canEdit}
@@ -97,3 +103,4 @@ function BotSettings() {
     </div>
   )
 }
+

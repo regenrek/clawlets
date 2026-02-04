@@ -8,7 +8,7 @@ import { TextListField } from "../shared/text-list-field"
 
 export function ChannelsConfigCard(props: {
   host: string
-  botId: string
+  gatewayId: string
   channels: unknown
   channelModels: ChannelUiModel[]
   canEdit: boolean
@@ -30,7 +30,10 @@ export function ChannelsConfigCard(props: {
   })
 
   return (
-    <ConfigCard title="Channels config (first-class)" configPath={buildGatewayConfigPath(props.host, props.botId, "channels")}>
+    <ConfigCard
+      title="Channels config (first-class)"
+      configPath={buildGatewayConfigPath(props.host, props.gatewayId, "channels")}
+    >
       <div className="grid gap-4 md:grid-cols-2">
         {props.channelModels.map((channel) => {
           const entry = channelsObj[channel.id]

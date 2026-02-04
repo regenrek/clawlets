@@ -31,7 +31,7 @@ async function loadWorkspaceDocs(options: { pathExists: boolean; writeThrows: bo
       fleetWorkspacesCommonDir: "/tmp/repo/fleet/workspaces/common",
       fleetWorkspacesGatewaysDir: "/tmp/repo/fleet/workspaces/gateways",
     }),
-    getGatewayWorkspaceDir: (_layout: unknown, botId: string) => `/tmp/repo/fleet/workspaces/gateways/${botId}`,
+    getGatewayWorkspaceDir: (_layout: unknown, gatewayId: string) => `/tmp/repo/fleet/workspaces/gateways/${gatewayId}`,
   }))
   vi.doMock("@clawlets/core/lib/fleet-workspaces", () => ({
     isFleetWorkspaceEditableDoc: () => true,
@@ -72,7 +72,7 @@ describe("workspace docs run status", () => {
             data: {
               projectId: "p1" as any,
               scope: "common",
-              botId: "",
+              gatewayId: "",
               name: "README.md",
               content: "hello",
               expectedSha256: "",
@@ -100,7 +100,7 @@ describe("workspace docs run status", () => {
           await mod.resetWorkspaceDocOverride({
             data: {
               projectId: "p1" as any,
-              botId: "bot1",
+              gatewayId: "bot1",
               name: "README.md",
               expectedSha256: "",
             },
@@ -128,7 +128,7 @@ describe("workspace docs run status", () => {
             data: {
               projectId: "p1" as any,
               scope: "common",
-              botId: "",
+              gatewayId: "",
               name: "README.md",
               content: "hello",
               expectedSha256: "",

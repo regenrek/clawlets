@@ -12,7 +12,7 @@ export function WorkspaceDocDialog(props: {
   open: boolean
   onOpenChange: (open: boolean) => void
   projectId: string
-  botId: string
+  gatewayId: string
   docName: string | null
   canEdit: boolean
   hasOverride: boolean
@@ -36,13 +36,13 @@ export function WorkspaceDocDialog(props: {
   })
 
   const override = useQuery({
-    queryKey: ["workspaceDoc", props.projectId, props.botId, "gateway", docName],
+    queryKey: ["workspaceDoc", props.projectId, props.gatewayId, "gateway", docName],
     enabled,
     queryFn: async () =>
       await readWorkspaceDoc({
         data: {
           projectId: props.projectId as Id<"projects">,
-          botId: props.botId,
+          gatewayId: props.gatewayId,
           scope: "gateway",
           name: docName,
         },
@@ -73,7 +73,7 @@ export function WorkspaceDocDialog(props: {
         data: {
           projectId: props.projectId as Id<"projects">,
           scope: "gateway",
-          botId: props.botId,
+          gatewayId: props.gatewayId,
           name: docName,
           content: text,
           expectedSha256: override.data?.exists ? override.data.sha256 : "",
@@ -82,7 +82,7 @@ export function WorkspaceDocDialog(props: {
     onSuccess: (res) => {
       if (res.ok) {
         toast.success("Saved workspace doc")
-        void queryClient.invalidateQueries({ queryKey: ["workspaceDocs", props.projectId, props.botId] })
+        void queryClient.invalidateQueries({ queryKey: ["workspaceDocs", props.projectId, props.gatewayId] })
         props.onOpenChange(false)
       } else {
         toast.error(res.message)
@@ -95,7 +95,7 @@ export function WorkspaceDocDialog(props: {
       await resetWorkspaceDocOverride({
         data: {
           projectId: props.projectId as Id<"projects">,
-          botId: props.botId,
+          gatewayId: props.gatewayId,
           name: docName,
           expectedSha256: override.data?.exists ? override.data.sha256 : "",
         },
@@ -103,7 +103,7 @@ export function WorkspaceDocDialog(props: {
     onSuccess: (res) => {
       if (res.ok) {
         toast.success("Reset to default")
-        void queryClient.invalidateQueries({ queryKey: ["workspaceDocs", props.projectId, props.botId] })
+        void queryClient.invalidateQueries({ queryKey: ["workspaceDocs", props.projectId, props.gatewayId] })
         props.onOpenChange(false)
       } else {
         toast.error(res.message)
@@ -112,11 +112,11 @@ export function WorkspaceDocDialog(props: {
   })
 
   const busy = common.isPending || override.isPending
-  const title = props.docName ? `${props.botId} · ${props.docName}` : "Workspace doc"
+  const title = props.docName ? `${props.gatewayId} · ${props.docName}` : "Workspace doc"
   const pathLabel = override.data?.exists
     ? override.data.pathRel
     : props.docName
-      ? `fleet/workspaces/gateways/${props.botId}/${props.docName}`
+      ? `fleet/workspaces/gateways/${props.gatewayId}/${props.docName}`
       : ""
 
   return (
