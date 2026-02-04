@@ -4,17 +4,17 @@ import { createFileRoute } from "@tanstack/react-router"
 import { useConvexAuth } from "convex/react"
 import type { Id } from "../../../../../../../convex/_generated/dataModel"
 import { api } from "../../../../../../../convex/_generated/api"
-import { GatewayPersonas } from "~/components/fleet/bot/gateway-personas"
+import { GatewayPersonas } from "~/components/fleet/gateway/gateway-personas"
 import { authClient } from "~/lib/auth-client"
 import { useProjectBySlug } from "~/lib/project-data"
 import { getClawletsConfig } from "~/sdk/config"
 
-export const Route = createFileRoute("/$projectSlug/hosts/$host/bots/$botId/personas")({
-  component: BotPersonas,
+export const Route = createFileRoute("/$projectSlug/hosts/$host/gateways/$gatewayId/personas")({
+  component: GatewayPersonasRoute,
 })
 
-function BotPersonas() {
-  const { projectSlug, host, botId } = Route.useParams()
+function GatewayPersonasRoute() {
+  const { projectSlug, host, gatewayId } = Route.useParams()
   const projectQuery = useProjectBySlug(projectSlug)
   const projectId = projectQuery.projectId
   const { data: session, isPending } = authClient.useSession()
@@ -36,8 +36,8 @@ function BotPersonas() {
   })
 
   const config = cfg.data?.config
-  const botCfg = (config as any)?.hosts?.[host]?.bots?.[botId] as any
-  const agentsCfg = botCfg?.agents ?? {}
+  const gatewayCfg = (config as any)?.hosts?.[host]?.gateways?.[gatewayId] as any
+  const agentsCfg = gatewayCfg?.agents ?? {}
 
   if (projectQuery.isPending) return <div className="text-muted-foreground">Loading…</div>
   if (projectQuery.error) return <div className="text-sm text-destructive">{String(projectQuery.error)}</div>
@@ -45,9 +45,16 @@ function BotPersonas() {
   if (cfg.isPending) return <div className="text-muted-foreground">Loading…</div>
   if (cfg.error) return <div className="text-sm text-destructive">{String(cfg.error)}</div>
   if (!config) return <div className="text-muted-foreground">Missing config.</div>
-  if (!botCfg) return <div className="text-muted-foreground">Bot not found.</div>
+  if (!gatewayCfg) return <div className="text-muted-foreground">Gateway not found.</div>
 
   return (
-    <GatewayPersonas projectId={projectId} host={host} botId={botId} agents={agentsCfg} canEdit={canEdit} />
+    <GatewayPersonas
+      projectId={projectId}
+      host={host}
+      gatewayId={gatewayId}
+      agents={agentsCfg}
+      canEdit={canEdit}
+    />
   )
 }
+

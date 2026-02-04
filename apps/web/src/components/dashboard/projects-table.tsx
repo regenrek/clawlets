@@ -25,7 +25,7 @@ export function ProjectsTable(props: {
         <TableRow>
           <TableHead>Project</TableHead>
           <TableHead>Status</TableHead>
-          <TableHead>Bots</TableHead>
+          <TableHead>Gateways</TableHead>
           <TableHead>Hosts</TableHead>
           <TableHead>Updated</TableHead>
           <TableHead />
@@ -34,7 +34,7 @@ export function ProjectsTable(props: {
       <TableBody>
         {props.projects.map((p) => {
           const selected = props.selectedProjectId === p.projectId
-          const bots = p.cfg.error ? "—" : p.cfg.botsTotal.toLocaleString()
+          const gateways = p.cfg.error ? "—" : p.cfg.gatewaysTotal.toLocaleString()
           const hosts = p.cfg.error
             ? "—"
             : `${p.cfg.hostsEnabled.toLocaleString()} / ${p.cfg.hostsTotal.toLocaleString()}`
@@ -64,7 +64,7 @@ export function ProjectsTable(props: {
                   {p.cfg.error ? <Badge variant="destructive">Config</Badge> : null}
                 </div>
               </TableCell>
-              <TableCell className="tabular-nums">{bots}</TableCell>
+              <TableCell className="tabular-nums">{gateways}</TableCell>
               <TableCell className="tabular-nums">{hosts}</TableCell>
               <TableCell className="text-muted-foreground">
                 {formatShortDate(p.updatedAt)}

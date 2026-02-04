@@ -37,7 +37,7 @@ function buildDefaultDraft(entry: MissingEnvVar): WireDraft {
 
 function wirePath(entry: MissingEnvVar, scope: WireScope, host: string): string {
   return scope === "gateway"
-    ? `hosts.${host}.bots.${entry.gateway}.profile.secretEnv.${entry.envVar}`
+    ? `hosts.${host}.gateways.${entry.gateway}.profile.secretEnv.${entry.envVar}`
     : `fleet.secretEnv.${entry.envVar}`
 }
 
@@ -153,7 +153,7 @@ export function MissingEnvWiringPanel(props: MissingEnvWiringPanelProps) {
         {grouped.map((group) => (
           <div key={group.gateway} className="space-y-2">
             <div className="text-xs font-semibold text-muted-foreground">
-              Bot <code>{group.gateway}</code>
+              Gateway <code>{group.gateway}</code>
             </div>
             <div className="grid gap-3">
               {group.entries.map((entry) => {
@@ -182,7 +182,7 @@ export function MissingEnvWiringPanel(props: MissingEnvWiringPanelProps) {
                           }))
                         }
                       >
-                        <NativeSelectOption value="gateway">bot scope</NativeSelectOption>
+                        <NativeSelectOption value="gateway">gateway scope</NativeSelectOption>
                         <NativeSelectOption value="fleet">fleet scope</NativeSelectOption>
                       </NativeSelect>
                       <Input

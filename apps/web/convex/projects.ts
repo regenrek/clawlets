@@ -17,21 +17,24 @@ import { GatewayIdSchema, HostNameSchema } from "@clawlets/shared/lib/identifier
 
 const LIVE_SCHEMA_TARGET_MAX_LEN = 128;
 
-function parseLiveSchemaTarget(args: { host: string; botId: string }): { host: string; botId: string } {
+function parseLiveSchemaTarget(args: { host: string; gatewayId: string }): { host: string; gatewayId: string } {
   const host = args.host.trim();
-  const botId = args.botId.trim();
+  const gatewayId = args.gatewayId.trim();
   if (!host) fail("conflict", "host required");
-  if (!botId) fail("conflict", "botId required");
+  if (!gatewayId) fail("conflict", "gatewayId required");
   if (host.length > LIVE_SCHEMA_TARGET_MAX_LEN) fail("conflict", "host too long");
-  if (botId.length > LIVE_SCHEMA_TARGET_MAX_LEN) fail("conflict", "botId too long");
+  if (gatewayId.length > LIVE_SCHEMA_TARGET_MAX_LEN) fail("conflict", "gatewayId too long");
   const hostParsed = HostNameSchema.safeParse(host);
   if (!hostParsed.success) fail("conflict", hostParsed.error.issues[0]?.message ?? "invalid host");
-  const gatewayParsed = GatewayIdSchema.safeParse(botId);
+  const gatewayParsed = GatewayIdSchema.safeParse(gatewayId);
   if (!gatewayParsed.success) fail("conflict", gatewayParsed.error.issues[0]?.message ?? "invalid gateway id");
-  return { host, botId };
+  return { host, gatewayId };
 }
 
-export function __test_parseLiveSchemaTarget(args: { host: string; botId: string }): { host: string; botId: string } {
+export function __test_parseLiveSchemaTarget(args: {
+  host: string;
+  gatewayId: string;
+}): { host: string; gatewayId: string } {
   return parseLiveSchemaTarget(args);
 }
 
@@ -142,14 +145,14 @@ export const guardLiveSchemaFetch = mutation({
   args: {
     projectId: v.id("projects"),
     host: v.string(),
-    botId: v.string(),
+    gatewayId: v.string(),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
     const access = await requireProjectAccessMutation(ctx, args.projectId);
     requireAdmin(access.role);
 
-    const { host, botId } = parseLiveSchemaTarget(args);
+    const { host, gatewayId } = parseLiveSchemaTarget(args);
 
     await rateLimit({ ctx, key: `schemaLive.fetch:${args.projectId}`, limit: 20, windowMs: 60_000 });
     await ctx.db.insert("auditLogs", {
@@ -157,7 +160,7 @@ export const guardLiveSchemaFetch = mutation({
       userId: access.authed.user._id,
       projectId: args.projectId,
       action: "clawdbot.schema.live.fetch",
-      target: { host, botId },
+      target: { host, gatewayId },
     });
     return null;
   },

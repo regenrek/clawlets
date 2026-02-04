@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest"
 
 import {
-  parseBotCapabilityPresetInput,
-  parseBotOpenclawConfigInput,
+  parseGatewayCapabilityPresetInput,
+  parseGatewayOpenclawConfigInput,
   parseProjectSshKeysInput,
   parseProjectIdInput,
-  parseProjectBotInput,
+  parseProjectGatewayInput,
   parseProjectHostInput,
   parseProjectHostRequiredInput,
   parseProjectRunHostInput,
@@ -26,17 +26,17 @@ describe("serverfn validators", () => {
       parseServerChannelsStartInput({
         projectId: "p1",
         host: "alpha",
-        botId: "maren",
+        gatewayId: "maren",
         op: "status",
       }),
-    ).toMatchObject({ host: "alpha", botId: "maren", op: "status" })
+    ).toMatchObject({ host: "alpha", gatewayId: "maren", op: "status" })
 
     expect(
       parseServerChannelsExecuteInput({
         projectId: "p1",
         runId: "r1",
         host: "alpha",
-        botId: "maren",
+        gatewayId: "maren",
         op: "capabilities",
         timeout: "15000",
         json: true,
@@ -49,18 +49,18 @@ describe("serverfn validators", () => {
       parseServerChannelsStartInput({
         projectId: "p1",
         host: "alpha",
-        botId: "maren",
+        gatewayId: "maren",
         op: "rm",
       }),
     ).toThrow()
   })
 
-  it("rejects invalid host/bot ids", () => {
+  it("rejects invalid host/gateway ids", () => {
     expect(() =>
       parseServerChannelsStartInput({
         projectId: "p1",
         host: "ALPHA",
-        botId: "maren",
+        gatewayId: "maren",
         op: "status",
       }),
     ).toThrow()
@@ -69,7 +69,7 @@ describe("serverfn validators", () => {
       parseServerChannelsStartInput({
         projectId: "p1",
         host: "alpha",
-        botId: "Maren",
+        gatewayId: "Maren",
         op: "status",
       }),
     ).toThrow()
@@ -81,7 +81,7 @@ describe("serverfn validators", () => {
         projectId: "p1",
         runId: "r1",
         host: "alpha",
-        botId: "maren",
+        gatewayId: "maren",
         op: "status",
         timeout: "",
       }),
@@ -92,7 +92,7 @@ describe("serverfn validators", () => {
         projectId: "p1",
         runId: "r1",
         host: "alpha",
-        botId: "maren",
+        gatewayId: "maren",
         op: "status",
         timeout: "999",
       }),
@@ -103,7 +103,7 @@ describe("serverfn validators", () => {
         projectId: "p1",
         runId: "r1",
         host: "alpha",
-        botId: "maren",
+        gatewayId: "maren",
         op: "status",
         timeout: "121000",
       }),
@@ -117,7 +117,7 @@ describe("serverfn validators", () => {
         projectId: "p1",
         runId: "r1",
         host: "alpha",
-        botId: "maren",
+        gatewayId: "maren",
         op: "status",
         channel: longChannel,
       }),
@@ -130,7 +130,7 @@ describe("serverfn validators", () => {
         projectId: "p1",
         runId: "r1",
         host: "alpha",
-        botId: "maren",
+        gatewayId: "maren",
         op: "status",
         channel: 123,
         account: null,
@@ -151,26 +151,26 @@ describe("serverfn validators", () => {
     expect(() => parseProjectIdInput([] as any)).toThrow()
   })
 
-  it("rejects invalid project ids for bot inputs", () => {
-    expect(() => parseProjectBotInput({ projectId: "", botId: "maren" })).toThrow()
-    expect(() => parseBotOpenclawConfigInput({ projectId: "", botId: "maren", openclaw: {} })).toThrow()
+  it("rejects invalid project ids for gateway inputs", () => {
+    expect(() => parseProjectGatewayInput({ projectId: "", host: "alpha", gatewayId: "maren" })).toThrow()
+    expect(() => parseGatewayOpenclawConfigInput({ projectId: "", host: "alpha", gatewayId: "maren", openclaw: {} })).toThrow()
   })
 
-  it("trims botId and validates schemaMode", () => {
+  it("trims gatewayId and validates schemaMode", () => {
     expect(
-      parseBotOpenclawConfigInput({
+      parseGatewayOpenclawConfigInput({
         projectId: "p1",
-        botId: " maren ",
+        gatewayId: " maren ",
         host: "alpha",
         schemaMode: "live",
         openclaw: {},
       }),
-    ).toMatchObject({ botId: "maren", schemaMode: "live" })
+    ).toMatchObject({ gatewayId: "maren", schemaMode: "live" })
 
     expect(() =>
-      parseBotOpenclawConfigInput({
+      parseGatewayOpenclawConfigInput({
         projectId: "p1",
-        botId: "maren",
+        gatewayId: "maren",
         host: "alpha",
         schemaMode: "fast",
         openclaw: {},
@@ -309,23 +309,23 @@ describe("serverfn validators", () => {
     })
   })
 
-  it("parses bot capability preset inputs", () => {
+  it("parses gateway capability preset inputs", () => {
     expect(
-      parseBotCapabilityPresetInput({
+      parseGatewayCapabilityPresetInput({
         projectId: "p1",
         host: "alpha",
-        botId: "maren",
+        gatewayId: "maren",
         kind: "channel",
         presetId: "discord",
         schemaMode: "live",
       }),
-    ).toMatchObject({ botId: "maren", kind: "channel", presetId: "discord", schemaMode: "live" })
+    ).toMatchObject({ gatewayId: "maren", kind: "channel", presetId: "discord", schemaMode: "live" })
 
     expect(() =>
-      parseBotCapabilityPresetInput({
+      parseGatewayCapabilityPresetInput({
         projectId: "p1",
         host: "alpha",
-        botId: "maren",
+        gatewayId: "maren",
         kind: "channel",
         presetId: "",
       }),

@@ -17,24 +17,24 @@ function expectConvexFail(fn: () => void, code: string, message?: string) {
 describe("guardLiveSchemaFetch validation", () => {
   it("rejects oversized host", () => {
     expectConvexFail(
-      () => __test_parseLiveSchemaTarget({ host: "a".repeat(129), botId: "bot1" }),
+      () => __test_parseLiveSchemaTarget({ host: "a".repeat(129), gatewayId: "bot1" }),
       "conflict",
       "host too long",
     )
   })
 
-  it("rejects oversized botId", () => {
+  it("rejects oversized gatewayId", () => {
     expectConvexFail(
-      () => __test_parseLiveSchemaTarget({ host: "host1", botId: "b".repeat(129) }),
+      () => __test_parseLiveSchemaTarget({ host: "host1", gatewayId: "b".repeat(129) }),
       "conflict",
-      "botId too long",
+      "gatewayId too long",
     )
   })
 
-  it("accepts valid host/botId", () => {
-    expect(__test_parseLiveSchemaTarget({ host: "host-1", botId: "bot_1" })).toEqual({
+  it("accepts valid host/gatewayId", () => {
+    expect(__test_parseLiveSchemaTarget({ host: "host-1", gatewayId: "bot_1" })).toEqual({
       host: "host-1",
-      botId: "bot_1",
+      gatewayId: "bot_1",
     })
   })
 })

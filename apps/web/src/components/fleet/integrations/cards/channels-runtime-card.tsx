@@ -9,7 +9,7 @@ import { serverChannelsExecute, serverChannelsStart } from "~/sdk/server-channel
 
 export function ChannelsRuntimeCard(props: {
   projectId: string
-  botId: string
+  gatewayId: string
   host: string
   canEdit: boolean
   channelModels: ChannelUiModel[]
@@ -24,7 +24,7 @@ export function ChannelsRuntimeCard(props: {
         data: {
           projectId: props.projectId as Id<"projects">,
           host: props.host,
-          botId: props.botId,
+          gatewayId: props.gatewayId,
           op: params.op,
         },
       })
@@ -37,7 +37,7 @@ export function ChannelsRuntimeCard(props: {
           projectId: props.projectId as Id<"projects">,
           runId: res.runId,
           host: props.host,
-          botId: props.botId,
+          gatewayId: props.gatewayId,
           op: res.params.op,
           channel: res.params.channel || "",
           account: "",

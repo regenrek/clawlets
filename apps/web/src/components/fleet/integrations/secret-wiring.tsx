@@ -29,12 +29,12 @@ function isShareableEnvVar(envVar: string): boolean {
 
 export function SecretWiringDetails(props: {
   projectId: string
-  botId: string
+  gatewayId: string
   host: string
   canEdit: boolean
   envVars: string[]
   fleetSecretEnv: unknown
-  botSecretEnv: unknown
+  gatewaySecretEnv: unknown
 }) {
   const queryClient = useQueryClient()
   const [draftSecretByEnvVar, setDraftSecretByEnvVar] = useState<Record<string, string>>({})
@@ -51,7 +51,7 @@ export function SecretWiringDetails(props: {
 
       const path =
         params.scope === "gateway"
-          ? `hosts.${props.host}.bots.${props.botId}.profile.secretEnv.${envVar}`
+          ? `hosts.${props.host}.gateways.${props.gatewayId}.profile.secretEnv.${envVar}`
           : `fleet.secretEnv.${envVar}`
 
       const res = await configDotSet({
@@ -91,10 +91,12 @@ export function SecretWiringDetails(props: {
         { path: `fleet.secretEnv.${envVar}`, value: secretName, del: false },
       ]
 
-      const botKey =
-        props.botSecretEnv && typeof props.botSecretEnv === "object" ? (props.botSecretEnv as any)[envVar] : undefined
-      if (typeof botKey === "string") {
-        ops.push({ path: `hosts.${props.host}.bots.${props.botId}.profile.secretEnv.${envVar}`, del: true })
+      const gatewayKey =
+        props.gatewaySecretEnv && typeof props.gatewaySecretEnv === "object"
+          ? (props.gatewaySecretEnv as any)[envVar]
+          : undefined
+      if (typeof gatewayKey === "string") {
+        ops.push({ path: `hosts.${props.host}.gateways.${props.gatewayId}.profile.secretEnv.${envVar}`, del: true })
       }
 
       const res = await configDotBatch({ data: { projectId: props.projectId as Id<"projects">, ops } })
@@ -118,7 +120,7 @@ export function SecretWiringDetails(props: {
       <div className="mt-4 space-y-3">
         {props.envVars.length === 0 ? (
           <div className="text-xs text-muted-foreground">
-            No <code>${"{ENV}"}</code> refs found in this bot’s clawdbot config.
+            No <code>${"{ENV}"}</code> refs found in this gateway’s OpenClaw config.
           </div>
         ) : (
           <div className="space-y-2">
@@ -126,10 +128,10 @@ export function SecretWiringDetails(props: {
               const mapping = getEnvMapping({
                 envVar,
                 fleetSecretEnv: props.fleetSecretEnv,
-                botSecretEnv: props.botSecretEnv,
+                gatewaySecretEnv: props.gatewaySecretEnv,
               })
 
-              const suggested = suggestSecretNameForEnvVar(envVar, props.botId)
+              const suggested = suggestSecretNameForEnvVar(envVar, props.gatewayId)
               const rawDraft = draftSecretByEnvVar[envVar] ?? suggested
               const draft = rawDraft.trim()
 
@@ -147,7 +149,7 @@ export function SecretWiringDetails(props: {
                         {hasMapping ? (
                           <>
                             mapped to <code>{mapping!.secretName}</code> (
-                            {mapping!.scope === "gateway" ? "bot" : "fleet"})
+                            {mapping!.scope === "gateway" ? "gateway" : "fleet"})
                           </>
                         ) : (
                           <>missing mapping</>
@@ -191,7 +193,7 @@ export function SecretWiringDetails(props: {
                         disabled={!props.canEdit || wireEnv.isPending || !draft || !isValidEnvVarName(envVar)}
                         onClick={() => wireEnv.mutate({ envVar, scope: "gateway", secretName: draft })}
                       >
-                        Map (bot)
+                        Map (gateway)
                       </Button>
                       {!isValidEnvVarName(envVar) ? (
                         <div className="md:col-span-3 text-xs text-muted-foreground">

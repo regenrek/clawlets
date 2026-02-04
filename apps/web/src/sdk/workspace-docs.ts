@@ -13,7 +13,7 @@ export const listWorkspaceDocs = createServerFn({ method: "POST" })
     const d = data as Record<string, unknown>
     return {
       ...base,
-      botId: String(d["botId"] || ""),
+      gatewayId: String(d["gatewayId"] || ""),
     }
   })
   .handler(async ({ data }) => {
@@ -29,7 +29,7 @@ export const readWorkspaceDoc = createServerFn({ method: "POST" })
     if (scope !== "common" && scope !== "gateway" && scope !== "effective") throw new Error("invalid scope")
     return {
       ...base,
-      botId: typeof d["botId"] === "string" ? d["botId"] : "",
+      gatewayId: typeof d["gatewayId"] === "string" ? d["gatewayId"] : "",
       scope: scope as WorkspaceDocScope,
       name: String(d["name"] || ""),
     }
@@ -47,7 +47,7 @@ export const writeWorkspaceDoc = createServerFn({ method: "POST" })
     if (scope !== "common" && scope !== "gateway") throw new Error("invalid scope")
     return {
       ...base,
-      botId: typeof d["botId"] === "string" ? d["botId"] : "",
+      gatewayId: typeof d["gatewayId"] === "string" ? d["gatewayId"] : "",
       scope: scope as WorkspaceDocWriteScope,
       name: String(d["name"] || ""),
       content: typeof d["content"] === "string" ? d["content"] : "",
@@ -65,7 +65,7 @@ export const resetWorkspaceDocOverride = createServerFn({ method: "POST" })
     const d = data as Record<string, unknown>
     return {
       ...base,
-      botId: String(d["botId"] || ""),
+      gatewayId: String(d["gatewayId"] || ""),
       name: String(d["name"] || ""),
       expectedSha256: typeof d["expectedSha256"] === "string" ? d["expectedSha256"] : "",
     }

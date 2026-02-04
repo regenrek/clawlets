@@ -45,7 +45,7 @@ export const getSecretsTemplate = createServerFn({ method: "POST" })
 
     return {
       host,
-      bots: secretsPlan.gateways,
+      gateways: secretsPlan.gateways,
       secretsPlan,
       missingSecretConfig: secretsPlan.missing,
       requiredSecretNames: sets.requiredSecretNames,

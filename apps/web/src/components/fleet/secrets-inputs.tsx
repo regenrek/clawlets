@@ -10,7 +10,7 @@ import { setupFieldHelp } from "~/lib/setup-field-help"
 export type SecretSpec = {
   name: string
   kind: "env" | "file" | "extra"
-  scope: "host" | "bot"
+  scope: "host" | "gateway"
   source: "channel" | "model" | "provider" | "custom"
   envVars?: string[]
   optional?: boolean

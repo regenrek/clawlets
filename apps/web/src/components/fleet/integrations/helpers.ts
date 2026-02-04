@@ -22,11 +22,11 @@ export function parseTextList(value: string): string[] {
 export function getEnvMapping(params: {
   envVar: string
   fleetSecretEnv: unknown
-  botSecretEnv: unknown
+  gatewaySecretEnv: unknown
 }): { secretName: string; scope: "gateway" | "fleet" } | null {
   const envVar = params.envVar
-  if (isPlainObject(params.botSecretEnv)) {
-    const v = params.botSecretEnv[envVar]
+  if (isPlainObject(params.gatewaySecretEnv)) {
+    const v = params.gatewaySecretEnv[envVar]
     if (typeof v === "string" && v.trim()) return { secretName: v.trim(), scope: "gateway" }
   }
   if (isPlainObject(params.fleetSecretEnv)) {

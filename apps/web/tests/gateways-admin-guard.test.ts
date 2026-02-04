@@ -8,7 +8,7 @@ const startStorage = globalObj[GLOBAL_STORAGE_KEY]
 const runWithStartContext = <T>(context: unknown, fn: () => Promise<T>) =>
   startStorage?.run(context, fn) as Promise<T>
 
-async function loadBots(role: "admin" | "viewer") {
+async function loadGateways(role: "admin" | "viewer") {
   vi.resetModules()
   const mutation = vi.fn(async (_mutation: unknown, payload?: { kind?: string }) => {
     if (payload?.kind) return { runId: "run1" }
@@ -40,27 +40,27 @@ async function loadBots(role: "admin" | "viewer") {
       },
       loadClawletsConfigRaw: () => ({
         configPath: "/tmp/fleet/clawlets.json",
-        config: { hosts: { alpha: { botsOrder: ["bot1"], bots: { bot1: { openclaw: {} } } } } },
+        config: { hosts: { alpha: { gatewaysOrder: ["gateway1"], gateways: { gateway1: { openclaw: {} } } } } },
       }),
       writeClawletsConfig: async () => {},
     }
   })
 
-  const mod = await import("~/sdk/bots")
+  const mod = await import("~/sdk/gateways")
   return { mod, mutation, runWithEvents }
 }
 
-describe("bots admin guard", () => {
-  it("blocks viewer from mutating bot config", async () => {
-    const { mod, mutation, runWithEvents } = await loadBots("viewer")
+describe("gateways admin guard", () => {
+  it("blocks viewer from mutating gateway config", async () => {
+    const { mod, mutation, runWithEvents } = await loadGateways("viewer")
     await expect(
       runWithStartContext(
         { request: new Request("http://localhost"), contextAfterGlobalMiddlewares: {}, executedRequestMiddlewares: new Set() },
         async () =>
-          await mod.setBotOpenclawConfig({
+          await mod.setGatewayOpenclawConfig({
             data: {
               projectId: "p1" as any,
-              botId: "bot1",
+              gatewayId: "gateway1",
               openclaw: {},
               schemaMode: "pinned",
               host: "alpha",
@@ -72,15 +72,15 @@ describe("bots admin guard", () => {
     expect(runWithEvents).not.toHaveBeenCalled()
   })
 
-  it("allows admin to mutate bot config", async () => {
-    const { mod } = await loadBots("admin")
+  it("allows admin to mutate gateway config", async () => {
+    const { mod } = await loadGateways("admin")
     const res = await runWithStartContext(
       { request: new Request("http://localhost"), contextAfterGlobalMiddlewares: {}, executedRequestMiddlewares: new Set() },
       async () =>
-        await mod.setBotOpenclawConfig({
+        await mod.setGatewayOpenclawConfig({
           data: {
             projectId: "p1" as any,
-            botId: "bot1",
+            gatewayId: "gateway1",
             openclaw: {},
             schemaMode: "pinned",
             host: "alpha",

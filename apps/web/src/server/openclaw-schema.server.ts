@@ -168,16 +168,16 @@ export type OpenclawSchemaStatusResult =
 export async function fetchOpenclawSchemaLive(params: {
   projectId: Id<"projects">
   host: string
-  botId: string
+  gatewayId: string
 }): Promise<OpenclawSchemaLiveResult> {
   const client = createConvexClient()
   const { role, repoRoot } = await getProjectContext(client, params.projectId)
   if (role !== "admin") return { ok: false as const, message: "admin required" } satisfies OpenclawSchemaLiveResult
-  const botId = GatewayIdSchema.parse(params.botId.trim())
+  const gatewayId = GatewayIdSchema.parse(params.gatewayId.trim())
   const hostCandidate = String(params.host || "").trim()
 
   if (hostCandidate) {
-    const cacheKey = `${params.projectId}:${hostCandidate}:${botId}`
+    const cacheKey = `${params.projectId}:${hostCandidate}:${gatewayId}`
     const now = Date.now()
     pruneExpired(liveSchemaCache, now)
     const cached = liveSchemaCache.get(cacheKey)
@@ -189,9 +189,9 @@ export async function fetchOpenclawSchemaLive(params: {
   const host = hostCandidate || config.defaultHost || ""
   if (!host) throw new Error("missing host")
   if (!config.hosts[host]) throw new Error(`unknown host: ${host}`)
-  if (!(config.hosts as any)?.[host]?.bots?.[botId]) throw new Error(`unknown bot: ${botId}`)
+  if (!(config.hosts as any)?.[host]?.gateways?.[gatewayId]) throw new Error(`unknown gateway: ${gatewayId}`)
 
-  const cacheKey = `${params.projectId}:${host}:${botId}`
+  const cacheKey = `${params.projectId}:${host}:${gatewayId}`
   const now = Date.now()
   pruneExpired(liveSchemaCache, now)
   const cached = liveSchemaCache.get(cacheKey)
@@ -205,20 +205,20 @@ export async function fetchOpenclawSchemaLive(params: {
   }
   const targetHost = validateTargetHost(targetHostRaw)
 
-  const gatewayConfig = buildOpenClawGatewayConfig({ config, hostName: host, botId })
+  const gatewayConfig = buildOpenClawGatewayConfig({ config, hostName: host, gatewayId })
   const gateway = (gatewayConfig.invariants as any)?.gateway || {}
   const port = typeof gateway.port === "number" ? gateway.port : Number(gateway.port || 0)
-  if (!Number.isFinite(port) || port <= 0) throw new Error(`invalid gateway port for bot ${botId}`)
+  if (!Number.isFinite(port) || port <= 0) throw new Error(`invalid gateway port for gateway ${gatewayId}`)
 
   const inFlight = liveSchemaInFlight.get(cacheKey)
   if (inFlight) return inFlight
 
   const task = (async () => {
     try {
-      await client.mutation(api.projects.guardLiveSchemaFetch, { projectId: params.projectId, host, botId })
+      await client.mutation(api.projects.guardLiveSchemaFetch, { projectId: params.projectId, host, gatewayId })
 
       const nonce = randomBytes(8).toString("hex")
-      const remoteCmd = buildGatewaySchemaCommand({ gatewayId: botId, port, sudo: needsSudo(targetHost), nonce })
+      const remoteCmd = buildGatewaySchemaCommand({ gatewayId, port, sudo: needsSudo(targetHost), nonce })
       const raw = await sshCapture(targetHost, remoteCmd, {
         cwd: repoRoot,
         timeoutMs: 15_000,

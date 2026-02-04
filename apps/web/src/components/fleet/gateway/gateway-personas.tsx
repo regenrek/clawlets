@@ -57,7 +57,7 @@ function normalizeAgentList(agents: unknown): AgentEntry[] {
 export function GatewayPersonas(props: {
   projectId: string
   host: string
-  botId: string
+  gatewayId: string
   agents: unknown
   canEdit: boolean
 }) {
@@ -91,7 +91,7 @@ export function GatewayPersonas(props: {
         data: {
           projectId: props.projectId,
           host: props.host,
-          gatewayId: props.botId,
+          gatewayId: props.gatewayId,
           agentId: effectiveAgentId,
           name: displayName,
           makeDefault,
@@ -112,7 +112,7 @@ export function GatewayPersonas(props: {
   const removeAgent = useMutation({
     mutationFn: async (agentId: string) =>
       await removeGatewayAgent({
-        data: { projectId: props.projectId, host: props.host, gatewayId: props.botId, agentId },
+        data: { projectId: props.projectId, host: props.host, gatewayId: props.gatewayId, agentId },
       }),
     onSuccess: () => {
       toast.success("Agent removed")
@@ -153,7 +153,7 @@ export function GatewayPersonas(props: {
             <DialogHeader>
               <DialogTitle>Add agent</DialogTitle>
               <DialogDescription>
-                Create a persona entry under <code>{props.botId}</code>. Advanced per-agent config lives in OpenClaw
+                Create a persona entry under <code>{props.gatewayId}</code>. Advanced per-agent config lives in OpenClaw
                 passthrough.
               </DialogDescription>
             </DialogHeader>

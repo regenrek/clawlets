@@ -7,7 +7,7 @@ import { TextListField } from "../shared/text-list-field"
 
 export function PluginsConfigCard(props: {
   host: string
-  botId: string
+  gatewayId: string
   plugins: unknown
   canEdit: boolean
   pending: boolean
@@ -27,7 +27,10 @@ export function PluginsConfigCard(props: {
   const [pathsText, setPathsText] = useState(() => props.initialPathsText)
 
   return (
-    <ConfigCard title="Plugins config (first-class)" configPath={buildGatewayConfigPath(props.host, props.botId, "plugins")}>
+    <ConfigCard
+      title="Plugins config (first-class)"
+      configPath={buildGatewayConfigPath(props.host, props.gatewayId, "plugins")}
+    >
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <div className="text-sm font-medium">Enabled</div>

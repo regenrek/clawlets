@@ -10,7 +10,7 @@ import { Button } from "~/components/ui/button"
 import { Switch } from "~/components/ui/switch"
 import { Badge } from "~/components/ui/badge"
 import { MonacoJsonEditor, type JsonEditorDiagnostic } from "~/components/editor/monaco-json-editor"
-import { hardenBotOpenclawConfig, setBotOpenclawConfig, verifyBotOpenclawSchema } from "~/sdk/bots"
+import { hardenGatewayOpenclawConfig, setGatewayOpenclawConfig, verifyGatewayOpenclawSchema } from "~/sdk/gateways"
 import { getOpenclawSchemaLive, getOpenclawSchemaStatus, type OpenclawSchemaLiveResult } from "~/sdk/openclaw-schema"
 import { createOpenclawParseScheduler, parseOpenclawConfigText } from "~/lib/openclaw-parse"
 
@@ -31,9 +31,9 @@ export function relaxOpenclawSchemaForPassthrough(schema: Record<string, unknown
   return { ...schema, required: next }
 }
 
-export function BotOpenclawEditor(props: {
+export function GatewayOpenclawEditor(props: {
   projectId: string
-  botId: string
+  gatewayId: string
   host: string
   initial: unknown
   canEdit: boolean
@@ -55,7 +55,7 @@ export function BotOpenclawEditor(props: {
   const [liveVerifyError, setLiveVerifyError] = useState("")
   const parseRunnerRef = useRef<ReturnType<typeof createOpenclawParseScheduler> | null>(null)
   const textRef = useRef(text)
-  const botIdRef = useRef(props.botId)
+  const gatewayIdRef = useRef(props.gatewayId)
 
   const schemaStatus = useQuery({
     queryKey: ["openclawSchemaStatus", props.projectId],
@@ -79,19 +79,19 @@ export function BotOpenclawEditor(props: {
     setLiveIssues(null)
     setSchemaDiff(null)
     setLiveVerifyError("")
-  }, [initialText, props.botId])
+  }, [initialText, props.gatewayId])
 
   useEffect(() => {
     textRef.current = text
-    botIdRef.current = props.botId
-  }, [text, props.botId])
+    gatewayIdRef.current = props.gatewayId
+  }, [text, props.gatewayId])
 
   useEffect(() => {
     if (typeof window === "undefined") return
     if (!parseRunnerRef.current) {
       parseRunnerRef.current = createOpenclawParseScheduler({
         getText: () => textRef.current,
-        getGatewayId: () => botIdRef.current,
+        getGatewayId: () => gatewayIdRef.current,
         onParsed: setParsed,
         onSecurity: setSecurityReport,
         delayMs: 400,
@@ -100,17 +100,17 @@ export function BotOpenclawEditor(props: {
     }
     parseRunnerRef.current.schedule()
     return () => parseRunnerRef.current?.cancel()
-  }, [text, props.botId])
+  }, [text, props.gatewayId])
 
   const save = useMutation({
     mutationFn: async () => {
       setServerIssues(null)
       const parsedNow = parseOpenclawConfigText(text)
       if (!parsedNow.ok) throw new Error(parsedNow.message)
-      return await setBotOpenclawConfig({
+      return await setGatewayOpenclawConfig({
         data: {
           projectId: props.projectId as Id<"projects">,
-          botId: props.botId,
+          gatewayId: props.gatewayId,
           openclaw: parsedNow.value,
           schemaMode,
           host: props.host,
@@ -136,10 +136,10 @@ export function BotOpenclawEditor(props: {
   const harden = useMutation({
     mutationFn: async () => {
       setServerIssues(null)
-      return await hardenBotOpenclawConfig({
+      return await hardenGatewayOpenclawConfig({
         data: {
           projectId: props.projectId as Id<"projects">,
-          botId: props.botId,
+          gatewayId: props.gatewayId,
           host: props.host,
         },
       })
@@ -168,7 +168,7 @@ export function BotOpenclawEditor(props: {
         data: {
           projectId: props.projectId as Id<"projects">,
           host: props.host,
-          botId: props.botId,
+          gatewayId: props.gatewayId,
         },
       })) as OpenclawSchemaLiveResult,
     onSuccess: (res) => {
@@ -189,11 +189,11 @@ export function BotOpenclawEditor(props: {
 
   const liveVerify = useMutation({
     mutationFn: async () =>
-      await verifyBotOpenclawSchema({
+      await verifyGatewayOpenclawSchema({
         data: {
           projectId: props.projectId as Id<"projects">,
           host: props.host,
-          botId: props.botId,
+          gatewayId: props.gatewayId,
         },
       }),
     onSuccess: (res) => {
@@ -252,7 +252,7 @@ export function BotOpenclawEditor(props: {
         <div>
           <div className="font-medium">OpenClaw config (JSON)</div>
           <div className="text-xs text-muted-foreground">
-            Stored as <code>hosts.{props.host}.bots.{props.botId}.openclaw</code>.
+            Stored as <code>hosts.{props.host}.gateways.{props.gatewayId}.openclaw</code>.
           </div>
         </div>
         <div className="flex items-center gap-2">

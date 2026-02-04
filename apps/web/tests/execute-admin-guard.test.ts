@@ -77,7 +77,7 @@ describe("execute admin guard", () => {
       loadClawletsConfig: () => ({
         config: {
           defaultHost: "alpha",
-          hosts: { alpha: { botsOrder: ["bot1"], bots: { bot1: {} } } },
+          hosts: { alpha: { gatewaysOrder: ["bot1"], gateways: { bot1: {} } } },
         },
       }),
     }))
@@ -112,12 +112,12 @@ describe("execute admin guard", () => {
             projectId: "p1" as any,
             runId: "run1" as any,
             host: "alpha",
-            botId: "bot1",
+            gatewayId: "bot1",
             op: "status",
             channel: "",
             account: "",
             target: "",
-            timeoutMs: 10_000,
+            timeout: "10000",
             json: false,
             probe: false,
             verbose: false,

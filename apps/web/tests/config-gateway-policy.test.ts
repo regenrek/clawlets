@@ -37,11 +37,15 @@ async function loadConfig() {
       },
       loadClawletsConfig: () => ({
         configPath: "/tmp/fleet/clawlets.json",
-        config: { hosts: { alpha: { botsOrder: ["bot1"], bots: { bot1: { openclaw: { ok: true } } } } } },
+        config: {
+          hosts: { alpha: { gatewaysOrder: ["gateway1"], gateways: { gateway1: { openclaw: { ok: true } } } } },
+        },
       }),
       loadClawletsConfigRaw: () => ({
         configPath: "/tmp/fleet/clawlets.json",
-        config: { hosts: { alpha: { botsOrder: ["bot1"], bots: { bot1: { openclaw: { ok: true } } } } } },
+        config: {
+          hosts: { alpha: { gatewaysOrder: ["gateway1"], gateways: { gateway1: { openclaw: { ok: true } } } } },
+        },
       }),
       writeClawletsConfig: async () => {},
     }
@@ -51,8 +55,8 @@ async function loadConfig() {
   return { mod, mutation, runWithEvents }
 }
 
-describe("config bot openclaw policy", () => {
-  it("allows bot channels updates via configDotSet", async () => {
+describe("config gateway openclaw policy", () => {
+  it("allows gateway channels updates via configDotSet", async () => {
     const { mod, mutation, runWithEvents } = await loadConfig()
     const res = await runWithStartContext(
       { request: new Request("http://localhost"), contextAfterGlobalMiddlewares: {}, executedRequestMiddlewares: new Set() },
@@ -60,7 +64,7 @@ describe("config bot openclaw policy", () => {
         await mod.configDotSet({
           data: {
             projectId: "p1" as any,
-            path: "hosts.alpha.bots.bot1.channels.discord.enabled",
+            path: "hosts.alpha.gateways.gateway1.channels.discord.enabled",
             valueJson: "true",
             value: undefined,
             del: false,
@@ -75,7 +79,7 @@ describe("config bot openclaw policy", () => {
     expect(runWithEvents).toHaveBeenCalled()
   })
 
-  it("allows bot channels updates via configDotBatch", async () => {
+  it("allows gateway channels updates via configDotBatch", async () => {
     const { mod, mutation, runWithEvents } = await loadConfig()
     const res = await runWithStartContext(
       { request: new Request("http://localhost"), contextAfterGlobalMiddlewares: {}, executedRequestMiddlewares: new Set() },
@@ -85,7 +89,7 @@ describe("config bot openclaw policy", () => {
             projectId: "p1" as any,
             ops: [
               {
-                path: "hosts.alpha.bots.bot1.channels.discord.enabled",
+                path: "hosts.alpha.gateways.gateway1.channels.discord.enabled",
                 valueJson: "true",
                 del: false,
               },
@@ -101,7 +105,7 @@ describe("config bot openclaw policy", () => {
     expect(runWithEvents).toHaveBeenCalled()
   })
 
-  it("allows bot hooks/skills/plugins updates via configDotSet", async () => {
+  it("allows gateway hooks/skills/plugins updates via configDotSet", async () => {
     const { mod, mutation, runWithEvents } = await loadConfig()
     const ctx = {
       request: new Request("http://localhost"),
@@ -113,7 +117,7 @@ describe("config bot openclaw policy", () => {
       mod.configDotSet({
         data: {
           projectId: "p1" as any,
-          path: "hosts.alpha.bots.bot1.hooks.enabled",
+          path: "hosts.alpha.gateways.gateway1.hooks.enabled",
           valueJson: "true",
           value: undefined,
           del: false,
@@ -126,7 +130,7 @@ describe("config bot openclaw policy", () => {
       mod.configDotSet({
         data: {
           projectId: "p1" as any,
-          path: "hosts.alpha.bots.bot1.skills.allowBundled",
+          path: "hosts.alpha.gateways.gateway1.skills.allowBundled",
           valueJson: '["brave-search"]',
           value: undefined,
           del: false,
@@ -139,7 +143,7 @@ describe("config bot openclaw policy", () => {
       mod.configDotSet({
         data: {
           projectId: "p1" as any,
-          path: "hosts.alpha.bots.bot1.plugins.enabled",
+          path: "hosts.alpha.gateways.gateway1.plugins.enabled",
           valueJson: "false",
           value: undefined,
           del: false,
@@ -152,7 +156,7 @@ describe("config bot openclaw policy", () => {
     expect(runWithEvents).toHaveBeenCalled()
   })
 
-  it("rejects bot openclaw path updates via configDotSet", async () => {
+  it("rejects gateway openclaw path updates via configDotSet", async () => {
     const { mod, mutation, runWithEvents } = await loadConfig()
     const res = await runWithStartContext(
       { request: new Request("http://localhost"), contextAfterGlobalMiddlewares: {}, executedRequestMiddlewares: new Set() },
@@ -160,7 +164,7 @@ describe("config bot openclaw policy", () => {
         await mod.configDotSet({
           data: {
             projectId: "p1" as any,
-            path: "hosts.alpha.bots.bot1.openclaw.token",
+            path: "hosts.alpha.gateways.gateway1.openclaw.token",
             value: "nope",
             valueJson: undefined,
             del: false,
@@ -175,7 +179,7 @@ describe("config bot openclaw policy", () => {
     expect(runWithEvents).not.toHaveBeenCalled()
   })
 
-  it("rejects bot openclaw path updates via configDotBatch", async () => {
+  it("rejects gateway openclaw path updates via configDotBatch", async () => {
     const { mod, mutation, runWithEvents } = await loadConfig()
     const res = await runWithStartContext(
       { request: new Request("http://localhost"), contextAfterGlobalMiddlewares: {}, executedRequestMiddlewares: new Set() },
@@ -183,7 +187,7 @@ describe("config bot openclaw policy", () => {
         await mod.configDotBatch({
           data: {
             projectId: "p1" as any,
-            ops: [{ path: "hosts.alpha.bots.bot1.openclaw.token", value: "nope", del: false }],
+            ops: [{ path: "hosts.alpha.gateways.gateway1.openclaw.token", value: "nope", del: false }],
           },
         }),
     )
@@ -203,7 +207,11 @@ describe("config bot openclaw policy", () => {
         await mod.writeClawletsConfigFile({
           data: {
             projectId: "p1" as any,
-            next: { hosts: { alpha: { botsOrder: ["bot1"], bots: { bot1: { openclaw: { ok: false } } } } } },
+            next: {
+              hosts: {
+                alpha: { gatewaysOrder: ["gateway1"], gateways: { gateway1: { openclaw: { ok: false } } } },
+              },
+            },
             title: "Update config",
           },
         }),

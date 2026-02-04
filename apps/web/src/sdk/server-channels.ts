@@ -22,18 +22,18 @@ export const serverChannelsStart = createServerFn({ method: "POST" })
     if (!host) throw new Error("missing host")
     if (!config.hosts[host]) throw new Error(`unknown host: ${host}`)
 
-    const botId = data.botId
-    if (!(config.hosts as any)?.[host]?.bots?.[botId]) throw new Error(`unknown bot: ${botId}`)
+    const gatewayId = data.gatewayId
+    if (!(config.hosts as any)?.[host]?.gateways?.[gatewayId]) throw new Error(`unknown gateway: ${gatewayId}`)
 
     const { runId } = await client.mutation(api.runs.create, {
       projectId: data.projectId,
       kind: "server_channels",
-      title: `Channels ${data.op} (${botId}@${host})`,
+      title: `Channels ${data.op} (${gatewayId}@${host})`,
     })
     await client.mutation(api.auditLogs.append, {
       projectId: data.projectId,
       action: "server.channels",
-      target: { host, botId, op: data.op },
+      target: { host, gatewayId, op: data.op },
       data: { runId },
     })
     return { runId }
@@ -55,8 +55,8 @@ export const serverChannelsExecute = createServerFn({ method: "POST" })
     if (!host) throw new Error("missing host")
     if (!config.hosts[host]) throw new Error(`unknown host: ${host}`)
 
-    const botId = data.botId
-    if (!(config.hosts as any)?.[host]?.bots?.[botId]) throw new Error(`unknown bot: ${botId}`)
+    const gatewayId = data.gatewayId
+    if (!(config.hosts as any)?.[host]?.gateways?.[gatewayId]) throw new Error(`unknown gateway: ${gatewayId}`)
 
     const redactTokens = await readClawletsEnvTokens(repoRoot)
     const cliEntry = resolveClawletsCliEntry()
@@ -70,7 +70,7 @@ export const serverChannelsExecute = createServerFn({ method: "POST" })
       "--host",
       host,
       "--gateway",
-      botId,
+      gatewayId,
     ]
 
     if (data.op === "status") {

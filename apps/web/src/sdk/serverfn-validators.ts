@@ -36,9 +36,9 @@ function parseHostNameRequired(value: unknown): string {
 }
 
 function parseGatewayIdRequired(value: unknown): string {
-  if (typeof value !== "string") throw new Error("invalid botId")
+  if (typeof value !== "string") throw new Error("invalid gatewayId")
   const trimmed = value.trim()
-  if (!trimmed) throw new Error("invalid botId")
+  if (!trimmed) throw new Error("invalid gatewayId")
   return GatewayIdSchema.parse(trimmed)
 }
 
@@ -103,14 +103,14 @@ function parseTimeoutMs(value: unknown): number {
 export function parseServerChannelsStartInput(data: unknown): {
   projectId: Id<"projects">
   host: string
-  botId: string
+  gatewayId: string
   op: ServerChannelOp
 } {
   const d = requireObject(data)
   return {
     projectId: parseConvexId(d["projectId"], "projectId"),
     host: parseOptionalHostName(d["host"]),
-    botId: parseGatewayIdRequired(d["botId"]),
+    gatewayId: parseGatewayIdRequired(d["gatewayId"]),
     op: parseServerChannelOp(d["op"]),
   }
 }
@@ -119,7 +119,7 @@ export function parseServerChannelsExecuteInput(data: unknown): {
   projectId: Id<"projects">
   runId: Id<"runs">
   host: string
-  botId: string
+  gatewayId: string
   op: ServerChannelOp
   channel: string
   account: string
@@ -134,7 +134,7 @@ export function parseServerChannelsExecuteInput(data: unknown): {
     projectId: parseConvexId(d["projectId"], "projectId"),
     runId: parseConvexId(d["runId"], "runId"),
     host: parseOptionalHostName(d["host"]),
-    botId: parseGatewayIdRequired(d["botId"]),
+    gatewayId: parseGatewayIdRequired(d["gatewayId"]),
     op: parseServerChannelOp(d["op"]),
     channel: parseOptionalString(d["channel"], 64),
     account: parseOptionalString(d["account"], 64),
@@ -179,27 +179,27 @@ export function parseProjectSshKeysInput(data: unknown): {
   }
 }
 
-export function parseProjectHostBotInput(data: unknown): { projectId: Id<"projects">; host: string; botId: string } {
+export function parseProjectHostGatewayInput(data: unknown): { projectId: Id<"projects">; host: string; gatewayId: string } {
   const d = requireObject(data)
   return {
     projectId: parseConvexId(d["projectId"], "projectId"),
     host: parseHostNameRequired(d["host"]),
-    botId: parseGatewayIdRequired(d["botId"]),
+    gatewayId: parseGatewayIdRequired(d["gatewayId"]),
   }
 }
 
-export function parseProjectBotInput(data: unknown): { projectId: Id<"projects">; host: string; botId: string } {
+export function parseProjectGatewayInput(data: unknown): { projectId: Id<"projects">; host: string; gatewayId: string } {
   const d = requireObject(data)
   return {
     projectId: parseConvexId(d["projectId"], "projectId"),
     host: parseHostNameRequired(d["host"]),
-    botId: parseGatewayIdRequired(d["botId"]),
+    gatewayId: parseGatewayIdRequired(d["gatewayId"]),
   }
 }
 
-export function parseBotCapabilityPresetInput(data: unknown): {
+export function parseGatewayCapabilityPresetInput(data: unknown): {
   projectId: Id<"projects">
-  botId: string
+  gatewayId: string
   host: string
   kind: CapabilityPresetKind
   presetId: string
@@ -215,7 +215,7 @@ export function parseBotCapabilityPresetInput(data: unknown): {
   if (!presetId) throw new Error("invalid presetId")
   return {
     projectId: parseConvexId(d["projectId"], "projectId"),
-    botId: parseGatewayIdRequired(d["botId"]),
+    gatewayId: parseGatewayIdRequired(d["gatewayId"]),
     host: parseHostNameRequired(d["host"]),
     kind: parseCapabilityPresetKind(d["kind"]),
     presetId,
@@ -223,9 +223,9 @@ export function parseBotCapabilityPresetInput(data: unknown): {
   }
 }
 
-export function parseBotCapabilityPresetPreviewInput(data: unknown): {
+export function parseGatewayCapabilityPresetPreviewInput(data: unknown): {
   projectId: Id<"projects">
-  botId: string
+  gatewayId: string
   host: string
   kind: CapabilityPresetKind
   presetId: string
@@ -235,16 +235,16 @@ export function parseBotCapabilityPresetPreviewInput(data: unknown): {
   if (!presetId) throw new Error("invalid presetId")
   return {
     projectId: parseConvexId(d["projectId"], "projectId"),
-    botId: parseGatewayIdRequired(d["botId"]),
+    gatewayId: parseGatewayIdRequired(d["gatewayId"]),
     host: parseHostNameRequired(d["host"]),
     kind: parseCapabilityPresetKind(d["kind"]),
     presetId,
   }
 }
 
-export function parseBotOpenclawConfigInput(data: unknown): {
+export function parseGatewayOpenclawConfigInput(data: unknown): {
   projectId: Id<"projects">
-  botId: string
+  gatewayId: string
   host: string
   schemaMode: "live" | "pinned"
   openclaw: unknown
@@ -260,7 +260,7 @@ export function parseBotOpenclawConfigInput(data: unknown): {
   }
   return {
     projectId: parseConvexId(d["projectId"], "projectId"),
-    botId: parseGatewayIdRequired(d["botId"]),
+    gatewayId: parseGatewayIdRequired(d["gatewayId"]),
     host: parseHostNameRequired(d["host"]),
     schemaMode,
     openclaw: d["openclaw"],

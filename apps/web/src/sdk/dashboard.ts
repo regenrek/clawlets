@@ -9,8 +9,8 @@ import { assertRepoRootPath } from "~/server/paths"
 type DashboardProjectConfigSummary = {
   configPath: string | null
   configMtimeMs: number | null
-  botsTotal: number
-  botIdsPreview: string[]
+  gatewaysTotal: number
+  gatewayIdsPreview: string[]
   hostsTotal: number
   hostsEnabled: number
   defaultHost: string | null
@@ -56,14 +56,14 @@ export const getDashboardOverview = createServerFn({ method: "POST" })
 
           const hostNames = Object.keys(config.hosts || {})
           const hostsEnabled = hostNames.filter((h) => Boolean((config.hosts as any)?.[h]?.enable)).length
-          const botEntries: string[] = []
+          const gatewayEntries: string[] = []
           for (const host of hostNames) {
             const hostCfg = (config.hosts as any)?.[host] || {}
-            const botsOrder = Array.isArray(hostCfg?.botsOrder) ? hostCfg.botsOrder : []
-            const botsKeys = Object.keys(hostCfg?.bots || {})
-            const bots = botsOrder.length > 0 ? botsOrder : botsKeys
-            for (const botId of bots) {
-              if (typeof botId === "string" && botId.trim()) botEntries.push(`${host}:${botId}`)
+            const gatewaysOrder = Array.isArray(hostCfg?.gatewaysOrder) ? hostCfg.gatewaysOrder : []
+            const gatewaysKeys = Object.keys(hostCfg?.gateways || {})
+            const gateways = gatewaysOrder.length > 0 ? gatewaysOrder : gatewaysKeys
+            for (const gatewayId of gateways) {
+              if (typeof gatewayId === "string" && gatewayId.trim()) gatewayEntries.push(`${host}:${gatewayId}`)
             }
           }
 
@@ -74,8 +74,8 @@ export const getDashboardOverview = createServerFn({ method: "POST" })
             cfg: {
               configPath,
               configMtimeMs: mtime,
-              botsTotal: botEntries.length,
-              botIdsPreview: botEntries.slice(0, 8),
+              gatewaysTotal: gatewayEntries.length,
+              gatewayIdsPreview: gatewayEntries.slice(0, 8),
               hostsTotal: hostNames.length,
               hostsEnabled,
               defaultHost: typeof config.defaultHost === "string" ? config.defaultHost : null,
@@ -91,8 +91,8 @@ export const getDashboardOverview = createServerFn({ method: "POST" })
             cfg: {
               configPath: null,
               configMtimeMs: null,
-              botsTotal: 0,
-              botIdsPreview: [],
+              gatewaysTotal: 0,
+              gatewayIdsPreview: [],
               hostsTotal: 0,
               hostsEnabled: 0,
               defaultHost: null,

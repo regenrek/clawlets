@@ -107,7 +107,7 @@ describe("openclaw schema output parsing", () => {
       loadClawletsConfig: () => ({
         config: {
           defaultHost: "h1",
-          hosts: { h1: { targetHost: "root@127.0.0.1", botsOrder: ["bot1"], bots: { bot1: {} } } },
+          hosts: { h1: { targetHost: "root@127.0.0.1", gatewaysOrder: ["gateway1"], gateways: { gateway1: {} } } },
         },
       }),
     }))
@@ -122,7 +122,7 @@ describe("openclaw schema output parsing", () => {
       sshCapture,
     }))
     const { fetchOpenclawSchemaLive } = await import("~/server/openclaw-schema.server")
-    const res = await fetchOpenclawSchemaLive({ projectId: "p1" as any, host: "h1", botId: "bot1" })
+    const res = await fetchOpenclawSchemaLive({ projectId: "p1" as any, host: "h1", gatewayId: "gateway1" })
     expect(res.ok).toBe(false)
     if (!res.ok) {
       expect(res.message).toContain("schema payload missing required fields")
@@ -149,7 +149,7 @@ describe("openclaw schema output parsing", () => {
       loadClawletsConfig: () => ({
         config: {
           defaultHost: "h1",
-          hosts: { h1: { targetHost: "root@127.0.0.1", botsOrder: ["bot1"], bots: { bot1: {} } } },
+          hosts: { h1: { targetHost: "root@127.0.0.1", gatewaysOrder: ["gateway1"], gateways: { gateway1: {} } } },
         },
       }),
     }))
@@ -164,7 +164,7 @@ describe("openclaw schema output parsing", () => {
       sshCapture,
     }))
     const { fetchOpenclawSchemaLive } = await import("~/server/openclaw-schema.server")
-    const res = await fetchOpenclawSchemaLive({ projectId: "p1" as any, host: "h1", botId: "bot1" })
+    const res = await fetchOpenclawSchemaLive({ projectId: "p1" as any, host: "h1", gatewayId: "gateway1" })
     expect(res.ok).toBe(false)
     if (!res.ok) {
       expect(res.message).toContain("schema payload missing required fields")
@@ -191,7 +191,7 @@ describe("openclaw schema output parsing", () => {
       loadClawletsConfig: () => ({
         config: {
           defaultHost: "h1",
-          hosts: { h1: { targetHost: "root@127.0.0.1", botsOrder: ["bot1"], bots: { bot1: {} } } },
+          hosts: { h1: { targetHost: "root@127.0.0.1", gatewaysOrder: ["gateway1"], gateways: { gateway1: {} } } },
         },
       }),
     }))
@@ -206,14 +206,14 @@ describe("openclaw schema output parsing", () => {
       sshCapture,
     }))
     const { fetchOpenclawSchemaLive } = await import("~/server/openclaw-schema.server")
-    const res = await fetchOpenclawSchemaLive({ projectId: "p1" as any, host: "h1", botId: "bot1" })
+    const res = await fetchOpenclawSchemaLive({ projectId: "p1" as any, host: "h1", gatewayId: "gateway1" })
     expect(res.ok).toBe(false)
     if (!res.ok) {
       expect(res.message).toContain("schema payload missing required fields")
     }
   })
 
-  it("quotes bot id in gateway schema command", async () => {
+  it("quotes gateway id in gateway schema command", async () => {
     vi.resetModules()
     vi.doMock("@clawlets/core/lib/ssh-remote", async () => {
       const actual = await vi.importActual<typeof import("@clawlets/core/lib/ssh-remote")>(
@@ -226,14 +226,14 @@ describe("openclaw schema output parsing", () => {
       import("@clawlets/core/lib/ssh-remote"),
     ])
     const cmd = __test_buildGatewaySchemaCommand({
-      gatewayId: "bot-1",
+      gatewayId: "maren-1",
       port: 1234,
       sudo: true,
       nonce: "nonce",
     })
-    const envFile = "/srv/openclaw/bot-1/credentials/gateway.env"
+    const envFile = "/srv/openclaw/maren-1/credentials/gateway.env"
     const envFileQuoted = shellQuote(envFile).replace(/'/g, "'\\''")
-    expect(cmd).toContain(shellQuote("gateway-bot-1"))
+    expect(cmd).toContain(shellQuote("gateway-maren-1"))
     expect(cmd).not.toContain(`source ${envFileQuoted}`)
     expect(cmd).toContain("OPENCLAW_GATEWAY_TOKEN")
     expect(cmd).toContain(`env OPENCLAW_GATEWAY_TOKEN="$token"`)
@@ -252,16 +252,16 @@ describe("openclaw schema output parsing", () => {
       import("~/server/openclaw-schema.server"),
       import("@clawlets/core/lib/ssh-remote"),
     ])
-    const botId = "bot 1;echo pwned"
+    const gatewayId = "gateway 1;echo pwned"
     const cmd = __test_buildGatewaySchemaCommand({
-      gatewayId: botId,
+      gatewayId,
       port: 1234,
       sudo: true,
       nonce: "nonce",
     })
-    const envFile = `/srv/openclaw/${botId}/credentials/gateway.env`
+    const envFile = `/srv/openclaw/${gatewayId}/credentials/gateway.env`
     const envFileQuoted = shellQuote(envFile).replace(/'/g, "'\\''")
-    expect(cmd).toContain(shellQuote(`gateway-${botId}`))
+    expect(cmd).toContain(shellQuote(`gateway-${gatewayId}`))
     expect(cmd).not.toContain(`source ${envFileQuoted}`)
     expect(cmd).toContain("OPENCLAW_GATEWAY_TOKEN")
     expect(cmd).toContain(`env OPENCLAW_GATEWAY_TOKEN="$token"`)
@@ -275,7 +275,7 @@ describe("openclaw schema output parsing", () => {
     }))
     const sshCapture = async () => {
       throw new Error(
-        "ssh: connect to host 10.0.0.1 port 22: Connection timed out; cmd: bash -lc 'source /srv/openclaw/bot1/credentials/gateway.env'",
+        "ssh: connect to host 10.0.0.1 port 22: Connection timed out; cmd: bash -lc 'source /srv/openclaw/gateway1/credentials/gateway.env'",
       )
     }
     const query = async () => ({ project: { localPath: "/tmp" }, role: "admin" })
@@ -287,7 +287,7 @@ describe("openclaw schema output parsing", () => {
       loadClawletsConfig: () => ({
         config: {
           defaultHost: "h1",
-          hosts: { h1: { targetHost: "root@127.0.0.1", botsOrder: ["bot1"], bots: { bot1: {} } } },
+          hosts: { h1: { targetHost: "root@127.0.0.1", gatewaysOrder: ["gateway1"], gateways: { gateway1: {} } } },
         },
       }),
     }))
@@ -302,7 +302,7 @@ describe("openclaw schema output parsing", () => {
       sshCapture,
     }))
     const { fetchOpenclawSchemaLive } = await import("~/server/openclaw-schema.server")
-    const res = await fetchOpenclawSchemaLive({ projectId: "p1" as any, host: "h1", botId: "bot1" })
+    const res = await fetchOpenclawSchemaLive({ projectId: "p1" as any, host: "h1", gatewayId: "gateway1" })
     expect(res.ok).toBe(false)
     if (!res.ok) {
       expect(res.message).toBe("Unable to fetch schema. Check gateway and host settings.")
