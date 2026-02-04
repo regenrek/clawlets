@@ -2,7 +2,7 @@
 
 let
   defs = import ./impl/defs.nix { inherit config lib pkgs project flakeInfo; };
-  gatewayConfig = import ./impl/bot-config.nix { inherit lib defs; };
+  gatewayConfig = import ./impl/gateway-config.nix { inherit lib defs; };
   runtime = import ./impl/runtime.nix { inherit config lib pkgs defs gatewayConfig; };
   gatewayToken = import ./impl/gateway-token.nix { inherit config lib pkgs defs; };
   github = import ./impl/github.nix { inherit config lib pkgs defs; };
@@ -33,8 +33,8 @@ in
         message = "services.openclawFleet.gatewayProfiles keys must be a subset of services.openclawFleet.gateways.";
       }
       {
-        assertion = lib.all (b: lib.elem b cfg.gateways) cfg.codex.bots;
-        message = "services.openclawFleet.codex.bots must be a subset of services.openclawFleet.gateways.";
+        assertion = lib.all (b: lib.elem b cfg.gateways) cfg.codex.gateways;
+        message = "services.openclawFleet.codex.gateways must be a subset of services.openclawFleet.gateways.";
       }
       {
         assertion = lib.all (b: ((defs.getGatewayProfile b).skills.allowBundled or null) != null) cfg.gateways;
