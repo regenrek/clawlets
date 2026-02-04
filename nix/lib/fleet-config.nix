@@ -9,23 +9,23 @@ let
 
   _ =
     if builtins.hasAttr "guildId" fleetCfg
-    then builtins.throw "fleet.guildId was removed; configure Discord in hosts.<host>.bots.<botId>.channels.discord instead"
+    then builtins.throw "fleet.guildId was removed; configure Discord in hosts.<host>.gateways.<gatewayId>.channels.discord instead"
     else if builtins.hasAttr "modelSecrets" fleetCfg
     then builtins.throw "fleet.modelSecrets was removed; use fleet.secretEnv (ENV_VAR -> sops secret name)"
     else null;
 
-  gatewaysById = hostCfg.bots or { };
+  gatewaysById = hostCfg.gateways or { };
 
   # Single source of truth for gateway instances (deterministic order).
   gateways =
     let
-      order = hostCfg.botsOrder or [ ];
+      order = hostCfg.gatewaysOrder or [ ];
       derived =
         if builtins.isList order && order != [] then order
         else if builtins.isAttrs gatewaysById then builtins.attrNames gatewaysById
         else [ ];
     in
-      if derived == [] then builtins.throw "hosts.<host>.bots must define at least one bot id"
+      if derived == [] then builtins.throw "hosts.<host>.gateways must define at least one gateway id"
       else derived;
 
   baseGateway = {
@@ -48,9 +48,9 @@ let
       profile = gatewayCfg.profile or { };
       _ =
         if builtins.hasAttr "discordTokenSecret" profile
-        then builtins.throw "hosts.<host>.bots.<botId>.profile.discordTokenSecret was removed; use profile.secretEnv.DISCORD_BOT_TOKEN"
+        then builtins.throw "hosts.<host>.gateways.<gatewayId>.profile.discordTokenSecret was removed; use profile.secretEnv.DISCORD_BOT_TOKEN"
         else if builtins.hasAttr "modelSecrets" profile
-        then builtins.throw "hosts.<host>.bots.<botId>.profile.modelSecrets was removed; use profile.secretEnv (OPENAI_API_KEY/etc)"
+        then builtins.throw "hosts.<host>.gateways.<gatewayId>.profile.modelSecrets was removed; use profile.secretEnv (OPENAI_API_KEY/etc)"
         else null;
       openclaw = gatewayCfg.openclaw or { };
       channels = gatewayCfg.channels or { };
@@ -89,7 +89,7 @@ in {
 
   codex = {
     enable = (fleetCfg.codex or { }).enable or false;
-    bots = lib.filter (b: lib.elem b gateways) ((fleetCfg.codex or { }).bots or [ ]);
+    gateways = lib.filter (b: lib.elem b gateways) ((fleetCfg.codex or { }).gateways or [ ]);
   };
 
   gatewayProfiles = lib.genAttrs gateways mkGatewayProfile;

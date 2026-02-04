@@ -116,7 +116,7 @@ let
 
   hasCodex =
     cfg.codex.enable
-    || cfg.codex.bots != []
+    || cfg.codex.gateways != []
     || hasCodingAgent;
 
   toolsInventoryMd = pkgs.runCommand "clawlets-tools.md" {} ''

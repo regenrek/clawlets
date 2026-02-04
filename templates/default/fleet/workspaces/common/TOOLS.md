@@ -6,7 +6,7 @@ Workspace-local operator notes (no secrets). This file is seeded by Nix on first
 
 Bundled skills are an attack surface. Keep an explicit allowlist per gateway:
 
-- `fleet/clawlets.json` → `hosts.<host>.bots.<botId>.skills.allowBundled = [ ... ];`
+- `fleet/clawlets.json` → `hosts.<host>.gateways.<gatewayId>.skills.allowBundled = [ ... ];`
 - Avoid `null` on servers (typically means “allow all bundled skills”).
 
 ## Tool inventory (generated)
