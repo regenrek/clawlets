@@ -59,7 +59,7 @@ describe("cattle command", () => {
   } as any;
 
   const config = {
-    schemaVersion: 18,
+    schemaVersion: 1,
     defaultHost: hostName,
     fleet: {
       secretEnv: { ZAI_API_KEY: "z_ai_api_key" },

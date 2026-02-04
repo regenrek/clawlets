@@ -10,7 +10,7 @@ The format is based on Keep a Changelog and this project follows SemVer for npm 
 - Pinned upstream OpenClaw JSON Schema snapshot + deterministic TS type generation (Nix/CI guarded).
 
 ### Changed
-- Gateways are host-scoped: `hosts.<host>.gatewaysOrder` / `hosts.<host>.gateways` are the canonical roster (schema bumped to v18; legacy `bots*` keys are hard rejected).
+- Gateways are host-scoped: `hosts.<host>.gatewaysOrder` / `hosts.<host>.gateways` are the canonical roster (schema is v1; legacy `bots*` keys are hard rejected).
 - `fleet.codex.bots` removed; use `fleet.codex.gateways`.
 - Rename `clawdbot` → `openclaw` across config, CLI, docs, and Nix; schema bumped to v15 with migration path.
 - Validate `hosts.<host>.gateways.<gateway>.openclaw` passthrough against pinned upstream schema (fail fast, full-path errors).

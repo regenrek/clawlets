@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 18,
+  "schemaVersion": 1,
   "defaultHost": "openclaw-fleet-host",
   "baseFlake": "",
   "fleet": {

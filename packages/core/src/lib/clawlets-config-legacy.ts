@@ -6,7 +6,7 @@ export function assertNoLegacyHostKeys(parsed: unknown): void {
     if (!hostCfg || typeof hostCfg !== "object" || Array.isArray(hostCfg)) continue;
     if ("bots" in hostCfg || "botsOrder" in hostCfg) {
       throw new Error(
-        `hosts.${host}.bots/botsOrder were renamed to hosts.${host}.gateways/gatewaysOrder (schema v18). Update your config.`,
+        `hosts.${host}.bots/botsOrder were renamed to hosts.${host}.gateways/gatewaysOrder (schema v1). Update your config.`,
       );
     }
     if ("publicSsh" in hostCfg) {

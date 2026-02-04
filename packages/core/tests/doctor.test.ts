@@ -92,7 +92,7 @@ describe("doctor", () => {
     await writeFile(operatorKey, "AGE-SECRET-KEY-TEST\n", "utf8");
 
     const clawletsConfig = {
-      schemaVersion: 18,
+      schemaVersion: 1,
       defaultHost: "clawdbot-fleet-host",
       baseFlake: "",
       fleet: {

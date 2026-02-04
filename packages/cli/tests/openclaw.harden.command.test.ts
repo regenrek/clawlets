@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 
 function baseConfig(host: string) {
   return {
-    schemaVersion: 18,
+    schemaVersion: 1,
     defaultHost: host,
     baseFlake: "",
     fleet: {
