@@ -4,7 +4,7 @@ describe("openclaw passthrough validation", () => {
   it("rejects additional properties under hosts.<host>.gateways.<gateway>.openclaw", async () => {
     const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
     const res = ClawletsConfigSchema.safeParse({
-      schemaVersion: 18,
+      schemaVersion: 1,
       hosts: {
         "openclaw-fleet-host": {
           enable: false,
@@ -28,7 +28,7 @@ describe("openclaw passthrough validation", () => {
   it("points exact path for type errors", async () => {
     const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
     const res = ClawletsConfigSchema.safeParse({
-      schemaVersion: 18,
+      schemaVersion: 1,
       hosts: {
         "openclaw-fleet-host": {
           enable: false,
@@ -49,4 +49,3 @@ describe("openclaw passthrough validation", () => {
     expect(issue?.message).toMatch(/^hosts\.openclaw-fleet-host\.gateways\.maren\.openclaw\.commands\.native:/);
   });
 });
-

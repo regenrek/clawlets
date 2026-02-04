@@ -186,7 +186,7 @@ export function ProjectDashboard(props: {
                 </div>
               <div className="text-muted-foreground mt-3 text-xs">
                 This repo does <span className="font-medium">not</span> support config migrations or legacy keys.
-                Fix <code>fleet/clawlets.json</code> to the current schema (v18) or re-initialize it and reapply your changes.
+                Fix <code>fleet/clawlets.json</code> to the current schema (v1) or re-initialize it and reapply your changes.
                 {canWrite ? null : " (Admin required to write config.)"}
               </div>
               </div>
