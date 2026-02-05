@@ -8,6 +8,7 @@ import {
   assertSafeHostName,
   ClawletsConfigSchema,
   SSH_EXPOSURE_MODES,
+  PROVISIONING_PROVIDERS,
   loadClawletsConfig,
   resolveHostName,
   writeClawletsConfig,
@@ -54,7 +55,8 @@ const add = defineCommand({
       targetHost: undefined,
       theme: { emoji: HOST_THEME_DEFAULT_EMOJI, color: HOST_THEME_DEFAULT_COLOR },
       hetzner: { serverType: "cx43", image: "", location: "nbg1" },
-      provisioning: { adminCidr: "", adminCidrAllowWorldOpen: false, sshPubkeyFile: "" },
+      aws: { region: "", instanceType: "", vpcId: "", subnetId: "", useDefaultVpc: false },
+      provisioning: { provider: "hetzner", adminCidr: "", adminCidrAllowWorldOpen: false, sshPubkeyFile: "" },
       sshExposure: { mode: "bootstrap" },
       tailnet: { mode: "tailscale" },
       cache: {
@@ -126,6 +128,12 @@ const set = defineCommand({
     "disk-device": { type: "string", description: "Disk device (Hetzner Cloud: /dev/sda).", },
     "agent-model-primary": { type: "string", description: "Primary agent model (e.g. zai/glm-4.7)." },
     tailnet: { type: "string", description: "Tailnet mode: none|tailscale." },
+    provider: { type: "string", description: "Provisioning provider (hetzner|aws)." },
+    "aws-region": { type: "string", description: "AWS region (e.g. us-east-1)." },
+    "aws-instance-type": { type: "string", description: "AWS instance type (e.g. t3.large)." },
+    "aws-vpc-id": { type: "string", description: "AWS VPC ID (e.g. vpc-1234)." },
+    "aws-subnet-id": { type: "string", description: "AWS subnet ID (e.g. subnet-1234)." },
+    "aws-use-default-vpc": { type: "string", description: "Use AWS default VPC (true/false)." },
     "cache-substituter": { type: "string", description: "Nix substituter (repeatable; replaces host cache list).", array: true },
     "cache-trusted-public-key": { type: "string", description: "Nix trusted public key (repeatable; replaces host cache list).", array: true },
     "cache-netrc-enable": { type: "string", description: "Enable netrc-file for private cache auth (true/false).", },
@@ -196,6 +204,21 @@ const set = defineCommand({
 
     if ((args as any)["disk-device"] !== undefined) next.diskDevice = String((args as any)["disk-device"]).trim();
     if ((args as any)["agent-model-primary"] !== undefined) next.agentModelPrimary = String((args as any)["agent-model-primary"]).trim();
+    if ((args as any).provider !== undefined) {
+      const provider = String((args as any).provider || "").trim();
+      if (!PROVISIONING_PROVIDERS.includes(provider as (typeof PROVISIONING_PROVIDERS)[number])) {
+        throw new Error("invalid --provider (expected hetzner|aws)");
+      }
+      next.provisioning.provider = provider as (typeof PROVISIONING_PROVIDERS)[number];
+    }
+    if ((args as any)["aws-region"] !== undefined) next.aws.region = String((args as any)["aws-region"]).trim();
+    if ((args as any)["aws-instance-type"] !== undefined) next.aws.instanceType = String((args as any)["aws-instance-type"]).trim();
+    if ((args as any)["aws-vpc-id"] !== undefined) next.aws.vpcId = String((args as any)["aws-vpc-id"]).trim();
+    if ((args as any)["aws-subnet-id"] !== undefined) next.aws.subnetId = String((args as any)["aws-subnet-id"]).trim();
+    if ((args as any)["aws-use-default-vpc"] !== undefined) {
+      const v = parseBoolOrUndefined((args as any)["aws-use-default-vpc"]);
+      if (v !== undefined) next.aws.useDefaultVpc = v;
+    }
 
     if (Array.isArray((args as any)["cache-substituter"])) {
       next.cache.substituters = (args as any)["cache-substituter"].map((x: unknown) => String(x).trim()).filter(Boolean);

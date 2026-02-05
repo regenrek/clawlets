@@ -17,6 +17,11 @@ export {
   type HostThemeColor,
 } from "./schema-host.js";
 export {
+  PROVISIONING_PROVIDERS,
+  ProvisioningProviderSchema,
+  type ProvisioningProvider,
+} from "./providers/index.js";
+export {
   GATEWAY_ARCHITECTURES,
   GatewayArchitectureSchema,
   type GatewayArchitecture,

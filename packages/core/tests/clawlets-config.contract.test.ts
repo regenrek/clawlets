@@ -252,6 +252,77 @@ describe("clawlets config schema", () => {
     ).not.toThrow();
   });
 
+  it("rejects aws provider without required fields", async () => {
+    const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
+    expect(() =>
+      ClawletsConfigSchema.parse({
+        schemaVersion: 1,
+        hosts: {
+          "openclaw-fleet-host": {
+            enable: false,
+            diskDevice: "/dev/sda",
+            provisioning: { provider: "aws" },
+            sshExposure: { mode: "bootstrap" },
+            tailnet: { mode: "none" },
+            agentModelPrimary: "zai/glm-4.7",
+          },
+        },
+      }),
+    ).toThrow(/aws\.region/i);
+  });
+
+  it("rejects aws default VPC when vpc/subnet are set", async () => {
+    const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
+    expect(() =>
+      ClawletsConfigSchema.parse({
+        schemaVersion: 1,
+        hosts: {
+          "openclaw-fleet-host": {
+            enable: false,
+            diskDevice: "/dev/sda",
+            provisioning: { provider: "aws" },
+            aws: {
+              region: "us-east-1",
+              instanceType: "t3.large",
+              vpcId: "vpc-1234",
+              subnetId: "",
+              useDefaultVpc: true,
+            },
+            sshExposure: { mode: "bootstrap" },
+            tailnet: { mode: "none" },
+            agentModelPrimary: "zai/glm-4.7",
+          },
+        },
+      }),
+    ).toThrow(/useDefaultVpc/i);
+  });
+
+  it("accepts aws provider with required fields", async () => {
+    const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
+    expect(() =>
+      ClawletsConfigSchema.parse({
+        schemaVersion: 1,
+        hosts: {
+          "openclaw-fleet-host": {
+            enable: false,
+            diskDevice: "/dev/sda",
+            provisioning: { provider: "aws" },
+            aws: {
+              region: "us-east-1",
+              instanceType: "t3.large",
+              vpcId: "vpc-1234",
+              subnetId: "",
+              useDefaultVpc: false,
+            },
+            sshExposure: { mode: "bootstrap" },
+            tailnet: { mode: "none" },
+            agentModelPrimary: "zai/glm-4.7",
+          },
+        },
+      }),
+    ).not.toThrow();
+  });
+
   it("createDefaultClawletsConfig trims and defaults", async () => {
     const { createDefaultClawletsConfig } = await import("../src/lib/clawlets-config");
     const cfg = createDefaultClawletsConfig({ host: "   ", gateways: [" maren ", "", "sonja"] });
@@ -267,6 +338,8 @@ describe("clawlets config schema", () => {
     expect(cfg.hosts["openclaw-fleet-host"].sshExposure?.mode).toBe("bootstrap");
     expect(cfg.hosts["openclaw-fleet-host"].cache?.netrc?.enable).toBe(false);
     expect(cfg.hosts["openclaw-fleet-host"].provisioning?.adminCidrAllowWorldOpen).toBe(false);
+    expect(cfg.hosts["openclaw-fleet-host"].provisioning?.provider).toBe("hetzner");
+    expect(cfg.hosts["openclaw-fleet-host"].aws?.useDefaultVpc).toBe(false);
     expect(cfg.hosts["openclaw-fleet-host"].agentModelPrimary).toBe("zai/glm-4.7");
   });
 

@@ -4,6 +4,7 @@ import { isValidTargetHost } from "../ssh-remote.js";
 import { DEFAULT_NIX_SUBSTITUTERS, DEFAULT_NIX_TRUSTED_PUBLIC_KEYS } from "../nix-cache.js";
 import { HOST_THEME_COLORS, HOST_THEME_DEFAULT_COLOR, HOST_THEME_DEFAULT_EMOJI } from "../host-theme.js";
 import { parseCidr, isWorldOpenCidr } from "./helpers.js";
+import { AwsHostSchema, HetznerHostSchema, ProvisioningProviderSchema, addProvisioningIssues } from "./providers/index.js";
 import { FleetGatewaySchema } from "./schema-gateway.js";
 
 export const SSH_EXPOSURE_MODES = ["tailnet", "bootstrap", "public"] as const;
@@ -44,15 +45,11 @@ export const HostSchema = z
         color: HostThemeColorSchema.default(HOST_THEME_DEFAULT_COLOR),
       })
       .default(() => ({ emoji: HOST_THEME_DEFAULT_EMOJI, color: HOST_THEME_DEFAULT_COLOR })),
-    hetzner: z
-      .object({
-        serverType: z.string().trim().min(1).default("cx43"),
-        image: z.string().trim().default(""),
-        location: z.string().trim().default("nbg1"),
-      })
-      .default(() => ({ serverType: "cx43", image: "", location: "nbg1" })),
+    hetzner: HetznerHostSchema,
+    aws: AwsHostSchema,
     provisioning: z
       .object({
+        provider: ProvisioningProviderSchema.default("hetzner"),
         adminCidr: z.string().trim().default(""),
         adminCidrAllowWorldOpen: z.boolean().default(false),
         // Local path on the operator machine that runs provisioning.
@@ -79,7 +76,12 @@ export const HostSchema = z
           });
         }
       })
-      .default(() => ({ adminCidr: "", adminCidrAllowWorldOpen: false, sshPubkeyFile: "" })),
+      .default(() => ({
+        provider: "hetzner" as const,
+        adminCidr: "",
+        adminCidrAllowWorldOpen: false,
+        sshPubkeyFile: "",
+      })),
     sshExposure: z
       .object({
         mode: SshExposureModeSchema.default("bootstrap"),
@@ -226,6 +228,8 @@ export const HostSchema = z
     agentModelPrimary: z.string().trim().default("anthropic/claude-opus-4-5"),
   })
   .superRefine((host, ctx) => {
+    addProvisioningIssues({ host, ctx });
+
     const gatewayIds = Object.keys(host.gateways || {});
     const gatewaysOrder = host.gatewaysOrder || [];
     const seen = new Set<string>();
