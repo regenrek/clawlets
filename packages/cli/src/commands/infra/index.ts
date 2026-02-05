@@ -1,20 +1,17 @@
-import fs from "node:fs";
-import path from "node:path";
 import process from "node:process";
 import { defineCommand } from "citty";
 import * as p from "@clack/prompts";
-import { applyOpenTofuVars, destroyOpenTofuVars } from "@clawlets/core/lib/opentofu";
 import { loadDeployCreds } from "@clawlets/core/lib/deploy-creds";
-import { expandPath } from "@clawlets/core/lib/path-expand";
 import { findRepoRoot } from "@clawlets/core/lib/repo";
-import { getSshExposureMode, getTailnetMode, loadClawletsConfig } from "@clawlets/core/lib/clawlets-config";
+import { loadClawletsConfig } from "@clawlets/core/lib/clawlets-config";
 import { getHostOpenTofuDir } from "@clawlets/core/repo-layout";
 import { resolveHostNameOrExit } from "@clawlets/core/lib/host-resolve";
+import { buildHostProvisionSpec, getProvisionerDriver } from "@clawlets/core/lib/infra";
 
 const infraApply = defineCommand({
   meta: {
     name: "apply",
-    description: "Apply Hetzner OpenTofu for a host (driven by fleet/clawlets.json).",
+    description: "Apply provisioning for a host (driven by fleet/clawlets.json).",
   },
   args: {
     runtimeDir: { type: "string", description: "Runtime directory (default: .clawlets)." },
@@ -36,42 +33,25 @@ const infraApply = defineCommand({
     if (deployCreds.envFile?.status === "invalid") throw new Error(`deploy env file rejected: ${deployCreds.envFile.path} (${deployCreds.envFile.error || "invalid"})`);
     if (deployCreds.envFile?.status === "missing") throw new Error(`missing deploy env file: ${deployCreds.envFile.path}`);
 
-    const hcloudToken = String(deployCreds.values.HCLOUD_TOKEN || "").trim();
-    if (!hcloudToken) throw new Error("missing HCLOUD_TOKEN (set in .clawlets/env or env var; run: clawlets env init)");
-
-    const adminCidr = String(hostCfg.provisioning.adminCidr || "").trim();
-    if (!adminCidr) throw new Error(`missing provisioning.adminCidr for ${hostName} (set via: clawlets host set --admin-cidr ...)`);
-
-    const sshPubkeyFileRaw = String(hostCfg.provisioning.sshPubkeyFile || "").trim();
-    if (!sshPubkeyFileRaw) throw new Error(`missing provisioning.sshPubkeyFile for ${hostName} (set via: clawlets host set --ssh-pubkey-file ...)`);
-    const sshPubkeyFileExpanded = expandPath(sshPubkeyFileRaw);
-    const sshPubkeyFile = path.isAbsolute(sshPubkeyFileExpanded)
-      ? sshPubkeyFileExpanded
-      : path.resolve(repoRoot, sshPubkeyFileExpanded);
-    if (!fs.existsSync(sshPubkeyFile)) throw new Error(`ssh pubkey file not found: ${sshPubkeyFile}`);
-    const image = String(hostCfg.hetzner.image || "").trim();
-    const location = String(hostCfg.hetzner.location || "").trim();
-
-    await applyOpenTofuVars({
+    const spec = buildHostProvisionSpec({ repoRoot, hostName, hostCfg });
+    const driver = getProvisionerDriver(spec.provider);
+    const runtime = {
+      repoRoot,
       opentofuDir,
-      vars: {
-        hostName,
-        hcloudToken,
-        adminCidr,
-        adminCidrIsWorldOpen: Boolean(hostCfg.provisioning.adminCidrAllowWorldOpen),
-        sshPubkeyFile,
-        serverType: hostCfg.hetzner.serverType,
-        image,
-        location,
-        sshExposureMode: getSshExposureMode(hostCfg),
-        tailnetMode: getTailnetMode(hostCfg),
-      },
       nixBin: String(deployCreds.values.NIX_BIN || "nix").trim() || "nix",
       dryRun: args.dryRun,
-      redact: [hcloudToken, deployCreds.values.GITHUB_TOKEN].filter(Boolean) as string[],
-    });
+      redact: [deployCreds.values.HCLOUD_TOKEN, deployCreds.values.GITHUB_TOKEN].filter(Boolean) as string[],
+      credentials: {
+        hcloudToken: deployCreds.values.HCLOUD_TOKEN,
+        githubToken: deployCreds.values.GITHUB_TOKEN,
+      },
+    };
+
+    const provisioned = await driver.provision({ spec, runtime });
 
     console.log(`ok: provisioning applied for ${hostName}`);
+    if (provisioned.instanceId) console.log(`instanceId: ${provisioned.instanceId}`);
+    if (provisioned.ipv4) console.log(`ipv4: ${provisioned.ipv4}`);
     console.log(`hint: outputs in ${opentofuDir}`);
   },
 });
@@ -79,7 +59,7 @@ const infraApply = defineCommand({
 const infraDestroy = defineCommand({
   meta: {
     name: "destroy",
-    description: "Destroy Hetzner OpenTofu resources for a host (DANGEROUS).",
+    description: "Destroy provisioned resources for a host (DANGEROUS).",
   },
   args: {
     runtimeDir: { type: "string", description: "Runtime directory (default: .clawlets)." },
@@ -102,21 +82,19 @@ const infraDestroy = defineCommand({
     if (deployCreds.envFile?.status === "invalid") throw new Error(`deploy env file rejected: ${deployCreds.envFile.path} (${deployCreds.envFile.error || "invalid"})`);
     if (deployCreds.envFile?.status === "missing") throw new Error(`missing deploy env file: ${deployCreds.envFile.path}`);
 
-    const hcloudToken = String(deployCreds.values.HCLOUD_TOKEN || "").trim();
-    if (!hcloudToken) throw new Error("missing HCLOUD_TOKEN (set in .clawlets/env or env var; run: clawlets env init)");
-
-    const adminCidr = String(hostCfg.provisioning.adminCidr || "").trim();
-    if (!adminCidr) throw new Error(`missing provisioning.adminCidr for ${hostName} (set via: clawlets host set --admin-cidr ...)`);
-
-    const sshPubkeyFileRaw = String(hostCfg.provisioning.sshPubkeyFile || "").trim();
-    if (!sshPubkeyFileRaw) throw new Error(`missing provisioning.sshPubkeyFile for ${hostName} (set via: clawlets host set --ssh-pubkey-file ...)`);
-    const sshPubkeyFileExpanded = expandPath(sshPubkeyFileRaw);
-    const sshPubkeyFile = path.isAbsolute(sshPubkeyFileExpanded)
-      ? sshPubkeyFileExpanded
-      : path.resolve(repoRoot, sshPubkeyFileExpanded);
-    if (!fs.existsSync(sshPubkeyFile)) throw new Error(`ssh pubkey file not found: ${sshPubkeyFile}`);
-    const image = String(hostCfg.hetzner.image || "").trim();
-    const location = String(hostCfg.hetzner.location || "").trim();
+    const spec = buildHostProvisionSpec({ repoRoot, hostName, hostCfg });
+    const driver = getProvisionerDriver(spec.provider);
+    const runtime = {
+      repoRoot,
+      opentofuDir,
+      nixBin: String(deployCreds.values.NIX_BIN || "nix").trim() || "nix",
+      dryRun: args.dryRun,
+      redact: [deployCreds.values.HCLOUD_TOKEN, deployCreds.values.GITHUB_TOKEN].filter(Boolean) as string[],
+      credentials: {
+        hcloudToken: deployCreds.values.HCLOUD_TOKEN,
+        githubToken: deployCreds.values.GITHUB_TOKEN,
+      },
+    };
 
     const force = Boolean((args as any).force);
     const interactive = process.stdin.isTTY && process.stdout.isTTY;
@@ -124,7 +102,7 @@ const infraDestroy = defineCommand({
       if (!interactive) throw new Error("refusing to destroy without --force (no TTY)");
       p.intro("clawlets infra destroy");
       const ok = await p.confirm({
-        message: `Destroy Hetzner resources for host ${hostName}?`,
+        message: `Destroy ${spec.provider} resources for host ${hostName}?`,
         initialValue: false,
       });
       if (p.isCancel(ok) || !ok) {
@@ -133,24 +111,7 @@ const infraDestroy = defineCommand({
       }
     }
 
-    await destroyOpenTofuVars({
-      opentofuDir,
-      vars: {
-        hostName,
-        hcloudToken,
-        adminCidr,
-        adminCidrIsWorldOpen: Boolean(hostCfg.provisioning.adminCidrAllowWorldOpen),
-        sshPubkeyFile,
-        serverType: hostCfg.hetzner.serverType,
-        image,
-        location,
-        sshExposureMode: getSshExposureMode(hostCfg),
-        tailnetMode: getTailnetMode(hostCfg),
-      },
-      nixBin: String(deployCreds.values.NIX_BIN || "nix").trim() || "nix",
-      dryRun: args.dryRun,
-      redact: [hcloudToken, deployCreds.values.GITHUB_TOKEN].filter(Boolean) as string[],
-    });
+    await driver.destroy({ spec, runtime });
 
     console.log(`ok: provisioning destroyed for ${hostName}`);
     console.log(`hint: state in ${opentofuDir}`);
@@ -160,7 +121,7 @@ const infraDestroy = defineCommand({
 export const infra = defineCommand({
   meta: {
     name: "infra",
-    description: "Infrastructure operations (Hetzner OpenTofu).",
+    description: "Infrastructure operations (provider drivers).",
   },
   subCommands: {
     apply: infraApply,

@@ -118,3 +118,7 @@ resource "hcloud_server" "vm" {
 output "ipv4" {
   value = hcloud_server.vm.ipv4_address
 }
+
+output "instance_id" {
+  value = hcloud_server.vm.id
+}

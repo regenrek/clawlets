@@ -181,12 +181,52 @@ export async function addDeployChecks(params: {
     }
 
     if (isBootstrap) {
-      const serverType = String(clawletsHostCfg.hetzner?.serverType || "").trim();
+      const provider = String(clawletsHostCfg.provisioning?.provider || "hetzner").trim();
       push({
-        status: serverType ? "ok" : "missing",
-        label: "hetzner.serverType",
-        detail: serverType || "(unset)",
+        status: provider ? "ok" : "missing",
+        label: "provisioning.provider",
+        detail: provider || "(unset)",
       });
+
+      if (provider === "aws") {
+        const region = String(clawletsHostCfg.aws?.region || "").trim();
+        push({
+          status: region ? "ok" : "missing",
+          label: "aws.region",
+          detail: region || "(unset)",
+        });
+
+        const instanceType = String(clawletsHostCfg.aws?.instanceType || "").trim();
+        push({
+          status: instanceType ? "ok" : "missing",
+          label: "aws.instanceType",
+          detail: instanceType || "(unset)",
+        });
+
+        const vpcId = String(clawletsHostCfg.aws?.vpcId || "").trim();
+        const subnetId = String(clawletsHostCfg.aws?.subnetId || "").trim();
+        const useDefaultVpc = Boolean(clawletsHostCfg.aws?.useDefaultVpc);
+        if (useDefaultVpc) {
+          push({
+            status: vpcId || subnetId ? "warn" : "ok",
+            label: "aws.useDefaultVpc",
+            detail: vpcId || subnetId ? "conflicts with vpcId/subnetId" : "(default VPC)",
+          });
+        } else {
+          push({
+            status: vpcId || subnetId ? "ok" : "missing",
+            label: "aws.vpcId/subnetId",
+            detail: vpcId || subnetId || "(unset)",
+          });
+        }
+      } else {
+        const serverType = String(clawletsHostCfg.hetzner?.serverType || "").trim();
+        push({
+          status: serverType ? "ok" : "missing",
+          label: "hetzner.serverType",
+          detail: serverType || "(unset)",
+        });
+      }
 
       {
         const diskDevice = String((clawletsHostCfg as any).diskDevice || "").trim();

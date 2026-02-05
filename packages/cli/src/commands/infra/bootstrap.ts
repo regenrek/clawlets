@@ -2,22 +2,21 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { defineCommand } from "citty";
-import { applyOpenTofuVars } from "@clawlets/core/lib/opentofu";
 import { resolveGitRev } from "@clawlets/core/lib/git";
-import { capture, run } from "@clawlets/core/lib/run";
+import { run } from "@clawlets/core/lib/run";
 import { sshCapture } from "@clawlets/core/lib/ssh-remote";
 import { checkGithubRepoVisibility, tryParseGithubFlakeUri } from "@clawlets/core/lib/github";
 import { loadDeployCreds } from "@clawlets/core/lib/deploy-creds";
-import { expandPath } from "@clawlets/core/lib/path-expand";
 import { findRepoRoot } from "@clawlets/core/lib/repo";
 import { buildFleetSecretsPlan } from "@clawlets/core/lib/fleet-secrets-plan";
 import { withFlakesEnv } from "@clawlets/core/lib/nix-flakes";
-import { ClawletsConfigSchema, getSshExposureMode, getTailnetMode, loadClawletsConfig, writeClawletsConfig } from "@clawlets/core/lib/clawlets-config";
+import { ClawletsConfigSchema, loadClawletsConfig, writeClawletsConfig } from "@clawlets/core/lib/clawlets-config";
 import { resolveBaseFlake } from "@clawlets/core/lib/base-flake";
 import { getHostExtraFilesDir, getHostExtraFilesKeyPath, getHostExtraFilesSecretsDir, getHostOpenTofuDir } from "@clawlets/core/repo-layout";
 import { requireDeployGate } from "../../lib/deploy-gate.js";
 import { resolveHostNameOrExit } from "@clawlets/core/lib/host-resolve";
 import { extractFirstIpv4, isTailscaleIpv4, normalizeSingleLineOutput } from "@clawlets/core/lib/host-connectivity";
+import { buildHostProvisionSpec, getProvisionerDriver } from "@clawlets/core/lib/infra";
 
 async function sleep(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
@@ -96,8 +95,8 @@ function resolveHostFromFlake(flakeBase: string): string | null {
 export const bootstrap = defineCommand({
   meta: {
     name: "bootstrap",
-    description: "Provision Hetzner VM + install NixOS (nixos-anywhere or image).",
-	  },
+    description: "Provision VM + install NixOS (nixos-anywhere or image; hetzner only).",
+  },
 	  args: {
 	    runtimeDir: { type: "string", description: "Runtime directory (default: .clawlets)." },
 	    envFile: { type: "string", description: "Env file for deploy creds (default: <runtimeDir>/env)." },
@@ -118,10 +117,15 @@ export const bootstrap = defineCommand({
 	    const hostName = resolveHostNameOrExit({ cwd, runtimeDir: (args as any).runtimeDir, hostArg: args.host });
 	    if (!hostName) return;
 	    const { layout, configPath, config: clawletsConfig } = loadClawletsConfig({ repoRoot, runtimeDir: (args as any).runtimeDir });
-	    const hostCfg = clawletsConfig.hosts[hostName];
-	    if (!hostCfg) throw new Error(`missing host in fleet/clawlets.json: ${hostName}`);
-	    const sshExposureMode = getSshExposureMode(hostCfg);
-	    const tailnetMode = getTailnetMode(hostCfg);
+    const hostCfg = clawletsConfig.hosts[hostName];
+    if (!hostCfg) throw new Error(`missing host in fleet/clawlets.json: ${hostName}`);
+    const provider = hostCfg.provisioning?.provider ?? "hetzner";
+    if (provider !== "hetzner") {
+      throw new Error(`bootstrap currently supports only hetzner (provider=${provider})`);
+    }
+    const spec = buildHostProvisionSpec({ repoRoot, hostName, hostCfg });
+    const sshExposureMode = spec.sshExposureMode;
+    const tailnetMode = spec.tailnetMode;
 	    const lockdownAfter = Boolean((args as any).lockdownAfter);
 	    const lockdownTimeoutRaw = String((args as any).lockdownTimeout || "10m").trim() || "10m";
 	    const lockdownPollRaw = String((args as any).lockdownPoll || "5s").trim() || "5s";
@@ -155,69 +159,31 @@ export const bootstrap = defineCommand({
 	    if (deployCreds.envFile?.status === "invalid") throw new Error(`deploy env file rejected: ${deployCreds.envFile.path} (${deployCreds.envFile.error || "invalid"})`);
 	    if (deployCreds.envFile?.status === "missing") throw new Error(`missing deploy env file: ${deployCreds.envFile.path}`);
 
-	    const hcloudToken = String(deployCreds.values.HCLOUD_TOKEN || "").trim();
-	    if (!hcloudToken) throw new Error("missing HCLOUD_TOKEN (set in .clawlets/env or env var; run: clawlets env init)");
-	    const githubToken = String(deployCreds.values.GITHUB_TOKEN || "").trim();
+    const githubToken = String(deployCreds.values.GITHUB_TOKEN || "").trim();
 
-	    const nixBin = String(deployCreds.values.NIX_BIN || "nix").trim() || "nix";
-	    const opentofuDir = getHostOpenTofuDir(layout, hostName);
+    const nixBin = String(deployCreds.values.NIX_BIN || "nix").trim() || "nix";
+    const opentofuDir = getHostOpenTofuDir(layout, hostName);
+    if (mode === "image" && !spec.hetzner.image) {
+      throw new Error(`missing hetzner.image for ${hostName} (set via: clawlets host set --hetzner-image <image_id>)`);
+    }
 
-	    const serverType = String(hostCfg.hetzner.serverType || "").trim();
-	    if (!serverType) throw new Error(`missing hetzner.serverType for ${hostName} (set via: clawlets host set --server-type ...)`);
-	    const image = String(hostCfg.hetzner.image || "").trim();
-	    const location = String(hostCfg.hetzner.location || "").trim();
-	    if (mode === "image" && !image) {
-	      throw new Error(`missing hetzner.image for ${hostName} (set via: clawlets host set --hetzner-image <image_id>)`);
-	    }
-
-	    const adminCidr = String(hostCfg.provisioning.adminCidr || "").trim();
-	    if (!adminCidr) throw new Error(`missing provisioning.adminCidr for ${hostName} (set via: clawlets host set --admin-cidr ...)`);
-
-	    const sshPubkeyFileRaw = String(hostCfg.provisioning.sshPubkeyFile || "").trim();
-	    if (!sshPubkeyFileRaw) throw new Error(`missing provisioning.sshPubkeyFile for ${hostName} (set via: clawlets host set --ssh-pubkey-file ...)`);
-	    const sshPubkeyFileExpanded = expandPath(sshPubkeyFileRaw);
-	    const sshPubkeyFile = path.isAbsolute(sshPubkeyFileExpanded) ? sshPubkeyFileExpanded : path.resolve(repoRoot, sshPubkeyFileExpanded);
-	    if (!fs.existsSync(sshPubkeyFile)) throw new Error(`ssh pubkey file not found: ${sshPubkeyFile}`);
-
-	    if (sshExposureMode === "tailnet") {
-	      throw new Error(`sshExposure.mode=tailnet; bootstrap requires public SSH. Set: clawlets host set --host ${hostName} --ssh-exposure bootstrap`);
-	    }
-
-	    await applyOpenTofuVars({
-	      opentofuDir,
-	      vars: {
-          hostName,
-	        hcloudToken,
-	        adminCidr,
-	        adminCidrIsWorldOpen: Boolean(hostCfg.provisioning.adminCidrAllowWorldOpen),
-	        sshPubkeyFile,
-	        serverType,
-	        image,
-	        location,
-	        sshExposureMode,
-	        tailnetMode,
-	      },
-	      nixBin,
-	      dryRun: args.dryRun,
-      redact: [hcloudToken, githubToken].filter(Boolean) as string[],
-    });
-
-	    const tofuEnv: NodeJS.ProcessEnv = {
-	      ...process.env,
-	      HCLOUD_TOKEN: hcloudToken,
-	      ADMIN_CIDR: adminCidr,
-	      SSH_PUBKEY_FILE: sshPubkeyFile,
-	      SERVER_TYPE: serverType,
-	    };
-    const tofuEnvWithFlakes = withFlakesEnv(tofuEnv);
-
-    const ipv4 = args.dryRun
-      ? "<opentofu-output:ipv4>"
-      : await capture(
-          nixBin,
-          ["run", "--impure", "nixpkgs#opentofu", "--", "output", "-raw", "ipv4"],
-          { cwd: opentofuDir, env: tofuEnvWithFlakes, dryRun: args.dryRun },
-        );
+    if (sshExposureMode === "tailnet") {
+      throw new Error(`sshExposure.mode=tailnet; bootstrap requires public SSH. Set: clawlets host set --host ${hostName} --ssh-exposure bootstrap`);
+    }
+    const driver = getProvisionerDriver(spec.provider);
+    const runtime = {
+      repoRoot,
+      opentofuDir,
+      nixBin,
+      dryRun: args.dryRun,
+      redact: [deployCreds.values.HCLOUD_TOKEN, githubToken].filter(Boolean) as string[],
+      credentials: {
+        hcloudToken: deployCreds.values.HCLOUD_TOKEN,
+        githubToken,
+      },
+    };
+    const provisioned = await driver.provision({ spec, runtime });
+    const ipv4 = provisioned.ipv4;
 
     console.log(`Target IPv4: ${ipv4}`);
     await purgeKnownHosts(ipv4, { dryRun: args.dryRun });
@@ -370,7 +336,7 @@ export const bootstrap = defineCommand({
       cwd: repoRoot,
       env: nixosAnywhereEnv,
       dryRun: args.dryRun,
-      redact: [hcloudToken, githubToken].filter(Boolean) as string[],
+      redact: runtime.redact,
     });
 
     await purgeKnownHosts(ipv4, { dryRun: args.dryRun });
@@ -407,24 +373,9 @@ export const bootstrap = defineCommand({
         await writeClawletsConfig({ configPath, config: nextConfig });
         console.log(`ok: updated fleet/clawlets.json (targetHost + sshExposure=tailnet)`);
 
-        await applyOpenTofuVars({
-          opentofuDir,
-          vars: {
-            hostName,
-            hcloudToken,
-            adminCidr,
-            adminCidrIsWorldOpen: Boolean(hostCfg.provisioning.adminCidrAllowWorldOpen),
-            sshPubkeyFile,
-            serverType,
-            image,
-            location,
-            sshExposureMode: "tailnet",
-            tailnetMode,
-          },
-          nixBin,
-          dryRun: args.dryRun,
-          redact: [hcloudToken, githubToken].filter(Boolean) as string[],
-        });
+        const lockdownSpec = buildHostProvisionSpec({ repoRoot, hostName, hostCfg: nextHostCfg });
+        const lockdownDriver = getProvisionerDriver(lockdownSpec.provider);
+        await lockdownDriver.lockdown({ spec: lockdownSpec, runtime });
 
         publicSshStatus = "LOCKED DOWN";
       }
