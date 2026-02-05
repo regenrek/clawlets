@@ -1,8 +1,5 @@
 import { findEnvVarRefs } from "./env-var-refs.js";
 import {
-  applyChannelEnvRequirements,
-  applyHookEnvRequirements,
-  applySkillEnvRequirements,
   ENV_VAR_HELP,
   buildBaseSecretEnv,
   buildDerivedSecretEnv,
@@ -10,8 +7,6 @@ import {
   canonicalizeEnvVar,
   collectGatewayModels,
   collectDerivedSecretEnvEntries,
-  extractEnvVarRef,
-  isPlainObject,
   isWhatsAppEnabled,
   normalizeSecretFiles,
   normalizeEnvVarPaths,
@@ -19,16 +14,12 @@ import {
   recordSecretSpec,
   type SecretSpecAccumulator,
 } from "./fleet-secrets-plan-helpers.js";
-import {
-  getLlmProviderFromModelId,
-  getProviderAuthMode,
-  getProviderCredentials,
-} from "@clawlets/shared/lib/llm-provider-env";
 import type { ClawletsConfig } from "./clawlets-config.js";
 import type { SecretFileSpec } from "./secret-wiring.js";
 import type { MissingSecretConfig, SecretSource, SecretSpec, SecretsPlanWarning, SecretsPlanScopeSets } from "./secrets-plan.js";
 import { buildSecretsPlanScopes } from "./secrets-plan-scopes.js";
 import { buildOpenClawGatewayConfig } from "./openclaw-config-invariants.js";
+import { runSecretRequirementCollectors } from "./secrets/collectors/registry.js";
 
 export type MissingFleetSecretConfig = MissingSecretConfig;
 
@@ -228,101 +219,18 @@ export function buildFleetSecretsPlan(params: { config: ClawletsConfig; hostName
     for (const envVar of envVarRefs.vars) addRequiredEnv(envVar, "custom");
     for (const entry of derivedEntries) addRequiredEnv(entry.envVar, "custom", entry.path);
 
-    applyChannelEnvRequirements({ gatewayId, openclaw, warnings, addRequiredEnv });
-    applyHookEnvRequirements({ gatewayId, openclaw, warnings, addRequiredEnv });
-    applySkillEnvRequirements({ gatewayId, openclaw, warnings, addRequiredEnv, envVarHelpOverrides });
-
     const models = collectGatewayModels({ openclaw, hostDefaultModel: String(hostCfg.agentModelPrimary || "") });
-    const providersFromModels = new Set<string>();
-    for (const model of models) {
-      const provider = getLlmProviderFromModelId(model);
-      if (provider) providersFromModels.add(provider);
-    }
-
-    const providersFromConfig = new Set<string>();
-    const providers = (openclaw as any)?.models?.providers;
-    if (isPlainObject(providers)) {
-      for (const [providerIdRaw, providerCfg] of Object.entries(providers)) {
-        const providerId = String(providerIdRaw || "").trim();
-        if (!providerId) continue;
-        providersFromConfig.add(providerId);
-        if (!isPlainObject(providerCfg)) continue;
-        const apiKey = (providerCfg as any).apiKey;
-        if (typeof apiKey === "string") {
-          const envVar = extractEnvVarRef(apiKey);
-          if (envVar) {
-            addRequiredEnv(envVar, "provider", `models.providers.${providerId}.apiKey`);
-          } else if (apiKey.trim()) {
-            const known = getProviderCredentials(providerId)
-              .map((slot) => slot.anyOfEnv[0])
-              .filter(Boolean);
-            const suggested = known.length === 1 ? `\${${known[0]}}` : "\${PROVIDER_API_KEY}";
-            warnings.push({
-              kind: "inlineApiKey",
-              path: `models.providers.${providerId}.apiKey`,
-              gateway: gatewayId,
-              message: `Inline API key detected at models.providers.${providerId}.apiKey`,
-              suggestion: `Replace with ${suggested} and wire it in fleet.secretEnv or hosts.${hostName}.gateways.${gatewayId}.profile.secretEnv.`,
-            });
-          }
-        }
-      }
-    }
-
-    const usedProviders = new Set<string>([...providersFromModels, ...providersFromConfig]);
-    const hasMappingForAnyOf = (anyOfEnv: string[]): boolean => {
-      for (const envVar of anyOfEnv) {
-        const canonical = canonicalizeEnvVar(envVar, envVarAliasMap);
-        if (!canonical) continue;
-        if (secretEnv[canonical]) return true;
-      }
-      return false;
-    };
-
-    for (const provider of usedProviders) {
-      const auth = getProviderAuthMode(provider);
-      const credentials = getProviderCredentials(provider);
-      const sourcesForProvider: SecretSource[] = [];
-      if (providersFromModels.has(provider)) sourcesForProvider.push("model");
-      if (providersFromConfig.has(provider)) sourcesForProvider.push("provider");
-      if (credentials.length === 0) {
-        if (auth === "oauth") {
-          warnings.push({
-            kind: "auth",
-            provider,
-            gateway: gatewayId,
-            message: `Provider ${provider} requires OAuth login (no env vars required).`,
-          });
-        }
-        continue;
-      }
-
-      let hasAnyMapping = false;
-      for (const slot of credentials) {
-        if (slot.anyOfEnv.length === 0) continue;
-        const canonical = slot.anyOfEnv[0]!;
-        const mapped = hasMappingForAnyOf(slot.anyOfEnv);
-        if (mapped) {
-          hasAnyMapping = true;
-        }
-        if (auth === "apiKey") {
-          for (const source of sourcesForProvider) addRequiredEnv(canonical, source);
-        } else if (auth === "mixed" && mapped) {
-          for (const source of sourcesForProvider) addRequiredEnv(canonical, source);
-        }
-      }
-
-      if ((auth === "oauth" || auth === "mixed") && !hasAnyMapping) {
-        warnings.push({
-          kind: "auth",
-          provider,
-          gateway: gatewayId,
-          message: auth === "mixed"
-            ? `Provider ${provider} supports OAuth or API key; no env wiring found (manual login required).`
-            : `Provider ${provider} requires OAuth login (no env wiring found).`,
-        });
-      }
-    }
+    runSecretRequirementCollectors({
+      gatewayId,
+      hostName,
+      openclaw,
+      warnings,
+      addRequiredEnv,
+      envVarHelpOverrides,
+      models,
+      secretEnv,
+      aliasMap: envVarAliasMap,
+    });
 
     const whatsappEnabled = isWhatsAppEnabled(openclaw);
     if (whatsappEnabled) {

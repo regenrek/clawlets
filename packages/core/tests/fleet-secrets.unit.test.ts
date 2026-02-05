@@ -545,6 +545,40 @@ describe("fleet secrets plan", () => {
     expect(openclawNames).toContain("z_ai_api_key");
   });
 
+  it("uses deterministic secret collector order", async () => {
+    const { SECRET_REQUIREMENT_COLLECTORS } = await import("../src/lib/secrets/collectors/registry");
+    expect(SECRET_REQUIREMENT_COLLECTORS.map((collector) => `${collector.order}:${collector.id}`)).toEqual([
+      "10:channels",
+      "20:hooks",
+      "30:skills",
+      "40:providers",
+    ]);
+  });
+
+  it("collector registry is no-op for non-object openclaw payloads", async () => {
+    const { runSecretRequirementCollectors } = await import("../src/lib/secrets/collectors/registry");
+
+    const warnings: unknown[] = [];
+    const added: Array<{ envVar: string; source: string; path?: string }> = [];
+
+    runSecretRequirementCollectors({
+      gatewayId: "maren",
+      hostName: "clawdbot-fleet-host",
+      openclaw: null,
+      warnings,
+      addRequiredEnv: (envVar, source, path) => {
+        added.push({ envVar, source, path });
+      },
+      envVarHelpOverrides: new Map(),
+      models: [],
+      secretEnv: {},
+      aliasMap: new Map(),
+    });
+
+    expect(added).toEqual([]);
+    expect(warnings).toEqual([]);
+  });
+
   it("suggests default secret names for env vars", async () => {
     const { suggestSecretNameForEnvVar } = await import("../src/lib/fleet-secrets-plan-helpers");
 
