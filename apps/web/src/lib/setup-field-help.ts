@@ -1,6 +1,6 @@
 export const setupFieldHelp = {
   hosts: {
-    defaultHost: "Default host used by doctor/bootstrap/updates when you leave host unset.",
+    defaultHost: "Default host used by doctor/deploy when you leave host unset.",
     editHost: "Select which host config you’re editing under `hosts.<host>`.",
     addHost: "Adds a new host entry under `hosts.<host>` (config only; no infra created yet).",
     enabled: "Toggles whether this host is managed by clawlets.",

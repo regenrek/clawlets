@@ -162,14 +162,19 @@ function AppSidebar() {
       tooltip: hostBase ? "Single host overview." : "Fleet host overview.",
     },
     {
-      to: hostAwarePath("bootstrap", "bootstrap"),
-      label: "Bootstrap",
-      icon: BoltIcon,
+      to: `${projectBase}/setup`,
+      label: "Setup",
+      icon: CheckIcon,
+      tooltip: "Guided first deploy checklist.",
     },
     {
-      to: hostAwarePath("updates", "updates"),
-      label: "Updates",
-      icon: ArrowPathIcon,
+      to: hostAwarePath("deploy", "deploy"),
+      label: "Deploy",
+      icon: BoltIcon,
+      aliases: [
+        hostAwarePath("bootstrap", "bootstrap"),
+        hostAwarePath("updates", "updates"),
+      ],
     },
     {
       to: hostAwarePath("runs", "runs"),
