@@ -26,7 +26,8 @@ import {
 } from "@clawlets/shared/lib/llm-provider-env";
 import type { ClawletsConfig } from "./clawlets-config.js";
 import type { SecretFileSpec } from "./secret-wiring.js";
-import type { MissingSecretConfig, SecretSource, SecretSpec, SecretsPlanWarning } from "./secrets-plan.js";
+import type { MissingSecretConfig, SecretSource, SecretSpec, SecretsPlanWarning, SecretsPlanScopeSets } from "./secrets-plan.js";
+import { buildSecretsPlanScopes } from "./secrets-plan-scopes.js";
 import { buildOpenClawGatewayConfig } from "./openclaw-config-invariants.js";
 
 export type MissingFleetSecretConfig = MissingSecretConfig;
@@ -40,6 +41,7 @@ export type FleetSecretsPlan = {
 
   required: SecretSpec[];
   optional: SecretSpec[];
+  scopes: SecretsPlanScopeSets;
   missing: MissingSecretConfig[];
   warnings: SecretsPlanWarning[];
 
@@ -471,6 +473,15 @@ export function buildFleetSecretsPlan(params: { config: ClawletsConfig; hostName
   const byName = (a: SecretSpec, b: SecretSpec) => a.name.localeCompare(b.name);
   const required = specList.filter((spec) => !spec.optional).sort(byName);
   const optional = specList.filter((spec) => spec.optional).sort(byName);
+  const updateOnlyHostSecretNames = new Set<string>(["restic_password"]);
+  const hostRequiredNames = required.filter((spec) => spec.scope === "host").map((spec) => spec.name);
+  const bootstrapRequiredNames = new Set(hostRequiredNames.filter((name) => !updateOnlyHostSecretNames.has(name)));
+  const updatesRequiredNames = new Set(hostRequiredNames);
+  const scopes = buildSecretsPlanScopes({
+    required,
+    bootstrapRequiredNames,
+    updatesRequiredNames,
+  });
 
   return {
     gateways,
@@ -479,6 +490,7 @@ export function buildFleetSecretsPlan(params: { config: ClawletsConfig; hostName
     secretNamesRequired: Array.from(secretNamesRequired).sort(),
     required,
     optional,
+    scopes,
     missing: missingSecretConfig,
     warnings,
     missingSecretConfig,

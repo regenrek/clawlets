@@ -517,6 +517,34 @@ describe("fleet secrets plan", () => {
     expect(plan.warnings.some((w) => w.kind === "inlineToken" && w.suggestion?.includes("${DISCORD_BOT_TOKEN}"))).toBe(true);
   });
 
+  it("separates bootstrap and openclaw scopes", async () => {
+    const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
+    const { buildFleetSecretsPlan } = await import("../src/lib/fleet-secrets-plan");
+
+    const cfg = ClawletsConfigSchema.parse({
+      schemaVersion: 1,
+      fleet: {
+        secretEnv: { ZAI_API_KEY: "z_ai_api_key" },
+      },
+      hosts: {
+        "clawdbot-fleet-host": {
+          gatewaysOrder: ["maren"],
+          gateways: { maren: {} },
+          tailnet: { mode: "none" },
+          agentModelPrimary: "zai/glm-4.7",
+        },
+      },
+    });
+
+    const plan = buildFleetSecretsPlan({ config: cfg, hostName: "clawdbot-fleet-host" });
+    const bootstrapNames = plan.scopes.bootstrapRequired.map((spec) => spec.name);
+    const openclawNames = plan.scopes.openclawRequired.map((spec) => spec.name);
+
+    expect(bootstrapNames).toContain("admin_password_hash");
+    expect(bootstrapNames).not.toContain("z_ai_api_key");
+    expect(openclawNames).toContain("z_ai_api_key");
+  });
+
   it("suggests default secret names for env vars", async () => {
     const { suggestSecretNameForEnvVar } = await import("../src/lib/fleet-secrets-plan-helpers");
 

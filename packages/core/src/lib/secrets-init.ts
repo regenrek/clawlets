@@ -76,10 +76,12 @@ export function isPlaceholderSecretValue(value: string): boolean {
 export function listSecretsInitPlaceholders(params: {
   input: SecretsInitJson;
   requiresTailscaleAuthKey: boolean;
+  requiresAdminPassword?: boolean;
 }): string[] {
   const out = new Set<string>();
 
-  if (isPlaceholderSecretValue(params.input.adminPasswordHash)) out.add("adminPasswordHash");
+  const requiresAdminPassword = params.requiresAdminPassword !== false;
+  if (requiresAdminPassword && isPlaceholderSecretValue(params.input.adminPasswordHash)) out.add("adminPasswordHash");
 
   if (params.requiresTailscaleAuthKey && params.input.tailscaleAuthKey && isPlaceholderSecretValue(params.input.tailscaleAuthKey)) {
     out.add("tailscaleAuthKey");
@@ -95,17 +97,20 @@ export function listSecretsInitPlaceholders(params: {
 
 export function buildSecretsInitTemplate(params: {
   requiresTailscaleAuthKey: boolean;
+  requiresAdminPassword?: boolean;
   secrets?: Record<string, string>;
 }): SecretsInitJson {
   const secrets = params.secrets && typeof params.secrets === "object" ? params.secrets : {};
+  const requiresAdminPassword = params.requiresAdminPassword !== false;
   return {
-    adminPasswordHash: "<REPLACE_WITH_YESCRYPT_HASH>",
+    adminPasswordHash: requiresAdminPassword ? "<REPLACE_WITH_YESCRYPT_HASH>" : "",
     ...(params.requiresTailscaleAuthKey ? { tailscaleAuthKey: "<REPLACE_WITH_TSKEY_AUTH>" } : {}),
     secrets,
   };
 }
 
-export function parseSecretsInitJson(raw: string): SecretsInitJson {
+export function parseSecretsInitJson(raw: string, opts?: { requireAdminPassword?: boolean }): SecretsInitJson {
+  const requireAdminPassword = opts?.requireAdminPassword !== false;
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
@@ -118,7 +123,7 @@ export function parseSecretsInitJson(raw: string): SecretsInitJson {
   const obj = parsed as any;
 
   const adminPasswordHash = typeof obj.adminPasswordHash === "string" ? obj.adminPasswordHash.trim() : "";
-  if (!adminPasswordHash) throw new Error("invalid --from-json (missing adminPasswordHash)");
+  if (requireAdminPassword && !adminPasswordHash) throw new Error("invalid --from-json (missing adminPasswordHash)");
 
   const tailscaleAuthKey = typeof obj.tailscaleAuthKey === "string" ? obj.tailscaleAuthKey.trim() : undefined;
 

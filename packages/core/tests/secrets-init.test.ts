@@ -28,6 +28,19 @@ describe("secrets-init JSON + non-interactive validation", () => {
         requiresTailscaleAuthKey: false,
       }),
     ).toEqual(["adminPasswordHash", "secrets.discord_token_maren"]);
+
+    const t3 = buildSecretsInitTemplate({
+      requiresTailscaleAuthKey: false,
+      requiresAdminPassword: false,
+      secrets: {},
+    });
+    expect(
+      listSecretsInitPlaceholders({
+        input: t3,
+        requiresTailscaleAuthKey: false,
+        requiresAdminPassword: false,
+      }),
+    ).toEqual([]);
   });
 
   it("isPlaceholderSecretValue only matches full <...> tokens", async () => {
@@ -69,6 +82,13 @@ describe("secrets-init JSON + non-interactive validation", () => {
       expect(msg).toMatch(/missing adminPasswordHash/i);
       expect(msg).not.toContain(secret);
     }
+  });
+
+  it("parseSecretsInitJson allows missing adminPasswordHash when not required", async () => {
+    const { parseSecretsInitJson } = await import("../src/lib/secrets-init");
+    const raw = JSON.stringify({ secrets: { discord_token_maren: "token" } });
+    const out = parseSecretsInitJson(raw, { requireAdminPassword: false });
+    expect(out.adminPasswordHash).toBe("");
   });
 
   it("parseSecretsInitJson trims fields and ignores empty tokens", async () => {

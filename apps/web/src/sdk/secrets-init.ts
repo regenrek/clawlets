@@ -41,7 +41,11 @@ export const getSecretsTemplate = createServerFn({ method: "POST" })
 
     const secretsPlan = buildFleetSecretsPlan({ config, hostName: host })
     const sets = buildSecretsInitTemplateSets({ secretsPlan, hostCfg })
-    const template = buildSecretsInitTemplate({ requiresTailscaleAuthKey: sets.requiresTailscaleAuthKey, secrets: sets.templateSecrets })
+    const template = buildSecretsInitTemplate({
+      requiresTailscaleAuthKey: sets.requiresTailscaleAuthKey,
+      requiresAdminPassword: sets.requiresAdminPassword,
+      secrets: sets.templateSecrets,
+    })
 
     return {
       host,

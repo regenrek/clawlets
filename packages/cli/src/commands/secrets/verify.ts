@@ -7,6 +7,7 @@ import { agePublicKeyFromIdentityFile } from "@clawlets/core/lib/age-keygen";
 import { sopsDecryptYamlFile } from "@clawlets/core/lib/sops";
 import { sanitizeOperatorId } from "@clawlets/shared/lib/identifiers";
 import { buildFleetSecretsPlan } from "@clawlets/core/lib/fleet-secrets-plan";
+import { resolveSecretsPlanScope } from "@clawlets/core/lib/secrets-plan-scopes";
 import { isPlaceholderSecretValue } from "@clawlets/core/lib/secrets-init";
 import { loadDeployCreds } from "@clawlets/core/lib/deploy-creds";
 import { getHostSecretsDir, getLocalOperatorAgeKeyPath } from "@clawlets/core/repo-layout";
@@ -14,6 +15,11 @@ import { loadHostContextOrExit } from "@clawlets/core/lib/context";
 import { getHostAgeKeySopsCreationRulePathRegex, getHostSecretsSopsCreationRulePathRegex } from "@clawlets/core/lib/sops-rules";
 import { getSopsCreationRuleAgeRecipients } from "@clawlets/core/lib/sops-config";
 import { mapWithConcurrency } from "@clawlets/core/lib/concurrency";
+import { parseSecretsScope } from "./common.js";
+
+function uniqSorted(values: string[]): string[] {
+  return Array.from(new Set(values)).sort();
+}
 
 export const secretsVerify = defineCommand({
   meta: {
@@ -24,6 +30,7 @@ export const secretsVerify = defineCommand({
     runtimeDir: { type: "string", description: "Runtime directory (default: .clawlets)." },
     envFile: { type: "string", description: "Env file for deploy creds (default: <runtimeDir>/env)." },
     host: { type: "string", description: "Host name (defaults to clawlets.json defaultHost / sole host)." },
+    scope: { type: "string", description: "Secrets scope (bootstrap|updates|openclaw|all).", default: "all" },
     operator: {
       type: "string",
       description: "Operator id for age key name (default: $USER). Used if SOPS_AGE_KEY_FILE is not set.",
@@ -53,14 +60,20 @@ export const secretsVerify = defineCommand({
 
     const localDir = getHostSecretsDir(layout, hostName);
     const secretsPlan = buildFleetSecretsPlan({ config, hostName });
-    const planRequiredNames = (secretsPlan.required || []).map((spec) => spec.name);
-    const planOptionalNames = (secretsPlan.optional || []).map((spec) => spec.name);
-    const requiredSecretNames = new Set<string>(planRequiredNames);
+    const scope = parseSecretsScope((args as any).scope);
+    const scopeSummary =
+      scope === "all"
+        ? {
+            requiredNames: uniqSorted((secretsPlan.required || []).map((spec) => spec.name)),
+            optionalNames: uniqSorted((secretsPlan.optional || []).map((spec) => spec.name)),
+          }
+        : resolveSecretsPlanScope({ scopes: secretsPlan.scopes, optional: secretsPlan.optional, scope });
+    const requiredSecretNames = new Set<string>(scopeSummary.requiredNames);
     const secretNames = Array.from(new Set<string>([
-      ...planRequiredNames,
-      ...planOptionalNames,
+      ...scopeSummary.requiredNames,
+      ...scopeSummary.optionalNames,
     ])).sort();
-    const optionalSecrets = ["root_password_hash"];
+    const optionalSecrets = scope === "openclaw" ? [] : ["root_password_hash"];
 
     type Result = { secret: string; status: "ok" | "missing" | "warn"; detail?: string };
     const preflight: Result[] = [];

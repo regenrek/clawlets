@@ -30,6 +30,20 @@ export const SecretSpecSchema = z
 
 export type SecretSpec = z.infer<typeof SecretSpecSchema>;
 
+export const SECRETS_PLAN_SCOPES = ["bootstrap", "updates", "openclaw"] as const;
+export const SecretsPlanScopeSchema = z.enum(SECRETS_PLAN_SCOPES);
+export type SecretsPlanScope = z.infer<typeof SecretsPlanScopeSchema>;
+
+export const SecretsPlanScopeSetsSchema = z
+  .object({
+    bootstrapRequired: z.array(SecretSpecSchema).default(() => []),
+    updatesRequired: z.array(SecretSpecSchema).default(() => []),
+    openclawRequired: z.array(SecretSpecSchema).default(() => []),
+  })
+  .strict();
+
+export type SecretsPlanScopeSets = z.infer<typeof SecretsPlanScopeSetsSchema>;
+
 export const MissingSecretConfigSchema = z.discriminatedUnion("kind", [
   z
     .object({
@@ -74,6 +88,11 @@ export const SecretsPlanSchema = z
     optional: z.array(SecretSpecSchema).default(() => []),
     missing: z.array(MissingSecretConfigSchema).default(() => []),
     warnings: z.array(SecretsPlanWarningSchema).default(() => []),
+    scopes: SecretsPlanScopeSetsSchema.default(() => ({
+      bootstrapRequired: [],
+      updatesRequired: [],
+      openclawRequired: [],
+    })),
   })
   .strict();
 
