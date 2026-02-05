@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 
-import { ClawletsConfigSchema } from "../src/lib/clawlets-config";
-import { buildOpenClawGatewayConfig } from "../src/lib/openclaw/config-invariants";
-import { skillApiKeyEnvVar } from "../src/lib/secrets/env-vars";
+import { ClawletsConfigSchema } from "../src/lib/config/clawlets-config";
+import { buildOpenClawGatewayConfig } from "../src/lib/openclaw/config-invariants.js";
+import { skillApiKeyEnvVar } from "../src/lib/secrets/env-vars.js";
 
 const baseHost = {
   enable: false,

@@ -2,10 +2,10 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { defineCommand } from "citty";
-import { ensureDir } from "@clawlets/core/lib/fs-safe";
-import { splitDotPath } from "@clawlets/core/lib/dot-path";
-import { deleteAtPath, getAtPath, setAtPath } from "@clawlets/core/lib/object-path";
-import { findRepoRoot } from "@clawlets/core/lib/repo";
+import { ensureDir } from "@clawlets/core/lib/storage/fs-safe";
+import { splitDotPath } from "@clawlets/core/lib/storage/dot-path";
+import { deleteAtPath, getAtPath, setAtPath } from "@clawlets/core/lib/storage/object-path";
+import { findRepoRoot } from "@clawlets/core/lib/project/repo";
 import { getRepoLayout } from "@clawlets/core/repo-layout";
 import {
   createDefaultClawletsConfig,
@@ -15,11 +15,11 @@ import {
   loadClawletsConfigRaw,
   resolveHostName,
   writeClawletsConfig,
-} from "@clawlets/core/lib/clawlets-config";
-import { migrateClawletsConfigToLatest } from "@clawlets/core/lib/clawlets-config-migrate";
-import { validateClawletsConfig } from "@clawlets/core/lib/clawlets-config-validate";
+} from "@clawlets/core/lib/config/clawlets-config";
+import { migrateClawletsConfigToLatest } from "@clawlets/core/lib/config/clawlets-config-migrate";
+import { validateClawletsConfig } from "@clawlets/core/lib/config/clawlets-config-validate";
 import { buildFleetSecretsPlan } from "@clawlets/core/lib/secrets/plan";
-import { applySecretsAutowire, planSecretsAutowire, type SecretsAutowireScope } from "@clawlets/core/lib/secrets-autowire";
+import { applySecretsAutowire, planSecretsAutowire, type SecretsAutowireScope } from "@clawlets/core/lib/secrets/secrets-autowire";
 
 const init = defineCommand({
   meta: { name: "init", description: "Initialize fleet/clawlets.json (canonical config)." },

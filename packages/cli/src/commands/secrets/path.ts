@@ -1,7 +1,7 @@
 import process from "node:process";
 import { defineCommand } from "citty";
 import { getHostRemoteSecretsDir, getHostSecretsDir } from "@clawlets/core/repo-layout";
-import { loadHostContextOrExit } from "@clawlets/core/lib/context";
+import { loadHostContextOrExit } from "@clawlets/core/lib/runtime/context";
 
 export const secretsPath = defineCommand({
   meta: {

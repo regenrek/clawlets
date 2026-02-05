@@ -73,7 +73,7 @@ describe("execute admin guard", () => {
     vi.doMock("~/server/clawlets-cli", () => ({ resolveClawletsCliEntry: () => "cli.js" }))
     vi.doMock("~/server/convex", () => ({ createConvexClient: () => ({ mutation: vi.fn(), query: vi.fn() }) as any }))
 
-    vi.doMock("@clawlets/core/lib/clawlets-config", () => ({
+    vi.doMock("@clawlets/core/lib/config/clawlets-config", () => ({
       loadClawletsConfig: () => ({
         config: {
           defaultHost: "alpha",

@@ -1,12 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { RepoLayout } from "../repo-layout.js";
-import { capture } from "../lib/run.js";
-import { findInlineScriptingViolations } from "../lib/inline-script-ban.js";
-import { validateDocsIndexIntegrity } from "../lib/docs-index.js";
-import { validateFleetPolicy, type FleetConfig } from "../lib/fleet-policy.js";
-import { evalFleetConfig } from "../lib/fleet-nix-eval.js";
-import { ClawletsConfigSchema, type ClawletsConfig } from "../lib/clawlets-config.js";
+import { capture } from "../lib/runtime/run.js";
+import { findInlineScriptingViolations } from "../lib/security/inline-script-ban.js";
+import { validateDocsIndexIntegrity } from "../lib/project/docs-index.js";
+import { validateFleetPolicy, type FleetConfig } from "../lib/config/fleet-policy.js";
+import { evalFleetConfig } from "../lib/nix/fleet-nix-eval.js";
+import { ClawletsConfigSchema, type ClawletsConfig } from "../lib/config/clawlets-config.js";
 import { buildOpenClawGatewayConfig } from "../lib/openclaw/config-invariants.js";
 import { lintOpenclawSecurityConfig } from "../lib/openclaw/security-lint.js";
 import { checkSchemaVsNixOpenclaw } from "./schema-checks.js";

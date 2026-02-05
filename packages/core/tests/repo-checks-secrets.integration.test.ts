@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { mkdtemp, rm, writeFile, mkdir, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { findClawdbotSecretViolations } from "../src/doctor/repo-checks-secrets";
+import { findClawdbotSecretViolations } from "../src/doctor/repo-checks-secrets.js";
 
 async function setupRepo(): Promise<{ dir: string; botDir: string }> {
   const dir = await mkdtemp(path.join(tmpdir(), "clawlets-repo-checks-secrets-"));

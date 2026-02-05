@@ -1,7 +1,7 @@
 import process from "node:process";
 import { defineCommand } from "citty";
-import { findRepoRoot } from "@clawlets/core/lib/repo";
-import { ClawletsConfigSchema, loadClawletsConfig, writeClawletsConfig } from "@clawlets/core/lib/clawlets-config";
+import { findRepoRoot } from "@clawlets/core/lib/project/repo";
+import { ClawletsConfigSchema, loadClawletsConfig, writeClawletsConfig } from "@clawlets/core/lib/config/clawlets-config";
 
 const show = defineCommand({
   meta: { name: "show", description: "Print fleet config (from fleet/clawlets.json)." },

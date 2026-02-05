@@ -6,11 +6,11 @@ const resolveHostNameOrExitMock = vi.fn(() => "alpha");
 const collectDoctorChecksMock = vi.fn();
 const renderDoctorReportMock = vi.fn(() => "report");
 
-vi.mock("@clawlets/core/lib/repo", () => ({
+vi.mock("@clawlets/core/lib/project/repo", () => ({
   findRepoRoot: findRepoRootMock,
 }));
 
-vi.mock("@clawlets/core/lib/host-resolve", () => ({
+vi.mock("@clawlets/core/lib/host/host-resolve", () => ({
   resolveHostNameOrExit: resolveHostNameOrExitMock,
 }));
 

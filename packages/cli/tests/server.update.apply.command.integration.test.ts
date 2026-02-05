@@ -3,11 +3,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const loadHostContextMock = vi.fn();
 const sshRunMock = vi.fn();
 
-vi.mock("@clawlets/core/lib/context", () => ({
+vi.mock("@clawlets/core/lib/runtime/context", () => ({
   loadHostContextOrExit: loadHostContextMock,
 }));
 
-vi.mock("@clawlets/core/lib/ssh-remote", () => ({
+vi.mock("@clawlets/core/lib/security/ssh-remote", () => ({
   sshRun: sshRunMock,
   sshCapture: vi.fn(),
   shellQuote: (s: string) => s,

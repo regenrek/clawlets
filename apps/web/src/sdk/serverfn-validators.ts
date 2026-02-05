@@ -1,5 +1,5 @@
 import { GatewayIdSchema, HostNameSchema, SecretNameSchema } from "@clawlets/shared/lib/identifiers"
-import { assertSafeRecordKey, createNullProtoRecord } from "@clawlets/core/lib/safe-record"
+import { assertSafeRecordKey, createNullProtoRecord } from "@clawlets/core/lib/runtime/safe-record"
 
 import type { SystemTableNames } from "convex/server"
 import type { Id, TableNames } from "../../convex/_generated/dataModel"

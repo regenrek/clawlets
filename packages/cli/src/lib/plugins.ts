@@ -1,8 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { findRepoRoot } from "@clawlets/core/lib/repo";
-import { run } from "@clawlets/core/lib/run";
+import { findRepoRoot } from "@clawlets/core/lib/project/repo";
+import { run } from "@clawlets/core/lib/runtime/run";
 import { getRepoLayout } from "@clawlets/core/repo-layout";
 import { baseCommandNames } from "../commands/registry.js";
 

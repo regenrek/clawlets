@@ -1,4 +1,4 @@
-import { validateTargetHost } from "@clawlets/core/lib/ssh-remote";
+import { validateTargetHost } from "@clawlets/core/lib/security/ssh-remote";
 
 export function needsSudo(targetHost: string): boolean {
   return !/^root@/i.test(targetHost.trim());

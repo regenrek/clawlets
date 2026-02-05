@@ -6,7 +6,7 @@ import path from "node:path";
 const runMock = vi.fn(async () => {});
 const ensureKeyMock = vi.fn(async () => "123");
 
-vi.mock("../src/lib/run.js", () => ({
+vi.mock("../src/lib/runtime/run.js", () => ({
   run: runMock,
   capture: vi.fn(async () => ""),
   captureWithInput: vi.fn(async () => ""),
@@ -29,7 +29,7 @@ describe("opentofu", () => {
       const sshPubkeyFile = path.join(repoRoot, "id_ed25519.pub");
       await writeFile(sshPubkeyFile, "ssh-ed25519 AAAATEST test\n", "utf8");
 
-      const { destroyHetznerOpenTofu } = await import("../src/lib/infra/providers/hetzner/opentofu");
+      const { destroyHetznerOpenTofu } = await import("../src/lib/infra/providers/hetzner/opentofu.js");
       await destroyHetznerOpenTofu({
         spec: {
           hostName: "openclaw-fleet-host",
@@ -93,7 +93,7 @@ describe("opentofu", () => {
     const repoRoot = await mkdtemp(path.join(tmpdir(), "clawlets-opentofu-aws-"));
     try {
       const opentofuDir = path.join(repoRoot, ".clawlets", "infra", "opentofu");
-      const { destroyAwsOpenTofu } = await import("../src/lib/infra/providers/aws/opentofu");
+      const { destroyAwsOpenTofu } = await import("../src/lib/infra/providers/aws/opentofu.js");
       await destroyAwsOpenTofu({
         spec: {
           hostName: "openclaw-fleet-host",

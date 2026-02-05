@@ -1,8 +1,8 @@
 import process from "node:process";
 import { defineCommand } from "citty";
-import { run } from "@clawlets/core/lib/run";
-import { loadDeployCreds } from "@clawlets/core/lib/deploy-creds";
-import { loadHostContextOrExit } from "@clawlets/core/lib/context";
+import { run } from "@clawlets/core/lib/runtime/run";
+import { loadDeployCreds } from "@clawlets/core/lib/infra/deploy-creds";
+import { loadHostContextOrExit } from "@clawlets/core/lib/runtime/context";
 
 export const imageHetznerUpload = defineCommand({
   meta: {

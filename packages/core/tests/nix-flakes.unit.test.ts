@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { chmod, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { withFlakesEnv } from "../src/lib/nix-flakes";
+import { withFlakesEnv } from "../src/lib/nix/nix-flakes";
 
 describe("nix-flakes", () => {
   it("adds NIX_CONFIG when missing", () => {

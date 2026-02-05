@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { mkdtemp, rm, writeFile, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { backupFile, writeFileAtomic } from "../src/lib/fs-safe";
+import { backupFile, writeFileAtomic } from "../src/lib/storage/fs-safe";
 
 describe("fs-safe", () => {
   let dir = "";

@@ -1,8 +1,8 @@
 import fs from "node:fs";
-import { writeFileAtomic } from "../fs-safe.js";
+import { writeFileAtomic } from "../storage/fs-safe.js";
 import type { RepoLayout } from "../../repo-layout.js";
 import { getRepoLayout } from "../../repo-layout.js";
-import { assertNoLegacyEnvSecrets, assertNoLegacyHostKeys } from "../clawlets-config-legacy.js";
+import { assertNoLegacyEnvSecrets, assertNoLegacyHostKeys } from "./clawlets-config-legacy.js";
 import { ClawletsConfigSchema, type ClawletsConfig } from "./schema.js";
 
 export function loadClawletsConfigRaw(params: { repoRoot: string; runtimeDir?: string }): {

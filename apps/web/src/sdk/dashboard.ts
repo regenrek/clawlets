@@ -1,6 +1,6 @@
 import { stat } from "node:fs/promises"
 import { createServerFn } from "@tanstack/react-start"
-import { loadClawletsConfig } from "@clawlets/core/lib/clawlets-config"
+import { loadClawletsConfig } from "@clawlets/core/lib/config/clawlets-config"
 import { api } from "../../convex/_generated/api"
 import type { Id } from "../../convex/_generated/dataModel"
 import { createConvexClient } from "~/server/convex"

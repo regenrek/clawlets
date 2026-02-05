@@ -33,11 +33,11 @@ async function loadWorkspaceDocs(options: { pathExists: boolean; writeThrows: bo
     }),
     getGatewayWorkspaceDir: (_layout: unknown, gatewayId: string) => `/tmp/repo/fleet/workspaces/gateways/${gatewayId}`,
   }))
-  vi.doMock("@clawlets/core/lib/fleet-workspaces", () => ({
+  vi.doMock("@clawlets/core/lib/project/fleet-workspaces", () => ({
     isFleetWorkspaceEditableDoc: () => true,
     FLEET_WORKSPACE_EDITABLE_DOCS: [],
   }))
-  vi.doMock("@clawlets/core/lib/fs-safe", () => ({
+  vi.doMock("@clawlets/core/lib/storage/fs-safe", () => ({
     ensureDir: async () => {
       if (options.ensureThrows) throw new Error("mkdir failed")
     },
@@ -46,7 +46,7 @@ async function loadWorkspaceDocs(options: { pathExists: boolean; writeThrows: bo
       if (options.writeThrows) throw new Error("write failed")
     },
   }))
-  vi.doMock("@clawlets/core/lib/fs-trash", () => ({
+  vi.doMock("@clawlets/core/lib/storage/fs-trash", () => ({
     moveToTrash: async () => {
       if (options.trashThrows) throw new Error("trash failed")
     },

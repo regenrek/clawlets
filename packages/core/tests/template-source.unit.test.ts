@@ -3,8 +3,8 @@ import path from "node:path";
 import fs from "node:fs";
 import { mkdtemp, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { normalizeTemplatePath, normalizeTemplateRef, normalizeTemplateRepo, normalizeTemplateSource } from "../src/lib/template-source";
-import { resolveTemplateTestDir } from "../src/lib/template-test-dir";
+import { normalizeTemplatePath, normalizeTemplateRef, normalizeTemplateRepo, normalizeTemplateSource } from "../src/lib/project/template-source";
+import { resolveTemplateTestDir } from "../src/lib/project/template-test-dir";
 
 describe("template source validation", () => {
   it("accepts owner/repo format", () => {

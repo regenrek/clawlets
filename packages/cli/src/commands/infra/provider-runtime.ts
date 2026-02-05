@@ -1,6 +1,6 @@
 import process from "node:process";
-import type { DeployCredsResult } from "@clawlets/core/lib/deploy-creds";
-import type { ProvisionerRuntime } from "@clawlets/core/lib/infra";
+import type { DeployCredsResult } from "@clawlets/core/lib/infra/deploy-creds";
+import type { ProvisionerRuntime } from "@clawlets/core/lib/infra/infra";
 
 function trimOrEmpty(value: unknown): string {
   return String(value || "").trim();

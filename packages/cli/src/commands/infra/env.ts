@@ -2,11 +2,11 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { defineCommand } from "citty";
-import { writeFileAtomic } from "@clawlets/core/lib/fs-safe";
-import { parseDotenv } from "@clawlets/core/lib/dotenv-file";
-import { expandPath } from "@clawlets/core/lib/path-expand";
-import { findRepoRoot } from "@clawlets/core/lib/repo";
-import { loadDeployCreds, renderDeployCredsEnvFile, type DeployCredsEnvFileKeys } from "@clawlets/core/lib/deploy-creds";
+import { writeFileAtomic } from "@clawlets/core/lib/storage/fs-safe";
+import { parseDotenv } from "@clawlets/core/lib/storage/dotenv-file";
+import { expandPath } from "@clawlets/core/lib/storage/path-expand";
+import { findRepoRoot } from "@clawlets/core/lib/project/repo";
+import { loadDeployCreds, renderDeployCredsEnvFile, type DeployCredsEnvFileKeys } from "@clawlets/core/lib/infra/deploy-creds";
 import { getRepoLayout } from "@clawlets/core/repo-layout";
 
 function resolveEnvFilePath(params: { cwd: string; runtimeDir?: string; envFileArg?: unknown }): { path: string; origin: "default" | "explicit" } {

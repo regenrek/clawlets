@@ -4,7 +4,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const { captureMock } = vi.hoisted(() => ({ captureMock: vi.fn() }));
-vi.mock("@clawlets/core/lib/run", () => ({
+vi.mock("@clawlets/core/lib/runtime/run", () => ({
   capture: captureMock,
 }));
 

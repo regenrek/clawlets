@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseKnownHostsFromText } from "../src/lib/ssh-files.js";
+import { parseKnownHostsFromText } from "../src/lib/security/ssh-files.js";
 
 describe("parseKnownHostsFromText", () => {
   it("strips comments and blank lines", () => {

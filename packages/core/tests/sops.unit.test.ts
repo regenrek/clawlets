@@ -19,7 +19,7 @@ const runState: {
 
 let encryptedOutput = "<encrypted>";
 
-vi.mock("../src/lib/nix-tools.js", () => ({
+vi.mock("../src/lib/nix/nix-tools.js", () => ({
   nixShellCapture: vi.fn(async (_pkg: string, _cmd: string, args: string[]) => {
     nixToolsState.lastShellArgs = args;
     return "<decrypted>";
@@ -33,7 +33,7 @@ vi.mock("../src/lib/nix-tools.js", () => ({
   ),
 }));
 
-vi.mock("../src/lib/run.js", () => ({
+vi.mock("../src/lib/runtime/run.js", () => ({
   run: vi.fn(async (_cmd: string, args: string[]) => {
     runState.lastArgs = args;
   }),
@@ -49,7 +49,7 @@ beforeEach(() => {
 
 describe("sops args", () => {
   it("decrypt uses the expected sops args", async () => {
-    const { sopsDecryptYamlFile } = await import("../src/lib/sops");
+    const { sopsDecryptYamlFile } = await import("../src/lib/security/sops");
     await sopsDecryptYamlFile({
       filePath: "/tmp/hosts/clawdbot-fleet-host.yaml",
       filenameOverride: "clawdbot-fleet-host.yaml",
@@ -66,7 +66,7 @@ describe("sops args", () => {
   });
 
   it("decrypt includes --config when set", async () => {
-    const { sopsDecryptYamlFile } = await import("../src/lib/sops");
+    const { sopsDecryptYamlFile } = await import("../src/lib/security/sops");
     await sopsDecryptYamlFile({
       filePath: "/tmp/hosts/clawdbot-fleet-host.yaml",
       configPath: "/tmp/.sops.yaml",
@@ -81,7 +81,7 @@ describe("sops args", () => {
   });
 
   it("decrypt omits filename-override when not set", async () => {
-    const { sopsDecryptYamlFile } = await import("../src/lib/sops");
+    const { sopsDecryptYamlFile } = await import("../src/lib/security/sops");
     await sopsDecryptYamlFile({
       filePath: "/tmp/hosts/clawdbot-fleet-host.yaml",
       nix: { nixBin: "nix", dryRun: true },
@@ -94,7 +94,7 @@ describe("sops args", () => {
   });
 
   it("encrypt defaults filename-override to outPath", async () => {
-    const { sopsEncryptYamlToFile } = await import("../src/lib/sops");
+    const { sopsEncryptYamlToFile } = await import("../src/lib/security/sops");
     await sopsEncryptYamlToFile({
       plaintextYaml: "hello: world\n",
       outPath: "/tmp/hosts/clawdbot-fleet-host.yaml",
@@ -111,7 +111,7 @@ describe("sops args", () => {
   });
 
   it("encrypt includes --config when set", async () => {
-    const { sopsEncryptYamlToFile } = await import("../src/lib/sops");
+    const { sopsEncryptYamlToFile } = await import("../src/lib/security/sops");
     await sopsEncryptYamlToFile({
       plaintextYaml: "hello: world\n",
       outPath: "/tmp/hosts/clawdbot-fleet-host.yaml",
@@ -127,7 +127,7 @@ describe("sops args", () => {
   });
 
   it("encrypt passes plaintext via stdin", async () => {
-    const { sopsEncryptYamlToFile } = await import("../src/lib/sops");
+    const { sopsEncryptYamlToFile } = await import("../src/lib/security/sops");
     const dir = await mkdtemp(path.join(tmpdir(), "clawlets-sops-"));
     const outPath = path.join(dir, "secrets.enc.yaml");
     try {
@@ -148,7 +148,7 @@ describe("sops args", () => {
   });
 
   it("encrypt writes output with 0600 perms", async () => {
-    const { sopsEncryptYamlToFile } = await import("../src/lib/sops");
+    const { sopsEncryptYamlToFile } = await import("../src/lib/security/sops");
     const dir = await mkdtemp(path.join(tmpdir(), "clawlets-sops-"));
     const outPath = path.join(dir, "secrets.enc.yaml");
     try {

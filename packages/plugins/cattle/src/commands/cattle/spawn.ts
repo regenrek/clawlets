@@ -5,7 +5,7 @@ import { CLF_PROTOCOL_VERSION, createClfClient } from "@clawlets/clf-queue";
 import { sanitizeOperatorId } from "@clawlets/shared/lib/identifiers";
 import { openCattleState } from "../../lib/cattle-state.js";
 import { type CattleTask } from "@clawlets/cattle-core/lib/cattle-task";
-import { loadHostContextOrExit } from "@clawlets/core/lib/context";
+import { loadHostContextOrExit } from "@clawlets/core/lib/runtime/context";
 import { loadTaskFromFile, requireEnabled, requireFile, requireTtlSeconds, unixSecondsNow, waitForClfJobTerminal } from "./common.js";
 
 export const cattleSpawn = defineCommand({

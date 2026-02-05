@@ -1,6 +1,6 @@
-import type { findEnvVarRefs } from "../../env-var-refs.js";
-import type { SecretFileSpec } from "../../secret-wiring.js";
-import type { MissingSecretConfig, SecretSpec, SecretsPlanScopeSets, SecretsPlanWarning } from "../../secrets-plan.js";
+import type { findEnvVarRefs } from "../env-var-refs.js";
+import type { SecretFileSpec } from "../secret-wiring.js";
+import type { MissingSecretConfig, SecretSpec, SecretsPlanScopeSets, SecretsPlanWarning } from "../secrets-plan.js";
 
 export type MissingFleetSecretConfig = MissingSecretConfig;
 

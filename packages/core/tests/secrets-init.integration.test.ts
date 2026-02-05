@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 
 describe("secrets-init JSON + non-interactive validation", () => {
   it("detects placeholders in buildSecretsInitTemplate (enforcement regression)", async () => {
-    const { buildSecretsInitTemplate, listSecretsInitPlaceholders } = await import("../src/lib/secrets-init");
+    const { buildSecretsInitTemplate, listSecretsInitPlaceholders } = await import("../src/lib/secrets/secrets-init");
 
     const t1 = buildSecretsInitTemplate({
       requiresTailscaleAuthKey: true,
@@ -44,14 +44,14 @@ describe("secrets-init JSON + non-interactive validation", () => {
   });
 
   it("isPlaceholderSecretValue only matches full <...> tokens", async () => {
-    const { isPlaceholderSecretValue } = await import("../src/lib/secrets-init");
+    const { isPlaceholderSecretValue } = await import("../src/lib/secrets/secrets-init");
     expect(isPlaceholderSecretValue("<FILL_ME>")).toBe(true);
     expect(isPlaceholderSecretValue("abc<FILL_ME>def")).toBe(false);
     expect(isPlaceholderSecretValue("<OPTIONAL>")).toBe(false);
   });
 
   it("listSecretsInitPlaceholders finds placeholders by field", async () => {
-    const { listSecretsInitPlaceholders } = await import("../src/lib/secrets-init");
+    const { listSecretsInitPlaceholders } = await import("../src/lib/secrets/secrets-init");
     const input = {
       adminPasswordHash: "<REPLACE_WITH_YESCRYPT_HASH>",
       tailscaleAuthKey: "<REPLACE_WITH_TSKEY_AUTH>",
@@ -66,12 +66,12 @@ describe("secrets-init JSON + non-interactive validation", () => {
   });
 
   it("parseSecretsInitJson rejects invalid JSON without leaking content", async () => {
-    const { parseSecretsInitJson } = await import("../src/lib/secrets-init");
+    const { parseSecretsInitJson } = await import("../src/lib/secrets/secrets-init");
     expect(() => parseSecretsInitJson("{")).toThrow(/expected valid JSON/i);
   });
 
   it("parseSecretsInitJson rejects missing adminPasswordHash without leaking tokens", async () => {
-    const { parseSecretsInitJson } = await import("../src/lib/secrets-init");
+    const { parseSecretsInitJson } = await import("../src/lib/secrets/secrets-init");
     const secret = "SUPER_SECRET_TOKEN_123";
     const raw = JSON.stringify({ secrets: { discord_token_maren: secret } });
     try {
@@ -85,14 +85,14 @@ describe("secrets-init JSON + non-interactive validation", () => {
   });
 
   it("parseSecretsInitJson allows missing adminPasswordHash when not required", async () => {
-    const { parseSecretsInitJson } = await import("../src/lib/secrets-init");
+    const { parseSecretsInitJson } = await import("../src/lib/secrets/secrets-init");
     const raw = JSON.stringify({ secrets: { discord_token_maren: "token" } });
     const out = parseSecretsInitJson(raw, { requireAdminPassword: false });
     expect(out.adminPasswordHash).toBe("");
   });
 
   it("parseSecretsInitJson trims fields and ignores empty tokens", async () => {
-    const { parseSecretsInitJson } = await import("../src/lib/secrets-init");
+    const { parseSecretsInitJson } = await import("../src/lib/secrets/secrets-init");
     const out = parseSecretsInitJson(
       JSON.stringify({
         adminPasswordHash: "  hash  ",
@@ -106,7 +106,7 @@ describe("secrets-init JSON + non-interactive validation", () => {
   });
 
   it("validateSecretsInitNonInteractive requires --from-json", async () => {
-    const { validateSecretsInitNonInteractive } = await import("../src/lib/secrets-init");
+    const { validateSecretsInitNonInteractive } = await import("../src/lib/secrets/secrets-init");
     expect(() =>
       validateSecretsInitNonInteractive({
         interactive: false,
@@ -119,7 +119,7 @@ describe("secrets-init JSON + non-interactive validation", () => {
   });
 
   it("validateSecretsInitNonInteractive blocks overwrite without --yes", async () => {
-    const { validateSecretsInitNonInteractive } = await import("../src/lib/secrets-init");
+    const { validateSecretsInitNonInteractive } = await import("../src/lib/secrets/secrets-init");
     expect(() =>
       validateSecretsInitNonInteractive({
         interactive: false,
@@ -132,7 +132,7 @@ describe("secrets-init JSON + non-interactive validation", () => {
   });
 
   it("validateSecretsInitNonInteractive allows overwrite with --yes", async () => {
-    const { validateSecretsInitNonInteractive } = await import("../src/lib/secrets-init");
+    const { validateSecretsInitNonInteractive } = await import("../src/lib/secrets/secrets-init");
     expect(() =>
       validateSecretsInitNonInteractive({
         interactive: false,
@@ -145,7 +145,7 @@ describe("secrets-init JSON + non-interactive validation", () => {
   });
 
   it("resolveSecretsInitFromJsonArg accepts explicit value", async () => {
-    const { resolveSecretsInitFromJsonArg } = await import("../src/lib/secrets-init");
+    const { resolveSecretsInitFromJsonArg } = await import("../src/lib/secrets/secrets-init");
     expect(
       resolveSecretsInitFromJsonArg({
         fromJsonRaw: " ./secrets.json ",
@@ -156,7 +156,7 @@ describe("secrets-init JSON + non-interactive validation", () => {
   });
 
   it("resolveSecretsInitFromJsonArg rejects explicit value that looks like a flag", async () => {
-    const { resolveSecretsInitFromJsonArg } = await import("../src/lib/secrets-init");
+    const { resolveSecretsInitFromJsonArg } = await import("../src/lib/secrets/secrets-init");
     expect(() =>
       resolveSecretsInitFromJsonArg({
         fromJsonRaw: "--oops",
@@ -167,7 +167,7 @@ describe("secrets-init JSON + non-interactive validation", () => {
   });
 
   it("resolveSecretsInitFromJsonArg accepts --from-json - only when explicitly present in argv", async () => {
-    const { resolveSecretsInitFromJsonArg } = await import("../src/lib/secrets-init");
+    const { resolveSecretsInitFromJsonArg } = await import("../src/lib/secrets/secrets-init");
     expect(
       resolveSecretsInitFromJsonArg({
         fromJsonRaw: true,
@@ -178,7 +178,7 @@ describe("secrets-init JSON + non-interactive validation", () => {
   });
 
   it("resolveSecretsInitFromJsonArg accepts inline --from-json=<path>", async () => {
-    const { resolveSecretsInitFromJsonArg } = await import("../src/lib/secrets-init");
+    const { resolveSecretsInitFromJsonArg } = await import("../src/lib/secrets/secrets-init");
     expect(
       resolveSecretsInitFromJsonArg({
         fromJsonRaw: true,
@@ -189,7 +189,7 @@ describe("secrets-init JSON + non-interactive validation", () => {
   });
 
   it("resolveSecretsInitFromJsonArg rejects missing value when parsed as boolean flag", async () => {
-    const { resolveSecretsInitFromJsonArg } = await import("../src/lib/secrets-init");
+    const { resolveSecretsInitFromJsonArg } = await import("../src/lib/secrets/secrets-init");
     expect(() =>
       resolveSecretsInitFromJsonArg({
         fromJsonRaw: true,
@@ -200,7 +200,7 @@ describe("secrets-init JSON + non-interactive validation", () => {
   });
 
   it("resolveSecretsInitFromJsonArg rejects TTY stdin for boolean flag with --from-json -", async () => {
-    const { resolveSecretsInitFromJsonArg } = await import("../src/lib/secrets-init");
+    const { resolveSecretsInitFromJsonArg } = await import("../src/lib/secrets/secrets-init");
     expect(() =>
       resolveSecretsInitFromJsonArg({
         fromJsonRaw: true,
@@ -211,7 +211,7 @@ describe("secrets-init JSON + non-interactive validation", () => {
   });
 
   it("resolveSecretsInitFromJsonArg rejects TTY stdin for --from-json -", async () => {
-    const { resolveSecretsInitFromJsonArg } = await import("../src/lib/secrets-init");
+    const { resolveSecretsInitFromJsonArg } = await import("../src/lib/secrets/secrets-init");
     expect(() =>
       resolveSecretsInitFromJsonArg({
         fromJsonRaw: "-",

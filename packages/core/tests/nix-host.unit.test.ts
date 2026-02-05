@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { upsertAdminAuthorizedKey } from "../src/lib/nix-host";
+import { upsertAdminAuthorizedKey } from "../src/lib/nix/nix-host";
 
 describe("nix-host", () => {
   it("upserts admin authorized key", () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getSopsCreationRuleAgeRecipients, removeSopsCreationRule, upsertSopsCreationRule } from "../src/lib/sops-config";
+import { getSopsCreationRuleAgeRecipients, removeSopsCreationRule, upsertSopsCreationRule } from "../src/lib/security/sops-config";
 
 describe("sops-config", () => {
   it("upserts a creation rule", () => {

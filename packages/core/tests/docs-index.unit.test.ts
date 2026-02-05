@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { validateDocsIndexIntegrity } from "../src/lib/docs-index";
+import { validateDocsIndexIntegrity } from "../src/lib/project/docs-index";
 
 function docsDir(repoRoot: string) {
   return path.join(repoRoot, "apps", "docs", "content", "docs");

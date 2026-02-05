@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 describe("secret wiring targetPath validation", () => {
   it("rejects path traversal segments", async () => {
-    const { SecretFileSpecSchema } = await import("../src/lib/secret-wiring");
+    const { SecretFileSpecSchema } = await import("../src/lib/secrets/secret-wiring");
     expect(() =>
       SecretFileSpecSchema.parse({
         secretName: "discord_token_maren",
@@ -13,7 +13,7 @@ describe("secret wiring targetPath validation", () => {
   });
 
   it("rejects trailing /..", async () => {
-    const { SecretFileSpecSchema } = await import("../src/lib/secret-wiring");
+    const { SecretFileSpecSchema } = await import("../src/lib/secrets/secret-wiring");
     expect(() =>
       SecretFileSpecSchema.parse({
         secretName: "discord_token_maren",
@@ -24,7 +24,7 @@ describe("secret wiring targetPath validation", () => {
   });
 
   it("rejects NUL characters", async () => {
-    const { SecretFileSpecSchema } = await import("../src/lib/secret-wiring");
+    const { SecretFileSpecSchema } = await import("../src/lib/secrets/secret-wiring");
     expect(() =>
       SecretFileSpecSchema.parse({
         secretName: "discord_token_maren",

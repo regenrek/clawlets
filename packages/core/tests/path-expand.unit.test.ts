@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import os from "node:os";
-import { expandPath } from "../src/lib/path-expand";
+import { expandPath } from "../src/lib/storage/path-expand";
 
 describe("path-expand", () => {
   it("expands ~/", () => {

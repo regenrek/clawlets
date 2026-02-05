@@ -1,8 +1,8 @@
 import process from "node:process";
 import { defineCommand } from "citty";
-import { shellQuote, sshRun } from "@clawlets/core/lib/ssh-remote";
+import { shellQuote, sshRun } from "@clawlets/core/lib/security/ssh-remote";
 import { assertOpenclawEnabled, needsSudo, requireTargetHost } from "./common.js";
-import { loadHostContextOrExit } from "@clawlets/core/lib/context";
+import { loadHostContextOrExit } from "@clawlets/core/lib/runtime/context";
 
 function normalizeKind(raw: string): "prs" | "issues" {
   const v = raw.trim();

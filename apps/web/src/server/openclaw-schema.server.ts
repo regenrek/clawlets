@@ -4,14 +4,14 @@ import type { Id } from "../../convex/_generated/dataModel"
 import type { OpenclawSchemaArtifact } from "@clawlets/core/lib/openclaw/schema/artifact"
 import { parseOpenclawSchemaArtifact } from "@clawlets/core/lib/openclaw/schema/artifact"
 import { buildOpenClawGatewayConfig } from "@clawlets/core/lib/openclaw/config-invariants"
-import { loadClawletsConfig } from "@clawlets/core/lib/clawlets-config"
+import { loadClawletsConfig } from "@clawlets/core/lib/config/clawlets-config"
 import { compareOpenclawSchemaToNixOpenclaw, summarizeOpenclawSchemaComparison } from "@clawlets/core/lib/openclaw/schema/compare"
-import { fetchNixOpenclawSourceInfo, getNixOpenclawRevFromFlakeLock } from "@clawlets/core/lib/nix-openclaw-source"
-import { shellQuote, sshCapture, validateTargetHost } from "@clawlets/core/lib/ssh-remote"
+import { fetchNixOpenclawSourceInfo, getNixOpenclawRevFromFlakeLock } from "@clawlets/core/lib/nix/nix-openclaw-source"
+import { shellQuote, sshCapture, validateTargetHost } from "@clawlets/core/lib/security/ssh-remote"
 import { GatewayIdSchema } from "@clawlets/shared/lib/identifiers"
 import { createConvexClient } from "~/server/convex"
 import { getProjectContext } from "~/sdk/repo-root"
-import { sanitizeErrorMessage } from "@clawlets/core/lib/safe-error"
+import { sanitizeErrorMessage } from "@clawlets/core/lib/runtime/safe-error"
 
 const SOURCE_TTL_MS = 5 * 60 * 1000
 const STATUS_TTL_MS = 60 * 1000

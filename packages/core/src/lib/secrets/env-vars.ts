@@ -1,4 +1,4 @@
-import type { SecretSource, SecretsPlanWarning } from "../secrets-plan.js";
+import type { SecretSource, SecretsPlanWarning } from "./secrets-plan.js";
 import { getKnownLlmProviders, getProviderCredentials } from "@clawlets/shared/lib/llm-provider-env";
 
 const ENV_REF_RE = /^\$\{([A-Z_][A-Z0-9_]*)\}$/;

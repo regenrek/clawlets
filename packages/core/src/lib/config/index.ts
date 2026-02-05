@@ -1,4 +1,4 @@
-export { CLAWLETS_CONFIG_SCHEMA_VERSION } from "../clawlets-config-version.js";
+export { CLAWLETS_CONFIG_SCHEMA_VERSION } from "./clawlets-config-version.js";
 export {
   ClawletsConfigSchema,
   type ClawletsConfig,

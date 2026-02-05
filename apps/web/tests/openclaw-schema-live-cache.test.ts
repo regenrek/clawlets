@@ -19,7 +19,7 @@ describe("openclaw live schema cache", () => {
     vi.doMock("~/server/convex", () => ({
       createConvexClient: () => ({ query, mutation }) as any,
     }))
-    vi.doMock("@clawlets/core/lib/clawlets-config", () => ({
+    vi.doMock("@clawlets/core/lib/config/clawlets-config", () => ({
       loadClawletsConfig: () => ({
         config: {
           defaultHost: "h1",
@@ -32,7 +32,7 @@ describe("openclaw live schema cache", () => {
         invariants: { gateway: { port: 18789 } },
       }),
     }))
-    vi.doMock("@clawlets/core/lib/ssh-remote", () => ({
+    vi.doMock("@clawlets/core/lib/security/ssh-remote", () => ({
       shellQuote: (v: string) => v,
       validateTargetHost: (v: string) => v,
       sshCapture,
@@ -76,7 +76,7 @@ describe("openclaw live schema cache", () => {
     vi.doMock("~/server/convex", () => ({
       createConvexClient: () => ({ query, mutation }) as any,
     }))
-    vi.doMock("@clawlets/core/lib/clawlets-config", () => ({
+    vi.doMock("@clawlets/core/lib/config/clawlets-config", () => ({
       loadClawletsConfig: () => ({
         config: {
           defaultHost: "h1",
@@ -89,7 +89,7 @@ describe("openclaw live schema cache", () => {
         invariants: { gateway: { port: 18789 } },
       }),
     }))
-    vi.doMock("@clawlets/core/lib/ssh-remote", () => ({
+    vi.doMock("@clawlets/core/lib/security/ssh-remote", () => ({
       shellQuote: (v: string) => v,
       validateTargetHost: (v: string) => v,
       sshCapture,
@@ -125,7 +125,7 @@ describe("openclaw live schema cache", () => {
     vi.doMock("~/server/convex", () => ({
       createConvexClient: () => ({ query, mutation }) as any,
     }))
-    vi.doMock("@clawlets/core/lib/clawlets-config", () => ({
+    vi.doMock("@clawlets/core/lib/config/clawlets-config", () => ({
       loadClawletsConfig: () => ({
         config: {
           defaultHost: "h1",
@@ -138,7 +138,7 @@ describe("openclaw live schema cache", () => {
         invariants: { gateway: { port: 18789 } },
       }),
     }))
-    vi.doMock("@clawlets/core/lib/ssh-remote", () => ({
+    vi.doMock("@clawlets/core/lib/security/ssh-remote", () => ({
       shellQuote: (v: string) => v,
       validateTargetHost: (v: string) => v,
       sshCapture,
@@ -174,7 +174,7 @@ describe("openclaw live schema cache", () => {
     vi.doMock("~/server/convex", () => ({
       createConvexClient: () => ({ query, mutation }) as any,
     }))
-    vi.doMock("@clawlets/core/lib/clawlets-config", () => ({
+    vi.doMock("@clawlets/core/lib/config/clawlets-config", () => ({
       loadClawletsConfig: () => ({
         config: {
           defaultHost: "h1",
@@ -187,7 +187,7 @@ describe("openclaw live schema cache", () => {
         invariants: { gateway: { port: 18789 } },
       }),
     }))
-    vi.doMock("@clawlets/core/lib/ssh-remote", () => ({
+    vi.doMock("@clawlets/core/lib/security/ssh-remote", () => ({
       shellQuote: (v: string) => v,
       validateTargetHost: (v: string) => v,
       sshCapture,
@@ -211,7 +211,7 @@ describe("openclaw live schema cache", () => {
     vi.doMock("~/server/convex", () => ({
       createConvexClient: () => ({ query, mutation }) as any,
     }))
-    vi.doMock("@clawlets/core/lib/ssh-remote", () => ({
+    vi.doMock("@clawlets/core/lib/security/ssh-remote", () => ({
       shellQuote: (v: string) => v,
       validateTargetHost: (v: string) => v,
       sshCapture,
@@ -241,7 +241,7 @@ describe("openclaw live schema cache", () => {
     vi.doMock("~/server/convex", () => ({
       createConvexClient: () => ({ query, mutation }) as any,
     }))
-    vi.doMock("@clawlets/core/lib/clawlets-config", () => ({
+    vi.doMock("@clawlets/core/lib/config/clawlets-config", () => ({
       loadClawletsConfig: () => ({
         config: {
           defaultHost: "h1",
@@ -254,7 +254,7 @@ describe("openclaw live schema cache", () => {
         invariants: { gateway: { port: 18789 } },
       }),
     }))
-    vi.doMock("@clawlets/core/lib/ssh-remote", () => ({
+    vi.doMock("@clawlets/core/lib/security/ssh-remote", () => ({
       shellQuote: (v: string) => v,
       validateTargetHost: (v: string) => v,
       sshCapture,
@@ -281,7 +281,7 @@ describe("openclaw live schema cache", () => {
     vi.doMock("~/server/convex", () => ({
       createConvexClient: () => ({ query, mutation }) as any,
     }))
-    vi.doMock("@clawlets/core/lib/clawlets-config", () => ({
+    vi.doMock("@clawlets/core/lib/config/clawlets-config", () => ({
       loadClawletsConfig: () => ({
         config: {
           defaultHost: "h1",
@@ -294,7 +294,7 @@ describe("openclaw live schema cache", () => {
         invariants: { gateway: { port: 18789 } },
       }),
     }))
-    vi.doMock("@clawlets/core/lib/ssh-remote", () => ({
+    vi.doMock("@clawlets/core/lib/security/ssh-remote", () => ({
       shellQuote: (v: string) => v,
       validateTargetHost: (v: string) => v,
       sshCapture,

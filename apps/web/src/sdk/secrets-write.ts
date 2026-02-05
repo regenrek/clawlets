@@ -3,7 +3,7 @@ import fsSync from "node:fs"
 import path from "node:path"
 
 import { createServerFn } from "@tanstack/react-start"
-import { loadClawletsConfig } from "@clawlets/core/lib/clawlets-config"
+import { loadClawletsConfig } from "@clawlets/core/lib/config/clawlets-config"
 import {
   getRepoLayout,
   getHostExtraFilesKeyPath,
@@ -11,11 +11,11 @@ import {
   getHostEncryptedAgeKeyFile,
   getHostSecretFile,
 } from "@clawlets/core/repo-layout"
-import { writeFileAtomic } from "@clawlets/core/lib/fs-safe"
-import { sopsEncryptYamlToFile } from "@clawlets/core/lib/sops"
-import { upsertYamlScalarLine } from "@clawlets/core/lib/yaml-scalar"
-import { loadDeployCreds } from "@clawlets/core/lib/deploy-creds"
-import { assertSecretsAreManaged, buildManagedHostSecretNameAllowlist } from "@clawlets/core/lib/secrets-allowlist"
+import { writeFileAtomic } from "@clawlets/core/lib/storage/fs-safe"
+import { sopsEncryptYamlToFile } from "@clawlets/core/lib/security/sops"
+import { upsertYamlScalarLine } from "@clawlets/core/lib/storage/yaml-scalar"
+import { loadDeployCreds } from "@clawlets/core/lib/infra/deploy-creds"
+import { assertSecretsAreManaged, buildManagedHostSecretNameAllowlist } from "@clawlets/core/lib/secrets/secrets-allowlist"
 
 import { api } from "../../convex/_generated/api"
 import { createConvexClient } from "~/server/convex"

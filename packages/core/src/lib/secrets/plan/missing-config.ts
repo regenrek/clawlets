@@ -1,4 +1,4 @@
-import type { MissingSecretConfig, SecretSource } from "../../secrets-plan.js";
+import type { MissingSecretConfig, SecretSource } from "../secrets-plan.js";
 
 export function addMissingEnvVarConfig(params: {
   missingSecretConfig: MissingSecretConfig[];

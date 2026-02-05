@@ -2,10 +2,10 @@ import fs from "node:fs";
 import path from "node:path";
 import YAML from "yaml";
 import type { RepoLayout } from "../repo-layout.js";
-import { loadClawletsConfig } from "../lib/clawlets-config.js";
+import { loadClawletsConfig } from "../lib/config/clawlets-config.js";
 import { getHostSecretsDir } from "../repo-layout.js";
-import { sopsDecryptYamlFile } from "../lib/sops.js";
-import { isPlaceholderSecretValue } from "../lib/secrets-init.js";
+import { sopsDecryptYamlFile } from "../lib/security/sops.js";
+import { isPlaceholderSecretValue } from "../lib/secrets/secrets-init.js";
 import type { DoctorCheck, DoctorPush } from "./types.js";
 
 export async function addCattleChecks(params: {

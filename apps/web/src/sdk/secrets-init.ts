@@ -7,16 +7,16 @@ import {
   buildSecretsInitTemplate,
   isPlaceholderSecretValue,
   type SecretsInitJson,
-} from "@clawlets/core/lib/secrets-init"
-import { buildSecretsInitTemplateSets } from "@clawlets/core/lib/secrets-init-template"
-import { loadClawletsConfig } from "@clawlets/core/lib/clawlets-config"
+} from "@clawlets/core/lib/secrets/secrets-init"
+import { buildSecretsInitTemplateSets } from "@clawlets/core/lib/secrets/secrets-init-template"
+import { loadClawletsConfig } from "@clawlets/core/lib/config/clawlets-config"
 import { getRepoLayout, getHostSecretFile } from "@clawlets/core/repo-layout"
-import { assertSecretsAreManaged, buildManagedHostSecretNameAllowlist } from "@clawlets/core/lib/secrets-allowlist"
-import { writeFileAtomic } from "@clawlets/core/lib/fs-safe"
-import { mkpasswdYescryptHash } from "@clawlets/core/lib/mkpasswd"
-import { sopsDecryptYamlFile } from "@clawlets/core/lib/sops"
-import { readYamlScalarFromMapping } from "@clawlets/core/lib/yaml-scalar"
-import { loadDeployCreds } from "@clawlets/core/lib/deploy-creds"
+import { assertSecretsAreManaged, buildManagedHostSecretNameAllowlist } from "@clawlets/core/lib/secrets/secrets-allowlist"
+import { writeFileAtomic } from "@clawlets/core/lib/storage/fs-safe"
+import { mkpasswdYescryptHash } from "@clawlets/core/lib/security/mkpasswd"
+import { sopsDecryptYamlFile } from "@clawlets/core/lib/security/sops"
+import { readYamlScalarFromMapping } from "@clawlets/core/lib/storage/yaml-scalar"
+import { loadDeployCreds } from "@clawlets/core/lib/infra/deploy-creds"
 
 import { api } from "../../convex/_generated/api"
 import { createConvexClient } from "~/server/convex"

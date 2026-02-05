@@ -1,4 +1,4 @@
-import { CLAWLETS_CONFIG_SCHEMA_VERSION } from "../clawlets-config-version.js";
+import { CLAWLETS_CONFIG_SCHEMA_VERSION } from "./clawlets-config-version.js";
 import { isPlainObject } from "./helpers.js";
 
 type MigrationStepResult = {

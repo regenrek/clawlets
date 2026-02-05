@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { expandPath } from "../path-expand.js";
+import { expandPath } from "../storage/path-expand.js";
 import { getSshExposureMode, getTailnetMode } from "../config/resolve-host.js";
 import type { ClawletsHostConfig } from "../config/schema.js";
 import type { HostProvisionSpec, HostProvisionSpecBase } from "./types.js";

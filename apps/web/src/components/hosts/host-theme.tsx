@@ -9,7 +9,7 @@ import {
   normalizeHostTheme,
   type HostTheme,
   type HostThemeColor,
-} from "@clawlets/core/lib/host-theme"
+} from "@clawlets/core/lib/host/host-theme"
 import { EmojiPicker, EmojiPickerContent, EmojiPickerFooter, EmojiPickerSearch } from "~/components/ui/emoji-picker"
 import { Button } from "~/components/ui/button"
 import {

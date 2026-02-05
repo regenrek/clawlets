@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 describe("config patch channel presets", () => {
   it("applies discord preset (enabled + env token ref)", async () => {
-    const { applyCapabilityPreset, getChannelCapabilityPreset } = await import("../src/lib/capability-presets");
+    const { applyCapabilityPreset, getChannelCapabilityPreset } = await import("../src/lib/config/capability-presets");
 
     const res = applyCapabilityPreset({ openclaw: {}, channels: {}, preset: getChannelCapabilityPreset("discord") });
     expect(res.warnings).toEqual([]);
@@ -12,7 +12,7 @@ describe("config patch channel presets", () => {
   });
 
   it("rejects inline discord token values", async () => {
-    const { applyCapabilityPreset, getChannelCapabilityPreset } = await import("../src/lib/capability-presets");
+    const { applyCapabilityPreset, getChannelCapabilityPreset } = await import("../src/lib/config/capability-presets");
 
     expect(() =>
       applyCapabilityPreset({
@@ -24,7 +24,7 @@ describe("config patch channel presets", () => {
   });
 
   it("applies slack preset (env refs for botToken + appToken)", async () => {
-    const { applyCapabilityPreset, getChannelCapabilityPreset } = await import("../src/lib/capability-presets");
+    const { applyCapabilityPreset, getChannelCapabilityPreset } = await import("../src/lib/config/capability-presets");
 
     const res = applyCapabilityPreset({ openclaw: {}, channels: {}, preset: getChannelCapabilityPreset("slack") });
     expect(res.warnings).toEqual([]);
@@ -38,7 +38,7 @@ describe("config patch channel presets", () => {
   });
 
   it("adds a warning for whatsapp preset (stateful login)", async () => {
-    const { applyCapabilityPreset, getChannelCapabilityPreset } = await import("../src/lib/capability-presets");
+    const { applyCapabilityPreset, getChannelCapabilityPreset } = await import("../src/lib/config/capability-presets");
 
     const res = applyCapabilityPreset({ openclaw: {}, channels: {}, preset: getChannelCapabilityPreset("whatsapp") });
     expect(res.channels).toMatchObject({ whatsapp: { dmPolicy: "pairing", groupPolicy: "allowlist" } });
@@ -48,7 +48,7 @@ describe("config patch channel presets", () => {
 
 describe("config patch security defaults", () => {
   it("sets logging.redactSensitive and session.dmScope", async () => {
-    const { applySecurityDefaults } = await import("../src/lib/config-patch");
+    const { applySecurityDefaults } = await import("../src/lib/config/config-patch");
 
     const res = applySecurityDefaults({ openclaw: {} });
     expect(res.openclaw).toMatchObject({
@@ -62,7 +62,7 @@ describe("config patch security defaults", () => {
   });
 
   it("hardens open WhatsApp DMs and group policy", async () => {
-    const { applySecurityDefaults } = await import("../src/lib/config-patch");
+    const { applySecurityDefaults } = await import("../src/lib/config/config-patch");
 
     const res = applySecurityDefaults({
       openclaw: {},

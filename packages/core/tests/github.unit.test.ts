@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { tryParseGithubFlakeUri, checkGithubRepoVisibility } from "../src/lib/github";
+import { tryParseGithubFlakeUri, checkGithubRepoVisibility } from "../src/lib/vcs/github";
 
 afterEach(() => {
   vi.unstubAllGlobals();

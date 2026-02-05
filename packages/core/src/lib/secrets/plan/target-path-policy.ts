@@ -1,4 +1,4 @@
-import type { MissingSecretConfig } from "../../secrets-plan.js";
+import type { MissingSecretConfig } from "../secrets-plan.js";
 import { addMissingSecretFileConfig } from "./missing-config.js";
 
 function isUnsafeTargetPath(targetPath: string): boolean {

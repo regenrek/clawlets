@@ -2,12 +2,12 @@ import path from "node:path";
 import process from "node:process";
 import { defineCommand } from "citty";
 import * as p from "@clack/prompts";
-import { loadDeployCreds } from "@clawlets/core/lib/deploy-creds";
-import { findRepoRoot } from "@clawlets/core/lib/repo";
-import { loadClawletsConfig } from "@clawlets/core/lib/clawlets-config";
+import { loadDeployCreds } from "@clawlets/core/lib/infra/deploy-creds";
+import { findRepoRoot } from "@clawlets/core/lib/project/repo";
+import { loadClawletsConfig } from "@clawlets/core/lib/config/clawlets-config";
 import { getHostOpenTofuDir } from "@clawlets/core/repo-layout";
-import { resolveHostNameOrExit } from "@clawlets/core/lib/host-resolve";
-import { buildHostProvisionSpec, getProvisionerDriver } from "@clawlets/core/lib/infra";
+import { resolveHostNameOrExit } from "@clawlets/core/lib/host/host-resolve";
+import { buildHostProvisionSpec, getProvisionerDriver } from "@clawlets/core/lib/infra/infra";
 import { buildProvisionerRuntime } from "./provider-runtime.js";
 
 const infraApply = defineCommand({

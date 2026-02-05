@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { validateHostSecretsYamlFiles } from "../src/lib/secrets-policy";
+import { validateHostSecretsYamlFiles } from "../src/lib/secrets/secrets-policy";
 
 describe("secrets-policy", () => {
   it("fails when secrets dir is missing", () => {

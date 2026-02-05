@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import YAML from "yaml";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { getRepoLayout } from "@clawlets/core/repo-layout";
-import { getHostAgeKeySopsCreationRulePathRegex, getHostSecretsSopsCreationRulePathRegex } from "@clawlets/core/lib/sops-rules";
+import { getHostAgeKeySopsCreationRulePathRegex, getHostSecretsSopsCreationRulePathRegex } from "@clawlets/core/lib/security/sops-rules";
 import { makeConfig, baseHost } from "./fixtures.js";
 
 const loadHostContextMock = vi.fn();
@@ -13,11 +13,11 @@ const buildFleetSecretsPlanMock = vi.fn();
 const sopsDecryptMock = vi.fn();
 const agePublicKeyFromIdentityFileMock = vi.fn();
 
-vi.mock("@clawlets/core/lib/context", () => ({
+vi.mock("@clawlets/core/lib/runtime/context", () => ({
   loadHostContextOrExit: loadHostContextMock,
 }));
 
-vi.mock("@clawlets/core/lib/deploy-creds", () => ({
+vi.mock("@clawlets/core/lib/infra/deploy-creds", () => ({
   loadDeployCreds: loadDeployCredsMock,
 }));
 
@@ -25,11 +25,11 @@ vi.mock("@clawlets/core/lib/secrets/plan", () => ({
   buildFleetSecretsPlan: buildFleetSecretsPlanMock,
 }));
 
-vi.mock("@clawlets/core/lib/age-keygen", () => ({
+vi.mock("@clawlets/core/lib/security/age-keygen", () => ({
   agePublicKeyFromIdentityFile: agePublicKeyFromIdentityFileMock,
 }));
 
-vi.mock("@clawlets/core/lib/sops", () => ({
+vi.mock("@clawlets/core/lib/security/sops", () => ({
   sopsDecryptYamlFile: sopsDecryptMock,
 }));
 

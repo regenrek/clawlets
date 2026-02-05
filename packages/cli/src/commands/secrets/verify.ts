@@ -3,18 +3,18 @@ import path from "node:path";
 import process from "node:process";
 import { defineCommand } from "citty";
 import YAML from "yaml";
-import { agePublicKeyFromIdentityFile } from "@clawlets/core/lib/age-keygen";
-import { sopsDecryptYamlFile } from "@clawlets/core/lib/sops";
+import { agePublicKeyFromIdentityFile } from "@clawlets/core/lib/security/age-keygen";
+import { sopsDecryptYamlFile } from "@clawlets/core/lib/security/sops";
 import { sanitizeOperatorId } from "@clawlets/shared/lib/identifiers";
 import { buildFleetSecretsPlan } from "@clawlets/core/lib/secrets/plan";
-import { resolveSecretsPlanScope } from "@clawlets/core/lib/secrets-plan-scopes";
-import { isPlaceholderSecretValue } from "@clawlets/core/lib/secrets-init";
-import { loadDeployCreds } from "@clawlets/core/lib/deploy-creds";
+import { resolveSecretsPlanScope } from "@clawlets/core/lib/secrets/secrets-plan-scopes";
+import { isPlaceholderSecretValue } from "@clawlets/core/lib/secrets/secrets-init";
+import { loadDeployCreds } from "@clawlets/core/lib/infra/deploy-creds";
 import { getHostSecretsDir, getLocalOperatorAgeKeyPath } from "@clawlets/core/repo-layout";
-import { loadHostContextOrExit } from "@clawlets/core/lib/context";
-import { getHostAgeKeySopsCreationRulePathRegex, getHostSecretsSopsCreationRulePathRegex } from "@clawlets/core/lib/sops-rules";
-import { getSopsCreationRuleAgeRecipients } from "@clawlets/core/lib/sops-config";
-import { mapWithConcurrency } from "@clawlets/core/lib/concurrency";
+import { loadHostContextOrExit } from "@clawlets/core/lib/runtime/context";
+import { getHostAgeKeySopsCreationRulePathRegex, getHostSecretsSopsCreationRulePathRegex } from "@clawlets/core/lib/security/sops-rules";
+import { getSopsCreationRuleAgeRecipients } from "@clawlets/core/lib/security/sops-config";
+import { mapWithConcurrency } from "@clawlets/core/lib/runtime/concurrency";
 import { parseSecretsScope } from "./common.js";
 
 function uniqSorted(values: string[]): string[] {

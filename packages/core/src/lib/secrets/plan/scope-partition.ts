@@ -1,5 +1,5 @@
-import { buildSecretsPlanScopes } from "../../secrets-plan-scopes.js";
-import type { SecretSpec, SecretsPlanScopeSets } from "../../secrets-plan.js";
+import { buildSecretsPlanScopes } from "../secrets-plan-scopes.js";
+import type { SecretSpec, SecretsPlanScopeSets } from "../secrets-plan.js";
 
 const UPDATE_ONLY_HOST_SECRET_NAMES = new Set<string>(["restic_password"]);
 

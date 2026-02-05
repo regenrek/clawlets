@@ -11,23 +11,23 @@ const createSecretsTarMock = vi.fn();
 const runMock = vi.fn();
 const sshRunMock = vi.fn();
 
-vi.mock("@clawlets/core/lib/context", () => ({
+vi.mock("@clawlets/core/lib/runtime/context", () => ({
   loadHostContextOrExit: loadHostContextMock,
 }));
 
-vi.mock("@clawlets/core/lib/git", () => ({
+vi.mock("@clawlets/core/lib/vcs/git", () => ({
   resolveGitRev: resolveGitRevMock,
 }));
 
-vi.mock("@clawlets/core/lib/secrets-tar", () => ({
+vi.mock("@clawlets/core/lib/secrets/secrets-tar", () => ({
   createSecretsTar: createSecretsTarMock,
 }));
 
-vi.mock("@clawlets/core/lib/run", () => ({
+vi.mock("@clawlets/core/lib/runtime/run", () => ({
   run: runMock,
 }));
 
-vi.mock("@clawlets/core/lib/ssh-remote", () => ({
+vi.mock("@clawlets/core/lib/security/ssh-remote", () => ({
   sshRun: sshRunMock,
   shellQuote: (s: string) => s,
 }));

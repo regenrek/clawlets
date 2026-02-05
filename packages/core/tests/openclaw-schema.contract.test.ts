@@ -15,7 +15,7 @@ function readPinnedRev(): string {
 
 describe("openclaw schema artifact", () => {
   it("includes schema metadata", async () => {
-    const { getPinnedOpenclawSchemaArtifact } = await import("../src/lib/openclaw/schema/artifact");
+    const { getPinnedOpenclawSchemaArtifact } = await import("../src/lib/openclaw/schema/artifact.js");
     const schema = getPinnedOpenclawSchemaArtifact();
     expect(schema).toBeTruthy();
     expect(schema.schema && typeof schema.schema).toBe("object");

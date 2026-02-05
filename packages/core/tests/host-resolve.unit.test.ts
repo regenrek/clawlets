@@ -4,11 +4,11 @@ const findRepoRootMock = vi.fn(() => "/repo");
 const loadClawletsConfigMock = vi.fn(() => ({ config: {} }));
 const resolveHostNameMock = vi.fn();
 
-vi.mock("../src/lib/repo.js", () => ({
+vi.mock("../src/lib/project/repo.js", () => ({
   findRepoRoot: findRepoRootMock,
 }));
 
-vi.mock("../src/lib/clawlets-config.js", () => ({
+vi.mock("../src/lib/config/clawlets-config.js", () => ({
   loadClawletsConfig: loadClawletsConfigMock,
   resolveHostName: resolveHostNameMock,
 }));
@@ -28,7 +28,7 @@ describe("resolveHostNameOrExit", () => {
 
   it("returns host when resolved", async () => {
     resolveHostNameMock.mockReturnValue({ ok: true, host: "alpha" });
-    const { resolveHostNameOrExit } = await import("../src/lib/host-resolve.js");
+    const { resolveHostNameOrExit } = await import("../src/lib/host/host-resolve.js");
     const host = resolveHostNameOrExit({ cwd: "/repo", hostArg: "alpha" });
     expect(host).toBe("alpha");
     expect(process.exitCode).toBe(0);
@@ -40,7 +40,7 @@ describe("resolveHostNameOrExit", () => {
       message: "missing host",
       tips: ["try --host alpha"],
     });
-    const { resolveHostNameOrExit } = await import("../src/lib/host-resolve.js");
+    const { resolveHostNameOrExit } = await import("../src/lib/host/host-resolve.js");
     const host = resolveHostNameOrExit({ cwd: "/repo", hostArg: "" });
     expect(host).toBeNull();
     expect(process.exitCode).toBe(1);

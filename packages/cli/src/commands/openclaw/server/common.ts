@@ -1,5 +1,5 @@
 import { needsSudo, requireTargetHost } from "../../ssh-target.js";
-import type { ClawletsHostConfig } from "@clawlets/core/lib/clawlets-config";
+import type { ClawletsHostConfig } from "@clawlets/core/lib/config/clawlets-config";
 
 export { needsSudo, requireTargetHost };
 

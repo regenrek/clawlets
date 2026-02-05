@@ -25,10 +25,10 @@ async function loadSecretsInit(options: { mkpasswdThrows: boolean; writeThrows: 
       run: { kind: "secrets_init", status: "running" },
     }),
   }))
-  vi.doMock("@clawlets/core/lib/clawlets-config", () => ({
+  vi.doMock("@clawlets/core/lib/config/clawlets-config", () => ({
     loadClawletsConfig: () => ({ config: { defaultHost: "alpha", hosts: { alpha: {} } } }),
   }))
-  vi.doMock("@clawlets/core/lib/secrets-allowlist", () => ({
+  vi.doMock("@clawlets/core/lib/secrets/secrets-allowlist", () => ({
     buildManagedHostSecretNameAllowlist: () => new Set<string>(),
     assertSecretsAreManaged: () => {},
   }))
@@ -40,13 +40,13 @@ async function loadSecretsInit(options: { mkpasswdThrows: boolean; writeThrows: 
     },
     spawnCommand: async () => {},
   }))
-  vi.doMock("@clawlets/core/lib/mkpasswd", () => ({
+  vi.doMock("@clawlets/core/lib/security/mkpasswd", () => ({
     mkpasswdYescryptHash: async () => {
       if (options.mkpasswdThrows) throw new Error("hash failed")
       return "hash"
     },
   }))
-  vi.doMock("@clawlets/core/lib/fs-safe", () => ({
+  vi.doMock("@clawlets/core/lib/storage/fs-safe", () => ({
     writeFileAtomic: async () => {
       if (options.writeThrows) throw new Error("write failed")
     },

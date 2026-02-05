@@ -29,23 +29,23 @@ const planSecretsAutowireMock = vi.fn();
 const applySecretsAutowireMock = vi.fn();
 const writeClawletsConfigMock = vi.fn();
 
-vi.mock("@clawlets/core/lib/age-keygen", () => ({
+vi.mock("@clawlets/core/lib/security/age-keygen", () => ({
   ageKeygen: ageKeygenMock,
   agePublicKeyFromIdentityFile: agePublicKeyFromIdentityFileMock,
 }));
 
-vi.mock("@clawlets/core/lib/mkpasswd", () => ({
+vi.mock("@clawlets/core/lib/security/mkpasswd", () => ({
   mkpasswdYescryptHash: mkpasswdMock,
 }));
 
-vi.mock("@clawlets/core/lib/sops", () => ({
+vi.mock("@clawlets/core/lib/security/sops", () => ({
   sopsEncryptYamlToFile: sopsEncryptMock,
   sopsDecryptYamlFile: sopsDecryptMock,
 }));
 
-vi.mock("@clawlets/core/lib/sops-config", async () => {
-  const actual = await vi.importActual<typeof import("@clawlets/core/lib/sops-config")>(
-    "@clawlets/core/lib/sops-config",
+vi.mock("@clawlets/core/lib/security/sops-config", async () => {
+  const actual = await vi.importActual<typeof import("@clawlets/core/lib/security/sops-config")>(
+    "@clawlets/core/lib/security/sops-config",
   );
   return {
     ...actual,
@@ -57,14 +57,14 @@ vi.mock("@clawlets/core/lib/secrets/plan", () => ({
   buildFleetSecretsPlan: buildFleetSecretsPlanMock,
 }));
 
-vi.mock("@clawlets/core/lib/secrets-autowire", () => ({
+vi.mock("@clawlets/core/lib/secrets/secrets-autowire", () => ({
   planSecretsAutowire: planSecretsAutowireMock,
   applySecretsAutowire: applySecretsAutowireMock,
 }));
 
-vi.mock("@clawlets/core/lib/clawlets-config", async () => {
-  const actual = await vi.importActual<typeof import("@clawlets/core/lib/clawlets-config")>(
-    "@clawlets/core/lib/clawlets-config",
+vi.mock("@clawlets/core/lib/config/clawlets-config", async () => {
+  const actual = await vi.importActual<typeof import("@clawlets/core/lib/config/clawlets-config")>(
+    "@clawlets/core/lib/config/clawlets-config",
   );
   return {
     ...actual,
@@ -72,9 +72,9 @@ vi.mock("@clawlets/core/lib/clawlets-config", async () => {
   };
 });
 
-vi.mock("@clawlets/core/lib/secrets-init", async () => {
-  const actual = await vi.importActual<typeof import("@clawlets/core/lib/secrets-init")>(
-    "@clawlets/core/lib/secrets-init",
+vi.mock("@clawlets/core/lib/secrets/secrets-init", async () => {
+  const actual = await vi.importActual<typeof import("@clawlets/core/lib/secrets/secrets-init")>(
+    "@clawlets/core/lib/secrets/secrets-init",
   );
   return {
     ...actual,
@@ -82,7 +82,7 @@ vi.mock("@clawlets/core/lib/secrets-init", async () => {
   };
 });
 
-vi.mock("@clawlets/core/lib/context", () => ({
+vi.mock("@clawlets/core/lib/runtime/context", () => ({
   loadHostContextOrExit: loadHostContextMock,
 }));
 

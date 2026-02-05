@@ -6,7 +6,7 @@ import {
   normalizeSshPublicKey,
   parseSshPublicKeyLine,
   parseSshPublicKeysFromText,
-} from "../src/lib/ssh";
+} from "../src/lib/security/ssh";
 
 describe("ssh public key parsing", () => {
   it("normalizes common key types", () => {

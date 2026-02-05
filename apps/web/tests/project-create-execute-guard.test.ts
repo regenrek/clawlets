@@ -28,7 +28,7 @@ async function loadProjects(
     return { project: { localPath: "/tmp" }, role }
   })
 
-  vi.doMock("@clawlets/core/lib/project-init", () => ({
+  vi.doMock("@clawlets/core/lib/project/project-init", () => ({
     initProject,
     planProjectInit: async () => ({ plannedFiles: [], nextSteps: [] }),
   }))

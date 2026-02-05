@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseAgeKeyFile, parseAgeKeygenOutput } from "../src/lib/age";
+import { parseAgeKeyFile, parseAgeKeygenOutput } from "../src/lib/security/age";
 
 describe("age", () => {
   it("parses age-keygen output", () => {

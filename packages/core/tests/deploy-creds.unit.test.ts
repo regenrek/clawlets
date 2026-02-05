@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mkdtemp, rm, writeFile, mkdir, chmod } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { loadDeployCreds } from "../src/lib/deploy-creds";
+import { loadDeployCreds } from "../src/lib/infra/deploy-creds";
 
 const ENV_KEYS = [
   "HCLOUD_TOKEN",

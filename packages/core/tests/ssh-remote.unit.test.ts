@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const runState: { cmd: string | null; args: string[] | null } = { cmd: null, args: null };
 const captureState: { cmd: string | null; args: string[] | null; opts: unknown | null } = { cmd: null, args: null, opts: null };
 
-vi.mock("../src/lib/run", () => ({
+vi.mock("../src/lib/runtime/run", () => ({
   run: vi.fn(async (cmd: string, args: string[]) => {
     runState.cmd = cmd;
     runState.args = args;
@@ -17,7 +17,7 @@ vi.mock("../src/lib/run", () => ({
 }));
 
 async function loadSshRemote() {
-  return await import("../src/lib/ssh-remote");
+  return await import("../src/lib/security/ssh-remote");
 }
 
 beforeEach(() => {

@@ -1,8 +1,8 @@
 import process from "node:process";
 import { defineCommand } from "citty";
 import * as p from "@clack/prompts";
-import { findRepoRoot } from "@clawlets/core/lib/repo";
-import { ClawletsConfigSchema, loadClawletsConfig, resolveHostName, writeClawletsConfig } from "@clawlets/core/lib/clawlets-config";
+import { findRepoRoot } from "@clawlets/core/lib/project/repo";
+import { ClawletsConfigSchema, loadClawletsConfig, resolveHostName, writeClawletsConfig } from "@clawlets/core/lib/config/clawlets-config";
 import { cancelFlow, navOnCancel, NAV_EXIT } from "../../lib/wizard.js";
 
 function validateGatewayId(value: string | undefined): string | undefined {

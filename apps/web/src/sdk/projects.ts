@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
-import { planProjectInit, initProject } from "@clawlets/core/lib/project-init";
-import { HOST_THEME_COLORS, type HostTheme, type HostThemeColor } from "@clawlets/core/lib/host-theme";
+import { planProjectInit, initProject } from "@clawlets/core/lib/project/project-init";
+import { HOST_THEME_COLORS, type HostTheme, type HostThemeColor } from "@clawlets/core/lib/host/host-theme";
 import type { Id } from "../../convex/_generated/dataModel";
 import { api } from "../../convex/_generated/api";
 import { createConvexClient } from "~/server/convex";

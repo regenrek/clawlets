@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 describe("clawlets config migrate", () => {
   it("is idempotent on schemaVersion v1", async () => {
-    const { migrateClawletsConfigToLatest } = await import("../src/lib/clawlets-config-migrate");
+    const { migrateClawletsConfigToLatest } = await import("../src/lib/config/clawlets-config-migrate");
 
     const raw = { schemaVersion: 1, hosts: {} };
     const res = migrateClawletsConfigToLatest(raw);
@@ -15,7 +15,7 @@ describe("clawlets config migrate", () => {
   });
 
   it("rejects unsupported schema versions", async () => {
-    const { migrateClawletsConfigToLatest } = await import("../src/lib/clawlets-config-migrate");
+    const { migrateClawletsConfigToLatest } = await import("../src/lib/config/clawlets-config-migrate");
     expect(() => migrateClawletsConfigToLatest({ schemaVersion: 2 })).toThrow(/unsupported schemaVersion/i);
     expect(() => migrateClawletsConfigToLatest({ schemaVersion: 18 })).toThrow(/unsupported schemaVersion/i);
   });

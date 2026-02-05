@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from "vitest
 import { mkdtemp, rm, mkdir, writeFile, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { sopsPathRegexForDirFiles, sopsPathRegexForPathSuffix } from "../src/lib/sops-config";
+import { sopsPathRegexForDirFiles, sopsPathRegexForPathSuffix } from "../src/lib/security/sops-config";
 
 let mockFleetMain: any = null;
 let mockFleetTemplate: any = null;
@@ -10,7 +10,7 @@ let mockWheelMain: any = null;
 let mockWheelTemplate: any = null;
 let templateRoot = "";
 
-vi.mock("../src/lib/run.js", () => ({
+vi.mock("../src/lib/runtime/run.js", () => ({
   capture: vi.fn(async (_cmd: string, args: string[], opts?: any) => {
     if (args.includes("--version")) return "nix (mock) 2.0";
     if (args[0] === "eval" || args.includes("eval")) {
@@ -27,11 +27,11 @@ vi.mock("../src/lib/run.js", () => ({
   captureWithInput: vi.fn(async () => ""),
 }));
 
-vi.mock("../src/lib/git.js", () => ({
+vi.mock("../src/lib/vcs/git.js", () => ({
   tryGetOriginFlake: vi.fn(async () => null),
 }));
 
-vi.mock("../src/lib/github.js", () => ({
+vi.mock("../src/lib/vcs/github.js", () => ({
   tryParseGithubFlakeUri: vi.fn((flakeBase: string) => {
     const m = flakeBase.trim().match(/^github:([^/]+)\/([^/]+)(?:\/.*)?$/);
     return m ? { owner: m[1], repo: m[2] } : null;
@@ -223,7 +223,7 @@ describe("doctor", () => {
   it("passes with a fully seeded repo", async () => {
     process.env.HCLOUD_TOKEN = "abc";
     delete process.env.SOPS_AGE_KEY_FILE;
-    const { collectDoctorChecks } = await import("../src/doctor");
+    const { collectDoctorChecks } = await import("../src/doctor.js");
     const checks = await collectDoctorChecks({ cwd: repoRoot, host: "clawdbot-fleet-host" });
     expect(checks.filter((c) => c.status === "missing")).toEqual([]);
   }, 15_000);
@@ -233,7 +233,7 @@ describe("doctor", () => {
     const original = await readFile(configPath, "utf8");
     await writeFile(configPath, "{", "utf8");
 
-    const { collectDoctorChecks } = await import("../src/doctor");
+    const { collectDoctorChecks } = await import("../src/doctor.js");
     const checks = await collectDoctorChecks({ cwd: repoRoot, host: "clawdbot-fleet-host", scope: "updates" });
     const check = checks.find((c) => c.label === "clawlets config");
     expect(check?.status).toBe("warn");
@@ -252,7 +252,7 @@ describe("doctor", () => {
         openclawRev: "rev1234567890abcd",
       }),
     }));
-    vi.doMock("../src/lib/nix-openclaw-source.js", () => ({
+    vi.doMock("../src/lib/nix/nix-openclaw-source.js", () => ({
       getNixOpenclawRevFromFlakeLock: () => "pinrev",
       fetchNixOpenclawSourceInfo: async () => ({
         ok: true as const,
@@ -261,7 +261,7 @@ describe("doctor", () => {
       }),
     }));
 
-    const { collectDoctorChecks } = await import("../src/doctor");
+    const { collectDoctorChecks } = await import("../src/doctor.js");
     const checks = await collectDoctorChecks({ cwd: repoRoot, host: "clawdbot-fleet-host", scope: "repo" });
     const pinned = checks.find((c) => c.label === "openclaw schema vs nix-openclaw");
     const upstream = checks.find((c) => c.label === "openclaw schema vs upstream");
@@ -280,7 +280,7 @@ describe("doctor", () => {
         openclawRev: "rev1234567890abcd",
       }),
     }));
-    vi.doMock("../src/lib/nix-openclaw-source.js", () => ({
+    vi.doMock("../src/lib/nix/nix-openclaw-source.js", () => ({
       getNixOpenclawRevFromFlakeLock: () => "pinrev",
       fetchNixOpenclawSourceInfo: async ({ ref }: { ref: string }) => {
         if (ref === "pinrev") {
@@ -290,7 +290,7 @@ describe("doctor", () => {
       },
     }));
 
-    const { collectDoctorChecks } = await import("../src/doctor");
+    const { collectDoctorChecks } = await import("../src/doctor.js");
     const checks = await collectDoctorChecks({ cwd: repoRoot, host: "clawdbot-fleet-host", scope: "repo" });
     const pinned = checks.find((c) => c.label === "openclaw schema vs nix-openclaw");
     const upstream = checks.find((c) => c.label === "openclaw schema vs upstream");
@@ -310,7 +310,7 @@ describe("doctor", () => {
         openclawRev: "rev1234567890abcd",
       }),
     }));
-    vi.doMock("../src/lib/nix-openclaw-source.js", () => ({
+    vi.doMock("../src/lib/nix/nix-openclaw-source.js", () => ({
       getNixOpenclawRevFromFlakeLock: () => "pinrev",
       fetchNixOpenclawSourceInfo: async ({ ref }: { ref: string }) => {
         if (ref === "pinrev") {
@@ -320,7 +320,7 @@ describe("doctor", () => {
       },
     }));
 
-    const { collectDoctorChecks } = await import("../src/doctor");
+    const { collectDoctorChecks } = await import("../src/doctor.js");
     const checks = await collectDoctorChecks({ cwd: repoRoot, host: "clawdbot-fleet-host", scope: "repo" });
     const pinned = checks.find((c) => c.label === "openclaw schema vs nix-openclaw");
     const upstream = checks.find((c) => c.label === "openclaw schema vs upstream");
@@ -333,7 +333,7 @@ describe("doctor", () => {
     mockFleetMain.gatewayProfiles.alpha.skills.allowBundled = null;
     mockFleetTemplate.gatewayProfiles.alpha.skills.allowBundled = null;
 
-    const { collectDoctorChecks } = await import("../src/doctor");
+    const { collectDoctorChecks } = await import("../src/doctor.js");
     const checks = await collectDoctorChecks({ cwd: repoRoot, host: "clawdbot-fleet-host" });
     expect(checks.some((c) => c.label === "fleet policy (clawdbot-fleet-host)" && c.status === "missing")).toBe(true);
     expect(checks.some((c) => c.label === "template fleet policy (clawdbot-fleet-host)" && c.status === "missing")).toBe(true);
@@ -342,7 +342,7 @@ describe("doctor", () => {
   it("rejects unknown bundled skills", async () => {
     mockFleetMain.gatewayProfiles.alpha.skills.allowBundled = ["unknown-skill"];
 
-    const { collectDoctorChecks } = await import("../src/doctor");
+    const { collectDoctorChecks } = await import("../src/doctor.js");
     const checks = await collectDoctorChecks({ cwd: repoRoot, host: "clawdbot-fleet-host", scope: "repo" });
     expect(checks.some((c) => c.label === "fleet policy (clawdbot-fleet-host)" && c.status === "missing")).toBe(true);
   });
@@ -351,7 +351,7 @@ describe("doctor", () => {
     mockFleetMain.gatewayProfiles.alpha.skills.allowBundled = ["github"];
     mockFleetMain.gatewayProfiles.alpha.github = {};
 
-    const { collectDoctorChecks } = await import("../src/doctor");
+    const { collectDoctorChecks } = await import("../src/doctor.js");
     const checks = await collectDoctorChecks({ cwd: repoRoot, host: "clawdbot-fleet-host", scope: "repo" });
     expect(checks.some((c) => c.label === "fleet policy (clawdbot-fleet-host)" && c.status === "missing")).toBe(true);
   });
@@ -359,7 +359,7 @@ describe("doctor", () => {
   it("requires breakglass in wheel and forbids admin in wheel", async () => {
     mockWheelMain = { adminHasWheel: true, breakglassHasWheel: false };
 
-    const { collectDoctorChecks } = await import("../src/doctor");
+    const { collectDoctorChecks } = await import("../src/doctor.js");
     const checks = await collectDoctorChecks({ cwd: repoRoot, host: "clawdbot-fleet-host" });
     expect(checks.some((c) => c.label === "admin wheel access" && c.status === "missing")).toBe(true);
     expect(checks.some((c) => c.label === "breakglass wheel access" && c.status === "missing")).toBe(true);
@@ -374,7 +374,7 @@ describe("doctor", () => {
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEaaaaaaaaaaaaaaaaaaaaaaa test";
     await writeFile(configPath, `${JSON.stringify(raw, null, 2)}\n`, "utf8");
 
-    const { collectDoctorChecks } = await import("../src/doctor");
+    const { collectDoctorChecks } = await import("../src/doctor.js");
     const checks = await collectDoctorChecks({ cwd: repoRoot, host: "clawdbot-fleet-host" });
     expect(
       checks.some(
@@ -395,7 +395,7 @@ describe("doctor", () => {
     await writeFile(path.join(includeDir, "extra.json5"), '{ "token": "SUPER_SECRET_1234567890" }\n', "utf8");
     await writeFile(path.join(botDir, "clawdbot.json5"), '{ "$include": "./includes/extra.json5" }\n', "utf8");
 
-    const { collectDoctorChecks } = await import("../src/doctor");
+    const { collectDoctorChecks } = await import("../src/doctor.js");
     const checks = await collectDoctorChecks({ cwd: repoRoot, host: "clawdbot-fleet-host", scope: "repo" });
     const check = checks.find((c) => c.label === "clawdbot config secrets");
     expect(check?.status).toBe("missing");
@@ -414,7 +414,7 @@ describe("doctor", () => {
     };
     await writeFile(configPath, `${JSON.stringify(raw, null, 2)}\n`, "utf8");
 
-    const { collectDoctorChecks } = await import("../src/doctor");
+    const { collectDoctorChecks } = await import("../src/doctor.js");
     const checks = await collectDoctorChecks({ cwd: repoRoot, host: "clawdbot-fleet-host", scope: "repo" });
     const check = checks.find((c) => c.label === "fleet config secrets");
     expect(check?.status).toBe("missing");
@@ -431,7 +431,7 @@ describe("doctor", () => {
     await writeFile(configPath, `${JSON.stringify(raw, null, 2)}\n`, "utf8");
 
     process.env.HCLOUD_TOKEN = "abc";
-    const { collectDoctorChecks } = await import("../src/doctor");
+    const { collectDoctorChecks } = await import("../src/doctor.js");
     const checks = await collectDoctorChecks({ cwd: repoRoot, host: "clawdbot-fleet-host" });
     expect(checks.some((c) => c.label === "diskDevice" && c.status === "missing")).toBe(true);
 
@@ -449,7 +449,7 @@ describe("doctor", () => {
     await writeFile(configPath, `${JSON.stringify(raw, null, 2)}\n`, "utf8");
 
     process.env.HCLOUD_TOKEN = "abc";
-    const { collectDoctorChecks } = await import("../src/doctor");
+    const { collectDoctorChecks } = await import("../src/doctor.js");
     const checks = await collectDoctorChecks({ cwd: repoRoot, host: "clawdbot-fleet-host" });
     expect(checks.some((c) => c.label === "secret: garnix_netrc" && c.status === "missing")).toBe(true);
 
@@ -457,87 +457,87 @@ describe("doctor", () => {
   });
 
   it("requires GITHUB_TOKEN when repo is private", async () => {
-    const git = await import("../src/lib/git");
-    const github = await import("../src/lib/github");
+    const git = await import("../src/lib/vcs/git");
+    const github = await import("../src/lib/vcs/github");
     vi.mocked(git.tryGetOriginFlake).mockResolvedValue("github:acme/private-repo");
     vi.mocked(github.checkGithubRepoVisibility).mockResolvedValue({ ok: true, status: "private-or-missing" });
 
-    const { collectDoctorChecks } = await import("../src/doctor");
+    const { collectDoctorChecks } = await import("../src/doctor.js");
     const checks = await collectDoctorChecks({ cwd: repoRoot, host: "clawdbot-fleet-host" });
     const check = checks.find((c) => c.label === "GITHUB_TOKEN");
     expect(check?.status).toBe("missing");
   });
 
   it("accepts GITHUB_TOKEN when repo is public", async () => {
-    const git = await import("../src/lib/git");
-    const github = await import("../src/lib/github");
+    const git = await import("../src/lib/vcs/git");
+    const github = await import("../src/lib/vcs/github");
     vi.mocked(git.tryGetOriginFlake).mockResolvedValue("github:acme/public-repo");
     vi.mocked(github.checkGithubRepoVisibility).mockResolvedValue({ ok: true, status: "public" });
     process.env.GITHUB_TOKEN = "token";
 
-    const { collectDoctorChecks } = await import("../src/doctor");
+    const { collectDoctorChecks } = await import("../src/doctor.js");
     const checks = await collectDoctorChecks({ cwd: repoRoot, host: "clawdbot-fleet-host" });
     const check = checks.find((c) => c.label === "GITHUB_TOKEN");
     expect(check?.status).toBe("ok");
   });
 
   it("warns when GitHub API is rate-limited", async () => {
-    const git = await import("../src/lib/git");
-    const github = await import("../src/lib/github");
+    const git = await import("../src/lib/vcs/git");
+    const github = await import("../src/lib/vcs/github");
     vi.mocked(git.tryGetOriginFlake).mockResolvedValue("github:acme/any-repo");
     vi.mocked(github.checkGithubRepoVisibility).mockResolvedValue({ ok: true, status: "rate-limited" });
     process.env.GITHUB_TOKEN = "token";
 
-    const { collectDoctorChecks } = await import("../src/doctor");
+    const { collectDoctorChecks } = await import("../src/doctor.js");
     const checks = await collectDoctorChecks({ cwd: repoRoot, host: "clawdbot-fleet-host" });
     const check = checks.find((c) => c.label === "GITHUB_TOKEN");
     expect(check?.status).toBe("warn");
   });
 
   it("warns when token set but GitHub check fails", async () => {
-    const git = await import("../src/lib/git");
-    const github = await import("../src/lib/github");
+    const git = await import("../src/lib/vcs/git");
+    const github = await import("../src/lib/vcs/github");
     vi.mocked(git.tryGetOriginFlake).mockResolvedValue("github:acme/any-repo");
     vi.mocked(github.checkGithubRepoVisibility).mockResolvedValue({ ok: false, status: "network", detail: "boom" });
     process.env.GITHUB_TOKEN = "token";
 
-    const { collectDoctorChecks } = await import("../src/doctor");
+    const { collectDoctorChecks } = await import("../src/doctor.js");
     const checks = await collectDoctorChecks({ cwd: repoRoot, host: "clawdbot-fleet-host" });
     const check = checks.find((c) => c.label === "GITHUB_TOKEN");
     expect(check?.status).toBe("warn");
   });
 
   it("warns when API is rate-limited without token", async () => {
-    const git = await import("../src/lib/git");
-    const github = await import("../src/lib/github");
+    const git = await import("../src/lib/vcs/git");
+    const github = await import("../src/lib/vcs/github");
     vi.mocked(git.tryGetOriginFlake).mockResolvedValue("github:acme/any-repo");
     vi.mocked(github.checkGithubRepoVisibility).mockResolvedValue({ ok: true, status: "rate-limited" });
 
-    const { collectDoctorChecks } = await import("../src/doctor");
+    const { collectDoctorChecks } = await import("../src/doctor.js");
     const checks = await collectDoctorChecks({ cwd: repoRoot, host: "clawdbot-fleet-host" });
     const check = checks.find((c) => c.label === "GITHUB_TOKEN");
     expect(check?.status).toBe("warn");
   });
 
   it("warns when API check fails without token", async () => {
-    const git = await import("../src/lib/git");
-    const github = await import("../src/lib/github");
+    const git = await import("../src/lib/vcs/git");
+    const github = await import("../src/lib/vcs/github");
     vi.mocked(git.tryGetOriginFlake).mockResolvedValue("github:acme/any-repo");
     vi.mocked(github.checkGithubRepoVisibility).mockResolvedValue({ ok: false, status: "network", detail: "boom" });
 
-    const { collectDoctorChecks } = await import("../src/doctor");
+    const { collectDoctorChecks } = await import("../src/doctor.js");
     const checks = await collectDoctorChecks({ cwd: repoRoot, host: "clawdbot-fleet-host" });
     const check = checks.find((c) => c.label === "GITHUB_TOKEN");
     expect(check?.status).toBe("warn");
   });
 
   it("skips GitHub token checks when requested", async () => {
-    const git = await import("../src/lib/git");
-    const github = await import("../src/lib/github");
+    const git = await import("../src/lib/vcs/git");
+    const github = await import("../src/lib/vcs/github");
     vi.mocked(git.tryGetOriginFlake).mockResolvedValue("github:acme/private-repo");
     vi.mocked(github.checkGithubRepoVisibility).mockResolvedValue({ ok: true, status: "private-or-missing" });
 
-    const { collectDoctorChecks } = await import("../src/doctor");
+    const { collectDoctorChecks } = await import("../src/doctor.js");
     const checks = await collectDoctorChecks({ cwd: repoRoot, host: "clawdbot-fleet-host", skipGithubTokenCheck: true });
     const check = checks.find((c) => c.label === "GITHUB_TOKEN");
     expect(check?.status).toBe("ok");

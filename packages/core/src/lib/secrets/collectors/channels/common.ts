@@ -1,4 +1,4 @@
-import type { SecretsPlanWarning } from "../../../secrets-plan.js";
+import type { SecretsPlanWarning } from "../../secrets-plan.js";
 import { extractEnvVarRef } from "../../env-vars.js";
 import type { AddRequiredEnv } from "../types.js";
 

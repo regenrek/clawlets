@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start"
-import { migrateClawletsConfigToLatest } from "@clawlets/core/lib/clawlets-config-migrate"
-import { CLAWLETS_CONFIG_SCHEMA_VERSION, ClawletsConfigSchema, writeClawletsConfig } from "@clawlets/core/lib/clawlets-config"
+import { migrateClawletsConfigToLatest } from "@clawlets/core/lib/config/clawlets-config-migrate"
+import { CLAWLETS_CONFIG_SCHEMA_VERSION, ClawletsConfigSchema, writeClawletsConfig } from "@clawlets/core/lib/config/clawlets-config"
 import { getRepoLayout } from "@clawlets/core/repo-layout"
 import { api } from "../../convex/_generated/api"
 import { createConvexClient } from "~/server/convex"

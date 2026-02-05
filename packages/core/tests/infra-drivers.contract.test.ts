@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
-import { buildHostProvisionSpec, getProvisionerDriver } from "../src/lib/infra";
+import { buildHostProvisionSpec, getProvisionerDriver } from "../src/lib/infra/infra";
 
 describe("infra driver contracts", () => {
   it("hetzner driver provision/destroy/lockdown satisfy contract in dry-run mode", async () => {

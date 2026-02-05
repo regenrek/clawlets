@@ -1,4 +1,4 @@
-import type { ClawletsConfig } from "@clawlets/core/lib/clawlets-config";
+import type { ClawletsConfig } from "@clawlets/core/lib/config/clawlets-config";
 
 export const baseHost = {
   enable: false,

@@ -1,12 +1,12 @@
 import process from "node:process";
 import { defineCommand } from "citty";
-import { shellQuote, sshCapture, sshRun } from "@clawlets/core/lib/ssh-remote";
-import { mapWithConcurrency } from "@clawlets/core/lib/concurrency";
+import { shellQuote, sshCapture, sshRun } from "@clawlets/core/lib/security/ssh-remote";
+import { mapWithConcurrency } from "@clawlets/core/lib/runtime/concurrency";
 import { requireTargetHost, needsSudo } from "./common.js";
 import { serverGithubSync } from "./github-sync.js";
 import { serverChannels } from "./channels.js";
 import { serverUpdate } from "./update.js";
-import { loadHostContextOrExit } from "@clawlets/core/lib/context";
+import { loadHostContextOrExit } from "@clawlets/core/lib/runtime/context";
 
 function normalizeSince(value: string): string {
   const v = value.trim();

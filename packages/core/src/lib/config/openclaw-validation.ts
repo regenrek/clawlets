@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { getPinnedOpenclawSchema } from "../openclaw-schema.js";
-import { OPENCLAW_DEFAULT_COMMANDS } from "../openclaw-defaults.js";
+import { getPinnedOpenclawSchema } from "../openclaw/openclaw-schema.js";
+import { OPENCLAW_DEFAULT_COMMANDS } from "../openclaw/openclaw-defaults.js";
 import { validateOpenclawConfig } from "../openclaw/schema/validate.js";
 import { formatPathLabel, isPlainObject, stripPathPrefix } from "./helpers.js";
 

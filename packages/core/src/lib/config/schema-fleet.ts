@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { GatewayIdSchema } from "@clawlets/shared/lib/identifiers";
-import { SecretEnvSchema, SecretFilesSchema } from "../secret-wiring.js";
+import { SecretEnvSchema, SecretFilesSchema } from "../secrets/secret-wiring.js";
 
 export const GATEWAY_ARCHITECTURES = ["multi", "single"] as const;
 export const GatewayArchitectureSchema = z.enum(GATEWAY_ARCHITECTURES);

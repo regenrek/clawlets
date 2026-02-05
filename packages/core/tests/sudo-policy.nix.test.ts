@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { withFlakesEnv } from "../src/lib/nix-flakes";
+import { withFlakesEnv } from "../src/lib/nix/nix-flakes";
 
 const NIX_EVAL_TIMEOUT_MS = 240_000;
 

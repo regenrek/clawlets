@@ -3,7 +3,7 @@ import {
   summarizeOpenclawSchemaComparison,
 } from "../lib/openclaw/schema/compare.js";
 import { getPinnedOpenclawSchemaArtifact } from "../lib/openclaw/schema/artifact.js";
-import { fetchNixOpenclawSourceInfo, getNixOpenclawRevFromFlakeLock } from "../lib/nix-openclaw-source.js";
+import { fetchNixOpenclawSourceInfo, getNixOpenclawRevFromFlakeLock } from "../lib/nix/nix-openclaw-source.js";
 import type { DoctorCheck } from "./types.js";
 
 type SchemaCheckDeps = {

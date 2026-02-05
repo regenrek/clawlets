@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { HostNameSchema } from "@clawlets/shared/lib/identifiers";
-import { CLAWLETS_CONFIG_SCHEMA_VERSION } from "../clawlets-config-version.js";
+import { CLAWLETS_CONFIG_SCHEMA_VERSION } from "./clawlets-config-version.js";
 import { FleetSchema } from "./schema-fleet.js";
 import { HostSchema } from "./schema-host.js";
 import { CattleSchema } from "./schema-cattle.js";

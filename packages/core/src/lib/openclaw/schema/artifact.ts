@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { getPinnedOpenclawSchema } from "../../openclaw-schema.js";
+import { getPinnedOpenclawSchema } from "../openclaw-schema.js";
 
 export type OpenclawSchemaArtifact = {
   schema: Record<string, any>;

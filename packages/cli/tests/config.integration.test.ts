@@ -2,18 +2,18 @@ import fs from "node:fs";
 import path from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createDefaultClawletsConfig } from "@clawlets/core/lib/clawlets-config";
+import { createDefaultClawletsConfig } from "@clawlets/core/lib/config/clawlets-config";
 
 const findRepoRootMock = vi.hoisted(() => vi.fn());
-vi.mock("@clawlets/core/lib/repo", () => ({
+vi.mock("@clawlets/core/lib/project/repo", () => ({
   findRepoRoot: findRepoRootMock,
 }));
 
 const loadClawletsConfigRawMock = vi.hoisted(() => vi.fn());
 const loadClawletsConfigMock = vi.hoisted(() => vi.fn());
 const writeClawletsConfigMock = vi.hoisted(() => vi.fn());
-vi.mock("@clawlets/core/lib/clawlets-config", async () => {
-  const actual = await vi.importActual<typeof import("@clawlets/core/lib/clawlets-config")>("@clawlets/core/lib/clawlets-config");
+vi.mock("@clawlets/core/lib/config/clawlets-config", async () => {
+  const actual = await vi.importActual<typeof import("@clawlets/core/lib/config/clawlets-config")>("@clawlets/core/lib/config/clawlets-config");
   return {
     ...actual,
     loadClawletsConfigRaw: loadClawletsConfigRawMock,

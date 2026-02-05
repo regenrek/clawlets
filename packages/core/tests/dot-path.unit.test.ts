@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { splitDotPath } from "../src/lib/dot-path";
+import { splitDotPath } from "../src/lib/storage/dot-path";
 
 describe("splitDotPath", () => {
   it("rejects prototype pollution segments", () => {

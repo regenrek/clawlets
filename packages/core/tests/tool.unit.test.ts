@@ -5,7 +5,7 @@ const nixToolsState = {
   shellWithInputOutput: "",
 };
 
-vi.mock("../src/lib/nix-tools.js", () => ({
+vi.mock("../src/lib/nix/nix-tools.js", () => ({
   nixShellCapture: vi.fn(async () => nixToolsState.shellOutput),
   nixShellCaptureWithInput: vi.fn(async () => nixToolsState.shellWithInputOutput),
 }));
@@ -18,10 +18,10 @@ beforeEach(() => {
 
 describe("tool helpers", () => {
   it("supports dryRun", async () => {
-    const { ageKeygen } = await import("../src/lib/age-keygen");
-    const { agePublicKeyFromIdentityFile } = await import("../src/lib/age-keygen");
-    const { mkpasswdYescryptHash } = await import("../src/lib/mkpasswd");
-    const { looksLikeSshKeyContents, normalizeSshPublicKey } = await import("../src/lib/ssh");
+    const { ageKeygen } = await import("../src/lib/security/age-keygen");
+    const { agePublicKeyFromIdentityFile } = await import("../src/lib/security/age-keygen");
+    const { mkpasswdYescryptHash } = await import("../src/lib/security/mkpasswd");
+    const { looksLikeSshKeyContents, normalizeSshPublicKey } = await import("../src/lib/security/ssh");
 
     const pair = await ageKeygen({ nixBin: "nix", dryRun: true });
     expect(pair.publicKey.startsWith("age1")).toBe(true);
@@ -48,7 +48,7 @@ describe("tool helpers", () => {
       "AGE-SECRET-KEY-ABCDEF",
       "",
     ].join("\n");
-    const { ageKeygen } = await import("../src/lib/age-keygen");
+    const { ageKeygen } = await import("../src/lib/security/age-keygen");
     const pair = await ageKeygen({ nixBin: "nix", dryRun: false });
     expect(pair.publicKey).toBe("age1abc");
     expect(pair.secretKey).toBe("AGE-SECRET-KEY-ABCDEF");
@@ -56,13 +56,13 @@ describe("tool helpers", () => {
 
   it("derives public key from identity file (non-dryRun)", async () => {
     nixToolsState.shellOutput = "age1abc\n";
-    const { agePublicKeyFromIdentityFile } = await import("../src/lib/age-keygen");
+    const { agePublicKeyFromIdentityFile } = await import("../src/lib/security/age-keygen");
     expect(await agePublicKeyFromIdentityFile("/key.txt", { nixBin: "nix", dryRun: false })).toBe("age1abc");
   });
 
   it("extracts yescrypt hash (non-dryRun)", async () => {
     nixToolsState.shellWithInputOutput = ["hello", "$y$hash", "bye"].join("\n");
-    const { mkpasswdYescryptHash } = await import("../src/lib/mkpasswd");
+    const { mkpasswdYescryptHash } = await import("../src/lib/security/mkpasswd");
     expect(await mkpasswdYescryptHash("pw", { nixBin: "nix", dryRun: false })).toBe("$y$hash");
 
     nixToolsState.shellWithInputOutput = "no hash here";

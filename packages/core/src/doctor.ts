@@ -1,6 +1,6 @@
 import { getRepoLayout } from "./repo-layout.js";
-import { findRepoRoot } from "./lib/repo.js";
-import { loadDeployCreds } from "./lib/deploy-creds.js";
+import { findRepoRoot } from "./lib/project/repo.js";
+import { loadDeployCreds } from "./lib/infra/deploy-creds.js";
 import { addRepoChecks } from "./doctor/repo-checks.js";
 import { addDeployChecks } from "./doctor/deploy-checks.js";
 import { addCattleChecks } from "./doctor/cattle-checks.js";

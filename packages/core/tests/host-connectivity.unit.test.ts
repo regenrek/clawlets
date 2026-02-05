@@ -5,7 +5,7 @@ import {
   isValidIpv4,
   normalizeSingleLineOutput,
   parseBootstrapIpv4FromLogs,
-} from "../src/lib/host-connectivity";
+} from "../src/lib/host/host-connectivity";
 
 describe("host-connectivity", () => {
   it("validates ipv4", () => {

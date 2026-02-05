@@ -1,4 +1,4 @@
-import type { SecretSource, SecretsPlanWarning } from "../../secrets-plan.js";
+import type { SecretSource, SecretsPlanWarning } from "../secrets-plan.js";
 
 export type AddRequiredEnv = (envVar: string, source: SecretSource, path?: string) => void;
 

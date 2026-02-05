@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 
 describe("secrets init template sets", () => {
   it("marks garnix netrc secret as netrc placeholder", async () => {
-    const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
-    const { buildFleetSecretsPlan } = await import("../src/lib/secrets/plan");
-    const { buildSecretsInitTemplateSets } = await import("../src/lib/secrets-init-template");
+    const { ClawletsConfigSchema } = await import("../src/lib/config/clawlets-config");
+    const { buildFleetSecretsPlan } = await import("../src/lib/secrets/plan.js");
+    const { buildSecretsInitTemplateSets } = await import("../src/lib/secrets/secrets-init-template");
 
     const cfg = ClawletsConfigSchema.parse({
       schemaVersion: 1,
@@ -38,9 +38,9 @@ describe("secrets init template sets", () => {
   });
 
   it("omits garnix netrc placeholder when private cache disabled", async () => {
-    const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
-    const { buildFleetSecretsPlan } = await import("../src/lib/secrets/plan");
-    const { buildSecretsInitTemplateSets } = await import("../src/lib/secrets-init-template");
+    const { ClawletsConfigSchema } = await import("../src/lib/config/clawlets-config");
+    const { buildFleetSecretsPlan } = await import("../src/lib/secrets/plan.js");
+    const { buildSecretsInitTemplateSets } = await import("../src/lib/secrets/secrets-init-template");
 
     const cfg = ClawletsConfigSchema.parse({
       schemaVersion: 1,
@@ -67,9 +67,9 @@ describe("secrets init template sets", () => {
   });
 
   it("supports openclaw scope without host bootstrap secrets", async () => {
-    const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
-    const { buildFleetSecretsPlan } = await import("../src/lib/secrets/plan");
-    const { buildSecretsInitTemplateSets } = await import("../src/lib/secrets-init-template");
+    const { ClawletsConfigSchema } = await import("../src/lib/config/clawlets-config");
+    const { buildFleetSecretsPlan } = await import("../src/lib/secrets/plan.js");
+    const { buildSecretsInitTemplateSets } = await import("../src/lib/secrets/secrets-init-template");
 
     const cfg = ClawletsConfigSchema.parse({
       schemaVersion: 1,

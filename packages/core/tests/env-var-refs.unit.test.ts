@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 describe("env var refs", () => {
   it("finds ${ENV} refs across nested objects and arrays", async () => {
-    const { findEnvVarRefs } = await import("../src/lib/env-var-refs");
+    const { findEnvVarRefs } = await import("../src/lib/secrets/env-var-refs");
 
     const refs = findEnvVarRefs({
       a: "${A}",
@@ -17,7 +17,7 @@ describe("env var refs", () => {
   });
 
   it("ignores invalid env var names and missing braces", async () => {
-    const { findEnvVarRefs } = await import("../src/lib/env-var-refs");
+    const { findEnvVarRefs } = await import("../src/lib/secrets/env-var-refs");
 
     const refs = findEnvVarRefs({
       ok: "${OK_1}",
@@ -32,7 +32,7 @@ describe("env var refs", () => {
   });
 
   it("treats $${ENV} as an escaped literal (no ref)", async () => {
-    const { findEnvVarRefs } = await import("../src/lib/env-var-refs");
+    const { findEnvVarRefs } = await import("../src/lib/secrets/env-var-refs");
 
     const refs = findEnvVarRefs({
       escaped: "$${SHOULD_NOT_MATCH}",

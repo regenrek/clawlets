@@ -6,11 +6,11 @@ const sshCaptureMock = vi.fn();
 const sshRunMock = vi.fn();
 const shellQuoteMock = vi.fn((s: string) => s);
 
-vi.mock("@clawlets/core/lib/context", () => ({
+vi.mock("@clawlets/core/lib/runtime/context", () => ({
   loadHostContextOrExit: loadHostContextMock,
 }));
 
-vi.mock("@clawlets/core/lib/ssh-remote", () => ({
+vi.mock("@clawlets/core/lib/security/ssh-remote", () => ({
   sshCapture: sshCaptureMock,
   sshRun: sshRunMock,
   shellQuote: shellQuoteMock,

@@ -1,7 +1,7 @@
 import fs from "node:fs"
 import path from "node:path"
 
-import { normalizeTemplateSource } from "@clawlets/core/lib/template-source"
+import { normalizeTemplateSource } from "@clawlets/core/lib/project/template-source"
 
 type TemplateSourceConfig = {
   repo?: string

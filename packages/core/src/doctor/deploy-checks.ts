@@ -9,11 +9,11 @@ import {
   getHostRemoteSecretsDir,
   getHostSecretsDir,
 } from "../repo-layout.js";
-import { getHostAgeKeySopsCreationRulePathRegex, getHostAgeKeySopsCreationRulePathSuffix, getHostSecretsSopsCreationRulePathRegex, getHostSecretsSopsCreationRulePathSuffix } from "../lib/sops-rules.js";
-import { validateHostSecretsYamlFiles } from "../lib/secrets-policy.js";
+import { getHostAgeKeySopsCreationRulePathRegex, getHostAgeKeySopsCreationRulePathSuffix, getHostSecretsSopsCreationRulePathRegex, getHostSecretsSopsCreationRulePathSuffix } from "../lib/security/sops-rules.js";
+import { validateHostSecretsYamlFiles } from "../lib/secrets/secrets-policy.js";
 import { buildFleetSecretsPlan } from "../lib/secrets/plan.js";
-import { capture } from "../lib/run.js";
-import { looksLikeSshKeyContents, normalizeSshPublicKey } from "../lib/ssh.js";
+import { capture } from "../lib/runtime/run.js";
+import { looksLikeSshKeyContents, normalizeSshPublicKey } from "../lib/security/ssh.js";
 import type { DoctorCheck } from "./types.js";
 import {
   getSshExposureMode,
@@ -21,17 +21,17 @@ import {
   loadClawletsConfig,
   type ClawletsConfig,
   type ClawletsHostConfig,
-} from "../lib/clawlets-config.js";
-import { isPlaceholderSecretValue } from "../lib/secrets-init.js";
-import { checkGithubRepoVisibility, tryParseGithubFlakeUri } from "../lib/github.js";
-import { tryGetOriginFlake } from "../lib/git.js";
-import { expandPath } from "../lib/path-expand.js";
-import { resolveBaseFlake } from "../lib/base-flake.js";
-import { agePublicKeyFromIdentityFile } from "../lib/age-keygen.js";
-import { sopsDecryptYamlFile } from "../lib/sops.js";
-import { getSopsCreationRuleAgeRecipients } from "../lib/sops-config.js";
-import { readYamlScalarFromMapping } from "../lib/yaml-scalar.js";
-import { mapWithConcurrency } from "../lib/concurrency.js";
+} from "../lib/config/clawlets-config.js";
+import { isPlaceholderSecretValue } from "../lib/secrets/secrets-init.js";
+import { checkGithubRepoVisibility, tryParseGithubFlakeUri } from "../lib/vcs/github.js";
+import { tryGetOriginFlake } from "../lib/vcs/git.js";
+import { expandPath } from "../lib/storage/path-expand.js";
+import { resolveBaseFlake } from "../lib/nix/base-flake.js";
+import { agePublicKeyFromIdentityFile } from "../lib/security/age-keygen.js";
+import { sopsDecryptYamlFile } from "../lib/security/sops.js";
+import { getSopsCreationRuleAgeRecipients } from "../lib/security/sops-config.js";
+import { readYamlScalarFromMapping } from "../lib/storage/yaml-scalar.js";
+import { mapWithConcurrency } from "../lib/runtime/concurrency.js";
 import type { DoctorPush } from "./types.js";
 
 export async function addDeployChecks(params: {

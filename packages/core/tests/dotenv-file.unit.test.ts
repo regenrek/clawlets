@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatDotenvValue, redactDotenv, upsertDotenv } from "../src/lib/dotenv-file";
+import { formatDotenvValue, redactDotenv, upsertDotenv } from "../src/lib/storage/dotenv-file";
 
 describe("dotenv-file", () => {
   it("upserts existing keys and appends missing keys", () => {

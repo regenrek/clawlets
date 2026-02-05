@@ -3,7 +3,7 @@ import path from "node:path";
 
 describe("relativePathForSopsRule", () => {
   it("accepts hosts/<host> relative path", async () => {
-    const { relativePathForSopsRule } = await import("../src/lib/sops-path");
+    const { relativePathForSopsRule } = await import("../src/lib/security/sops-path");
     const root = path.join(process.cwd(), "__sops_path_test__");
     const fromDir = path.join(root, "secrets");
     const toPath = path.join(fromDir, "hosts", "openclaw-fleet-host");
@@ -11,7 +11,7 @@ describe("relativePathForSopsRule", () => {
   });
 
   it("rejects '.' / empty relative paths", async () => {
-    const { relativePathForSopsRule } = await import("../src/lib/sops-path");
+    const { relativePathForSopsRule } = await import("../src/lib/security/sops-path");
     const root = path.join(process.cwd(), "__sops_path_test__");
     const fromDir = path.join(root, "secrets");
     const toPath = fromDir;
@@ -19,7 +19,7 @@ describe("relativePathForSopsRule", () => {
   });
 
   it("rejects paths that escape fromDir", async () => {
-    const { relativePathForSopsRule } = await import("../src/lib/sops-path");
+    const { relativePathForSopsRule } = await import("../src/lib/security/sops-path");
     const root = path.join(process.cwd(), "__sops_path_test__");
     const fromDir = path.join(root, "secrets");
     const toPath = path.join(root, "not-secrets");

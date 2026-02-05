@@ -1,4 +1,4 @@
-import { findEnvVarRefs } from "../../env-var-refs.js";
+import { findEnvVarRefs } from "../env-var-refs.js";
 import {
   buildBaseSecretEnv,
   buildDerivedSecretEnv,
@@ -8,8 +8,8 @@ import {
   collectDerivedSecretEnvEntries,
   isWhatsAppEnabled,
 } from "../env-vars.js";
-import type { ClawletsConfig } from "../../clawlets-config.js";
-import type { SecretSource, SecretsPlanWarning } from "../../secrets-plan.js";
+import type { ClawletsConfig } from "../../config/clawlets-config.js";
+import type { SecretSource, SecretsPlanWarning } from "../secrets-plan.js";
 import { buildOpenClawGatewayConfig } from "../../openclaw/config-invariants.js";
 import { runSecretRequirementCollectors } from "../collectors/registry.js";
 import { addMissingEnvVarConfig } from "./missing-config.js";

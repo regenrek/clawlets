@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { GatewayIdSchema, SecretNameSchema } from "@clawlets/shared/lib/identifiers";
-import { isValidTargetHost } from "../ssh-remote.js";
-import { DEFAULT_NIX_SUBSTITUTERS, DEFAULT_NIX_TRUSTED_PUBLIC_KEYS } from "../nix-cache.js";
-import { HOST_THEME_COLORS, HOST_THEME_DEFAULT_COLOR, HOST_THEME_DEFAULT_EMOJI } from "../host-theme.js";
+import { isValidTargetHost } from "../security/ssh-remote.js";
+import { DEFAULT_NIX_SUBSTITUTERS, DEFAULT_NIX_TRUSTED_PUBLIC_KEYS } from "../nix/nix-cache.js";
+import { HOST_THEME_COLORS, HOST_THEME_DEFAULT_COLOR, HOST_THEME_DEFAULT_EMOJI } from "../host/host-theme.js";
 import { parseCidr, isWorldOpenCidr } from "./helpers.js";
 import { AwsHostSchema, HetznerHostSchema, ProvisioningProviderSchema, addProvisioningIssues } from "./providers/index.js";
 import { FleetGatewaySchema } from "./schema-gateway.js";

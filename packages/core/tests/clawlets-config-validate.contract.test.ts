@@ -6,8 +6,8 @@ describe("clawlets config validate", () => {
   it(
     "warns on invariant overrides and fails under strict",
     async () => {
-    const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
-    const { validateClawletsConfig } = await import("../src/lib/clawlets-config-validate");
+    const { ClawletsConfigSchema } = await import("../src/lib/config/clawlets-config");
+    const { validateClawletsConfig } = await import("../src/lib/config/clawlets-config-validate");
 
     const cfg = ClawletsConfigSchema.parse({
       schemaVersion: 1,
@@ -44,8 +44,8 @@ describe("clawlets config validate", () => {
   it(
     "defaults required clawdbot commands",
     async () => {
-    const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
-    const { validateClawletsConfig } = await import("../src/lib/clawlets-config-validate");
+    const { ClawletsConfigSchema } = await import("../src/lib/config/clawlets-config");
+    const { validateClawletsConfig } = await import("../src/lib/config/clawlets-config-validate");
 
     const cfg = ClawletsConfigSchema.parse({
       schemaVersion: 1,
@@ -75,8 +75,8 @@ describe("clawlets config validate", () => {
   it(
     "fails on inline secrets under strict",
     async () => {
-    const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
-    const { validateClawletsConfig } = await import("../src/lib/clawlets-config-validate");
+    const { ClawletsConfigSchema } = await import("../src/lib/config/clawlets-config");
+    const { validateClawletsConfig } = await import("../src/lib/config/clawlets-config-validate");
 
     const cfg = ClawletsConfigSchema.parse({
       schemaVersion: 1,
@@ -110,8 +110,8 @@ describe("clawlets config validate", () => {
   it(
     "warns on secretEnvAllowlist mismatch and fails under strict",
     async () => {
-    const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
-    const { validateClawletsConfig } = await import("../src/lib/clawlets-config-validate");
+    const { ClawletsConfigSchema } = await import("../src/lib/config/clawlets-config");
+    const { validateClawletsConfig } = await import("../src/lib/config/clawlets-config-validate");
 
     const cfg = ClawletsConfigSchema.parse({
       schemaVersion: 1,
@@ -153,8 +153,8 @@ describe("clawlets config validate", () => {
   it(
     "fails on secretEnv conflicts with derived hooks/skills",
     async () => {
-    const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
-    const { validateClawletsConfig } = await import("../src/lib/clawlets-config-validate");
+    const { ClawletsConfigSchema } = await import("../src/lib/config/clawlets-config");
+    const { validateClawletsConfig } = await import("../src/lib/config/clawlets-config-validate");
 
     const cfg = ClawletsConfigSchema.parse({
       schemaVersion: 1,

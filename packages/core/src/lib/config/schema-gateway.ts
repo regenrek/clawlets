@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { OpenclawAgents, OpenclawChannels, OpenclawHooks, OpenclawPlugins, OpenclawSkills } from "../../generated/openclaw-config.types.js";
 import { GatewayIdSchema, PersonaNameSchema, SecretNameSchema, SkillIdSchema } from "@clawlets/shared/lib/identifiers";
-import { SecretEnvSchema, SecretFilesSchema } from "../secret-wiring.js";
+import { SecretEnvSchema, SecretFilesSchema } from "../secrets/secret-wiring.js";
 
 const JsonObjectSchema: z.ZodType<Record<string, unknown>> = z.record(z.string(), z.any());
 const LEGACY_GATEWAY_KEY = ["claw", "dbot"].join("");

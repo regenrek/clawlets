@@ -2,9 +2,9 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { defineCommand } from "citty";
-import { loadDeployCreds } from "@clawlets/core/lib/deploy-creds";
-import { loadHostContextOrExit } from "@clawlets/core/lib/context";
-import { capture, run } from "@clawlets/core/lib/run";
+import { loadDeployCreds } from "@clawlets/core/lib/infra/deploy-creds";
+import { loadHostContextOrExit } from "@clawlets/core/lib/runtime/context";
+import { capture, run } from "@clawlets/core/lib/runtime/run";
 import { resolveAwsCliCredentials } from "./provider-runtime.js";
 
 function trimOrEmpty(value: unknown): string {

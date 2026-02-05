@@ -1,6 +1,6 @@
 import { getLlmProviderFromModelId, getProviderAuthMode, getProviderCredentials } from "@clawlets/shared/lib/llm-provider-env";
 import { canonicalizeEnvVar, extractEnvVarRef, isPlainObject } from "../env-vars.js";
-import type { SecretSource } from "../../secrets-plan.js";
+import type { SecretSource } from "../secrets-plan.js";
 import type { SecretsCollectorContext } from "./types.js";
 
 function hasMappingForAnyOf(params: {

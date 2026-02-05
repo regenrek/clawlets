@@ -1,8 +1,8 @@
 import process from "node:process";
 import { defineCommand } from "citty";
-import { shellQuote, sshCapture, sshRun } from "@clawlets/core/lib/ssh-remote";
+import { shellQuote, sshCapture, sshRun } from "@clawlets/core/lib/security/ssh-remote";
 import { needsSudo, requireTargetHost } from "./common.js";
-import { loadHostContextOrExit } from "@clawlets/core/lib/context";
+import { loadHostContextOrExit } from "@clawlets/core/lib/runtime/context";
 
 function normalizeSince(value: string): string {
   const v = value.trim();

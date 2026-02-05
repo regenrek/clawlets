@@ -4,9 +4,9 @@ import {
   loadClawletsConfig,
   loadClawletsConfigRaw,
   writeClawletsConfig,
-} from "@clawlets/core/lib/clawlets-config"
-import { splitDotPath } from "@clawlets/core/lib/dot-path"
-import { deleteAtPath, getAtPath, setAtPath } from "@clawlets/core/lib/object-path"
+} from "@clawlets/core/lib/config/clawlets-config"
+import { splitDotPath } from "@clawlets/core/lib/storage/dot-path"
+import { deleteAtPath, getAtPath, setAtPath } from "@clawlets/core/lib/storage/object-path"
 import { api } from "../../convex/_generated/api"
 import { createConvexClient } from "~/server/convex"
 import { readClawletsEnvTokens } from "~/server/redaction"

@@ -9,13 +9,13 @@ const loadClawletsConfigMock = vi.fn();
 const writeClawletsConfigMock = vi.fn();
 const resolveHostNameMock = vi.fn();
 
-vi.mock("@clawlets/core/lib/repo", () => ({
+vi.mock("@clawlets/core/lib/project/repo", () => ({
   findRepoRoot: findRepoRootMock,
 }));
 
-vi.mock("@clawlets/core/lib/clawlets-config", async () => {
-  const actual = await vi.importActual<typeof import("@clawlets/core/lib/clawlets-config")>(
-    "@clawlets/core/lib/clawlets-config",
+vi.mock("@clawlets/core/lib/config/clawlets-config", async () => {
+  const actual = await vi.importActual<typeof import("@clawlets/core/lib/config/clawlets-config")>(
+    "@clawlets/core/lib/config/clawlets-config",
   );
   return {
     ...actual,

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 describe("release manifest", () => {
   it("parses a valid v1 manifest", async () => {
-    const { ReleaseManifestV1Schema } = await import("../src/lib/release-manifest");
+    const { ReleaseManifestV1Schema } = await import("../src/lib/project/release-manifest");
 
     const parsed = ReleaseManifestV1Schema.parse({
       schemaVersion: 1,
@@ -31,7 +31,7 @@ describe("release manifest", () => {
   });
 
   it("rejects invalid rev/toplevel/digest", async () => {
-    const { ReleaseManifestV1Schema } = await import("../src/lib/release-manifest");
+    const { ReleaseManifestV1Schema } = await import("../src/lib/project/release-manifest");
 
     expect(() =>
       ReleaseManifestV1Schema.parse({
@@ -49,7 +49,7 @@ describe("release manifest", () => {
   });
 
   it("requires secrets.format when secrets.url is set", async () => {
-    const { ReleaseManifestV1Schema } = await import("../src/lib/release-manifest");
+    const { ReleaseManifestV1Schema } = await import("../src/lib/project/release-manifest");
 
     expect(() =>
       ReleaseManifestV1Schema.parse({
@@ -70,7 +70,7 @@ describe("release manifest", () => {
   });
 
   it("formats deterministically with trailing newline", async () => {
-    const { formatReleaseManifest, parseReleaseManifestJson } = await import("../src/lib/release-manifest");
+    const { formatReleaseManifest, parseReleaseManifestJson } = await import("../src/lib/project/release-manifest");
 
     const manifest = {
       schemaVersion: 1,

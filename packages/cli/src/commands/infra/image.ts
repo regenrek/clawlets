@@ -2,10 +2,10 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { defineCommand } from "citty";
-import { resolveGitRev } from "@clawlets/core/lib/git";
-import { capture } from "@clawlets/core/lib/run";
-import { withFlakesEnv } from "@clawlets/core/lib/nix-flakes";
-import { loadHostContextOrExit } from "@clawlets/core/lib/context";
+import { resolveGitRev } from "@clawlets/core/lib/vcs/git";
+import { capture } from "@clawlets/core/lib/runtime/run";
+import { withFlakesEnv } from "@clawlets/core/lib/nix/nix-flakes";
+import { loadHostContextOrExit } from "@clawlets/core/lib/runtime/context";
 import { imageHetznerUpload } from "./image-hetzner.js";
 import { imageAws } from "./image-aws.js";
 

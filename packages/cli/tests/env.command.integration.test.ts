@@ -6,12 +6,12 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 const findRepoRootMock = vi.fn();
 const loadDeployCredsMock = vi.fn();
 
-vi.mock("@clawlets/core/lib/repo", () => ({
+vi.mock("@clawlets/core/lib/project/repo", () => ({
   findRepoRoot: findRepoRootMock,
 }));
 
-vi.mock("@clawlets/core/lib/deploy-creds", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@clawlets/core/lib/deploy-creds")>();
+vi.mock("@clawlets/core/lib/infra/deploy-creds", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@clawlets/core/lib/infra/deploy-creds")>();
   return {
     ...actual,
     loadDeployCreds: loadDeployCredsMock,

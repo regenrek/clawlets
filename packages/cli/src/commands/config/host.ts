@@ -1,9 +1,9 @@
 import process from "node:process";
 import { defineCommand } from "citty";
-import { findRepoRoot } from "@clawlets/core/lib/repo";
-import { looksLikeSshPrivateKey, parseSshPublicKeysFromText } from "@clawlets/core/lib/ssh";
-import { readKnownHostsFromFile, readSshPublicKeysFromFile } from "@clawlets/core/lib/ssh-files";
-import { validateTargetHost } from "@clawlets/core/lib/ssh-remote";
+import { findRepoRoot } from "@clawlets/core/lib/project/repo";
+import { looksLikeSshPrivateKey, parseSshPublicKeysFromText } from "@clawlets/core/lib/security/ssh";
+import { readKnownHostsFromFile, readSshPublicKeysFromFile } from "@clawlets/core/lib/security/ssh-files";
+import { validateTargetHost } from "@clawlets/core/lib/security/ssh-remote";
 import {
   assertSafeHostName,
   ClawletsConfigSchema,
@@ -13,9 +13,9 @@ import {
   resolveHostName,
   writeClawletsConfig,
   type ClawletsHostConfig,
-} from "@clawlets/core/lib/clawlets-config";
-import { DEFAULT_NIX_SUBSTITUTERS, DEFAULT_NIX_TRUSTED_PUBLIC_KEYS } from "@clawlets/core/lib/nix-cache";
-import { HOST_THEME_DEFAULT_COLOR, HOST_THEME_DEFAULT_EMOJI } from "@clawlets/core/lib/host-theme";
+} from "@clawlets/core/lib/config/clawlets-config";
+import { DEFAULT_NIX_SUBSTITUTERS, DEFAULT_NIX_TRUSTED_PUBLIC_KEYS } from "@clawlets/core/lib/nix/nix-cache";
+import { HOST_THEME_DEFAULT_COLOR, HOST_THEME_DEFAULT_EMOJI } from "@clawlets/core/lib/host/host-theme";
 
 function parseBoolOrUndefined(v: unknown): boolean | undefined {
   if (v === undefined || v === null) return undefined;

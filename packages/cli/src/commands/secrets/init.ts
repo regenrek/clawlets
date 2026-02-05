@@ -3,16 +3,16 @@ import path from "node:path";
 import process from "node:process";
 import { defineCommand } from "citty";
 import * as p from "@clack/prompts";
-import { ageKeygen, agePublicKeyFromIdentityFile } from "@clawlets/core/lib/age-keygen";
-import { parseAgeKeyFile } from "@clawlets/core/lib/age";
-import { ensureDir, writeFileAtomic } from "@clawlets/core/lib/fs-safe";
-import { mkpasswdYescryptHash } from "@clawlets/core/lib/mkpasswd";
-import { upsertSopsCreationRule } from "@clawlets/core/lib/sops-config";
-import { sopsDecryptYamlFile, sopsEncryptYamlToFile } from "@clawlets/core/lib/sops";
-import { getHostAgeKeySopsCreationRulePathRegex, getHostSecretsSopsCreationRulePathRegex } from "@clawlets/core/lib/sops-rules";
+import { ageKeygen, agePublicKeyFromIdentityFile } from "@clawlets/core/lib/security/age-keygen";
+import { parseAgeKeyFile } from "@clawlets/core/lib/security/age";
+import { ensureDir, writeFileAtomic } from "@clawlets/core/lib/storage/fs-safe";
+import { mkpasswdYescryptHash } from "@clawlets/core/lib/security/mkpasswd";
+import { upsertSopsCreationRule } from "@clawlets/core/lib/security/sops-config";
+import { sopsDecryptYamlFile, sopsEncryptYamlToFile } from "@clawlets/core/lib/security/sops";
+import { getHostAgeKeySopsCreationRulePathRegex, getHostSecretsSopsCreationRulePathRegex } from "@clawlets/core/lib/security/sops-rules";
 import { sanitizeOperatorId } from "@clawlets/shared/lib/identifiers";
 import { buildFleetSecretsPlan } from "@clawlets/core/lib/secrets/plan";
-import { applySecretsAutowire, planSecretsAutowire } from "@clawlets/core/lib/secrets-autowire";
+import { applySecretsAutowire, planSecretsAutowire } from "@clawlets/core/lib/secrets/secrets-autowire";
 import {
   buildSecretsInitTemplate,
   isPlaceholderSecretValue,
@@ -21,17 +21,17 @@ import {
   resolveSecretsInitFromJsonArg,
   validateSecretsInitNonInteractive,
   type SecretsInitJson,
-} from "@clawlets/core/lib/secrets-init";
-import { buildSecretsInitTemplateSets } from "@clawlets/core/lib/secrets-init-template";
-import { readYamlScalarFromMapping } from "@clawlets/core/lib/yaml-scalar";
+} from "@clawlets/core/lib/secrets/secrets-init";
+import { buildSecretsInitTemplateSets } from "@clawlets/core/lib/secrets/secrets-init-template";
+import { readYamlScalarFromMapping } from "@clawlets/core/lib/storage/yaml-scalar";
 import { getHostEncryptedAgeKeyFile, getHostExtraFilesKeyPath, getHostExtraFilesSecretsDir, getHostSecretsDir, getLocalOperatorAgeKeyPath } from "@clawlets/core/repo-layout";
-import { expandPath } from "@clawlets/core/lib/path-expand";
-import { mapWithConcurrency } from "@clawlets/core/lib/concurrency";
-import { assertSecretsAreManaged, buildManagedHostSecretNameAllowlist } from "@clawlets/core/lib/secrets-allowlist";
+import { expandPath } from "@clawlets/core/lib/storage/path-expand";
+import { mapWithConcurrency } from "@clawlets/core/lib/runtime/concurrency";
+import { assertSecretsAreManaged, buildManagedHostSecretNameAllowlist } from "@clawlets/core/lib/secrets/secrets-allowlist";
 import { cancelFlow, navOnCancel, NAV_EXIT } from "../../lib/wizard.js";
-import { loadHostContextOrExit } from "@clawlets/core/lib/context";
+import { loadHostContextOrExit } from "@clawlets/core/lib/runtime/context";
 import { parseSecretsScope, upsertYamlScalarLine } from "./common.js";
-import { writeClawletsConfig } from "@clawlets/core/lib/clawlets-config";
+import { writeClawletsConfig } from "@clawlets/core/lib/config/clawlets-config";
 
 function wantsInteractive(flag: boolean | undefined): boolean {
   if (flag) return true;

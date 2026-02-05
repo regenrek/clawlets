@@ -3,9 +3,9 @@ import YAML from "yaml";
 
 describe("sops-rules doctor compatibility", () => {
   it("produces path_regex values doctor checks for", async () => {
-    const { getRepoLayout } = await import("../src/repo-layout");
-    const { upsertSopsCreationRule } = await import("../src/lib/sops-config");
-    const { getHostAgeKeySopsCreationRulePathRegex, getHostSecretsSopsCreationRulePathRegex } = await import("../src/lib/sops-rules");
+    const { getRepoLayout } = await import("../src/repo-layout.js");
+    const { upsertSopsCreationRule } = await import("../src/lib/security/sops-config");
+    const { getHostAgeKeySopsCreationRulePathRegex, getHostSecretsSopsCreationRulePathRegex } = await import("../src/lib/security/sops-rules");
 
     const layout = getRepoLayout("/repo", "/repo/.clawlets");
     const host = "clawdbot-fleet-host";

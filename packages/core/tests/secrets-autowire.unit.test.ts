@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 
 describe("secrets autowire", () => {
   it("plans stable mappings with deterministic ordering", async () => {
-    const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
-    const { planSecretsAutowire } = await import("../src/lib/secrets-autowire");
+    const { ClawletsConfigSchema } = await import("../src/lib/config/clawlets-config");
+    const { planSecretsAutowire } = await import("../src/lib/secrets/secrets-autowire");
 
     const cfg = ClawletsConfigSchema.parse({
       schemaVersion: 1,
@@ -37,8 +37,8 @@ describe("secrets autowire", () => {
   });
 
   it("no-ops when already wired", async () => {
-    const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
-    const { planSecretsAutowire } = await import("../src/lib/secrets-autowire");
+    const { ClawletsConfigSchema } = await import("../src/lib/config/clawlets-config");
+    const { planSecretsAutowire } = await import("../src/lib/secrets/secrets-autowire");
 
     const cfg = ClawletsConfigSchema.parse({
       schemaVersion: 1,

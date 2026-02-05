@@ -1,5 +1,5 @@
-import type { SecretFileSpec } from "../../secret-wiring.js";
-import type { SecretSource, SecretSpec } from "../../secrets-plan.js";
+import type { SecretFileSpec } from "../secret-wiring.js";
+import type { SecretSource, SecretSpec } from "../secrets-plan.js";
 import { isPlainObject } from "../env-vars.js";
 
 export type SecretSpecAccumulator = {

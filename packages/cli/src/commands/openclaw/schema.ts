@@ -1,8 +1,8 @@
 import process from "node:process";
 import { defineCommand } from "citty";
-import { shellQuote, sshRun } from "@clawlets/core/lib/ssh-remote";
+import { shellQuote, sshRun } from "@clawlets/core/lib/security/ssh-remote";
 import { GatewayIdSchema } from "@clawlets/shared/lib/identifiers";
-import { loadHostContextOrExit } from "@clawlets/core/lib/context";
+import { loadHostContextOrExit } from "@clawlets/core/lib/runtime/context";
 import { buildOpenClawGatewayConfig } from "@clawlets/core/lib/openclaw/config-invariants";
 import { needsSudo, requireTargetHost } from "./server/common.js";
 

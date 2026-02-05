@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start"
 
-export type { ClawletsConfig } from "@clawlets/core/lib/clawlets-config"
-export type { SshExposureMode, TailnetMode } from "@clawlets/core/lib/clawlets-config"
+export type { ClawletsConfig } from "@clawlets/core/lib/config/clawlets-config"
+export type { SshExposureMode, TailnetMode } from "@clawlets/core/lib/config/clawlets-config"
 export { GatewayIdSchema, HostNameSchema } from "@clawlets/shared/lib/identifiers"
 
 export type ValidationIssue = {
@@ -14,7 +14,7 @@ export const validateClawletsConfig = createServerFn({ method: "POST" })
   .inputValidator((data: unknown): unknown => data)
   .handler(async ({ data }) => {
     const { ClawletsConfigSchema } = await import(
-      "@clawlets/core/lib/clawlets-config"
+      "@clawlets/core/lib/config/clawlets-config"
     )
     const parsed = ClawletsConfigSchema.safeParse(data)
 

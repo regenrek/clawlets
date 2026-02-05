@@ -11,7 +11,7 @@ import {
 
 const runMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 
-vi.mock("@clawlets/core/lib/run", () => ({
+vi.mock("@clawlets/core/lib/runtime/run", () => ({
   run: runMock,
 }));
 

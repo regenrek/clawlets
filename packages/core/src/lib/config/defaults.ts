@@ -1,5 +1,5 @@
-import { DEFAULT_NIX_SUBSTITUTERS, DEFAULT_NIX_TRUSTED_PUBLIC_KEYS } from "../nix-cache.js";
-import { CLAWLETS_CONFIG_SCHEMA_VERSION } from "../clawlets-config-version.js";
+import { DEFAULT_NIX_SUBSTITUTERS, DEFAULT_NIX_TRUSTED_PUBLIC_KEYS } from "../nix/nix-cache.js";
+import { CLAWLETS_CONFIG_SCHEMA_VERSION } from "./clawlets-config-version.js";
 import { ClawletsConfigSchema, type ClawletsConfig } from "./schema.js";
 
 export function createDefaultClawletsConfig(params: { host: string; gateways?: string[] }): ClawletsConfig {

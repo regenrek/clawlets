@@ -3,9 +3,9 @@ import path from "node:path"
 import crypto from "node:crypto"
 
 import { getRepoLayout, getGatewayWorkspaceDir } from "@clawlets/core/repo-layout"
-import { ensureDir, pathExists, writeFileAtomic } from "@clawlets/core/lib/fs-safe"
-import { isFleetWorkspaceEditableDoc, FLEET_WORKSPACE_EDITABLE_DOCS } from "@clawlets/core/lib/fleet-workspaces"
-import { moveToTrash } from "@clawlets/core/lib/fs-trash"
+import { ensureDir, pathExists, writeFileAtomic } from "@clawlets/core/lib/storage/fs-safe"
+import { isFleetWorkspaceEditableDoc, FLEET_WORKSPACE_EDITABLE_DOCS } from "@clawlets/core/lib/project/fleet-workspaces"
+import { moveToTrash } from "@clawlets/core/lib/storage/fs-trash"
 
 import { api } from "../../convex/_generated/api"
 import type { Id } from "../../convex/_generated/dataModel"

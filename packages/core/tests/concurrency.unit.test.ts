@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 describe("concurrency", () => {
   it("caps concurrency and preserves output order", async () => {
-    const { mapWithConcurrency } = await import("../src/lib/concurrency");
+    const { mapWithConcurrency } = await import("../src/lib/runtime/concurrency");
 
     let running = 0;
     let maxRunning = 0;

@@ -1,6 +1,6 @@
 import { needsSudo, requireTargetHost } from "../ssh-target.js";
-import { upsertYamlScalarLine } from "@clawlets/core/lib/yaml-scalar";
-import { SECRETS_PLAN_SCOPES, type SecretsPlanScope } from "@clawlets/core/lib/secrets-plan";
+import { upsertYamlScalarLine } from "@clawlets/core/lib/storage/yaml-scalar";
+import { SECRETS_PLAN_SCOPES, type SecretsPlanScope } from "@clawlets/core/lib/secrets/secrets-plan";
 
 export { needsSudo, requireTargetHost };
 export { upsertYamlScalarLine };

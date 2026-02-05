@@ -7,7 +7,7 @@ const state: {
   lastOpts?: { env?: NodeJS.ProcessEnv };
 } = {};
 
-vi.mock("../src/lib/run.js", () => ({
+vi.mock("../src/lib/runtime/run.js", () => ({
   capture: vi.fn(async (cmd: string, args: string[], opts?: { env?: NodeJS.ProcessEnv }) => {
     state.lastCmd = cmd;
     state.lastArgs = args;
@@ -33,7 +33,7 @@ vi.mock("../src/lib/run.js", () => ({
   }),
 }));
 
-import { nixRunCapture, nixRun, nixShellCapture, nixShellCaptureWithInput } from "../src/lib/nix-tools";
+import { nixRunCapture, nixRun, nixShellCapture, nixShellCaptureWithInput } from "../src/lib/nix/nix-tools";
 
 describe("nix-tools", () => {
   beforeEach(() => {

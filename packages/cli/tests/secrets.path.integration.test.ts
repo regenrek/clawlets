@@ -4,7 +4,7 @@ import { makeConfig } from "./fixtures.js";
 
 const loadHostContextMock = vi.fn();
 
-vi.mock("@clawlets/core/lib/context", () => ({
+vi.mock("@clawlets/core/lib/runtime/context", () => ({
   loadHostContextOrExit: loadHostContextMock,
 }));
 

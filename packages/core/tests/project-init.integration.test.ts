@@ -3,7 +3,7 @@ import path from "node:path";
 import fs from "node:fs";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { initProject } from "../src/lib/project-init";
+import { initProject } from "../src/lib/project/project-init";
 
 describe("project init", () => {
   it("creates expected file tree from local template spec", async () => {

@@ -5,17 +5,17 @@ import path from "node:path";
 
 describe("clawlets config schema", () => {
   it("assertSafeHostName rejects invalid names", async () => {
-    const { assertSafeHostName } = await import("../src/lib/clawlets-config");
+    const { assertSafeHostName } = await import("../src/lib/config/clawlets-config");
     expect(() => assertSafeHostName("../pwn")).toThrow(/invalid host name/i);
   });
 
   it("assertSafeHostName accepts valid names", async () => {
-    const { assertSafeHostName } = await import("../src/lib/clawlets-config");
+    const { assertSafeHostName } = await import("../src/lib/config/clawlets-config");
     expect(() => assertSafeHostName("openclaw-fleet-host")).not.toThrow();
   });
 
   it("rejects unsafe host names (path traversal)", async () => {
-    const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
+    const { ClawletsConfigSchema } = await import("../src/lib/config/clawlets-config");
     expect(() =>
       ClawletsConfigSchema.parse({
         schemaVersion: 1,
@@ -35,7 +35,7 @@ describe("clawlets config schema", () => {
   });
 
   it("rejects duplicate gateway ids", async () => {
-    const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
+    const { ClawletsConfigSchema } = await import("../src/lib/config/clawlets-config");
     expect(() =>
       ClawletsConfigSchema.parse({
         schemaVersion: 1,
@@ -55,7 +55,7 @@ describe("clawlets config schema", () => {
   });
 
   it("rejects missing gatewaysOrder when gateways present", async () => {
-    const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
+    const { ClawletsConfigSchema } = await import("../src/lib/config/clawlets-config");
     expect(() =>
       ClawletsConfigSchema.parse({
         schemaVersion: 1,
@@ -75,7 +75,7 @@ describe("clawlets config schema", () => {
   });
 
   it("rejects gatewaysOrder with unknown gateway id", async () => {
-    const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
+    const { ClawletsConfigSchema } = await import("../src/lib/config/clawlets-config");
     expect(() =>
       ClawletsConfigSchema.parse({
         schemaVersion: 1,
@@ -95,7 +95,7 @@ describe("clawlets config schema", () => {
   });
 
   it("rejects gatewaysOrder missing gateways", async () => {
-    const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
+    const { ClawletsConfigSchema } = await import("../src/lib/config/clawlets-config");
     expect(() =>
       ClawletsConfigSchema.parse({
         schemaVersion: 1,
@@ -115,7 +115,7 @@ describe("clawlets config schema", () => {
   });
 
   it("rejects openclaw.enable without gateways", async () => {
-    const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
+    const { ClawletsConfigSchema } = await import("../src/lib/config/clawlets-config");
     expect(() =>
       ClawletsConfigSchema.parse({
         schemaVersion: 1,
@@ -136,7 +136,7 @@ describe("clawlets config schema", () => {
   });
 
   it("rejects legacy fleet.bots and fleet.botOrder", async () => {
-    const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
+    const { ClawletsConfigSchema } = await import("../src/lib/config/clawlets-config");
     expect(() =>
       ClawletsConfigSchema.parse({
         schemaVersion: 1,
@@ -157,7 +157,7 @@ describe("clawlets config schema", () => {
   });
 
   it("hard rejects legacy hosts.<host>.bots and hosts.<host>.botsOrder (schema v1)", async () => {
-    const { loadClawletsConfigRaw } = await import("../src/lib/clawlets-config");
+    const { loadClawletsConfigRaw } = await import("../src/lib/config/clawlets-config");
     const repoRoot = await mkdtemp(path.join(tmpdir(), "clawlets-config-legacy-host-"));
     try {
       await mkdir(path.join(repoRoot, "fleet"), { recursive: true });
@@ -192,7 +192,7 @@ describe("clawlets config schema", () => {
   });
 
   it("rejects invalid adminCidr values", async () => {
-    const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
+    const { ClawletsConfigSchema } = await import("../src/lib/config/clawlets-config");
     expect(() =>
       ClawletsConfigSchema.parse({
         schemaVersion: 1,
@@ -211,7 +211,7 @@ describe("clawlets config schema", () => {
   });
 
   it("rejects world-open adminCidr unless explicitly allowed", async () => {
-    const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
+    const { ClawletsConfigSchema } = await import("../src/lib/config/clawlets-config");
     expect(() =>
       ClawletsConfigSchema.parse({
         schemaVersion: 1,
@@ -230,7 +230,7 @@ describe("clawlets config schema", () => {
   });
 
   it("accepts world-open adminCidr when explicitly allowed", async () => {
-    const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
+    const { ClawletsConfigSchema } = await import("../src/lib/config/clawlets-config");
     expect(() =>
       ClawletsConfigSchema.parse({
         schemaVersion: 1,
@@ -253,7 +253,7 @@ describe("clawlets config schema", () => {
   });
 
   it("rejects aws provider without required fields", async () => {
-    const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
+    const { ClawletsConfigSchema } = await import("../src/lib/config/clawlets-config");
     expect(() =>
       ClawletsConfigSchema.parse({
         schemaVersion: 1,
@@ -272,7 +272,7 @@ describe("clawlets config schema", () => {
   });
 
   it("rejects aws default VPC when vpc/subnet are set", async () => {
-    const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
+    const { ClawletsConfigSchema } = await import("../src/lib/config/clawlets-config");
     expect(() =>
       ClawletsConfigSchema.parse({
         schemaVersion: 1,
@@ -299,7 +299,7 @@ describe("clawlets config schema", () => {
   });
 
   it("rejects aws provider when amiId is missing", async () => {
-    const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
+    const { ClawletsConfigSchema } = await import("../src/lib/config/clawlets-config");
     expect(() =>
       ClawletsConfigSchema.parse({
         schemaVersion: 1,
@@ -326,7 +326,7 @@ describe("clawlets config schema", () => {
   });
 
   it("accepts aws provider with required fields", async () => {
-    const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
+    const { ClawletsConfigSchema } = await import("../src/lib/config/clawlets-config");
     expect(() =>
       ClawletsConfigSchema.parse({
         schemaVersion: 1,
@@ -353,7 +353,7 @@ describe("clawlets config schema", () => {
   });
 
   it("createDefaultClawletsConfig trims and defaults", async () => {
-    const { createDefaultClawletsConfig } = await import("../src/lib/clawlets-config");
+    const { createDefaultClawletsConfig } = await import("../src/lib/config/clawlets-config");
     const cfg = createDefaultClawletsConfig({ host: "   ", gateways: [" maren ", "", "sonja"] });
     expect(Object.keys(cfg.hosts)).toEqual(["openclaw-fleet-host"]);
     expect(cfg.defaultHost).toBe("openclaw-fleet-host");
@@ -374,7 +374,7 @@ describe("clawlets config schema", () => {
   });
 
   it("does not share default object references across parses", async () => {
-    const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
+    const { ClawletsConfigSchema } = await import("../src/lib/config/clawlets-config");
     const baseHost = {
       enable: false,
       gatewaysOrder: ["maren"],
@@ -403,7 +403,7 @@ describe("clawlets config schema", () => {
   });
 
   it("rejects defaultHost not present in hosts", async () => {
-    const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
+    const { ClawletsConfigSchema } = await import("../src/lib/config/clawlets-config");
     expect(() =>
       ClawletsConfigSchema.parse({
         schemaVersion: 1,
@@ -422,7 +422,7 @@ describe("clawlets config schema", () => {
   });
 
   it("resolveHostName uses defaultHost and sole-host fallback", async () => {
-    const { resolveHostName } = await import("../src/lib/clawlets-config");
+    const { resolveHostName } = await import("../src/lib/config/clawlets-config");
     const baseHost = {
       enable: false,
       diskDevice: "/dev/sda",
@@ -464,7 +464,7 @@ describe("clawlets config schema", () => {
   });
 
   it("resolveHostName returns ok=false for invalid --host tokens", async () => {
-    const { resolveHostName } = await import("../src/lib/clawlets-config");
+    const { resolveHostName } = await import("../src/lib/config/clawlets-config");
     const baseHost = {
       enable: false,
       diskDevice: "/dev/sda",
@@ -480,7 +480,7 @@ describe("clawlets config schema", () => {
   });
 
   it("loadClawletsConfig throws for missing config file", async () => {
-    const { loadClawletsConfig } = await import("../src/lib/clawlets-config");
+    const { loadClawletsConfig } = await import("../src/lib/config/clawlets-config");
     const repoRoot = await mkdtemp(path.join(tmpdir(), "clawlets-config-missing-"));
     try {
       expect(() => loadClawletsConfig({ repoRoot })).toThrow(/missing clawlets config/i);
@@ -490,7 +490,7 @@ describe("clawlets config schema", () => {
   });
 
   it("loadClawletsConfig throws for invalid JSON", async () => {
-    const { loadClawletsConfig } = await import("../src/lib/clawlets-config");
+    const { loadClawletsConfig } = await import("../src/lib/config/clawlets-config");
     const repoRoot = await mkdtemp(path.join(tmpdir(), "clawlets-config-badjson-"));
     try {
       await mkdir(path.join(repoRoot, "fleet"), { recursive: true });
@@ -502,7 +502,7 @@ describe("clawlets config schema", () => {
   });
 
   it("loadClawletsConfig rejects legacy publicSsh key", async () => {
-    const { loadClawletsConfig } = await import("../src/lib/clawlets-config");
+    const { loadClawletsConfig } = await import("../src/lib/config/clawlets-config");
     const repoRoot = await mkdtemp(path.join(tmpdir(), "clawlets-config-legacy-"));
     try {
       await mkdir(path.join(repoRoot, "fleet"), { recursive: true });
@@ -527,7 +527,7 @@ describe("clawlets config schema", () => {
   });
 
   it("loadClawletsConfig rejects legacy opentofu key", async () => {
-    const { loadClawletsConfig } = await import("../src/lib/clawlets-config");
+    const { loadClawletsConfig } = await import("../src/lib/config/clawlets-config");
     const repoRoot = await mkdtemp(path.join(tmpdir(), "clawlets-config-legacy-"));
     try {
       await mkdir(path.join(repoRoot, "fleet"), { recursive: true });
@@ -552,7 +552,7 @@ describe("clawlets config schema", () => {
   });
 
   it("loadClawletsConfig rejects legacy host ssh keys", async () => {
-    const { loadClawletsConfig } = await import("../src/lib/clawlets-config");
+    const { loadClawletsConfig } = await import("../src/lib/config/clawlets-config");
     const repoRoot = await mkdtemp(path.join(tmpdir(), "clawlets-config-legacy-"));
     try {
       await mkdir(path.join(repoRoot, "fleet"), { recursive: true });
@@ -577,7 +577,7 @@ describe("clawlets config schema", () => {
   });
 
   it("rejects invalid fleet.secretEnv entries", async () => {
-    const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
+    const { ClawletsConfigSchema } = await import("../src/lib/config/clawlets-config");
     expect(() =>
       ClawletsConfigSchema.parse({
         schemaVersion: 1,
@@ -592,7 +592,7 @@ describe("clawlets config schema", () => {
   });
 
   it("loadClawletsConfig rejects legacy envSecrets keys", async () => {
-    const { loadClawletsConfig } = await import("../src/lib/clawlets-config");
+    const { loadClawletsConfig } = await import("../src/lib/config/clawlets-config");
     const repoRoot = await mkdtemp(path.join(tmpdir(), "clawlets-config-envsecrets-"));
     try {
       await mkdir(path.join(repoRoot, "fleet"), { recursive: true });
@@ -618,7 +618,7 @@ describe("clawlets config schema", () => {
   });
 
   it("rejects invalid cattle ttl strings", async () => {
-    const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
+    const { ClawletsConfigSchema } = await import("../src/lib/config/clawlets-config");
     expect(() =>
       ClawletsConfigSchema.parse({
         schemaVersion: 1,
@@ -631,7 +631,7 @@ describe("clawlets config schema", () => {
   });
 
   it("rejects cattle enabled without image", async () => {
-    const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
+    const { ClawletsConfigSchema } = await import("../src/lib/config/clawlets-config");
     expect(() =>
       ClawletsConfigSchema.parse({
         schemaVersion: 1,
@@ -644,7 +644,7 @@ describe("clawlets config schema", () => {
   });
 
   it("rejects invalid cattle labels", async () => {
-    const { ClawletsConfigSchema } = await import("../src/lib/clawlets-config");
+    const { ClawletsConfigSchema } = await import("../src/lib/config/clawlets-config");
     expect(() =>
       ClawletsConfigSchema.parse({
         schemaVersion: 1,
@@ -657,7 +657,7 @@ describe("clawlets config schema", () => {
   });
 
   it("getTailnetMode normalizes to none/tailscale", async () => {
-    const { getTailnetMode } = await import("../src/lib/clawlets-config");
+    const { getTailnetMode } = await import("../src/lib/config/clawlets-config");
     expect(getTailnetMode({ tailnet: { mode: "tailscale" } } as any)).toBe("tailscale");
     expect(getTailnetMode({ tailnet: { mode: "none" } } as any)).toBe("none");
     expect(getTailnetMode({ tailnet: { mode: "weird" } } as any)).toBe("none");

@@ -6,9 +6,9 @@ import {
   loadClawletsConfig,
   loadClawletsConfigRaw,
   writeClawletsConfig,
-} from "@clawlets/core/lib/clawlets-config"
-import { parseSshPublicKeysFromText } from "@clawlets/core/lib/ssh"
-import { parseKnownHostsFromText } from "@clawlets/core/lib/ssh-files"
+} from "@clawlets/core/lib/config/clawlets-config"
+import { parseSshPublicKeysFromText } from "@clawlets/core/lib/security/ssh"
+import { parseKnownHostsFromText } from "@clawlets/core/lib/security/ssh-files"
 import { api } from "../../convex/_generated/api"
 import { createConvexClient } from "~/server/convex"
 import { readClawletsEnvTokens } from "~/server/redaction"

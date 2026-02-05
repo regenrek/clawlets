@@ -26,9 +26,9 @@ const findRepoRootMock = vi.fn(() => "/repo");
 const resolveHostNameOrExitMock = vi.fn(() => "alpha");
 const loadClawletsConfigMock = vi.fn();
 
-vi.mock("@clawlets/core/lib/infra", async () => {
-  const actual = await vi.importActual<typeof import("@clawlets/core/lib/infra")>(
-    "@clawlets/core/lib/infra",
+vi.mock("@clawlets/core/lib/infra/infra", async () => {
+  const actual = await vi.importActual<typeof import("@clawlets/core/lib/infra/infra")>(
+    "@clawlets/core/lib/infra/infra",
   );
   return {
     ...actual,
@@ -36,25 +36,25 @@ vi.mock("@clawlets/core/lib/infra", async () => {
   };
 });
 
-vi.mock("@clawlets/core/lib/deploy-creds", () => ({
+vi.mock("@clawlets/core/lib/infra/deploy-creds", () => ({
   loadDeployCreds: loadDeployCredsMock,
 }));
 
-vi.mock("@clawlets/core/lib/path-expand", () => ({
+vi.mock("@clawlets/core/lib/storage/path-expand", () => ({
   expandPath: expandPathMock,
 }));
 
-vi.mock("@clawlets/core/lib/repo", () => ({
+vi.mock("@clawlets/core/lib/project/repo", () => ({
   findRepoRoot: findRepoRootMock,
 }));
 
-vi.mock("@clawlets/core/lib/host-resolve", () => ({
+vi.mock("@clawlets/core/lib/host/host-resolve", () => ({
   resolveHostNameOrExit: resolveHostNameOrExitMock,
 }));
 
-vi.mock("@clawlets/core/lib/clawlets-config", async () => {
-  const actual = await vi.importActual<typeof import("@clawlets/core/lib/clawlets-config")>(
-    "@clawlets/core/lib/clawlets-config",
+vi.mock("@clawlets/core/lib/config/clawlets-config", async () => {
+  const actual = await vi.importActual<typeof import("@clawlets/core/lib/config/clawlets-config")>(
+    "@clawlets/core/lib/config/clawlets-config",
   );
   return {
     ...actual,

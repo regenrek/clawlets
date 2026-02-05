@@ -3,8 +3,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { ensureHcloudSshKeyId } from "@clawlets/cattle-core/lib/hcloud";
 import type { HetznerProvisionSpec, ProvisionerRuntime } from "../../types.js";
-import { capture, run } from "../../../run.js";
-import { withFlakesEnv } from "../../../nix-flakes.js";
+import { capture, run } from "../../../runtime/run.js";
+import { withFlakesEnv } from "../../../nix/nix-flakes.js";
 
 const HETZNER_ASSET_SEGMENTS = ["assets", "opentofu", "providers", "hetzner"] as const;
 

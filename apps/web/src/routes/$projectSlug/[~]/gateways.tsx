@@ -9,7 +9,7 @@ import { useProjectBySlug } from "~/lib/project-data"
 import { clawletsConfigQueryOptions, projectsListQueryOptions } from "~/lib/query-options"
 import { buildHostPath, slugifyProjectName } from "~/lib/project-routing"
 import { formatChannelsLabel, getGatewayChannels } from "~/components/fleet/gateway/gateway-roster"
-import type { GatewayArchitecture } from "@clawlets/core/lib/clawlets-config"
+import type { GatewayArchitecture } from "@clawlets/core/lib/config/clawlets-config"
 
 type GatewayRow = {
   host: string

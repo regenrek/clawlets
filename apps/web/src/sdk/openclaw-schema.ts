@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start"
 import type { OpenclawSchemaLiveResult, OpenclawSchemaStatusResult } from "~/server/openclaw-schema.server"
 import { parseProjectHostGatewayInput, parseProjectIdInput } from "~/sdk/serverfn-validators"
-import { sanitizeErrorMessage } from "@clawlets/core/lib/safe-error"
+import { sanitizeErrorMessage } from "@clawlets/core/lib/runtime/safe-error"
 
 export const getOpenclawSchemaLive = createServerFn({ method: "POST" })
   .inputValidator(parseProjectHostGatewayInput)

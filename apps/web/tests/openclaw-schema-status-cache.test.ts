@@ -24,9 +24,9 @@ describe("openclaw schema status cache", () => {
       }),
       getRepoRoot: async (_client: unknown, projectId: string) => `/tmp/${projectId}`,
     }))
-    vi.doMock("@clawlets/core/lib/nix-openclaw-source", async () => {
-      const actual = await vi.importActual<typeof import("@clawlets/core/lib/nix-openclaw-source")>(
-        "@clawlets/core/lib/nix-openclaw-source",
+    vi.doMock("@clawlets/core/lib/nix/nix-openclaw-source", async () => {
+      const actual = await vi.importActual<typeof import("@clawlets/core/lib/nix/nix-openclaw-source")>(
+        "@clawlets/core/lib/nix/nix-openclaw-source",
       )
       return {
         ...actual,
@@ -67,9 +67,9 @@ describe("openclaw schema status cache", () => {
       }),
       getRepoRoot: async (_client: unknown, projectId: string) => `/tmp/${projectId}`,
     }))
-    vi.doMock("@clawlets/core/lib/nix-openclaw-source", async () => {
-      const actual = await vi.importActual<typeof import("@clawlets/core/lib/nix-openclaw-source")>(
-        "@clawlets/core/lib/nix-openclaw-source",
+    vi.doMock("@clawlets/core/lib/nix/nix-openclaw-source", async () => {
+      const actual = await vi.importActual<typeof import("@clawlets/core/lib/nix/nix-openclaw-source")>(
+        "@clawlets/core/lib/nix/nix-openclaw-source",
       )
       return {
         ...actual,
@@ -154,9 +154,9 @@ describe("openclaw schema status cache", () => {
         repoRoot: `/tmp/${projectId}`,
       }),
     }))
-    vi.doMock("@clawlets/core/lib/nix-openclaw-source", async () => {
-      const actual = await vi.importActual<typeof import("@clawlets/core/lib/nix-openclaw-source")>(
-        "@clawlets/core/lib/nix-openclaw-source",
+    vi.doMock("@clawlets/core/lib/nix/nix-openclaw-source", async () => {
+      const actual = await vi.importActual<typeof import("@clawlets/core/lib/nix/nix-openclaw-source")>(
+        "@clawlets/core/lib/nix/nix-openclaw-source",
       )
       return {
         ...actual,

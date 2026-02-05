@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { run, capture, captureWithInput } from "../src/lib/run";
+import { run, capture, captureWithInput } from "../src/lib/runtime/run";
 
 afterEach(() => {
   vi.restoreAllMocks();

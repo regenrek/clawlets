@@ -1,18 +1,18 @@
 import { createServerFn } from "@tanstack/react-start"
-import { applySecurityDefaults } from "@clawlets/core/lib/config-patch"
-import { applyCapabilityPreset, getChannelCapabilityPreset, type CapabilityPreset } from "@clawlets/core/lib/capability-presets"
-import { diffConfig, type ConfigDiffEntry } from "@clawlets/core/lib/config-diff"
+import { applySecurityDefaults } from "@clawlets/core/lib/config/config-patch"
+import { applyCapabilityPreset, getChannelCapabilityPreset, type CapabilityPreset } from "@clawlets/core/lib/config/capability-presets"
+import { diffConfig, type ConfigDiffEntry } from "@clawlets/core/lib/config/config-diff"
 import { validateOpenclawConfig } from "@clawlets/core/lib/openclaw/schema/validate"
 import { diffOpenclawChannelSchemasFromArtifacts } from "@clawlets/core/lib/openclaw/schema/diff"
 import { getPinnedOpenclawSchemaArtifact } from "@clawlets/core/lib/openclaw/schema/artifact"
-import { OPENCLAW_DEFAULT_COMMANDS } from "@clawlets/core/lib/openclaw-defaults"
+import { OPENCLAW_DEFAULT_COMMANDS } from "@clawlets/core/lib/openclaw/openclaw-defaults"
 import { suggestSecretNameForEnvVar } from "@clawlets/core/lib/secrets/env-vars"
 import { lintOpenclawSecurityConfig } from "@clawlets/core/lib/openclaw/security-lint"
 import {
   ClawletsConfigSchema,
   loadClawletsConfigRaw,
   writeClawletsConfig,
-} from "@clawlets/core/lib/clawlets-config"
+} from "@clawlets/core/lib/config/clawlets-config"
 
 import { api } from "../../convex/_generated/api"
 import { createConvexClient } from "~/server/convex"
@@ -26,7 +26,7 @@ import {
   parseProjectHostGatewayInput,
 } from "~/sdk/serverfn-validators"
 import { mapValidationIssues, runWithEventsAndStatus, type ValidationIssue } from "~/sdk/run-with-events"
-import { sanitizeErrorMessage } from "@clawlets/core/lib/safe-error"
+import { sanitizeErrorMessage } from "@clawlets/core/lib/runtime/safe-error"
 
 export const LIVE_SCHEMA_ERROR_FALLBACK = "Unable to fetch schema. Check logs."
 

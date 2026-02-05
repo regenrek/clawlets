@@ -5,7 +5,7 @@ import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { getRepoLayout } from "@clawlets/core/repo-layout";
 
 const loadHostContextOrExitMock = vi.fn();
-vi.mock("@clawlets/core/lib/context", () => ({
+vi.mock("@clawlets/core/lib/runtime/context", () => ({
   loadHostContextOrExit: loadHostContextOrExitMock,
 }));
 
@@ -21,7 +21,7 @@ vi.mock("../src/lib/cattle-state", () => ({
 }));
 
 const loadDeployCredsMock = vi.fn();
-vi.mock("@clawlets/core/lib/deploy-creds", () => ({
+vi.mock("@clawlets/core/lib/infra/deploy-creds", () => ({
   loadDeployCreds: loadDeployCredsMock,
 }));
 

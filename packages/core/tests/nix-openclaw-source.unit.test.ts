@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseNixOpenclawSource, fetchNixOpenclawSourceInfo } from "../src/lib/nix-openclaw-source.js";
+import { parseNixOpenclawSource, fetchNixOpenclawSourceInfo } from "../src/lib/nix/nix-openclaw-source.js";
 
 describe("parseNixOpenclawSource", () => {
   it("parses double-quoted attrs with comments", () => {

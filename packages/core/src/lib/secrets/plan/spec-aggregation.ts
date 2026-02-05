@@ -1,5 +1,5 @@
 import { ENV_VAR_HELP } from "../env-vars.js";
-import type { SecretSource, SecretSpec, SecretsPlanScopeSets } from "../../secrets-plan.js";
+import type { SecretSource, SecretSpec, SecretsPlanScopeSets } from "../secrets-plan.js";
 import { buildFleetSecretsPlanScopeSets } from "./scope-partition.js";
 import { pickPrimarySource, recordSecretSpec, type SecretSpecAccumulator } from "./spec-helpers.js";
 

@@ -20,7 +20,7 @@ vi.mock("giget", () => ({
   downloadTemplate: downloadTemplateMock,
 }));
 
-vi.mock("@clawlets/core/lib/run", () => ({
+vi.mock("@clawlets/core/lib/runtime/run", () => ({
   capture: captureMock,
   run: runMock,
 }));

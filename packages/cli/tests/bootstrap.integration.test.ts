@@ -41,9 +41,9 @@ const resolveBaseFlakeMock = vi.fn().mockResolvedValue({ flake: "" });
 const loadClawletsConfigMock = vi.fn();
 const writeClawletsConfigMock = vi.fn().mockResolvedValue(undefined);
 
-vi.mock("@clawlets/core/lib/infra", async () => {
-  const actual = await vi.importActual<typeof import("@clawlets/core/lib/infra")>(
-    "@clawlets/core/lib/infra",
+vi.mock("@clawlets/core/lib/infra/infra", async () => {
+  const actual = await vi.importActual<typeof import("@clawlets/core/lib/infra/infra")>(
+    "@clawlets/core/lib/infra/infra",
   );
   return {
     ...actual,
@@ -51,18 +51,18 @@ vi.mock("@clawlets/core/lib/infra", async () => {
   };
 });
 
-vi.mock("@clawlets/core/lib/git", () => ({
+vi.mock("@clawlets/core/lib/vcs/git", () => ({
   resolveGitRev: resolveGitRevMock,
 }));
 
-vi.mock("@clawlets/core/lib/run", () => ({
+vi.mock("@clawlets/core/lib/runtime/run", () => ({
   run: runMock,
   capture: captureMock,
 }));
 
-vi.mock("@clawlets/core/lib/ssh-remote", async () => {
-  const actual = await vi.importActual<typeof import("@clawlets/core/lib/ssh-remote")>(
-    "@clawlets/core/lib/ssh-remote",
+vi.mock("@clawlets/core/lib/security/ssh-remote", async () => {
+  const actual = await vi.importActual<typeof import("@clawlets/core/lib/security/ssh-remote")>(
+    "@clawlets/core/lib/security/ssh-remote",
   );
   return {
     ...actual,
@@ -70,38 +70,38 @@ vi.mock("@clawlets/core/lib/ssh-remote", async () => {
   };
 });
 
-vi.mock("@clawlets/core/lib/github", () => ({
+vi.mock("@clawlets/core/lib/vcs/github", () => ({
   checkGithubRepoVisibility: checkGithubRepoVisibilityMock,
   tryParseGithubFlakeUri: tryParseGithubFlakeUriMock,
 }));
 
-vi.mock("@clawlets/core/lib/deploy-creds", () => ({
+vi.mock("@clawlets/core/lib/infra/deploy-creds", () => ({
   loadDeployCreds: loadDeployCredsMock,
 }));
 
-vi.mock("@clawlets/core/lib/path-expand", () => ({
+vi.mock("@clawlets/core/lib/storage/path-expand", () => ({
   expandPath: expandPathMock,
 }));
 
-vi.mock("@clawlets/core/lib/repo", () => ({
+vi.mock("@clawlets/core/lib/project/repo", () => ({
   findRepoRoot: findRepoRootMock,
 }));
 
-vi.mock("@clawlets/core/lib/fleet-nix-eval", () => ({
+vi.mock("@clawlets/core/lib/nix/fleet-nix-eval", () => ({
   evalFleetConfig: evalFleetConfigMock,
 }));
 
-vi.mock("@clawlets/core/lib/nix-flakes", () => ({
+vi.mock("@clawlets/core/lib/nix/nix-flakes", () => ({
   withFlakesEnv: withFlakesEnvMock,
 }));
 
-vi.mock("@clawlets/core/lib/base-flake", () => ({
+vi.mock("@clawlets/core/lib/nix/base-flake", () => ({
   resolveBaseFlake: resolveBaseFlakeMock,
 }));
 
-vi.mock("@clawlets/core/lib/clawlets-config", async () => {
-  const actual = await vi.importActual<typeof import("@clawlets/core/lib/clawlets-config")>(
-    "@clawlets/core/lib/clawlets-config",
+vi.mock("@clawlets/core/lib/config/clawlets-config", async () => {
+  const actual = await vi.importActual<typeof import("@clawlets/core/lib/config/clawlets-config")>(
+    "@clawlets/core/lib/config/clawlets-config",
   );
   return {
     ...actual,

@@ -2,7 +2,7 @@ import path from "node:path";
 import process from "node:process";
 import { defineCommand } from "citty";
 import * as p from "@clack/prompts";
-import { initProject, planProjectInit } from "@clawlets/core/lib/project-init";
+import { initProject, planProjectInit } from "@clawlets/core/lib/project/project-init";
 import { assertSafeHostName } from "@clawlets/shared/lib/identifiers";
 import { resolveTemplateSpec } from "../../lib/template-spec.js";
 import { cancelFlow, navOnCancel, NAV_EXIT } from "../../lib/wizard.js";
