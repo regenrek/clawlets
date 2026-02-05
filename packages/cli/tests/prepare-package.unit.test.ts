@@ -46,7 +46,10 @@ describe("prepare-package guardrails", () => {
 
       expect(fs.existsSync(path.join(tmpOut, "node_modules"))).toBe(false);
       expect(fs.existsSync(path.join(tmpOut, "vendor"))).toBe(false);
-      expect(fs.existsSync(path.join(tmpOut, "dist", "assets", "opentofu", "main.tf"))).toBe(true);
+      expect(fs.existsSync(path.join(tmpOut, "dist", "assets", "opentofu", "providers", "hetzner", "main.tf"))).toBe(
+        true,
+      );
+      expect(fs.existsSync(path.join(tmpOut, "dist", "assets", "opentofu", "providers", "aws", "main.tf"))).toBe(true);
 
       for (const [name, spec] of Object.entries(outPkg.dependencies || {})) {
         expect(String(name)).not.toMatch(/^@clawlets\//);

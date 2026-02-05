@@ -112,7 +112,7 @@ const CHANNEL_PRESET_OVERRIDES: Record<string, Partial<CapabilityPreset>> = {
       // materialize the channel config so security defaults can be applied.
       channels: { whatsapp: {} },
     },
-    warnings: ["WhatsApp requires stateful login on the gateway host (clawdbot channels login)."],
+    warnings: ["WhatsApp requires stateful login on the gateway host (openclaw channels login)."],
   },
 };
 

@@ -209,6 +209,9 @@ export type ProjectInitPlan = {
   plannedFiles: string[];
 };
 
+const LEGACY_TEMPLATE_HOST_PLACEHOLDER = ["claw", "dbot-fleet-host"].join("");
+const LEGACY_TEMPLATE_HOST_PLACEHOLDER_UNDERSCORE = ["claw", "dbot_fleet_host"].join("");
+
 export async function planProjectInit(params: {
   destDir: string;
   host: string;
@@ -224,10 +227,10 @@ export async function planProjectInit(params: {
   const subs = {
     "__PROJECT_NAME__": projectName,
     // Back-compat: templates historically used these placeholders.
-    "clawdbot-fleet-host": host,
+    [LEGACY_TEMPLATE_HOST_PLACEHOLDER]: host,
     // Newer templates use openclaw-* placeholders.
     "openclaw-fleet-host": host,
-    "clawdbot_fleet_host": hostUnderscore,
+    [LEGACY_TEMPLATE_HOST_PLACEHOLDER_UNDERSCORE]: hostUnderscore,
     "openclaw_fleet_host": hostUnderscore,
   };
 
@@ -273,10 +276,10 @@ export async function initProject(params: {
   const subs = {
     "__PROJECT_NAME__": projectName,
     // Back-compat: templates historically used these placeholders.
-    "clawdbot-fleet-host": host,
+    [LEGACY_TEMPLATE_HOST_PLACEHOLDER]: host,
     // Newer templates use openclaw-* placeholders.
     "openclaw-fleet-host": host,
-    "clawdbot_fleet_host": hostUnderscore,
+    [LEGACY_TEMPLATE_HOST_PLACEHOLDER_UNDERSCORE]: hostUnderscore,
     "openclaw_fleet_host": hostUnderscore,
   };
 

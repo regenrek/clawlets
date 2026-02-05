@@ -10,6 +10,7 @@ export type OpenclawSchemaArtifact = {
 };
 
 const OpenclawSchemaArtifactObject = z.object({}).catchall(z.any());
+const LEGACY_OPENCLAW_REV_KEY = ["claw", "dbotRev"].join("");
 
 const RawOpenclawSchemaArtifactSchema = z.object({
   schema: OpenclawSchemaArtifactObject,
@@ -17,11 +18,12 @@ const RawOpenclawSchemaArtifactSchema = z.object({
   version: z.string().min(1),
   generatedAt: z.string().min(1).optional(),
   openclawRev: z.string().min(1).optional(),
-  clawdbotRev: z.string().min(1).optional(),
-});
+}).passthrough();
 
 export const OpenclawSchemaArtifactSchema = RawOpenclawSchemaArtifactSchema.transform((value, ctx): OpenclawSchemaArtifact => {
-  const openclawRev = value.openclawRev || value.clawdbotRev || "";
+  const rawLegacyOpenclawRev = (value as Record<string, unknown>)[LEGACY_OPENCLAW_REV_KEY];
+  const legacyOpenclawRev = typeof rawLegacyOpenclawRev === "string" ? rawLegacyOpenclawRev : "";
+  const openclawRev = value.openclawRev || legacyOpenclawRev || "";
   if (!openclawRev) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,

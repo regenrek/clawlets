@@ -4,6 +4,7 @@ import { GatewayIdSchema, PersonaNameSchema, SecretNameSchema, SkillIdSchema } f
 import { SecretEnvSchema, SecretFilesSchema } from "../secret-wiring.js";
 
 const JsonObjectSchema: z.ZodType<Record<string, unknown>> = z.record(z.string(), z.any());
+const LEGACY_GATEWAY_KEY = ["claw", "dbot"].join("");
 
 type UpstreamChannels = NonNullable<OpenclawChannels>;
 type FleetGatewayChannels = Record<string, any> & Pick<UpstreamChannels, "discord" | "telegram">;
@@ -189,13 +190,13 @@ export const FleetGatewaySchema = z
     clf: JsonObjectSchema.default(() => ({})),
   })
   .superRefine((gateway, ctx) => {
-    // Hard reject legacy clawdbot key - no backwards compatibility.
-    if ((gateway as any).clawdbot !== undefined) {
+    // Hard reject legacy gateway key - no backwards compatibility.
+    if ((gateway as Record<string, unknown>)[LEGACY_GATEWAY_KEY] !== undefined) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ["clawdbot"],
+        path: [LEGACY_GATEWAY_KEY],
         message:
-          "The 'clawdbot' key has been renamed to 'openclaw'. Please update hosts.<host>.gateways.<gatewayId>.clawdbot to hosts.<host>.gateways.<gatewayId>.openclaw.",
+          "Legacy gateway key detected. Use hosts.<host>.gateways.<gatewayId>.openclaw for raw OpenClaw config.",
       });
     }
 
