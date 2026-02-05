@@ -8,7 +8,6 @@ import { capture, run } from "@clawlets/core/lib/run";
 import { sshCapture } from "@clawlets/core/lib/ssh-remote";
 import { checkGithubRepoVisibility, tryParseGithubFlakeUri } from "@clawlets/core/lib/github";
 import { loadDeployCreds } from "@clawlets/core/lib/deploy-creds";
-import { expandPath } from "@clawlets/core/lib/path-expand";
 import { findRepoRoot } from "@clawlets/core/lib/repo";
 import { buildFleetSecretsPlan } from "@clawlets/core/lib/fleet-secrets-plan";
 import { withFlakesEnv } from "@clawlets/core/lib/nix-flakes";
@@ -18,6 +17,7 @@ import { getHostExtraFilesDir, getHostExtraFilesKeyPath, getHostExtraFilesSecret
 import { requireDeployGate } from "../lib/deploy-gate.js";
 import { resolveHostNameOrExit } from "@clawlets/core/lib/host-resolve";
 import { extractFirstIpv4, isTailscaleIpv4, normalizeSingleLineOutput } from "@clawlets/core/lib/host-connectivity";
+import { resolveProvisioningSshPubkeyFile } from "../lib/provisioning-ssh-pubkey-file.js";
 
 async function sleep(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
@@ -173,11 +173,12 @@ export const bootstrap = defineCommand({
 	    const adminCidr = String(hostCfg.provisioning.adminCidr || "").trim();
 	    if (!adminCidr) throw new Error(`missing provisioning.adminCidr for ${hostName} (set via: clawlets host set --admin-cidr ...)`);
 
-	    const sshPubkeyFileRaw = String(hostCfg.provisioning.sshPubkeyFile || "").trim();
-	    if (!sshPubkeyFileRaw) throw new Error(`missing provisioning.sshPubkeyFile for ${hostName} (set via: clawlets host set --ssh-pubkey-file ...)`);
-	    const sshPubkeyFileExpanded = expandPath(sshPubkeyFileRaw);
-	    const sshPubkeyFile = path.isAbsolute(sshPubkeyFileExpanded) ? sshPubkeyFileExpanded : path.resolve(repoRoot, sshPubkeyFileExpanded);
-	    if (!fs.existsSync(sshPubkeyFile)) throw new Error(`ssh pubkey file not found: ${sshPubkeyFile}`);
+	    const { sshPubkeyFile } = resolveProvisioningSshPubkeyFile({
+        repoRoot,
+        layout,
+        config: clawletsConfig,
+        hostName,
+      });
 
 	    if (sshExposureMode === "tailnet") {
 	      throw new Error(`sshExposure.mode=tailnet; bootstrap requires public SSH. Set: clawlets host set --host ${hostName} --ssh-exposure bootstrap`);
