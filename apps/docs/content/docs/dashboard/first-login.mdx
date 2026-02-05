@@ -30,9 +30,19 @@ The Setup flow mirrors the canonical config and helps you avoid missing required
 values before you bootstrap a host:
 
 - Fleet basics (gateway list, ordering)
-- Host config (disk device, SSH exposure, tailnet)
+- Host Day 0 config (provider, disk device, SSH exposure, tailnet)
 - Secrets wiring (env mappings + missing secrets)
+
+Provider should be selected before provider-specific fields:
+
+- `hosts.<host>.provisioning.provider = "hetzner" | "aws"`
+- then fill the matching subtree (`hosts.<host>.hetzner.*` or `hosts.<host>.aws.*`)
 
 Once the checklist is green you are ready to bootstrap and update via the CLI
 (`bootstrap`, `server update apply`, `lockdown`). The dashboard keeps the config
 consistent while those operations run from your workstation.
+
+Lifecycle split:
+
+- Day 0 infra: provider bootstrap and host access (`bootstrap`, `infra`, `lockdown`)
+- Day X OpenClaw: gateway config, channels, skills, and policy hardening

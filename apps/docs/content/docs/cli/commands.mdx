@@ -27,7 +27,8 @@ operations, and lockdown.
 
 ### `clawlets bootstrap`
 
-Provision Hetzner + install NixOS.
+Provision through the selected provider driver, then install NixOS.
+Current implementation supports `provisioning.provider=hetzner`.
 
 Key flags:
 
@@ -120,11 +121,11 @@ Subcommands:
 
 ## Infrastructure
 
-Infrastructure commands wrap OpenTofu and image workflows for Hetzner.
+Infrastructure commands wrap provider drivers and OpenTofu/image workflows.
 
 ### `clawlets infra`
 
-Hetzner OpenTofu operations.
+Provider-driver infrastructure operations (`apply`/`destroy`).
 
 Subcommands:
 

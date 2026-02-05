@@ -46,6 +46,7 @@ function HostsSetup() {
   const [enable, setEnable] = useState(false)
   const [diskDevice, setDiskDevice] = useState("/dev/sda")
   const [targetHost, setTargetHost] = useState("")
+  const [provider, setProvider] = useState<"hetzner" | "aws">("hetzner")
   const [adminCidr, setAdminCidr] = useState("")
   const [sshPubkeyFile, setSshPubkeyFile] = useState("")
   const [sshExposure, setSshExposure] = useState<"tailnet" | "bootstrap" | "public">("bootstrap")
@@ -53,6 +54,11 @@ function HostsSetup() {
   const [serverType, setServerType] = useState("cx43")
   const [hetznerImage, setHetznerImage] = useState("")
   const [hetznerLocation, setHetznerLocation] = useState("nbg1")
+  const [awsRegion, setAwsRegion] = useState("us-east-1")
+  const [awsInstanceType, setAwsInstanceType] = useState("t3.large")
+  const [awsVpcId, setAwsVpcId] = useState("")
+  const [awsSubnetId, setAwsSubnetId] = useState("")
+  const [awsUseDefaultVpc, setAwsUseDefaultVpc] = useState(true)
   const [flakeHost, setFlakeHost] = useState("")
   const [agentModelPrimary, setAgentModelPrimary] = useState("")
   const [hostThemeEmoji, setHostThemeEmoji] = useState("🖥️")
@@ -104,6 +110,7 @@ function HostsSetup() {
     setEnable(Boolean(hostCfg.enable))
     setDiskDevice(hostCfg.diskDevice || "/dev/sda")
     setTargetHost(hostCfg.targetHost || "")
+    setProvider((hostCfg.provisioning?.provider as "hetzner" | "aws") || "hetzner")
     setAdminCidr(hostCfg.provisioning?.adminCidr || "")
     setSshPubkeyFile(hostCfg.provisioning?.sshPubkeyFile || "")
     setSshExposure((hostCfg.sshExposure?.mode as any) || "bootstrap")
@@ -111,6 +118,11 @@ function HostsSetup() {
     setServerType(hostCfg.hetzner?.serverType || "cx43")
     setHetznerImage(hostCfg.hetzner?.image || "")
     setHetznerLocation(hostCfg.hetzner?.location || "nbg1")
+    setAwsRegion(hostCfg.aws?.region || "us-east-1")
+    setAwsInstanceType(hostCfg.aws?.instanceType || "t3.large")
+    setAwsVpcId(hostCfg.aws?.vpcId || "")
+    setAwsSubnetId(hostCfg.aws?.subnetId || "")
+    setAwsUseDefaultVpc(Boolean(hostCfg.aws?.useDefaultVpc))
     setFlakeHost(hostCfg.flakeHost || "")
     setAgentModelPrimary((hostCfg as any).agentModelPrimary || "")
     const theme = normalizeHostTheme((hostCfg as any).theme)
@@ -149,6 +161,7 @@ function HostsSetup() {
             theme: normalizedTheme,
             provisioning: {
               ...hostCfg.provisioning,
+              provider,
               adminCidr: adminCidr.trim(),
               sshPubkeyFile: sshPubkeyFileTrimmed,
             },
@@ -159,6 +172,14 @@ function HostsSetup() {
               serverType: serverType.trim(),
               image: hetznerImage.trim(),
               location: hetznerLocation.trim(),
+            },
+            aws: {
+              ...hostCfg.aws,
+              region: awsRegion.trim(),
+              instanceType: awsInstanceType.trim(),
+              vpcId: awsVpcId.trim(),
+              subnetId: awsSubnetId.trim(),
+              useDefaultVpc: Boolean(awsUseDefaultVpc),
             },
             agentModelPrimary: agentModelPrimary.trim(),
             selfUpdate: {
@@ -267,6 +288,29 @@ function HostsSetup() {
           </SettingsSection>
 
           <SettingsSection
+            title="Infrastructure Provider"
+            description="Choose provider first, then fill provider-specific fields."
+            statusText="Day 0 infrastructure lifecycle"
+            actions={<Button disabled={save.isPending} onClick={() => save.mutate()}>Save</Button>}
+          >
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <LabelWithHelp htmlFor="provider" help={setupFieldHelp.hosts.provider}>
+                  Provider
+                </LabelWithHelp>
+                <NativeSelect id="provider" value={provider} onChange={(e) => setProvider(e.target.value as "hetzner" | "aws")}>
+                  <NativeSelectOption value="hetzner">hetzner</NativeSelectOption>
+                  <NativeSelectOption value="aws">aws</NativeSelectOption>
+                </NativeSelect>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                Day 0 includes <code>bootstrap</code>/<code>infra</code>/<code>lockdown</code>.
+                OpenClaw gateway config remains Day X and is provider-neutral.
+              </div>
+            </div>
+          </SettingsSection>
+
+          <SettingsSection
             title="Connection"
             description="SSH target and admin access settings."
             statusText="Used for provisioning access."
@@ -357,32 +401,71 @@ function HostsSetup() {
             </div>
           </SettingsSection>
 
-          <SettingsSection
-            title="Hetzner Cloud"
-            description="Cloud provider configuration for this host."
-            actions={<Button disabled={save.isPending} onClick={() => save.mutate()}>Save</Button>}
-          >
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <LabelWithHelp htmlFor="serverType" help={setupFieldHelp.hosts.hetznerServerType}>
-                  Server type
-                </LabelWithHelp>
-                <Input id="serverType" value={serverType} onChange={(e) => setServerType(e.target.value)} />
+          {provider === "hetzner" ? (
+            <SettingsSection
+              title="Hetzner Cloud"
+              description="Provider-specific settings for Hetzner hosts."
+              actions={<Button disabled={save.isPending} onClick={() => save.mutate()}>Save</Button>}
+            >
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <LabelWithHelp htmlFor="serverType" help={setupFieldHelp.hosts.hetznerServerType}>
+                    Server type
+                  </LabelWithHelp>
+                  <Input id="serverType" value={serverType} onChange={(e) => setServerType(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <LabelWithHelp htmlFor="location" help={setupFieldHelp.hosts.hetznerLocation}>
+                    Location
+                  </LabelWithHelp>
+                  <Input id="location" value={hetznerLocation} onChange={(e) => setHetznerLocation(e.target.value)} />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <LabelWithHelp htmlFor="image" help={setupFieldHelp.hosts.hetznerImage}>
+                    Image
+                  </LabelWithHelp>
+                  <Input id="image" value={hetznerImage} onChange={(e) => setHetznerImage(e.target.value)} />
+                </div>
               </div>
-              <div className="space-y-2">
-                <LabelWithHelp htmlFor="location" help={setupFieldHelp.hosts.hetznerLocation}>
-                  Location
-                </LabelWithHelp>
-                <Input id="location" value={hetznerLocation} onChange={(e) => setHetznerLocation(e.target.value)} />
+            </SettingsSection>
+          ) : (
+            <SettingsSection
+              title="AWS"
+              description="Provider-specific settings for AWS hosts."
+              actions={<Button disabled={save.isPending} onClick={() => save.mutate()}>Save</Button>}
+            >
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <LabelWithHelp htmlFor="awsRegion" help={setupFieldHelp.hosts.awsRegion}>
+                    Region
+                  </LabelWithHelp>
+                  <Input id="awsRegion" value={awsRegion} onChange={(e) => setAwsRegion(e.target.value)} placeholder="us-east-1" />
+                </div>
+                <div className="space-y-2">
+                  <LabelWithHelp htmlFor="awsInstanceType" help={setupFieldHelp.hosts.awsInstanceType}>
+                    Instance type
+                  </LabelWithHelp>
+                  <Input id="awsInstanceType" value={awsInstanceType} onChange={(e) => setAwsInstanceType(e.target.value)} placeholder="t3.large" />
+                </div>
+                <div className="space-y-2">
+                  <LabelWithHelp htmlFor="awsVpcId" help={setupFieldHelp.hosts.awsVpcId}>
+                    VPC ID
+                  </LabelWithHelp>
+                  <Input id="awsVpcId" value={awsVpcId} onChange={(e) => setAwsVpcId(e.target.value)} placeholder="vpc-..." />
+                </div>
+                <div className="space-y-2">
+                  <LabelWithHelp htmlFor="awsSubnetId" help={setupFieldHelp.hosts.awsSubnetId}>
+                    Subnet ID
+                  </LabelWithHelp>
+                  <Input id="awsSubnetId" value={awsSubnetId} onChange={(e) => setAwsSubnetId(e.target.value)} placeholder="subnet-..." />
+                </div>
+                <div className="flex items-center gap-3 md:col-span-2">
+                  <Switch checked={awsUseDefaultVpc} onCheckedChange={setAwsUseDefaultVpc} />
+                  <div className="text-sm text-muted-foreground">{setupFieldHelp.hosts.awsUseDefaultVpc}</div>
+                </div>
               </div>
-              <div className="space-y-2 md:col-span-2">
-                <LabelWithHelp htmlFor="image" help={setupFieldHelp.hosts.hetznerImage}>
-                  Image
-                </LabelWithHelp>
-                <Input id="image" value={hetznerImage} onChange={(e) => setHetznerImage(e.target.value)} />
-              </div>
-            </div>
-          </SettingsSection>
+            </SettingsSection>
+          )}
 
           <SettingsSection
             title="NixOS Configuration"
