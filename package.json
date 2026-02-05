@@ -14,6 +14,7 @@
     "test:integration": "pnpm -r --if-present test:integration",
     "test:nix": "pnpm -r --if-present test:nix",
     "test:layers": "pnpm test:unit && pnpm test:contract && pnpm test:integration && pnpm test:nix",
+    "check:boundaries": "node scripts/check-boundaries.mjs",
     "gate": "pnpm -r build && pnpm -r typecheck && pnpm -C packages/cli test && pnpm -C packages/core run coverage",
     "template:smoke": "node scripts/template-smoke.mjs",
     "clawlets:build": "pnpm -C packages/cli build",
