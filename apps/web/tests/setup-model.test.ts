@@ -31,10 +31,10 @@ describe("deriveSetupModel", () => {
 
     const connectionConfig = {
       ...baseConfig,
+      fleet: { sshAuthorizedKeys: ["ssh-ed25519 AAAATEST test"] },
       hosts: {
         h1: {
-          targetHost: "admin@203.0.113.10",
-          provisioning: { adminCidr: "203.0.113.10/32", sshPubkeyFile: "~/.ssh/id_ed25519.pub" },
+          provisioning: { adminCidr: "203.0.113.10/32" },
         },
       },
     }

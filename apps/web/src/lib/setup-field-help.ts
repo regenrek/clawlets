@@ -1,13 +1,14 @@
 export const setupFieldHelp = {
   hosts: {
-    defaultHost: "Default host used by doctor/deploy when you leave host unset.",
+    defaultHost: "Default host used by doctor/bootstrap/updates when you leave host unset.",
     editHost: "Select which host config you’re editing under `hosts.<host>`.",
     addHost: "Adds a new host entry under `hosts.<host>` (config only; no infra created yet).",
     enabled: "Toggles whether this host is managed by clawlets.",
     diskDevice: "Block device to install NixOS onto (usually `/dev/sda` on Hetzner). Must start with `/dev/`.",
     targetHost: "SSH destination used for deploy/ops + live schema. Optional until you run server ops; set in Hosts → Settings → Target host (ssh alias or `user@host`).",
     adminCidr: "CIDR allowed to reach admin SSH during bootstrap (recommend your current IP `/32`). Use Detect to autofill from your public IP.",
-    sshPubkeyFile: "Local path to an SSH public key file used during provisioning (Hetzner). The dashboard can’t read your filesystem; the CLI will validate it when you run bootstrap/infra.",
+    sshPubkeyFile:
+      "Local path to your SSH public key file (used during provisioning). Typical: `~/.ssh/id_ed25519.pub`. If you don’t have one, generate it: `ssh-keygen -t ed25519 -a 100 -f ~/.ssh/id_ed25519`.",
     sshExposure: "How SSH is exposed: `bootstrap` (temporary), `tailnet` (recommended), or `public` (risky).",
     tailnet: "Tailnet integration mode. `tailscale` enables Tailscale-based access; `none` disables it.",
     hetznerServerType: "Hetzner server type (e.g. `cx43`). Used by provisioning.",
@@ -21,7 +22,8 @@ export const setupFieldHelp = {
     cacheNetrcSecretName: "Sops secret name containing the netrc file contents (written to cache.netrc.path on the host).",
     cacheNetrcPath: "Filesystem path for netrc-file on the host (default: /etc/nix/netrc).",
     cacheNarinfoCachePositiveTtl: "narinfo-cache-positive-ttl (seconds). Private caches with presigned narinfo URLs (e.g. private Garnix) require this to avoid stale positive cache entries.",
-    sshKeyPaste: "Paste one or more public keys to append to `fleet.sshAuthorizedKeys` (shared across all hosts).",
+    sshKeyPaste:
+      "Paste one or more public keys to append to `fleet.sshAuthorizedKeys` (shared across all hosts). Generate a key: https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent",
     sshKeyFile: "Read a local `.pub` file and append it to `fleet.sshAuthorizedKeys`.",
     knownHostsFile: "Optionally import entries from your local `known_hosts` into `fleet.sshKnownHosts`.",
   },
@@ -34,8 +36,8 @@ export const setupFieldHelp = {
     dotValue: "Value to set as a string (use JSON value if you need objects/arrays/bools/numbers).",
     dotValueJson: "Value to set as JSON (e.g. `true`, `123`, `{...}`, `[...]`).",
   },
-  gateways: {
-    gatewayId: "Stable gateway identifier (used in ports/services and config keys). Must match existing fleet conventions.",
+  bots: {
+    botId: "Stable bot identifier (used in ports/services and config keys). Must match existing fleet conventions.",
   },
   secrets: {
     host: "Host whose encrypted secrets you’re initializing/verifying/syncing.",

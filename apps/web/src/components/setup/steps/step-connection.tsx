@@ -1,91 +1,94 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import { toast } from "sonner"
 import type { Id } from "../../../../convex/_generated/dataModel"
 import { Button } from "~/components/ui/button"
-import { Input } from "~/components/ui/input"
+import { AdminCidrField } from "~/components/hosts/admin-cidr-field"
 import { LabelWithHelp } from "~/components/ui/label-help"
-import { NativeSelect, NativeSelectOption } from "~/components/ui/native-select"
+import { Textarea } from "~/components/ui/textarea"
 import { setupFieldHelp } from "~/lib/setup-field-help"
-import { looksLikeSshPrivateKeyText, looksLikeSshPublicKeyText } from "~/lib/form-utils"
-import { singleHostCidrFromIp } from "~/lib/ip-utils"
-import { configDotBatch } from "~/sdk/config"
+import { addProjectSshKeys, configDotBatch } from "~/sdk/config"
+import type { SetupStepStatus } from "~/lib/setup/setup-model"
 
 export function SetupStepConnection(props: {
   projectId: Id<"projects">
   config: any | null
   host: string
+  stepStatus: SetupStepStatus
+  onContinue: () => void
+}) {
+  const hostCfg = props.config?.hosts?.[props.host] || null
+  const fleetSshKeys = Array.isArray(props.config?.fleet?.sshAuthorizedKeys)
+    ? (props.config?.fleet?.sshAuthorizedKeys as string[])
+    : []
+  if (!hostCfg) {
+    return <div className="text-sm text-muted-foreground">Loading…</div>
+  }
+  return (
+    <SetupStepConnectionForm
+      key={props.host}
+      projectId={props.projectId}
+      host={props.host}
+      hostCfg={hostCfg}
+      fleetSshKeys={fleetSshKeys}
+      stepStatus={props.stepStatus}
+      onContinue={props.onContinue}
+    />
+  )
+}
+
+function SetupStepConnectionForm(props: {
+  projectId: Id<"projects">
+  host: string
+  hostCfg: any
+  fleetSshKeys: string[]
+  stepStatus: SetupStepStatus
   onContinue: () => void
 }) {
   const queryClient = useQueryClient()
-  const hostCfg = props.config?.hosts?.[props.host] || null
 
-  const [targetHost, setTargetHost] = useState("")
-  const [adminCidr, setAdminCidr] = useState("")
-  const [sshPubkeyFile, setSshPubkeyFile] = useState("")
-  const [sshExposure, setSshExposure] = useState<"tailnet" | "bootstrap" | "public">("bootstrap")
-
-  const [detectingAdminCidr, setDetectingAdminCidr] = useState(false)
-
-  useEffect(() => {
-    setTargetHost(String(hostCfg?.targetHost || ""))
-    setAdminCidr(String(hostCfg?.provisioning?.adminCidr || ""))
-    setSshPubkeyFile(String(hostCfg?.provisioning?.sshPubkeyFile || ""))
-    setSshExposure((hostCfg?.sshExposure?.mode as any) || "bootstrap")
-  }, [hostCfg, props.host])
-
-  async function detectAdminCidr() {
-    setDetectingAdminCidr(true)
-    const ctrl = new AbortController()
-    const timeout = setTimeout(() => ctrl.abort(), 6000)
-    try {
-      const res = await fetch("https://api.ipify.org?format=json", { signal: ctrl.signal })
-      if (!res.ok) throw new Error(`ip lookup failed (${res.status})`)
-      const json = (await res.json()) as { ip?: unknown }
-      const ip = typeof json.ip === "string" ? json.ip : ""
-      const cidr = singleHostCidrFromIp(ip)
-      setAdminCidr(cidr)
-      toast.success(`Admin CIDR set to ${cidr}`)
-    } catch (err) {
-      const msg =
-        err instanceof DOMException && err.name === "AbortError"
-          ? "timed out"
-          : err instanceof Error
-            ? err.message
-            : String(err)
-      toast.error(`Admin CIDR detect failed: ${msg}`)
-    } finally {
-      clearTimeout(timeout)
-      setDetectingAdminCidr(false)
-    }
-  }
+  const [adminCidr, setAdminCidr] = useState(() => String(props.hostCfg?.provisioning?.adminCidr || ""))
+  const [keyText, setKeyText] = useState("")
 
   const canSave = useMemo(() => {
     if (!props.host.trim()) return false
-    if (!targetHost.trim()) return false
     if (!adminCidr.trim()) return false
-    if (!sshPubkeyFile.trim()) return false
+    if (props.fleetSshKeys.length === 0 && !keyText.trim()) return false
     return true
-  }, [adminCidr, props.host, sshPubkeyFile, targetHost])
+  }, [adminCidr, keyText, props.fleetSshKeys.length, props.host])
 
   const save = useMutation({
     mutationFn: async () => {
       if (!props.host.trim()) throw new Error("missing host")
-      const sshTrimmed = sshPubkeyFile.trim()
-      if (looksLikeSshPrivateKeyText(sshTrimmed) || looksLikeSshPublicKeyText(sshTrimmed)) {
-        throw new Error("SSH pubkey file must be a local file path (not key contents).")
+      if (props.fleetSshKeys.length === 0 && !keyText.trim()) {
+        throw new Error("Add at least one SSH public key to continue.")
+      }
+      if (keyText.trim()) {
+        const res = await addProjectSshKeys({
+          data: {
+            projectId: props.projectId,
+            keyText,
+            knownHostsText: "",
+          },
+        })
+        if (!res.ok) {
+          throw new Error("Failed to save SSH keys.")
+        }
       }
       const ops = [
-        { path: `hosts.${props.host}.targetHost`, value: targetHost.trim() },
         { path: `hosts.${props.host}.provisioning.adminCidr`, value: adminCidr.trim() },
-        { path: `hosts.${props.host}.provisioning.sshPubkeyFile`, value: sshTrimmed },
-        { path: `hosts.${props.host}.sshExposure.mode`, value: sshExposure },
+        // Day-0 bootstrap requires public SSH. We set this automatically during setup,
+        // but avoid overwriting once the step is already marked done.
+        ...(props.stepStatus === "done"
+          ? []
+          : [{ path: `hosts.${props.host}.sshExposure.mode`, value: "bootstrap" }]),
       ]
       return await configDotBatch({ data: { projectId: props.projectId, ops } })
     },
     onSuccess: (res: any) => {
       if (res.ok) {
         toast.success("Saved")
+        setKeyText("")
         void queryClient.invalidateQueries({ queryKey: ["clawletsConfig", props.projectId] })
         props.onContinue()
         return
@@ -100,93 +103,48 @@ export function SetupStepConnection(props: {
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="space-y-4">
+        <AdminCidrField
+          id="setup-admin-cidr"
+          label="Allowed admin IP (CIDR)"
+          help={setupFieldHelp.hosts.adminCidr}
+          value={adminCidr}
+          onValueChange={setAdminCidr}
+          autoDetectIfEmpty
+          description="Who can SSH during bootstrap/provisioning (usually your current IP with /32)."
+        />
+
         <div className="space-y-2">
-          <LabelWithHelp htmlFor="setup-target-host" help={setupFieldHelp.hosts.targetHost}>
-            targetHost
+          <LabelWithHelp htmlFor="setup-ssh-key-text" help={setupFieldHelp.hosts.sshKeyPaste}>
+            SSH public key (required)
           </LabelWithHelp>
-          <Input
-            id="setup-target-host"
-            value={targetHost}
-            onChange={(e) => setTargetHost(e.target.value)}
-            placeholder="admin@203.0.113.10"
+          <Textarea
+            id="setup-ssh-key-text"
+            value={keyText}
+            onChange={(e) => setKeyText(e.target.value)}
+            className="font-mono min-h-[90px]"
+            placeholder="ssh-ed25519 AAAA... user@host"
           />
-          <div className="text-xs text-muted-foreground">
-            SSH destination used by bootstrap and server ops.
-          </div>
-        </div>
 
-        <div className="space-y-2">
-          <LabelWithHelp htmlFor="setup-admin-cidr" help={setupFieldHelp.hosts.adminCidr}>
-            provisioning.adminCidr
-          </LabelWithHelp>
-          <div className="flex items-center gap-2">
-            <Input
-              id="setup-admin-cidr"
-              value={adminCidr}
-              onChange={(e) => setAdminCidr(e.target.value)}
-              placeholder="203.0.113.10/32"
-            />
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={detectingAdminCidr}
-              onClick={() => void detectAdminCidr()}
-            >
-              {detectingAdminCidr ? "Detecting…" : "Detect"}
-            </Button>
-          </div>
-          <div className="text-xs text-muted-foreground">
-            Controls which operator IPs are allowed during provisioning.
-          </div>
-        </div>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-2">
-          <LabelWithHelp htmlFor="setup-ssh-exposure" help={setupFieldHelp.hosts.sshExposure}>
-            sshExposure.mode
-          </LabelWithHelp>
-          <NativeSelect
-            id="setup-ssh-exposure"
-            value={sshExposure}
-            onChange={(e) => setSshExposure(e.target.value as any)}
-          >
-            <NativeSelectOption value="tailnet">tailnet</NativeSelectOption>
-            <NativeSelectOption value="bootstrap">bootstrap</NativeSelectOption>
-            <NativeSelectOption value="public">public</NativeSelectOption>
-          </NativeSelect>
-        </div>
-
-        <div className="space-y-2">
-          <LabelWithHelp htmlFor="setup-ssh-pubkey-file" help={setupFieldHelp.hosts.sshPubkeyFile}>
-            provisioning.sshPubkeyFile
-          </LabelWithHelp>
-          <Input
-            id="setup-ssh-pubkey-file"
-            value={sshPubkeyFile}
-            onChange={(e) => setSshPubkeyFile(e.target.value)}
-            placeholder="~/.ssh/id_ed25519.pub"
-          />
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              size="xs"
-              variant="secondary"
-              onClick={() => setSshPubkeyFile("~/.ssh/id_ed25519.pub")}
-            >
-              Use ~/.ssh/id_ed25519.pub
-            </Button>
-            <Button
-              type="button"
-              size="xs"
-              variant="secondary"
-              onClick={() => setSshPubkeyFile("~/.ssh/id_rsa.pub")}
-            >
-              Use ~/.ssh/id_rsa.pub
-            </Button>
-          </div>
+          {props.fleetSshKeys.length > 0 ? (
+            <div className="text-xs text-muted-foreground">
+              Already configured: <strong>{props.fleetSshKeys.length}</strong> project SSH key(s).
+              {keyText.trim() ? " Pasted keys will be added too." : null}
+            </div>
+          ) : (
+            <div className="text-xs text-muted-foreground">
+              If you don’t have one yet, generate it with{" "}
+              <a
+                className="underline underline-offset-3 hover:text-foreground"
+                href="https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent"
+                target="_blank"
+                rel="noreferrer"
+              >
+                GitHub’s guide
+              </a>
+              .
+            </div>
+          )}
         </div>
       </div>
 
@@ -196,7 +154,7 @@ export function SetupStepConnection(props: {
         </Button>
         {!canSave ? (
           <div className="text-xs text-muted-foreground">
-            Fill <code>targetHost</code>, <code>adminCidr</code>, and <code>sshPubkeyFile</code>.
+            Fill the admin IP (CIDR) and add an SSH public key.
           </div>
         ) : null}
       </div>

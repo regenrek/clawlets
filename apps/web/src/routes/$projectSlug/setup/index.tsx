@@ -127,6 +127,7 @@ function SetupIndexPage() {
                   projectId={projectId}
                   config={setup.config}
                   host={selectedHost}
+                  stepStatus={step.status}
                   onContinue={setup.advance}
                 />
               </SetupSection>

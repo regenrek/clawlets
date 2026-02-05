@@ -1,15 +1,13 @@
-import fs from "node:fs";
 import process from "node:process";
-import path from "node:path";
 import { defineCommand } from "citty";
 import { applyOpenTofuVars } from "@clawlets/core/lib/opentofu";
-import { expandPath } from "@clawlets/core/lib/path-expand";
 import { loadDeployCreds } from "@clawlets/core/lib/deploy-creds";
 import { findRepoRoot } from "@clawlets/core/lib/repo";
 import { getSshExposureMode, getTailnetMode, loadClawletsConfig } from "@clawlets/core/lib/clawlets-config";
 import { getHostOpenTofuDir } from "@clawlets/core/repo-layout";
 import { requireDeployGate } from "../lib/deploy-gate.js";
 import { resolveHostNameOrExit } from "@clawlets/core/lib/host-resolve";
+import { resolveProvisioningSshPubkeyFile } from "../lib/provisioning-ssh-pubkey-file.js";
 
 export const lockdown = defineCommand({
   meta: {
@@ -59,13 +57,12 @@ export const lockdown = defineCommand({
       const adminCidr = String(hostCfg.provisioning.adminCidr || "").trim();
       if (!adminCidr) throw new Error(`missing provisioning.adminCidr for ${hostName} (set via: clawlets host set --admin-cidr ...)`);
 
-    const sshPubkeyFileRaw = String(hostCfg.provisioning.sshPubkeyFile || "").trim();
-    if (!sshPubkeyFileRaw) throw new Error(`missing provisioning.sshPubkeyFile for ${hostName} (set via: clawlets host set --ssh-pubkey-file ...)`);
-    const sshPubkeyFileExpanded = expandPath(sshPubkeyFileRaw);
-    const sshPubkeyFile = path.isAbsolute(sshPubkeyFileExpanded)
-      ? sshPubkeyFileExpanded
-      : path.resolve(repoRoot, sshPubkeyFileExpanded);
-    if (!fs.existsSync(sshPubkeyFile)) throw new Error(`ssh pubkey file not found: ${sshPubkeyFile}`);
+      const { sshPubkeyFile } = resolveProvisioningSshPubkeyFile({
+        repoRoot,
+        layout,
+        config: clawletsConfig,
+        hostName,
+      });
       const image = String(hostCfg.hetzner.image || "").trim();
       const location = String(hostCfg.hetzner.location || "").trim();
       await applyOpenTofuVars({

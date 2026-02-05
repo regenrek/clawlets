@@ -67,10 +67,12 @@ export function deriveSetupModel(input: DeriveSetupModelInput): SetupModel {
       : fallbackHost
 
   const hostCfg = selectedHost ? (input.config?.hosts as any)?.[selectedHost] : null
-  const targetHostOk = Boolean(String(hostCfg?.targetHost || "").trim())
   const adminCidrOk = Boolean(String(hostCfg?.provisioning?.adminCidr || "").trim())
-  const sshPubkeyFileOk = Boolean(String(hostCfg?.provisioning?.sshPubkeyFile || "").trim())
-  const connectionOk = Boolean(selectedHost && targetHostOk && adminCidrOk && sshPubkeyFileOk)
+  const sshKeysCount = Array.isArray((input.config as any)?.fleet?.sshAuthorizedKeys)
+    ? Number(((input.config as any)?.fleet?.sshAuthorizedKeys || []).length)
+    : 0
+  const hasSshKey = sshKeysCount > 0
+  const connectionOk = Boolean(selectedHost && adminCidrOk && hasSshKey)
 
   const latestSecretsVerifyOk = input.latestSecretsVerifyRun?.status === "succeeded"
   const latestBootstrapOk = input.latestBootstrapRun?.status === "succeeded"
@@ -88,7 +90,7 @@ export function deriveSetupModel(input: DeriveSetupModelInput): SetupModel {
     },
     {
       id: "connection",
-      title: "Connection + target",
+      title: "Connection",
       status: !selectedHost ? "locked" : connectionOk ? "done" : "active",
     },
     {
