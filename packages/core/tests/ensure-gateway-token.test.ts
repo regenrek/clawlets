@@ -7,7 +7,7 @@ import { execFileSync } from "node:child_process";
 describe("ensure-gateway-token script", () => {
   it("writes token file atomically in destination dir", () => {
     const repoRoot = path.resolve(__dirname, "..", "..", "..");
-    const scriptPath = path.join(repoRoot, "nix", "scripts", "ensure-gateway-token.sh");
+    const scriptPath = path.join(repoRoot, "nix", "openclaw", "scripts", "ensure-gateway-token.sh");
     const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "clawlets-gateway-token-"));
     const outEnvFile = path.join(outDir, "gateway.env");
     const user = os.userInfo().username;
