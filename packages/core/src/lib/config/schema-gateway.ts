@@ -41,7 +41,7 @@ const FleetGatewayChannelsSchema: z.ZodType<FleetGatewayChannels> = z
   .object({
     discord: z
       .object({
-        // Matches `clawdbot-config.schema.json` for channels.discord.
+        // Matches `openclaw-config.schema.json` for channels.discord.
         enabled: z.boolean().default(true),
         groupPolicy: z.enum(["open", "disabled", "allowlist"]).default("allowlist"),
       })

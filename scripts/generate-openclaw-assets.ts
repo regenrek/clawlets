@@ -1,6 +1,4 @@
-import { execSync } from "node:child_process";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -8,6 +6,13 @@ type ProviderInfo = {
   auth: "apiKey" | "oauth" | "mixed";
   credentials: Array<{ id: string; anyOfEnv: string[] }>;
   aliases?: string[];
+};
+
+type OpenclawSchemaArtifact = {
+  schema?: unknown;
+  uiHints?: unknown;
+  version?: unknown;
+  openclawRev?: unknown;
 };
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -149,187 +154,74 @@ const writeJson = (outPath: string, payload: unknown) => {
 
 const ensureDir = (p: string) => fs.mkdirSync(p, { recursive: true });
 
-const ensureOpenclawConfigPath = () => {
-  if (process.env.OPENCLAW_CONFIG_PATH) return;
-  const tmpDir = path.join(os.tmpdir(), "clawlets-openclaw");
-  const configPath = path.join(tmpDir, "openclaw.json");
-  ensureDir(tmpDir);
-  if (!fs.existsSync(configPath)) {
-    fs.writeFileSync(configPath, "{}\n", "utf8");
-  }
-  process.env.OPENCLAW_CONFIG_PATH = configPath;
-};
-
-const getGitRev = (repo: string): string => {
-  try {
-    return execSync(`git -C ${JSON.stringify(repo)} rev-parse HEAD`, { encoding: "utf8" }).trim();
-  } catch {
-    return "unknown";
-  }
-};
-
-const getGitCommitTimeIso = (repo: string, commit: string): string | null => {
-  try {
-    const out = execSync(
-      `git -C ${JSON.stringify(repo)} show -s --format=%cI ${JSON.stringify(commit)}`,
-      { encoding: "utf8" },
-    ).trim();
-    return out ? out : null;
-  } catch {
-    return null;
-  }
-};
-
-const getPinnedRevFromFlake = (): string | null => {
-  try {
-    const flakeLockPath = path.join(repoRoot, "flake.lock");
-    if (!fs.existsSync(flakeLockPath)) return null;
-    const lock = readJson<{ nodes?: Record<string, { locked?: { rev?: string } }> }>(flakeLockPath);
-    const rev = lock?.nodes?.["openclaw-src"]?.locked?.rev ?? lock?.nodes?.["clawdbot-src"]?.locked?.rev;
-    return typeof rev === "string" && rev.trim() ? rev.trim() : null;
-  } catch {
-    return null;
-  }
-};
-
-const ensureClawdbotDeps = (src: string) => {
+const ensureOpenclawDeps = (src: string) => {
   const zodPkg = path.join(src, "node_modules", "zod", "package.json");
   if (!fs.existsSync(zodPkg)) {
-    console.error(`error: missing clawdbot dependencies in ${src}`);
-    console.error("hint: run `pnpm install --frozen-lockfile --ignore-scripts` in the clawdbot source first");
+    console.error(`error: missing openclaw dependencies in ${src}`);
+    console.error("hint: run `pnpm install --frozen-lockfile --ignore-scripts` in the openclaw source first");
     process.exit(1);
   }
 };
 
-const main = async () => {
-  const src = argValue("--src") ?? process.env.OPENCLAW_SRC ?? process.env.CLAWDBOT_SRC;
-  if (!src) {
-    console.error("error: missing --src <openclaw repo path> (or set OPENCLAW_SRC)");
-    process.exit(1);
-  }
+function isValidSchemaArtifact(input: OpenclawSchemaArtifact): boolean {
+  return Boolean(
+    input &&
+      typeof input === "object" &&
+      input.schema &&
+      typeof input.schema === "object" &&
+      input.uiHints &&
+      typeof input.uiHints === "object" &&
+      typeof input.version === "string" &&
+      input.version.trim() &&
+      typeof input.openclawRev === "string" &&
+      input.openclawRev.trim(),
+  );
+}
 
-  const pinnedRev = getPinnedRevFromFlake();
-  const allowMismatch =
-    process.argv.includes("--allow-mismatch") ||
-    process.env.OPENCLAW_ALLOW_MISMATCH === "1" ||
-    process.env.CLAWDBOT_ALLOW_MISMATCH === "1";
-  const rev = argValue("--rev") ?? process.env.OPENCLAW_REV ?? process.env.CLAWDBOT_REV ?? pinnedRev ?? getGitRev(src);
-  if (pinnedRev && rev !== pinnedRev && !allowMismatch) {
-    console.error(`error: openclaw rev mismatch (flake.lock=${pinnedRev} provided=${rev})`);
-    console.error("hint: pass --rev to match flake.lock or use --allow-mismatch for local debugging");
+function syncSchemaAsset(params: { schemaSource: string; schemaOut: string }): void {
+  if (!fs.existsSync(params.schemaSource)) {
+    console.error(`error: missing pinned openclaw schema: ${params.schemaSource}`);
+    console.error("hint: run `nix run .#update-openclaw-schema` first");
     process.exit(1);
   }
-  if (fs.existsSync(path.join(src, ".git"))) {
-    const actualRev = getGitRev(src);
-    if (actualRev !== "unknown" && rev !== actualRev && !allowMismatch) {
-      console.error(`error: source rev mismatch (src=${actualRev} expected=${rev})`);
-      console.error("hint: checkout the pinned revision or pass --allow-mismatch for local debugging");
-      process.exit(1);
-    }
+  const schemaArtifact = readJson<OpenclawSchemaArtifact>(params.schemaSource);
+  if (!isValidSchemaArtifact(schemaArtifact)) {
+    console.error(`error: invalid pinned openclaw schema payload: ${params.schemaSource}`);
+    process.exit(1);
   }
+  writeJson(params.schemaOut, schemaArtifact);
+}
+
+const main = async () => {
+  const src = argValue("--src") ?? process.env.OPENCLAW_SRC;
+  const schemaSource =
+    argValue("--schema-source") ??
+    path.join(repoRoot, "packages", "core", "src", "generated", "openclaw-config.schema.json");
   const schemaOut =
-    argValue("--schema-out") ??
-    path.join(repoRoot, "packages", "core", "src", "assets", "clawdbot-config.schema.json");
+    argValue("--schema-out") ?? path.join(repoRoot, "packages", "core", "src", "assets", "openclaw-config.schema.json");
   const providersOut =
     argValue("--providers-out") ??
     path.join(repoRoot, "packages", "core", "src", "assets", "llm-providers.json");
 
   ensureDir(path.dirname(schemaOut));
   ensureDir(path.dirname(providersOut));
-  ensureOpenclawConfigPath();
 
-  ensureClawdbotDeps(src);
-
-  const schemaModuleUrl = pathToFileURL(path.join(src, "src", "config", "schema.ts")).href;
-  const schemaMod = await import(schemaModuleUrl);
-  if (typeof schemaMod.buildConfigSchema !== "function") {
-    console.error(`error: buildConfigSchema not found in ${schemaModuleUrl}`);
-    process.exit(1);
-  }
-  const channelsModuleUrl = pathToFileURL(path.join(src, "src", "channels", "plugins", "index.ts")).href;
-  const channelsMod = await import(channelsModuleUrl);
-  if (typeof channelsMod.listChannelPlugins !== "function") {
-    console.error(`error: listChannelPlugins not found in ${channelsModuleUrl}`);
-    process.exit(1);
-  }
-  const pluginsModuleUrl = pathToFileURL(path.join(src, "src", "plugins", "loader.ts")).href;
-  const pluginsMod = await import(pluginsModuleUrl);
-  const loadPlugins =
-    typeof pluginsMod.loadOpenClawPlugins === "function"
-      ? pluginsMod.loadOpenClawPlugins
-      : typeof pluginsMod.loadMoltbotPlugins === "function"
-        ? pluginsMod.loadMoltbotPlugins
-        : null;
-  if (!loadPlugins) {
-    console.error(`error: loadOpenClawPlugins/loadMoltbotPlugins not found in ${pluginsModuleUrl}`);
-    process.exit(1);
-  }
-  const manifestsModuleUrl = pathToFileURL(
-    path.join(src, "src", "plugins", "manifest-registry.ts"),
-  ).href;
-  const manifestsMod = await import(manifestsModuleUrl);
-  if (typeof manifestsMod.loadPluginManifestRegistry !== "function") {
-    console.error(`error: loadPluginManifestRegistry not found in ${manifestsModuleUrl}`);
-    process.exit(1);
-  }
-  const manifestRegistry = manifestsMod.loadPluginManifestRegistry({
-    config: {},
-    workspaceDir: src,
-    cache: false,
-  }) as { plugins: Array<{ id?: string | null }> };
-  const pluginIds = Array.from(
-    new Set(
-      manifestRegistry.plugins
-        .map((plugin) => String(plugin.id ?? "").trim())
-        .filter(Boolean),
-    ),
-  );
-  const entries = Object.fromEntries(pluginIds.map((id) => [id, { enabled: true }]));
-  let pluginRegistry: { plugins: Array<any> };
-  try {
-    pluginRegistry = loadPlugins({
-      config: pluginIds.length > 0 ? { plugins: { entries } } : {},
-      workspaceDir: src,
-      logger: {
-        info: () => {},
-        warn: () => {},
-        error: () => {},
-        debug: () => {},
-      },
-    });
-  } catch (err) {
-    console.error(`error: failed to load clawdbot plugins for schema: ${String((err as Error)?.message || err)}`);
-    process.exit(1);
-  }
-  const schemaRes = schemaMod.buildConfigSchema({
-    plugins: pluginRegistry.plugins.map((plugin: any) => ({
-      id: plugin.id,
-      name: plugin.name,
-      description: plugin.description,
-      configUiHints: plugin.configUiHints,
-      configSchema: plugin.configJsonSchema,
-    })),
-    channels: channelsMod.listChannelPlugins().map((entry: any) => ({
-      id: entry.id,
-      label: entry.meta?.label,
-      description: entry.meta?.blurb,
-      configSchema: entry.configSchema?.schema,
-      configUiHints: entry.configSchema?.uiHints,
-    })),
+  syncSchemaAsset({
+    schemaSource: path.resolve(schemaSource),
+    schemaOut: path.resolve(schemaOut),
   });
-  const generatedAt = getGitCommitTimeIso(src, rev) || new Date(0).toISOString();
-  const schemaPayload = {
-    schema: schemaRes.schema ?? {},
-    uiHints: schemaRes.uiHints ?? {},
-    version: String(schemaRes.version || ""),
-    generatedAt,
-    clawdbotRev: rev,
-  };
-  writeJson(schemaOut, schemaPayload);
 
-  const modelAuthText = readText(path.join(src, "src", "agents", "model-auth.ts"));
-  const modelSelectionText = readText(path.join(src, "src", "agents", "model-selection.ts"));
-  const envText = readText(path.join(src, "src", "infra", "env.ts"));
+  if (!src) {
+    console.error("error: missing --src <openclaw repo path> (or set OPENCLAW_SRC)");
+    process.exit(1);
+  }
+
+  const sourceDir = path.resolve(src);
+  ensureOpenclawDeps(sourceDir);
+
+  const modelAuthText = readText(path.join(sourceDir, "src", "agents", "model-auth.ts"));
+  const modelSelectionText = readText(path.join(sourceDir, "src", "agents", "model-selection.ts"));
+  const envText = readText(path.join(sourceDir, "src", "infra", "env.ts"));
   const envMap = parseEnvMap(modelAuthText);
   const aliases = parseProviderAliases(modelSelectionText);
   const envAliases = parseEnvAliases(envText);
@@ -342,16 +234,18 @@ const main = async () => {
     }
     envMap[provider] = Array.from(expanded);
   }
-  const oauthProviders = await readOAuthProviders(src);
+
+  const oauthProviders = await readOAuthProviders(sourceDir);
   if (oauthProviders.length === 0) {
     console.error("error: failed to resolve OAuth providers (pi-ai utils/oauth)");
     process.exit(1);
   }
-  const providerInfo = buildProviderInfo({ envMap, aliases, oauthProviders });
-  writeJson(providersOut, providerInfo);
 
-  console.log(`ok: wrote ${path.relative(repoRoot, schemaOut)}`);
-  console.log(`ok: wrote ${path.relative(repoRoot, providersOut)}`);
+  const providerInfo = buildProviderInfo({ envMap, aliases, oauthProviders });
+  writeJson(path.resolve(providersOut), providerInfo);
+
+  console.log(`ok: wrote ${path.relative(repoRoot, path.resolve(schemaOut))}`);
+  console.log(`ok: wrote ${path.relative(repoRoot, path.resolve(providersOut))}`);
 };
 
 main().catch((err) => {
