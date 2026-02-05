@@ -13,7 +13,7 @@ import {
 } from "../../fleet-secrets-plan-helpers.js";
 import type { ClawletsConfig } from "../../clawlets-config.js";
 import type { SecretSource, SecretsPlanWarning } from "../../secrets-plan.js";
-import { buildOpenClawGatewayConfig } from "../../openclaw-config-invariants.js";
+import { buildOpenClawGatewayConfig } from "../../openclaw/config-invariants.js";
 import { runSecretRequirementCollectors } from "../collectors/registry.js";
 import { addMissingEnvVarConfig } from "./missing-config.js";
 import {
