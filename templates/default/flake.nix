@@ -80,7 +80,7 @@
 
           cattleConfig = lib.nixosSystem {
             inherit system;
-            specialArgs = { inherit clawlets flakeInfo project; nix-clawdbot = clawlets.inputs.nix-clawdbot; };
+            specialArgs = { inherit clawlets flakeInfo project; nix-openclaw = clawlets.inputs.nix-openclaw; };
             modules = [
               clawlets.inputs.disko.nixosModules.disko
               clawlets.inputs.nixos-generators.nixosModules.all-formats
