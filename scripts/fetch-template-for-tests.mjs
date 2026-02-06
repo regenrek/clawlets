@@ -15,15 +15,10 @@ function readJson(filePath) {
 }
 
 async function loadTemplateLib(repoRoot) {
-  const libDir = path.join(repoRoot, "packages", "core", "dist", "lib");
-  const sourcePath = path.join(libDir, "template-source.js");
-  const testDirPath = path.join(libDir, "template-test-dir.js");
-  const ok = await fs.stat(sourcePath).then(() => true).catch(() => false);
-  const ok2 = await fs.stat(testDirPath).then(() => true).catch(() => false);
-  if (!ok || !ok2) throw new Error("missing packages/core/dist (run pnpm -r build)");
-  const source = await import(pathToFileURL(sourcePath).href);
-  const testDir = await import(pathToFileURL(testDirPath).href);
-  return { ...source, ...testDir };
+  const projectLibPath = path.join(repoRoot, "packages", "core", "dist", "lib", "project", "index.js");
+  const ok = await fs.stat(projectLibPath).then(() => true).catch(() => false);
+  if (!ok) throw new Error("missing packages/core/dist/lib/project/index.js (run pnpm -r build)");
+  return await import(pathToFileURL(projectLibPath).href);
 }
 
 async function resolveLocalTemplateDir(repoRoot) {
