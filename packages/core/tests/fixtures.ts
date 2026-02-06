@@ -1,4 +1,4 @@
-import type { ClawletsConfig } from "@clawlets/core/lib/clawlets-config";
+import type { ClawletsConfig } from "@clawlets/core/lib/config/clawlets-config";
 
 export const baseHost = {
   enable: false,
@@ -7,7 +7,16 @@ export const baseHost = {
   diskDevice: "/dev/sda",
   flakeHost: "",
   targetHost: "admin@host",
-  hetzner: { serverType: "cx43", image: "", location: "nbg1" },
+  hetzner: { serverType: "cx43", image: "", location: "nbg1", allowTailscaleUdpIngress: true },
+  aws: {
+    region: "",
+    instanceType: "",
+    amiId: "",
+    vpcId: "",
+    subnetId: "",
+    useDefaultVpc: false,
+    allowTailscaleUdpIngress: true,
+  },
   provisioning: { adminCidr: "203.0.113.1/32", adminCidrAllowWorldOpen: false, sshPubkeyFile: "~/.ssh/id_ed25519.pub" },
   sshExposure: { mode: "bootstrap" },
   tailnet: { mode: "tailscale" },

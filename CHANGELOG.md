@@ -13,14 +13,21 @@ The format is based on Keep a Changelog and this project follows SemVer for npm 
 - Gateways are host-scoped: `hosts.<host>.gatewaysOrder` / `hosts.<host>.gateways` are the canonical roster (schema is v1; legacy `bots*` keys are hard rejected).
 - `fleet.codex.bots` removed; use `fleet.codex.gateways`.
 - Rename `clawdbot` → `openclaw` across config, CLI, docs, and Nix; schema bumped to v15 with migration path.
+- Core lib re-architecture: moved flat `packages/core/src/lib/*.ts` modules into strict domain folders (`config`, `host`, `infra`, `nix`, `openclaw`, `project`, `runtime`, `secrets`, `security`, `storage`, `vcs`) with canonical import paths.
+- Canonical runtime naming now defaults to `openclaw` service/unit and host placeholders (`openclaw-*.service`, `openclaw-fleet-host`) across core/CLI/web flows.
 - Validate `hosts.<host>.gateways.<gateway>.openclaw` passthrough against pinned upstream schema (fail fast, full-path errors).
 - Template/Nix: add `flakeInfo.clawletsInput` (clawlets input revision) alongside `flakeInfo.clawlets` (project revision).
+- Web/CLI import hygiene: remove unjustified inline dynamic imports from auth/serverfn call sites; keep dynamic import only for runtime plugin entry loading by path.
+- Better Auth server module is now side-effect free at import time via lazy singleton init (env checks run on first use).
 
 ### Fixed
 - Config batch validation now rejects ambiguous ops early; migration now moves legacy `openclaw.*` typed surfaces.
 - Prevent gateways from fan-out across all enabled hosts by enforcing host-scoped gateway lists.
 - Web add-gateway flow now reconciles `hosts.<host>.gatewaysOrder` and `hosts.<host>.gateways` instead of silently leaving partial state.
 - Fix `clawlets project init` by updating the pinned default template ref; add CI gate to validate the pin stays compatible.
+- Web SDK contract drift: replaced legacy `botId` payloads with canonical `gatewayId` for OpenClaw schema and workspace docs server functions.
+- CLI plugin reserved-command guard no longer depends on ESM initialization order; uses live base command registry lookup.
+- CI/node regression fixed: `scripts/fetch-template-for-tests.mjs` now loads template helpers from `packages/core/dist/lib/project/index.js` after core domain re-architecture.
 
 ## [0.4.4] - 2026-02-01
 ### Added
@@ -73,7 +80,7 @@ The format is based on Keep a Changelog and this project follows SemVer for npm 
 - Web setup: remove Providers/Models pages; configure channels via bot config + integrations UI.
 - Nix runtime: inject secrets via per-bot env files + secret files (sops-nix templates/secrets); stop injecting secret values into clawdbot config.
 - CLI: `server channels {status|capabilities|login|logout}` for stateful channel auth (e.g. WhatsApp).
-- CLF build moved to Nix subflake (`nix/subflakes/clf`) with its own lock file; avoids hash update churn for non-cattle users.
+- CLF build moved to Nix subflake (`nix/openclaw/subflakes/clf`) with its own lock file; avoids hash update churn for non-cattle users.
 - Bootstrap token TTL now uses single source of truth constant from `cattle-cloudinit` (max 15 min).
 - Tailscale auth key expiry resolved at spawn time (not config load) to prevent stale fallback after 55 min.
 

@@ -53,7 +53,7 @@ async function loadGitServer(options: {
   });
   const query = vi.fn(async () => ({ project: { localPath: "/tmp" }, role: "admin" }));
 
-  vi.doMock("@clawlets/core/lib/run", () => ({ capture }));
+  vi.doMock("@clawlets/core/lib/runtime/run", () => ({ capture }));
   vi.doMock("~/server/redaction", () => ({ readClawletsEnvTokens: async () => ["secret"] }));
   vi.doMock("~/server/run-manager", () => ({ spawnCommandCapture }));
   vi.doMock("~/server/convex", () => ({

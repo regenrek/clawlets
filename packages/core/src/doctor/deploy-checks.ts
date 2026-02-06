@@ -9,11 +9,11 @@ import {
   getHostRemoteSecretsDir,
   getHostSecretsDir,
 } from "../repo-layout.js";
-import { getHostAgeKeySopsCreationRulePathRegex, getHostAgeKeySopsCreationRulePathSuffix, getHostSecretsSopsCreationRulePathRegex, getHostSecretsSopsCreationRulePathSuffix } from "../lib/sops-rules.js";
-import { validateHostSecretsYamlFiles } from "../lib/secrets-policy.js";
-import { buildFleetSecretsPlan } from "../lib/fleet-secrets-plan.js";
-import { capture } from "../lib/run.js";
-import { looksLikeSshKeyContents, normalizeSshPublicKey } from "../lib/ssh.js";
+import { getHostAgeKeySopsCreationRulePathRegex, getHostAgeKeySopsCreationRulePathSuffix, getHostSecretsSopsCreationRulePathRegex, getHostSecretsSopsCreationRulePathSuffix } from "../lib/security/sops-rules.js";
+import { validateHostSecretsYamlFiles } from "../lib/secrets/secrets-policy.js";
+import { buildFleetSecretsPlan } from "../lib/secrets/plan.js";
+import { capture } from "../lib/runtime/run.js";
+import { looksLikeSshKeyContents, normalizeSshPublicKey } from "../lib/security/ssh.js";
 import type { DoctorCheck } from "./types.js";
 import {
   getSshExposureMode,
@@ -21,17 +21,17 @@ import {
   loadClawletsConfig,
   type ClawletsConfig,
   type ClawletsHostConfig,
-} from "../lib/clawlets-config.js";
-import { isPlaceholderSecretValue } from "../lib/secrets-init.js";
-import { checkGithubRepoVisibility, tryParseGithubFlakeUri } from "../lib/github.js";
-import { tryGetOriginFlake } from "../lib/git.js";
-import { expandPath } from "../lib/path-expand.js";
-import { resolveBaseFlake } from "../lib/base-flake.js";
-import { agePublicKeyFromIdentityFile } from "../lib/age-keygen.js";
-import { sopsDecryptYamlFile } from "../lib/sops.js";
-import { getSopsCreationRuleAgeRecipients } from "../lib/sops-config.js";
-import { readYamlScalarFromMapping } from "../lib/yaml-scalar.js";
-import { mapWithConcurrency } from "../lib/concurrency.js";
+} from "../lib/config/clawlets-config.js";
+import { isPlaceholderSecretValue } from "../lib/secrets/secrets-init.js";
+import { checkGithubRepoVisibility, tryParseGithubFlakeUri } from "../lib/vcs/github.js";
+import { tryGetOriginFlake } from "../lib/vcs/git.js";
+import { expandPath } from "../lib/storage/path-expand.js";
+import { resolveBaseFlake } from "../lib/nix/base-flake.js";
+import { agePublicKeyFromIdentityFile } from "../lib/security/age-keygen.js";
+import { sopsDecryptYamlFile } from "../lib/security/sops.js";
+import { getSopsCreationRuleAgeRecipients } from "../lib/security/sops-config.js";
+import { readYamlScalarFromMapping } from "../lib/storage/yaml-scalar.js";
+import { mapWithConcurrency } from "../lib/runtime/concurrency.js";
 import type { DoctorPush } from "./types.js";
 
 export async function addDeployChecks(params: {
@@ -48,7 +48,7 @@ export async function addDeployChecks(params: {
   skipGithubTokenCheck?: boolean;
   scope: "bootstrap" | "updates";
 }): Promise<void> {
-  const host = params.host.trim() || "clawdbot-fleet-host";
+  const host = params.host.trim() || "openclaw-fleet-host";
   const scope = params.scope;
   const push = (c: Omit<DoctorCheck, "scope">) =>
     params.push({ scope, ...c });
@@ -138,7 +138,7 @@ export async function addDeployChecks(params: {
   } else if (clawletsHostCfg) {
     push({
       status: clawletsHostCfg.enable ? "ok" : "warn",
-      label: "services.clawdbotFleet.enable",
+      label: "services.openclawFleet.enable",
       detail: clawletsHostCfg.enable ? "(true)" : "(false; host will install but fleet services/VPN won't run until enabled)",
     });
 
@@ -181,12 +181,59 @@ export async function addDeployChecks(params: {
     }
 
     if (isBootstrap) {
-      const serverType = String(clawletsHostCfg.hetzner?.serverType || "").trim();
+      const provider = String(clawletsHostCfg.provisioning?.provider || "hetzner").trim();
       push({
-        status: serverType ? "ok" : "missing",
-        label: "hetzner.serverType",
-        detail: serverType || "(unset)",
+        status: provider ? "ok" : "missing",
+        label: "provisioning.provider",
+        detail: provider || "(unset)",
       });
+
+      if (provider === "aws") {
+        const region = String(clawletsHostCfg.aws?.region || "").trim();
+        push({
+          status: region ? "ok" : "missing",
+          label: "aws.region",
+          detail: region || "(unset)",
+        });
+
+        const instanceType = String(clawletsHostCfg.aws?.instanceType || "").trim();
+        push({
+          status: instanceType ? "ok" : "missing",
+          label: "aws.instanceType",
+          detail: instanceType || "(unset)",
+        });
+
+        const amiId = String(clawletsHostCfg.aws?.amiId || "").trim();
+        push({
+          status: amiId ? "ok" : "missing",
+          label: "aws.amiId",
+          detail: amiId || "(unset)",
+        });
+
+        const vpcId = String(clawletsHostCfg.aws?.vpcId || "").trim();
+        const subnetId = String(clawletsHostCfg.aws?.subnetId || "").trim();
+        const useDefaultVpc = Boolean(clawletsHostCfg.aws?.useDefaultVpc);
+        if (useDefaultVpc) {
+          push({
+            status: vpcId || subnetId ? "warn" : "ok",
+            label: "aws.useDefaultVpc",
+            detail: vpcId || subnetId ? "conflicts with vpcId/subnetId" : "(default VPC)",
+          });
+        } else {
+          push({
+            status: vpcId || subnetId ? "ok" : "missing",
+            label: "aws.vpcId/subnetId",
+            detail: vpcId || subnetId || "(unset)",
+          });
+        }
+      } else {
+        const serverType = String(clawletsHostCfg.hetzner?.serverType || "").trim();
+        push({
+          status: serverType ? "ok" : "missing",
+          label: "hetzner.serverType",
+          detail: serverType || "(unset)",
+        });
+      }
 
       {
         const diskDevice = String((clawletsHostCfg as any).diskDevice || "").trim();

@@ -1,5 +1,5 @@
 import fs from "node:fs";
-import { capture } from "@clawlets/core/lib/run";
+import { capture } from "@clawlets/core/lib/runtime/run";
 import { parseTtlToSeconds } from "@clawlets/cattle-core/lib/ttl";
 import { CattleTaskSchema, CATTLE_TASK_SCHEMA_VERSION, type CattleTask } from "@clawlets/cattle-core/lib/cattle-task";
 import type { CattleServer } from "@clawlets/cattle-core/lib/hcloud-cattle";

@@ -21,7 +21,7 @@ import { useProjectBySlug } from "~/lib/project-data"
 import { GatewayRoster, getGatewayChannels } from "~/components/fleet/gateway/gateway-roster"
 import { addGateway, getClawletsConfig, setGatewayArchitecture } from "~/sdk/config"
 import { authClient } from "~/lib/auth-client"
-import type { GatewayArchitecture } from "@clawlets/core/lib/clawlets-config"
+import type { GatewayArchitecture } from "@clawlets/core/lib/config/clawlets-config"
 
 export const Route = createFileRoute("/$projectSlug/hosts/$host/gateways/")({
   component: GatewaysSetup,

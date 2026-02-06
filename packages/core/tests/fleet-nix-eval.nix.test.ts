@@ -1,0 +1,61 @@
+import { describe, it, expect } from "vitest";
+import { execFileSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
+import { withFlakesEnv } from "../src/lib/nix/nix-flakes";
+
+const NIX_EVAL_TIMEOUT_MS = 240_000;
+
+function resolveRepoRoot(): string {
+  return path.resolve(__dirname, "..", "..", "..");
+}
+
+function hasNix(): boolean {
+  try {
+    execFileSync("nix", ["--version"], { stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+describe("fleet nix eval", () => {
+  const testIt = hasNix() && fs.existsSync(resolveRepoRoot()) ? it : it.skip;
+
+  testIt(
+    "fails when no gateways are configured",
+    async () => {
+      const repoRoot = resolveRepoRoot();
+      const expr = [
+        "let",
+        "  flake = builtins.getFlake (toString ./.);",
+        "  lib = flake.inputs.nixpkgs.lib;",
+        "  project = {",
+        "    root = flake.outPath;",
+        "    config = { hosts = { alpha = { gatewaysOrder = []; gateways = {}; }; }; };",
+        "  };",
+        "  hostName = \"alpha\";",
+        "  fleetConfigPath =",
+        "    let",
+        "      modernPath = flake.outPath + \"/nix/lib/fleet-config.nix\";",
+        "      openclawPath = flake.outPath + \"/nix/openclaw/infra/lib/fleet-config.nix\";",
+        "      legacyPath = flake.outPath + \"/nix/infra/lib/fleet-config.nix\";",
+        "    in if builtins.pathExists modernPath then modernPath",
+        "    else if builtins.pathExists openclawPath then openclawPath",
+        "    else if builtins.pathExists legacyPath then legacyPath",
+        "    else throw \"fleet-config.nix not found\";",
+        "  fleet = import fleetConfigPath { inherit lib project hostName; };",
+        "in fleet.gateways",
+      ].join("\n");
+
+      expect(() =>
+        execFileSync("nix", ["eval", "--impure", "--json", "--expr", expr], {
+          cwd: repoRoot,
+          env: withFlakesEnv(process.env),
+          stdio: "pipe",
+        }),
+      ).toThrow();
+    },
+    NIX_EVAL_TIMEOUT_MS,
+  );
+});

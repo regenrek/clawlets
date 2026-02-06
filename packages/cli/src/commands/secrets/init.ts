@@ -3,27 +3,35 @@ import path from "node:path";
 import process from "node:process";
 import { defineCommand } from "citty";
 import * as p from "@clack/prompts";
-import { ageKeygen, agePublicKeyFromIdentityFile } from "@clawlets/core/lib/age-keygen";
-import { parseAgeKeyFile } from "@clawlets/core/lib/age";
-import { ensureDir, writeFileAtomic } from "@clawlets/core/lib/fs-safe";
-import { mkpasswdYescryptHash } from "@clawlets/core/lib/mkpasswd";
-import { upsertSopsCreationRule } from "@clawlets/core/lib/sops-config";
-import { sopsDecryptYamlFile, sopsEncryptYamlToFile } from "@clawlets/core/lib/sops";
-import { getHostAgeKeySopsCreationRulePathRegex, getHostSecretsSopsCreationRulePathRegex } from "@clawlets/core/lib/sops-rules";
+import { ageKeygen, agePublicKeyFromIdentityFile } from "@clawlets/core/lib/security/age-keygen";
+import { parseAgeKeyFile } from "@clawlets/core/lib/security/age";
+import { ensureDir, writeFileAtomic } from "@clawlets/core/lib/storage/fs-safe";
+import { mkpasswdYescryptHash } from "@clawlets/core/lib/security/mkpasswd";
+import { upsertSopsCreationRule } from "@clawlets/core/lib/security/sops-config";
+import { sopsDecryptYamlFile, sopsEncryptYamlToFile } from "@clawlets/core/lib/security/sops";
+import { getHostAgeKeySopsCreationRulePathRegex, getHostSecretsSopsCreationRulePathRegex } from "@clawlets/core/lib/security/sops-rules";
 import { sanitizeOperatorId } from "@clawlets/shared/lib/identifiers";
-import { buildFleetSecretsPlan } from "@clawlets/core/lib/fleet-secrets-plan";
-import { applySecretsAutowire, planSecretsAutowire } from "@clawlets/core/lib/secrets-autowire";
-import { buildSecretsInitTemplate, isPlaceholderSecretValue, listSecretsInitPlaceholders, parseSecretsInitJson, resolveSecretsInitFromJsonArg, validateSecretsInitNonInteractive, type SecretsInitJson } from "@clawlets/core/lib/secrets-init";
-import { buildSecretsInitTemplateSets } from "@clawlets/core/lib/secrets-init-template";
-import { readYamlScalarFromMapping } from "@clawlets/core/lib/yaml-scalar";
+import { buildFleetSecretsPlan } from "@clawlets/core/lib/secrets/plan";
+import { applySecretsAutowire, planSecretsAutowire } from "@clawlets/core/lib/secrets/secrets-autowire";
+import {
+  buildSecretsInitTemplate,
+  isPlaceholderSecretValue,
+  listSecretsInitPlaceholders,
+  parseSecretsInitJson,
+  resolveSecretsInitFromJsonArg,
+  validateSecretsInitNonInteractive,
+  type SecretsInitJson,
+} from "@clawlets/core/lib/secrets/secrets-init";
+import { buildSecretsInitTemplateSets } from "@clawlets/core/lib/secrets/secrets-init-template";
+import { readYamlScalarFromMapping } from "@clawlets/core/lib/storage/yaml-scalar";
 import { getHostEncryptedAgeKeyFile, getHostExtraFilesKeyPath, getHostExtraFilesSecretsDir, getHostSecretsDir, getLocalOperatorAgeKeyPath } from "@clawlets/core/repo-layout";
-import { expandPath } from "@clawlets/core/lib/path-expand";
-import { mapWithConcurrency } from "@clawlets/core/lib/concurrency";
-import { assertSecretsAreManaged, buildManagedHostSecretNameAllowlist } from "@clawlets/core/lib/secrets-allowlist";
+import { expandPath } from "@clawlets/core/lib/storage/path-expand";
+import { mapWithConcurrency } from "@clawlets/core/lib/runtime/concurrency";
+import { assertSecretsAreManaged, buildManagedHostSecretNameAllowlist } from "@clawlets/core/lib/secrets/secrets-allowlist";
 import { cancelFlow, navOnCancel, NAV_EXIT } from "../../lib/wizard.js";
-import { loadHostContextOrExit } from "@clawlets/core/lib/context";
-import { upsertYamlScalarLine } from "./common.js";
-import { writeClawletsConfig } from "@clawlets/core/lib/clawlets-config";
+import { loadHostContextOrExit } from "@clawlets/core/lib/runtime/context";
+import { parseSecretsScope, upsertYamlScalarLine } from "./common.js";
+import { writeClawletsConfig } from "@clawlets/core/lib/config/clawlets-config";
 
 function wantsInteractive(flag: boolean | undefined): boolean {
   if (flag) return true;
@@ -31,7 +39,7 @@ function wantsInteractive(flag: boolean | undefined): boolean {
   return env === "1" || env.toLowerCase() === "true";
 }
 
-function readSecretsInitJson(fromJson: string): SecretsInitJson {
+function readSecretsInitJson(fromJson: string, opts: { requireAdminPassword: boolean }): SecretsInitJson {
   const src = String(fromJson || "").trim();
   if (!src) throw new Error("missing --from-json");
 
@@ -44,7 +52,7 @@ function readSecretsInitJson(fromJson: string): SecretsInitJson {
     raw = fs.readFileSync(jsonPath, "utf8");
   }
 
-  return parseSecretsInitJson(raw);
+  return parseSecretsInitJson(raw, { requireAdminPassword: opts.requireAdminPassword });
 }
 
 export const secretsInit = defineCommand({
@@ -55,6 +63,7 @@ export const secretsInit = defineCommand({
   args: {
     runtimeDir: { type: "string", description: "Runtime directory (default: .clawlets)." },
     host: { type: "string", description: "Host name (defaults to clawlets.json defaultHost / sole host)." },
+    scope: { type: "string", description: "Secrets scope (bootstrap|updates|openclaw|all).", default: "all" },
     interactive: { type: "boolean", description: "Prompt for secret values (requires TTY).", default: false },
     fromJson: { type: "string", description: "Read secret values from JSON file (or '-' for stdin) (non-interactive)." },
     allowPlaceholders: { type: "boolean", description: "Allow placeholders for missing tokens.", default: false },
@@ -70,6 +79,7 @@ export const secretsInit = defineCommand({
     type SecretsInitArgs = {
       runtimeDir?: string;
       host?: string;
+      scope?: string;
       interactive?: boolean;
       fromJson?: string | boolean;
       allowPlaceholders?: boolean;
@@ -84,6 +94,7 @@ export const secretsInit = defineCommand({
     const ctx = loadHostContextOrExit({ cwd, runtimeDir: a.runtimeDir, hostArg: a.host });
     if (!ctx) return;
     let { layout, config: clawletsConfig, hostName, hostCfg } = ctx;
+    const scope = parseSecretsScope(a.scope);
 
     const hasTty = Boolean(process.stdin.isTTY && process.stdout.isTTY);
     let interactive = wantsInteractive(Boolean(a.interactive));
@@ -138,7 +149,7 @@ export const secretsInit = defineCommand({
     }
 
     hostCfg = (clawletsConfig.hosts as any)?.[hostName] || hostCfg;
-    const sets = buildSecretsInitTemplateSets({ secretsPlan, hostCfg });
+    const sets = buildSecretsInitTemplateSets({ secretsPlan, hostCfg, scope });
     const cacheNetrcSecretName = sets.cacheNetrcSecretName;
 
     const defaultSecretsJsonPath = path.join(layout.runtimeDir, "secrets.json");
@@ -154,8 +165,12 @@ export const secretsInit = defineCommand({
         fromJson = defaultSecretsJsonPath;
         if (!a.allowPlaceholders) {
           const raw = fs.readFileSync(defaultSecretsJsonPath, "utf8");
-          const parsed = parseSecretsInitJson(raw);
-          const placeholders = listSecretsInitPlaceholders({ input: parsed, requiresTailscaleAuthKey: sets.requiresTailscaleAuthKey });
+          const parsed = parseSecretsInitJson(raw, { requireAdminPassword: sets.requiresAdminPassword });
+          const placeholders = listSecretsInitPlaceholders({
+            input: parsed,
+            requiresTailscaleAuthKey: sets.requiresTailscaleAuthKey,
+            requiresAdminPassword: sets.requiresAdminPassword,
+          });
           if (placeholders.length > 0) {
             console.error(`error: placeholders found in ${defaultSecretsJsonDisplay} (fill it or pass --allow-placeholders)`);
             for (const p0 of placeholders) console.error(`- ${p0}`);
@@ -164,7 +179,11 @@ export const secretsInit = defineCommand({
           }
         }
       } else {
-        const template = buildSecretsInitTemplate({ requiresTailscaleAuthKey: sets.requiresTailscaleAuthKey, secrets: sets.templateSecrets });
+        const template = buildSecretsInitTemplate({
+          requiresTailscaleAuthKey: sets.requiresTailscaleAuthKey,
+          requiresAdminPassword: sets.requiresAdminPassword,
+          secrets: sets.templateSecrets,
+        });
 
         if (!a.dryRun) {
           await ensureDir(path.dirname(defaultSecretsJsonPath));
@@ -331,29 +350,29 @@ export const secretsInit = defineCommand({
     };
 
     const flowSecrets = "secrets init";
-	    const values: {
-	      adminPassword: string;
-	      adminPasswordHash: string;
-	      tailscaleAuthKey: string;
-	      secrets: Record<string, string>;
-	    } = { adminPassword: "", adminPasswordHash: "", tailscaleAuthKey: "", secrets: {} };
+    const values: {
+      adminPassword: string;
+      adminPasswordHash: string;
+      tailscaleAuthKey: string;
+      secrets: Record<string, string>;
+    } = { adminPassword: "", adminPasswordHash: "", tailscaleAuthKey: "", secrets: {} };
 
-	    if (interactive) {
+    if (interactive) {
       type Step =
         | { kind: "adminPassword" }
         | { kind: "tailscaleAuthKey" }
-	        | { kind: "cacheNetrcFile"; secretName: string; netrcPath: string }
-	        | { kind: "secret"; secretName: string };
+        | { kind: "cacheNetrcFile"; secretName: string; netrcPath: string }
+        | { kind: "secret"; secretName: string };
 
-	      const requiredSecretsToPrompt = sets.requiredSecrets;
+      const requiredSecretsToPrompt = sets.requiredSecrets;
 
-	      const allSteps: Step[] = [
-	        { kind: "adminPassword" },
-	        ...(sets.requiresTailscaleAuthKey ? ([{ kind: "tailscaleAuthKey" }] as const) : []),
-	        ...requiredSecretsToPrompt.map((secretName) =>
-	          cacheNetrcEnabled && secretName === cacheNetrcSecretName
-	            ? ({ kind: "cacheNetrcFile", secretName, netrcPath: cacheNetrcPath || "/etc/nix/netrc" } as const)
-	            : ({ kind: "secret", secretName } as const),
+      const allSteps: Step[] = [
+        ...(sets.requiresAdminPassword ? ([{ kind: "adminPassword" }] as const) : []),
+        ...(sets.requiresTailscaleAuthKey ? ([{ kind: "tailscaleAuthKey" }] as const) : []),
+        ...requiredSecretsToPrompt.map((secretName) =>
+          cacheNetrcEnabled && secretName === cacheNetrcSecretName
+            ? ({ kind: "cacheNetrcFile", secretName, netrcPath: cacheNetrcPath || "/etc/nix/netrc" } as const)
+            : ({ kind: "secret", secretName } as const),
         ),
       ];
 
@@ -406,7 +425,7 @@ export const secretsInit = defineCommand({
         i += 1;
       }
     } else {
-      const input = readSecretsInitJson(String(fromJson));
+      const input = readSecretsInitJson(String(fromJson), { requireAdminPassword: sets.requiresAdminPassword });
       values.adminPasswordHash = input.adminPasswordHash;
       values.tailscaleAuthKey = input.tailscaleAuthKey || "";
       values.secrets = input.secrets || {};
@@ -416,15 +435,12 @@ export const secretsInit = defineCommand({
     assertSecretsAreManaged({ allowlist, secrets: values.secrets });
 
     const secretsToWrite = Array.from(new Set([
-      ...secretsPlan.hostSecretNamesRequired,
-      ...secretsPlan.secretNamesAll,
+      ...sets.requiredSecretNames,
+      ...sets.optionalSecrets,
     ])).sort();
 
     const isOptionalMarker = (v: string): boolean => String(v || "").trim() === "<OPTIONAL>";
-    const requiredSecretNamesForValue = new Set<string>([
-      ...secretsPlan.hostSecretNamesRequired,
-      ...secretsPlan.secretNamesRequired,
-    ]);
+    const requiredSecretNamesForValue = new Set<string>(sets.requiredSecretNames);
 
     const needsExistingValue = (secretName: string): boolean => {
       if (secretName === "tailscale_auth_key") return !values.tailscaleAuthKey.trim();

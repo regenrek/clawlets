@@ -1,17 +1,17 @@
 import { randomBytes } from "node:crypto"
 import { api } from "../../convex/_generated/api"
 import type { Id } from "../../convex/_generated/dataModel"
-import type { ClawdbotSchemaArtifact } from "@clawlets/core/lib/clawdbot-schema"
-import { parseClawdbotSchemaArtifact } from "@clawlets/core/lib/clawdbot-schema"
-import { buildOpenClawGatewayConfig } from "@clawlets/core/lib/openclaw-config-invariants"
-import { loadClawletsConfig } from "@clawlets/core/lib/clawlets-config"
-import { compareClawdbotSchemaToNixClawdbot, summarizeClawdbotSchemaComparison } from "@clawlets/core/lib/clawdbot-schema-compare"
-import { fetchNixClawdbotSourceInfo, getNixClawdbotRevFromFlakeLock } from "@clawlets/core/lib/nix-clawdbot"
-import { shellQuote, sshCapture, validateTargetHost } from "@clawlets/core/lib/ssh-remote"
+import type { OpenclawSchemaArtifact } from "@clawlets/core/lib/openclaw/schema/artifact"
+import { parseOpenclawSchemaArtifact } from "@clawlets/core/lib/openclaw/schema/artifact"
+import { buildOpenClawGatewayConfig } from "@clawlets/core/lib/openclaw/config-invariants"
+import { loadClawletsConfig } from "@clawlets/core/lib/config/clawlets-config"
+import { compareOpenclawSchemaToNixOpenclaw, summarizeOpenclawSchemaComparison } from "@clawlets/core/lib/openclaw/schema/compare"
+import { fetchNixOpenclawSourceInfo, getNixOpenclawRevFromFlakeLock } from "@clawlets/core/lib/nix/nix-openclaw-source"
+import { shellQuote, sshCapture, validateTargetHost } from "@clawlets/core/lib/security/ssh-remote"
 import { GatewayIdSchema } from "@clawlets/shared/lib/identifiers"
 import { createConvexClient } from "~/server/convex"
 import { getProjectContext } from "~/sdk/repo-root"
-import { sanitizeErrorMessage } from "@clawlets/core/lib/safe-error"
+import { sanitizeErrorMessage } from "@clawlets/core/lib/runtime/safe-error"
 
 const SOURCE_TTL_MS = 5 * 60 * 1000
 const STATUS_TTL_MS = 60 * 1000
@@ -22,15 +22,17 @@ const STATUS_CACHE_MAX = 128
 const LIVE_SCHEMA_CACHE_MAX = 256
 const SCHEMA_MARKER_BEGIN = "__OPENCLAW_SCHEMA_BEGIN__"
 const SCHEMA_MARKER_END = "__OPENCLAW_SCHEMA_END__"
-const SCHEMA_MARKER_BYTES_MAX = 2 * 1024 * 1024
+const LIVE_SCHEMA_MAX_OUTPUT_BYTES = 5 * 1024 * 1024
+const SCHEMA_MARKER_OVERHEAD_BYTES = 16 * 1024
+const SCHEMA_PAYLOAD_BYTES_MAX = LIVE_SCHEMA_MAX_OUTPUT_BYTES - SCHEMA_MARKER_OVERHEAD_BYTES
 
 type SourceCacheEntry = {
   expiresAt: number
-  value: Awaited<ReturnType<typeof fetchNixClawdbotSourceInfo>>
+  value: Awaited<ReturnType<typeof fetchNixOpenclawSourceInfo>>
 }
 
 const sourceCache = new Map<string, SourceCacheEntry>()
-const sourceInFlight = new Map<string, Promise<Awaited<ReturnType<typeof fetchNixClawdbotSourceInfo>>>>()
+const sourceInFlight = new Map<string, Promise<Awaited<ReturnType<typeof fetchNixOpenclawSourceInfo>>>>()
 const statusCache = new Map<string, { expiresAt: number; value: OpenclawSchemaStatusResult }>()
 const statusInFlight = new Map<string, Promise<OpenclawSchemaStatusResult>>()
 const liveSchemaCache = new Map<string, { expiresAt: number; value: OpenclawSchemaLiveResult }>()
@@ -53,9 +55,9 @@ function capCache<T>(cache: Map<string, T>, maxSize: number) {
   }
 }
 
-async function fetchNixClawdbotSourceInfoCached(params: {
+async function fetchNixOpenclawSourceInfoCached(params: {
   ref: string
-}): Promise<Awaited<ReturnType<typeof fetchNixClawdbotSourceInfo>>> {
+}): Promise<Awaited<ReturnType<typeof fetchNixOpenclawSourceInfo>>> {
   const key = params.ref.trim() || "main"
   const now = Date.now()
   pruneExpired(sourceCache, now)
@@ -64,7 +66,7 @@ async function fetchNixClawdbotSourceInfoCached(params: {
   const inFlight = sourceInFlight.get(key)
   if (inFlight) return inFlight
   const task = (async () => {
-    const value = await fetchNixClawdbotSourceInfo({ ref: key })
+    const value = await fetchNixOpenclawSourceInfo({ ref: key })
     const expiresAt = Date.now() + SOURCE_TTL_MS
     sourceCache.set(key, { expiresAt, value })
     capCache(sourceCache, SOURCE_CACHE_MAX)
@@ -97,8 +99,9 @@ function extractJsonBlock(raw: string, nonce: string): string {
   if (payloadEnd > beginLineEnd && raw[payloadEnd - 1] === "\r") payloadEnd -= 1
   const between = raw.slice(beginLineEnd + 1, payloadEnd).trim()
   if (!between) throw new Error("empty schema payload in output")
-  if (Buffer.byteLength(between, "utf8") > SCHEMA_MARKER_BYTES_MAX) {
-    throw new Error("schema payload too large")
+  const payloadBytes = Buffer.byteLength(between, "utf8")
+  if (payloadBytes > SCHEMA_PAYLOAD_BYTES_MAX) {
+    throw new Error(`schema payload too large: ${payloadBytes} bytes (max ${SCHEMA_PAYLOAD_BYTES_MAX} bytes)`)
   }
   return between
 }
@@ -153,7 +156,7 @@ export function __test_buildGatewaySchemaCommand(params: {
 }
 
 export type OpenclawSchemaLiveResult =
-  | { ok: true; schema: ClawdbotSchemaArtifact }
+  | { ok: true; schema: OpenclawSchemaArtifact }
   | { ok: false; message: string }
 
 export type OpenclawSchemaStatusResult =
@@ -222,11 +225,11 @@ export async function fetchOpenclawSchemaLive(params: {
       const raw = await sshCapture(targetHost, remoteCmd, {
         cwd: repoRoot,
         timeoutMs: 15_000,
-        maxOutputBytes: 5 * 1024 * 1024,
+        maxOutputBytes: LIVE_SCHEMA_MAX_OUTPUT_BYTES,
       })
       const payload = extractJsonBlock(raw || "", nonce)
       const parsed = JSON.parse(payload)
-      const artifact = parseClawdbotSchemaArtifact(parsed)
+      const artifact = parseOpenclawSchemaArtifact(parsed)
       if (!artifact.ok) {
         throw new Error(artifact.error)
       }
@@ -266,10 +269,10 @@ export async function fetchOpenclawSchemaStatus(params: {
     try {
       const client = createConvexClient()
       const { repoRoot } = await getProjectContext(client, params.projectId)
-      const comparison = await compareClawdbotSchemaToNixClawdbot({
+      const comparison = await compareOpenclawSchemaToNixOpenclaw({
         repoRoot,
-        fetchNixClawdbotSourceInfo: fetchNixClawdbotSourceInfoCached,
-        getNixClawdbotRevFromFlakeLock,
+        fetchNixOpenclawSourceInfo: fetchNixOpenclawSourceInfoCached,
+        getNixOpenclawRevFromFlakeLock,
         requireSchemaRev: false,
       })
       if (!comparison) {
@@ -283,12 +286,12 @@ export async function fetchOpenclawSchemaStatus(params: {
         return result
       }
 
-      const summary = summarizeClawdbotSchemaComparison(comparison)
+      const summary = summarizeOpenclawSchemaComparison(comparison)
       const pinned = summary.pinned?.ok
-        ? { nixOpenclawRev: summary.pinned.nixClawdbotRev, openclawRev: summary.pinned.clawdbotRev }
+        ? { nixOpenclawRev: summary.pinned.nixOpenclawRev, openclawRev: summary.pinned.openclawRev }
         : undefined
       const upstream = summary.upstream.ok
-        ? { nixOpenclawRef: summary.upstream.nixClawdbotRef, openclawRev: summary.upstream.clawdbotRev }
+        ? { nixOpenclawRef: summary.upstream.nixOpenclawRef, openclawRev: summary.upstream.openclawRev }
         : undefined
 
       const result = {

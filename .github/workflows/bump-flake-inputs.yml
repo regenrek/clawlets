@@ -48,7 +48,7 @@ jobs:
             --update-input disko \
             --update-input sops-nix \
             --update-input nixos-generators \
-            --update-input nix-clawdbot
+            --update-input nix-openclaw
           if git diff --quiet flake.lock; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0

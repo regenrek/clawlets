@@ -145,8 +145,8 @@ function HostOverview() {
             <>
               <div className="grid auto-rows-min gap-4 md:grid-cols-3">
                 <KpiCard title="Status" value={hostCfg.enable !== false ? "Enabled" : "Disabled"} subtext="Host state" />
-                <KpiCard title="Location" value={hostCfg.hetzner?.location || "—"} subtext="Hetzner region" />
-                <KpiCard title="Server type" value={hostCfg.hetzner?.serverType || "—"} subtext="Compute profile" />
+                <KpiCard title="Provider" value={hostCfg.provisioning?.provider || "hetzner"} subtext="Day 0 infra driver" />
+                <KpiCard title="Compute" value={hostCfg.provisioning?.provider === "aws" ? hostCfg.aws?.instanceType || "—" : hostCfg.hetzner?.serverType || "—"} subtext="Host class" />
               </div>
 
               <div className="grid gap-4 lg:grid-cols-3">
@@ -193,6 +193,10 @@ function HostOverview() {
                     <div className="flex items-center justify-between gap-3">
                       <span className="text-muted-foreground">Disk device</span>
                       <span className="font-medium">{hostCfg.diskDevice || "—"}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-muted-foreground">Provider region</span>
+                      <span className="font-medium">{hostCfg.provisioning?.provider === "aws" ? hostCfg.aws?.region || "—" : hostCfg.hetzner?.location || "—"}</span>
                     </div>
                     <div className="flex items-center justify-between gap-3">
                       <span className="text-muted-foreground">Admin CIDR</span>

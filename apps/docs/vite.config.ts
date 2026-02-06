@@ -7,6 +7,7 @@ import { defineConfig } from 'vite'
 import tsConfigPaths from 'vite-tsconfig-paths'
 import tailwindcss from '@tailwindcss/vite'
 import mdx from 'fumadocs-mdx/vite'
+import * as sourceConfig from './source.config'
 
 const alchemyWranglerConfigPath = path.join(
   process.cwd(),
@@ -33,7 +34,7 @@ export default defineConfig({
     noExternal: ['fumadocs-ui', 'fumadocs-core', 'fumadocs-mdx'],
   },
   plugins: [
-    mdx(await import('./source.config')),
+    mdx(sourceConfig),
     tailwindcss(),
     tsConfigPaths({
       projects: ['./tsconfig.json'],

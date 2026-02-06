@@ -10,7 +10,84 @@ permissions:
   contents: read
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      node: ${{ steps.filter.outputs.node }}
+      core: ${{ steps.filter.outputs.core }}
+      cli: ${{ steps.filter.outputs.cli }}
+      plugins_cattle: ${{ steps.filter.outputs.plugins_cattle }}
+      web: ${{ steps.filter.outputs.web }}
+      docs: ${{ steps.filter.outputs.docs }}
+      clf: ${{ steps.filter.outputs.clf }}
+      nix: ${{ steps.filter.outputs.nix }}
+      boundaries: ${{ steps.filter.outputs.boundaries }}
+      template_e2e: ${{ steps.filter.outputs.template_e2e }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changes
+        id: filter
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          base="${BASE_SHA}"
+          head="${HEAD_SHA}"
+
+          if [[ -z "${base}" || -z "${head}" ]]; then
+            for name in node core cli plugins_cattle web docs clf nix boundaries template_e2e; do
+              echo "${name}=true" >> "$GITHUB_OUTPUT"
+            done
+            exit 0
+          fi
+
+          changed() {
+            if git diff --name-only "${base}" "${head}" -- "$@" | grep -q .; then
+              echo "true"
+            else
+              echo "false"
+            fi
+          }
+
+          root_paths=(
+            package.json
+            pnpm-lock.yaml
+            pnpm-workspace.yaml
+            ":(glob)tsconfig*.json"
+            scripts
+            config
+            .github/workflows/ci.yml
+          )
+
+          core_paths=(packages/core packages/shared packages/cattle-core templates "${root_paths[@]}")
+          cli_paths=(packages/cli packages/core packages/shared packages/cattle-core templates "${root_paths[@]}")
+          plugins_cattle_paths=(packages/plugins/cattle packages/core packages/shared packages/cattle-core packages/clf/queue templates "${root_paths[@]}")
+          web_paths=(apps/web packages/core packages/shared templates "${root_paths[@]}")
+          docs_paths=(apps/docs "${root_paths[@]}")
+          clf_paths=(packages/clf packages/cattle-core packages/shared "${root_paths[@]}")
+          node_paths=(packages/core packages/cli packages/shared packages/cattle-core packages/plugins packages/clf apps/web templates "${root_paths[@]}")
+          boundaries_paths=(packages apps config/workspace-boundaries.json package.json pnpm-workspace.yaml)
+          nix_paths=(nix flake.nix flake.lock)
+          template_paths=(templates packages/cli packages/core config/template-source.json scripts "${root_paths[@]}")
+
+          echo "node=$(changed \"${node_paths[@]}\")" >> "$GITHUB_OUTPUT"
+          echo "core=$(changed \"${core_paths[@]}\")" >> "$GITHUB_OUTPUT"
+          echo "cli=$(changed \"${cli_paths[@]}\")" >> "$GITHUB_OUTPUT"
+          echo "plugins_cattle=$(changed \"${plugins_cattle_paths[@]}\")" >> "$GITHUB_OUTPUT"
+          echo "web=$(changed \"${web_paths[@]}\")" >> "$GITHUB_OUTPUT"
+          echo "docs=$(changed \"${docs_paths[@]}\")" >> "$GITHUB_OUTPUT"
+          echo "clf=$(changed \"${clf_paths[@]}\")" >> "$GITHUB_OUTPUT"
+          echo "nix=$(changed \"${nix_paths[@]}\")" >> "$GITHUB_OUTPUT"
+          echo "boundaries=$(changed \"${boundaries_paths[@]}\")" >> "$GITHUB_OUTPUT"
+          echo "template_e2e=$(changed \"${template_paths[@]}\")" >> "$GITHUB_OUTPUT"
+
   node:
+    needs: changes
+    if: needs.changes.outputs.node == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -28,6 +105,10 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      - name: Boundary checks
+        if: needs.changes.outputs.boundaries == 'true'
+        run: pnpm check:boundaries
+
       - name: Build
         run: pnpm -r build
 
@@ -35,31 +116,82 @@ jobs:
         run: pnpm -r typecheck
 
       - name: CLI tests
+        if: needs.changes.outputs.cli == 'true'
         env:
           CI: "1"
         run: pnpm -C packages/cli test
 
       - name: Plugin tests (cattle)
+        if: needs.changes.outputs.plugins_cattle == 'true'
         env:
           CI: "1"
         run: pnpm -C packages/plugins/cattle test
 
-      - name: Tests
+      - name: Core tests
+        if: needs.changes.outputs.core == 'true'
         env:
           CI: "1"
           CLAWLETS_TEMPLATE_REF: ${{ github.sha }}
         run: pnpm -C packages/core run test:run
 
-      - name: Coverage
+      - name: Core coverage
+        if: needs.changes.outputs.core == 'true'
         env:
           CI: "1"
           CLAWLETS_TEMPLATE_REF: ${{ github.sha }}
         run: pnpm -C packages/core run coverage
 
       - name: Plugin coverage (cattle)
+        if: needs.changes.outputs.plugins_cattle == 'true'
         env:
           CI: "1"
         run: pnpm -C packages/plugins/cattle run coverage
+
+      - name: CLF tests
+        if: needs.changes.outputs.clf == 'true'
+        env:
+          CI: "1"
+        run: |
+          pnpm -C packages/clf/cli test
+          pnpm -C packages/clf/queue test
+          pnpm -C packages/clf/orchestrator test
+
+      - name: Web tests
+        if: needs.changes.outputs.web == 'true'
+        env:
+          CI: "1"
+        run: pnpm -C apps/web test
+
+  docs:
+    needs: changes
+    if: needs.changes.outputs.docs == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
+
+      - uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4
+        with:
+          version: 10.25.0
+
+      - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Docs build
+        run: pnpm -C apps/docs build
+
+  nix:
+    needs: changes
+    if: needs.changes.outputs.nix == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
 
       - uses: cachix/install-nix-action@4e002c8ec80594ecd40e759629461e26c8abed15 # v31.9.0
         with:
@@ -103,7 +235,7 @@ jobs:
         uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v5
         with:
           nix: false
-          primary-key: nix-clf-${{ runner.os }}-${{ hashFiles('nix/subflakes/clf/flake.nix', 'pnpm-lock.yaml') }}
+          primary-key: nix-clf-${{ runner.os }}-${{ hashFiles('nix/openclaw/subflakes/clf/flake.nix', 'pnpm-lock.yaml') }}
           restore-prefixes-first-match: |
             nix-clf-${{ runner.os }}-
           paths-linux: |
@@ -128,7 +260,7 @@ jobs:
               pnpm-lock.yaml \
               pnpm-workspace.yaml \
               package.json \
-              nix/subflakes/clf/flake.nix \
+              nix/openclaw/subflakes/clf/flake.nix \
               packages/shared/package.json \
               packages/cattle-core/package.json \
               packages/clf/**/package.json \
@@ -141,7 +273,7 @@ jobs:
 
       - name: Build CLF subflake
         if: ${{ steps.changed.outputs.run == 'true' }}
-        working-directory: nix/subflakes/clf
+        working-directory: nix/openclaw/subflakes/clf
         run: |
           set -euo pipefail
 
@@ -155,7 +287,7 @@ jobs:
 
           echo "### CLF pnpmDeps hash mismatch" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "The hash in \`nix/subflakes/clf/flake.nix\` needs to be updated." >> "$GITHUB_STEP_SUMMARY"
+          echo "The hash in \`nix/openclaw/subflakes/clf/flake.nix\` needs to be updated." >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
 
           if [[ -n "${got}" ]]; then
@@ -169,6 +301,8 @@ jobs:
           exit 1
 
   template-e2e:
+    needs: changes
+    if: needs.changes.outputs.template_e2e == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -230,7 +364,7 @@ jobs:
           (cd "${tmpdir}/clawlets-project" && node "${GITHUB_WORKSPACE}/packages/cli/dist/main.mjs" doctor --scope repo)
           (cd "${tmpdir}/clawlets-project" && node "${GITHUB_WORKSPACE}/packages/cli/dist/main.mjs" config validate --strict)
 
-  clawdbot-assets:
+  openclaw-assets:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -329,8 +463,8 @@ jobs:
         if: ${{ steps.assets.outputs.changed == 'true' }}
         run: |
           set -euo pipefail
-          if git diff --name-only -- packages/core/src/assets/clawdbot-config.schema.json packages/core/src/assets/llm-providers.json | grep -q .; then
-            echo "error: schema assets out of date; run pnpm clawlets:openclaw-assets and commit outputs" >&2
-            git diff --stat -- packages/core/src/assets/clawdbot-config.schema.json packages/core/src/assets/llm-providers.json
+          if git diff --name-only -- packages/core/src/assets/openclaw-config.schema.json packages/core/src/assets/llm-providers.json | grep -q .; then
+            echo "error: openclaw assets out of date; run pnpm clawlets:openclaw-assets and commit outputs" >&2
+            git diff --stat -- packages/core/src/assets/openclaw-config.schema.json packages/core/src/assets/llm-providers.json
             exit 1
           fi

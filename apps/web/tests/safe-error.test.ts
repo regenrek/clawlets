@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { sanitizeErrorMessage } from "@clawlets/core/lib/safe-error"
+import { sanitizeErrorMessage } from "@clawlets/core/lib/runtime/safe-error"
 
 describe("sanitizeErrorMessage", () => {
   it("returns safe message when matched", () => {

@@ -1,9 +1,9 @@
 import process from "node:process";
 import { defineCommand } from "citty";
-import { loadDeployCreds } from "@clawlets/core/lib/deploy-creds";
+import { loadDeployCreds } from "@clawlets/core/lib/infra/deploy-creds";
 import { openCattleState } from "../../lib/cattle-state.js";
 import { buildCattleLabelSelector, listCattleServers, type CattleServer } from "@clawlets/cattle-core/lib/hcloud-cattle";
-import { loadHostContextOrExit } from "@clawlets/core/lib/context";
+import { loadHostContextOrExit } from "@clawlets/core/lib/runtime/context";
 import { formatAgeSeconds, formatTable, requireEnabled, unixSecondsNow } from "./common.js";
 
 export const cattleList = defineCommand({

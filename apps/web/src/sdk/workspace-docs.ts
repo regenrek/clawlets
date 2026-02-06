@@ -6,6 +6,12 @@ import type {
   WorkspaceDocWriteScope,
 } from "~/sdk/workspace-docs-model"
 import { parseProjectIdInput } from "~/sdk/serverfn-validators"
+import {
+  listWorkspaceDocsServer,
+  readWorkspaceDocServer,
+  resetWorkspaceDocOverrideServer,
+  writeWorkspaceDocServer,
+} from "~/server/workspace-docs.server"
 
 export const listWorkspaceDocs = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => {
@@ -17,7 +23,6 @@ export const listWorkspaceDocs = createServerFn({ method: "POST" })
     }
   })
   .handler(async ({ data }) => {
-    const { listWorkspaceDocsServer } = await import("~/server/workspace-docs.server")
     return await listWorkspaceDocsServer(data)
   })
 
@@ -35,7 +40,6 @@ export const readWorkspaceDoc = createServerFn({ method: "POST" })
     }
   })
   .handler(async ({ data }): Promise<WorkspaceDocReadResult> => {
-    const { readWorkspaceDocServer } = await import("~/server/workspace-docs.server")
     return await readWorkspaceDocServer(data)
   })
 
@@ -55,7 +59,6 @@ export const writeWorkspaceDoc = createServerFn({ method: "POST" })
     }
   })
   .handler(async ({ data }): Promise<WorkspaceDocWriteResult> => {
-    const { writeWorkspaceDocServer } = await import("~/server/workspace-docs.server")
     return await writeWorkspaceDocServer(data)
   })
 
@@ -71,6 +74,5 @@ export const resetWorkspaceDocOverride = createServerFn({ method: "POST" })
     }
   })
   .handler(async ({ data }): Promise<WorkspaceDocWriteResult> => {
-    const { resetWorkspaceDocOverrideServer } = await import("~/server/workspace-docs.server")
     return await resetWorkspaceDocOverrideServer(data)
   })

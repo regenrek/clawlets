@@ -5,7 +5,7 @@ import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { getRepoLayout } from "@clawlets/core/repo-layout";
 
 const loadHostContextOrExitMock = vi.fn();
-vi.mock("@clawlets/core/lib/context", () => ({
+vi.mock("@clawlets/core/lib/runtime/context", () => ({
   loadHostContextOrExit: loadHostContextOrExitMock,
 }));
 
@@ -21,7 +21,7 @@ vi.mock("../src/lib/cattle-state", () => ({
 }));
 
 const loadDeployCredsMock = vi.fn();
-vi.mock("@clawlets/core/lib/deploy-creds", () => ({
+vi.mock("@clawlets/core/lib/infra/deploy-creds", () => ({
   loadDeployCreds: loadDeployCredsMock,
 }));
 
@@ -50,7 +50,7 @@ vi.mock("@clawlets/cattle-core/lib/hcloud-cattle", async () => {
 describe("cattle command", () => {
   const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "clawlets-cli-cattle-"));
   const layout = getRepoLayout(repoRoot);
-  const hostName = "clawdbot-fleet-host";
+  const hostName = "openclaw-fleet-host";
 
   const hostCfg = {
     gatewaysOrder: ["agent"],
@@ -116,7 +116,7 @@ describe("cattle command", () => {
     const taskFile = path.join(repoRoot, "task.json");
     fs.writeFileSync(
       taskFile,
-      JSON.stringify({ schemaVersion: 1, taskId: "issue-42", type: "clawdbot.gateway.agent", message: "do the thing", callbackUrl: "" }, null, 2),
+      JSON.stringify({ schemaVersion: 1, taskId: "issue-42", type: "openclaw.gateway.agent", message: "do the thing", callbackUrl: "" }, null, 2),
       "utf8",
     );
 
@@ -142,7 +142,7 @@ describe("cattle command", () => {
     const taskFile = path.join(repoRoot, "task.json");
     fs.writeFileSync(
       taskFile,
-      JSON.stringify({ schemaVersion: 1, taskId: "issue-42", type: "clawdbot.gateway.agent", message: "do the thing", callbackUrl: "" }, null, 2),
+      JSON.stringify({ schemaVersion: 1, taskId: "issue-42", type: "openclaw.gateway.agent", message: "do the thing", callbackUrl: "" }, null, 2),
       "utf8",
     );
 
@@ -171,7 +171,7 @@ describe("cattle command", () => {
     const taskFile = path.join(repoRoot, "task.json");
     fs.writeFileSync(
       taskFile,
-      JSON.stringify({ schemaVersion: 1, taskId: "issue-42", type: "clawdbot.gateway.agent", message: "do the thing" }, null, 2),
+      JSON.stringify({ schemaVersion: 1, taskId: "issue-42", type: "openclaw.gateway.agent", message: "do the thing" }, null, 2),
       "utf8",
     );
 
@@ -230,7 +230,7 @@ describe("cattle command", () => {
     const taskFile = path.join(repoRoot, "task.json");
     fs.writeFileSync(
       taskFile,
-      JSON.stringify({ schemaVersion: 1, taskId: "issue-42", type: "clawdbot.gateway.agent", message: "do the thing" }, null, 2),
+      JSON.stringify({ schemaVersion: 1, taskId: "issue-42", type: "openclaw.gateway.agent", message: "do the thing" }, null, 2),
       "utf8",
     );
 
@@ -249,7 +249,7 @@ describe("cattle command", () => {
     const taskFile = path.join(repoRoot, "task.json");
     fs.writeFileSync(
       taskFile,
-      JSON.stringify({ schemaVersion: 1, taskId: "issue-42", type: "clawdbot.gateway.agent", message: "do the thing" }, null, 2),
+      JSON.stringify({ schemaVersion: 1, taskId: "issue-42", type: "openclaw.gateway.agent", message: "do the thing" }, null, 2),
       "utf8",
     );
 
@@ -268,7 +268,7 @@ describe("cattle command", () => {
     const taskFile = path.join(repoRoot, "task.json");
     fs.writeFileSync(
       taskFile,
-      JSON.stringify({ schemaVersion: 1, taskId: "issue-42", type: "clawdbot.gateway.agent", message: "do the thing" }, null, 2),
+      JSON.stringify({ schemaVersion: 1, taskId: "issue-42", type: "openclaw.gateway.agent", message: "do the thing" }, null, 2),
       "utf8",
     );
 
@@ -282,7 +282,7 @@ describe("cattle command", () => {
     const taskFile = path.join(repoRoot, "task.json");
     fs.writeFileSync(
       taskFile,
-      JSON.stringify({ schemaVersion: 1, taskId: "issue-42", type: "clawdbot.gateway.agent", message: "do the thing" }, null, 2),
+      JSON.stringify({ schemaVersion: 1, taskId: "issue-42", type: "openclaw.gateway.agent", message: "do the thing" }, null, 2),
       "utf8",
     );
 

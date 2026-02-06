@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "packages": {
+    "@clawlets/core": {
+      "allow": ["@clawlets/shared", "@clawlets/cattle-core"]
+    },
+    "@clawlets/shared": {
+      "allow": []
+    },
+    "@clawlets/cattle-core": {
+      "allow": ["@clawlets/shared"]
+    },
+    "@clawlets/plugin-cattle": {
+      "allow": [
+        "@clawlets/cattle-core",
+        "@clawlets/clf-queue",
+        "@clawlets/core",
+        "@clawlets/shared"
+      ]
+    },
+    "@clawlets/clf-queue": {
+      "allow": ["@clawlets/cattle-core", "@clawlets/shared"]
+    },
+    "clf-orchestrator": {
+      "allow": ["@clawlets/cattle-core", "@clawlets/clf-queue", "@clawlets/shared"]
+    },
+    "clf": {
+      "allow": ["@clawlets/cattle-core", "@clawlets/clf-queue"]
+    },
+    "clawlets": {
+      "allow": ["@clawlets/core", "@clawlets/shared"]
+    },
+    "clawlets-dashboard": {
+      "allow": ["@clawlets/core", "@clawlets/shared"]
+    },
+    "@clawlets/docs": {
+      "allow": []
+    }
+  }
+}

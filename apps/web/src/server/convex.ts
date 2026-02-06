@@ -1,6 +1,7 @@
 import { ConvexHttpClient } from "convex/browser";
 import type { FunctionReference, FunctionReturnType, OptionalRestArgs } from "convex/server";
 
+import { fetchAuthAction, fetchAuthMutation, fetchAuthQuery } from "~/server/better-auth";
 
 export type ConvexClient = {
   query: <Query extends FunctionReference<"query">>(
@@ -26,16 +27,13 @@ function getConvexUrl(): string {
 export function createConvexClient(): ConvexClient {
   return {
     query: async (query, ...args) => {
-      const { fetchAuthQuery } = await import("~/server/better-auth");
-      return await fetchAuthQuery(query, ...args);
+      return await fetchAuthQuery(query, args[0]);
     },
     mutation: async (mutation, ...args) => {
-      const { fetchAuthMutation } = await import("~/server/better-auth");
-      return await fetchAuthMutation(mutation, ...args);
+      return await fetchAuthMutation(mutation, args[0]);
     },
     action: async (action, ...args) => {
-      const { fetchAuthAction } = await import("~/server/better-auth");
-      return await fetchAuthAction(action, ...args);
+      return await fetchAuthAction(action, args[0]);
     },
   };
 }

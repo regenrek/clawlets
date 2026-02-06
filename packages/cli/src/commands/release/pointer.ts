@@ -2,8 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { defineCommand } from "citty";
-import { loadHostContextOrExit } from "@clawlets/core/lib/context";
-import { formatReleasePointer, ReleasePointerV1Schema } from "@clawlets/core/lib/release-manifest";
+import { loadHostContextOrExit } from "@clawlets/core/lib/runtime/context";
+import { formatReleasePointer, ReleasePointerV1Schema } from "@clawlets/core/lib/project/release-manifest";
 
 function requireChannel(value: string): string {
   const v = value.trim();

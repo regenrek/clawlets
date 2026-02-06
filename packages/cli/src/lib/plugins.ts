@@ -1,13 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { findRepoRoot } from "@clawlets/core/lib/repo";
-import { run } from "@clawlets/core/lib/run";
+import { findRepoRoot } from "@clawlets/core/lib/project/repo";
+import { run } from "@clawlets/core/lib/runtime/run";
 import { getRepoLayout } from "@clawlets/core/repo-layout";
 import { baseCommandNames } from "../commands/registry.js";
 
 const PLUGIN_MANIFEST = "clawlets-plugin.json";
-const RESERVED_COMMANDS = new Set(baseCommandNames);
 const SAFE_SLUG_RE = /^[a-z][a-z0-9_-]*$/;
 const PACKAGE_NAME_RE =
   /^(?:@[a-z0-9][a-z0-9-._]*\/)?[a-z0-9][a-z0-9-._]*$/;
@@ -47,7 +46,7 @@ function assertSafeSlug(value: string): void {
 }
 
 function isReservedCommand(value: string): boolean {
-  return RESERVED_COMMANDS.has(value);
+  return baseCommandNames.includes(value);
 }
 
 function assertCommandName(value: string): void {
@@ -215,6 +214,7 @@ export async function loadPluginCommand(plugin: InstalledPlugin): Promise<any> {
   if (!fs.existsSync(entryPath)) {
     throw new Error(`plugin entry missing: ${entryPath}`);
   }
+  // Runtime path is user/plugin-provided and unknown at build time.
   const mod = await import(pathToFileURL(entryPath).href);
   const command = mod.command || mod.plugin?.command || mod.default?.command || mod.default;
   if (!command) throw new Error(`plugin entry ${entryPath} does not export a command`);
@@ -288,5 +288,5 @@ export function removePlugin(params: { cwd: string; runtimeDir?: string; slug: s
 }
 
 export function listReservedCommands(): string[] {
-  return [...RESERVED_COMMANDS].sort();
+  return [...baseCommandNames].sort();
 }

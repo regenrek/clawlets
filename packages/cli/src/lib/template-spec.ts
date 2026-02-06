@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { normalizeTemplateSource, type TemplateSource } from "@clawlets/core/lib/template-source";
+import { normalizeTemplateSource, type TemplateSource } from "@clawlets/core/lib/project/template-source";
 
 type TemplateSpecArgs = {
   template?: string;

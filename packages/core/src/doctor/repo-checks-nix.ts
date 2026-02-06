@@ -1,8 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
-import { capture } from "../lib/run.js";
-import { withFlakesEnv } from "../lib/nix-flakes.js";
+import { capture } from "../lib/runtime/run.js";
+import { withFlakesEnv } from "../lib/nix/nix-flakes.js";
 
 export async function evalWheelAccess(params: { repoRoot: string; nixBin: string; host: string }): Promise<{
   adminHasWheel: boolean;

@@ -1,21 +1,22 @@
 import { createServerFn } from "@tanstack/react-start"
-import { applySecurityDefaults } from "@clawlets/core/lib/config-patch"
-import { applyCapabilityPreset, getChannelCapabilityPreset, type CapabilityPreset } from "@clawlets/core/lib/capability-presets"
-import { diffConfig, type ConfigDiffEntry } from "@clawlets/core/lib/config-diff"
-import { validateClawdbotConfig } from "@clawlets/core/lib/clawdbot-schema-validate"
-import { diffChannelSchemasFromArtifacts } from "@clawlets/core/lib/clawdbot-schema-diff"
-import { getPinnedClawdbotSchema } from "@clawlets/core/lib/clawdbot-schema"
-import { OPENCLAW_DEFAULT_COMMANDS } from "@clawlets/core/lib/openclaw-defaults"
-import { suggestSecretNameForEnvVar } from "@clawlets/core/lib/fleet-secrets-plan-helpers"
-import { lintOpenclawSecurityConfig } from "@clawlets/core/lib/openclaw-security-lint"
+import { applySecurityDefaults } from "@clawlets/core/lib/config/config-patch"
+import { applyCapabilityPreset, getChannelCapabilityPreset, type CapabilityPreset } from "@clawlets/core/lib/config/capability-presets"
+import { diffConfig, type ConfigDiffEntry } from "@clawlets/core/lib/config/config-diff"
+import { validateOpenclawConfig } from "@clawlets/core/lib/openclaw/schema/validate"
+import { diffOpenclawChannelSchemasFromArtifacts } from "@clawlets/core/lib/openclaw/schema/diff"
+import { getPinnedOpenclawSchemaArtifact } from "@clawlets/core/lib/openclaw/schema/artifact"
+import { OPENCLAW_DEFAULT_COMMANDS } from "@clawlets/core/lib/openclaw/openclaw-defaults"
+import { suggestSecretNameForEnvVar } from "@clawlets/core/lib/secrets/env-vars"
+import { lintOpenclawSecurityConfig } from "@clawlets/core/lib/openclaw/security-lint"
 import {
   ClawletsConfigSchema,
   loadClawletsConfigRaw,
   writeClawletsConfig,
-} from "@clawlets/core/lib/clawlets-config"
+} from "@clawlets/core/lib/config/clawlets-config"
 
 import { api } from "../../convex/_generated/api"
 import { createConvexClient } from "~/server/convex"
+import { fetchOpenclawSchemaLive } from "~/server/openclaw-schema.server"
 import { readClawletsEnvTokens } from "~/server/redaction"
 import { getAdminProjectContext } from "~/sdk/repo-root"
 import {
@@ -26,7 +27,7 @@ import {
   parseProjectHostGatewayInput,
 } from "~/sdk/serverfn-validators"
 import { mapValidationIssues, runWithEventsAndStatus, type ValidationIssue } from "~/sdk/run-with-events"
-import { sanitizeErrorMessage } from "@clawlets/core/lib/safe-error"
+import { sanitizeErrorMessage } from "@clawlets/core/lib/runtime/safe-error"
 
 export const LIVE_SCHEMA_ERROR_FALLBACK = "Unable to fetch schema. Check logs."
 
@@ -131,7 +132,6 @@ export const setGatewayOpenclawConfig = createServerFn({ method: "POST" })
     let schema: Record<string, unknown> | undefined = undefined
     if (schemaMode === "live") {
       try {
-        const { fetchOpenclawSchemaLive } = await import("~/server/openclaw-schema.server")
         const live = await fetchOpenclawSchemaLive({
           projectId: data.projectId,
           host: data.host,
@@ -151,7 +151,7 @@ export const setGatewayOpenclawConfig = createServerFn({ method: "POST" })
       }
     }
 
-    const schemaValidation = validateClawdbotConfig(
+    const schemaValidation = validateOpenclawConfig(
       withDefaultCommands(existingGateway.openclaw as Record<string, unknown>),
       schema,
     )
@@ -244,14 +244,13 @@ export const applyGatewayCapabilityPreset = createServerFn({ method: "POST" })
     }
 
     const effectiveConfig = buildEffectiveOpenclawConfig(existingGateway as Record<string, unknown>)
-    const schemaValidation = validateClawdbotConfig(effectiveConfig)
+    const schemaValidation = validateOpenclawConfig(effectiveConfig)
     if (!schemaValidation.ok) {
       return { ok: false as const, issues: mapSchemaIssues(schemaValidation.issues) }
     }
 
     if (data.schemaMode === "live") {
       try {
-        const { fetchOpenclawSchemaLive } = await import("~/server/openclaw-schema.server")
         const live = await fetchOpenclawSchemaLive({
           projectId: data.projectId,
           host: data.host,
@@ -260,7 +259,7 @@ export const applyGatewayCapabilityPreset = createServerFn({ method: "POST" })
         if (!live.ok) {
           return { ok: false as const, issues: mapSchemaFailure(live.message || LIVE_SCHEMA_ERROR_FALLBACK) }
         }
-        const liveValidation = validateClawdbotConfig(effectiveConfig, live.schema.schema as Record<string, unknown>)
+        const liveValidation = validateOpenclawConfig(effectiveConfig, live.schema.schema as Record<string, unknown>)
         if (!liveValidation.ok) {
           return { ok: false as const, issues: mapSchemaIssues(liveValidation.issues) }
         }
@@ -339,7 +338,7 @@ export const previewGatewayCapabilityPreset = createServerFn({ method: "POST" })
       return { ok: false as const, issues: mapSchemaFailure(String((err as Error)?.message || err)) }
     }
 
-    const schemaValidation = validateClawdbotConfig(buildEffectiveOpenclawConfig(nextGateway))
+    const schemaValidation = validateOpenclawConfig(buildEffectiveOpenclawConfig(nextGateway))
     const diff = diffConfig(existingGateway, nextGateway, `hosts.${hostName}.gateways.${gatewayId}`)
 
     return {
@@ -364,10 +363,9 @@ export const verifyGatewayOpenclawSchema = createServerFn({ method: "POST" })
     const existingGateway = (hostCfg as any)?.gateways?.[gatewayId]
     if (!existingGateway || typeof existingGateway !== "object") throw new Error("gateway not found")
 
-    const pinned = getPinnedClawdbotSchema()
+    const pinned = getPinnedOpenclawSchemaArtifact()
     let liveSchema: Record<string, unknown> | null = null
     try {
-      const { fetchOpenclawSchemaLive } = await import("~/server/openclaw-schema.server")
       const live = await fetchOpenclawSchemaLive({
         projectId: data.projectId,
         host: hostName,
@@ -377,11 +375,11 @@ export const verifyGatewayOpenclawSchema = createServerFn({ method: "POST" })
         return { ok: false as const, issues: mapSchemaFailure(live.message || LIVE_SCHEMA_ERROR_FALLBACK) }
       }
       liveSchema = live.schema.schema as Record<string, unknown>
-      const liveValidation = validateClawdbotConfig(withDefaultCommands((existingGateway as any).openclaw), liveSchema)
+      const liveValidation = validateOpenclawConfig(withDefaultCommands((existingGateway as any).openclaw), liveSchema)
       return {
         ok: true as const,
         issues: liveValidation.ok ? [] : mapSchemaIssues(liveValidation.issues),
-        schemaDiff: diffChannelSchemasFromArtifacts(pinned, live.schema),
+        schemaDiff: diffOpenclawChannelSchemasFromArtifacts(pinned, live.schema),
         liveVersion: live.schema.version,
         pinnedVersion: pinned.version,
       }

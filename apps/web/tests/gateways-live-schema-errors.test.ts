@@ -25,12 +25,12 @@ async function loadGateways(options: {
     createConvexClient: () => ({ mutation, query }) as any,
   }))
   vi.doMock("~/server/redaction", () => ({ readClawletsEnvTokens: async () => [] }))
-  vi.doMock("@clawlets/core/lib/clawdbot-schema-validate", () => ({
-    validateClawdbotConfig: options.validate ?? (() => ({ ok: true })),
+  vi.doMock("@clawlets/core/lib/openclaw/schema/validate", () => ({
+    validateOpenclawConfig: options.validate ?? (() => ({ ok: true })),
   }))
-  vi.doMock("@clawlets/core/lib/clawlets-config", async () => {
-    const actual = await vi.importActual<typeof import("@clawlets/core/lib/clawlets-config")>(
-      "@clawlets/core/lib/clawlets-config",
+  vi.doMock("@clawlets/core/lib/config/clawlets-config", async () => {
+    const actual = await vi.importActual<typeof import("@clawlets/core/lib/config/clawlets-config")>(
+      "@clawlets/core/lib/config/clawlets-config",
     )
     return {
       ...actual,

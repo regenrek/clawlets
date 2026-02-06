@@ -1,9 +1,9 @@
 import process from "node:process";
 import path from "node:path";
 import { defineCommand } from "citty";
-import { applySecurityDefaults } from "@clawlets/core/lib/config-patch";
-import { findRepoRoot } from "@clawlets/core/lib/repo";
-import { ClawletsConfigSchema, loadClawletsConfigRaw, resolveHostName, writeClawletsConfig } from "@clawlets/core/lib/clawlets-config";
+import { applySecurityDefaults } from "@clawlets/core/lib/config/config-patch";
+import { findRepoRoot } from "@clawlets/core/lib/project/repo";
+import { ClawletsConfigSchema, loadClawletsConfigRaw, resolveHostName, writeClawletsConfig } from "@clawlets/core/lib/config/clawlets-config";
 
 export const openclawHarden = defineCommand({
   meta: {

@@ -60,7 +60,7 @@ nix run .#update-openclaw-schema
 - `packages/core/src/generated/openclaw-config.schema.json`
 - `packages/core/src/generated/openclaw-config.types.ts`
 
-4) If CI reports `schema assets out of date`, regenerate the additional OpenClaw assets used by the CLI:
+4) If CI reports `schema assets out of date`, sync the pinned schema asset and regenerate provider metadata:
 
 ```bash
 pnpm clawlets:openclaw-assets -- --src /path/to/openclaw
@@ -68,7 +68,7 @@ pnpm clawlets:openclaw-assets -- --src /path/to/openclaw
 
 Commit changes to:
 
-- `packages/core/src/assets/clawdbot-config.schema.json`
+- `packages/core/src/assets/openclaw-config.schema.json`
 - `packages/core/src/assets/llm-providers.json`
 
 5) Run `pnpm -C packages/core test` (and `pnpm docs:build` if docs changed).

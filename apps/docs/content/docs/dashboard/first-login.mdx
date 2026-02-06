@@ -32,9 +32,15 @@ state (config, secrets, local deploy creds, and runs), so you can close it and r
 
 - Choose a host (and add one if none exist)
 - Set connection basics (`targetHost`, `adminCidr`, `sshPubkeyFile`)
+- Choose provider first (`hetzner|aws`), then fill provider-specific settings
 - Initialize + verify host secrets
 - Configure local deploy credentials (`.clawlets/env`)
 - Deploy (initial install → then apply changes)
 
 The canonical deploy surface is **Deploy**: it automatically switches between initial install
 (bootstrap) and apply changes (updates) based on run history.
+
+Lifecycle split:
+
+- Day 0 infra: provider bootstrap and host access (`bootstrap`, `infra`, `lockdown`)
+- Day X OpenClaw: gateway config, channels, skills, and policy hardening

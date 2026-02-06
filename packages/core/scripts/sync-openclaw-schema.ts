@@ -6,7 +6,7 @@ import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { createJiti } from "jiti";
 import { compile } from "json-schema-to-typescript";
-import { findRepoRoot } from "../src/lib/repo.js";
+import { findRepoRoot } from "../src/lib/project/repo.js";
 
 type SchemaArtifact = {
   openclawRev: string;

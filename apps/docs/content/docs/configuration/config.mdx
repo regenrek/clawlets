@@ -23,7 +23,7 @@ state; the local runtime dir holds generated artifacts and operator keys.
   - operator age keys (`.clawlets/keys/operators/`)
   - `nixos-anywhere --extra-files` payload (`.clawlets/extra-files/<host>/...`)
   - image builds (`.clawlets/images/<host>/...`)
-  - provisioning state (gitignored): `.clawlets/infra/opentofu/<host>/...`
+  - provisioning state (gitignored): `.clawlets/infra/opentofu/<host>/providers/<provider>/...`
 
 ## Schema overview
 
@@ -71,12 +71,19 @@ also define which gateways run on this host.
 - `diskDevice`: passed into the disko module (required for install)
 - `flakeHost` (optional): nixosConfiguration output name override
 - `targetHost` (optional): SSH target for server ops (ssh alias or `user@host`)
-- `hetzner.serverType`: e.g. `cx43`
-- `hetzner.image`: custom image ID/name (optional; used for image‑based bootstrap)
-- `hetzner.location`: e.g. `nbg1` (provisioning + image upload helpers)
+- `provisioning.provider`: `hetzner|aws`
 - `provisioning.adminCidr`: CIDR allowed to SSH during bootstrap (e.g. `203.0.113.10/32`)
 - `provisioning.adminCidrAllowWorldOpen`: allow `0.0.0.0/0` or `::/0` (default: `false`)
-- `provisioning.sshPubkeyFile` (optional): local path override to a `.pub` used for provisioning on the bootstrap machine (advanced; prefer `fleet.sshAuthorizedKeys`)
+- `provisioning.sshPubkeyFile`: local path to `.pub` used for provisioning
+- `hetzner.serverType`: e.g. `cx43` (required when `provider=hetzner`)
+- `hetzner.image`: custom image ID/name (optional; used for image‑based bootstrap)
+- `hetzner.location`: e.g. `nbg1` (required when `provider=hetzner`)
+- `hetzner.allowTailscaleUdpIngress`: allow inbound UDP/41641 for direct Tailscale WireGuard paths (default: `true`; set `false` for relay-only mode / reduced public exposure)
+- `aws.region`: e.g. `us-east-1` (required when `provider=aws`)
+- `aws.instanceType`: e.g. `t3.large` (required when `provider=aws`)
+- `aws.amiId`: AMI ID for image-mode bootstrap/provisioning (required when `provider=aws`)
+- `aws.vpcId` / `aws.subnetId` / `aws.useDefaultVpc`: network placement settings for AWS driver
+- `aws.allowTailscaleUdpIngress`: allow inbound UDP/41641 for direct Tailscale WireGuard paths (default: `true`; set `false` for relay-only mode / reduced public exposure)
 - `operator.deploy.enable`: allow `admin` to run `install-secrets` (constrained allowlist)
 - `sshExposure.mode`: `tailnet|bootstrap|public`
 - `tailnet.mode`: `tailscale` or `none`
@@ -220,8 +227,23 @@ repo, run:
       },
       "diskDevice": "/dev/sda",
       "flakeHost": "",
-      "hetzner": { "serverType": "cx43", "image": "", "location": "nbg1" },
+      "hetzner": {
+        "serverType": "cx43",
+        "image": "",
+        "location": "nbg1",
+        "allowTailscaleUdpIngress": true
+      },
+      "aws": {
+        "region": "us-east-1",
+        "instanceType": "t3.large",
+        "amiId": "ami-0123456789abcdef0",
+        "vpcId": "",
+        "subnetId": "",
+        "useDefaultVpc": true,
+        "allowTailscaleUdpIngress": true
+      },
       "provisioning": {
+        "provider": "hetzner",
         "adminCidr": "",
         "adminCidrAllowWorldOpen": false,
         "sshPubkeyFile": ""

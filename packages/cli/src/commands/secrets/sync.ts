@@ -1,13 +1,13 @@
 import fs from "node:fs";
 import process from "node:process";
 import { defineCommand } from "citty";
-import { run } from "@clawlets/core/lib/run";
-import { shellQuote, sshRun } from "@clawlets/core/lib/ssh-remote";
+import { run } from "@clawlets/core/lib/runtime/run";
+import { shellQuote, sshRun } from "@clawlets/core/lib/security/ssh-remote";
 import { getHostRemoteSecretsDir, getHostSecretsDir } from "@clawlets/core/repo-layout";
-import { resolveGitRev } from "@clawlets/core/lib/git";
-import { createSecretsTar } from "@clawlets/core/lib/secrets-tar";
+import { resolveGitRev } from "@clawlets/core/lib/vcs/git";
+import { createSecretsTar } from "@clawlets/core/lib/secrets/secrets-tar";
 import { needsSudo, requireTargetHost } from "./common.js";
-import { loadHostContextOrExit } from "@clawlets/core/lib/context";
+import { loadHostContextOrExit } from "@clawlets/core/lib/runtime/context";
 
 export const secretsSync = defineCommand({
   meta: {

@@ -4,7 +4,7 @@ import {
   loadClawletsConfig,
   loadClawletsConfigRaw,
   writeClawletsConfig,
-} from "@clawlets/core/lib/clawlets-config"
+} from "@clawlets/core/lib/config/clawlets-config"
 import { getRepoLayout } from "@clawlets/core/repo-layout"
 import fs from "node:fs"
 import { api } from "../../convex/_generated/api"

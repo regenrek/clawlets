@@ -4,7 +4,7 @@ import {
   GatewayArchitectureSchema,
   loadClawletsConfigRaw,
   writeClawletsConfig,
-} from "@clawlets/core/lib/clawlets-config"
+} from "@clawlets/core/lib/config/clawlets-config"
 import { GatewayIdSchema, PersonaNameSchema } from "@clawlets/shared/lib/identifiers"
 import { api } from "../../convex/_generated/api"
 import { createConvexClient } from "~/server/convex"

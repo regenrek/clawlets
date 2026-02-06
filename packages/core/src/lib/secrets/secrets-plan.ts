@@ -1,0 +1,99 @@
+import { z } from "zod";
+
+import { EnvVarNameSchema, GatewayIdSchema, SecretNameSchema } from "@clawlets/shared/lib/identifiers";
+
+export const SECRET_KINDS = ["env", "file", "extra"] as const;
+export const SecretKindSchema = z.enum(SECRET_KINDS);
+export type SecretKind = z.infer<typeof SecretKindSchema>;
+
+export const SECRET_SCOPES = ["host", "gateway"] as const;
+export const SecretScopeSchema = z.enum(SECRET_SCOPES);
+export type SecretScope = z.infer<typeof SecretScopeSchema>;
+
+export const SECRET_SOURCES = ["channel", "model", "provider", "custom"] as const;
+export const SecretSourceSchema = z.enum(SECRET_SOURCES);
+export type SecretSource = z.infer<typeof SecretSourceSchema>;
+
+export const SecretSpecSchema = z
+  .object({
+    name: SecretNameSchema,
+    kind: SecretKindSchema,
+    scope: SecretScopeSchema,
+    source: SecretSourceSchema,
+    optional: z.boolean().optional(),
+    help: z.string().trim().optional(),
+    envVars: z.array(EnvVarNameSchema).optional(),
+    gateways: z.array(GatewayIdSchema).optional(),
+    fileId: z.string().trim().optional(),
+  })
+  .strict();
+
+export type SecretSpec = z.infer<typeof SecretSpecSchema>;
+
+export const SECRETS_PLAN_SCOPES = ["bootstrap", "updates", "openclaw"] as const;
+export const SecretsPlanScopeSchema = z.enum(SECRETS_PLAN_SCOPES);
+export type SecretsPlanScope = z.infer<typeof SecretsPlanScopeSchema>;
+
+export const SecretsPlanScopeSetsSchema = z
+  .object({
+    bootstrapRequired: z.array(SecretSpecSchema).default(() => []),
+    updatesRequired: z.array(SecretSpecSchema).default(() => []),
+    openclawRequired: z.array(SecretSpecSchema).default(() => []),
+  })
+  .strict();
+
+export type SecretsPlanScopeSets = z.infer<typeof SecretsPlanScopeSetsSchema>;
+
+export const MissingSecretConfigSchema = z.discriminatedUnion("kind", [
+  z
+    .object({
+      kind: z.literal("envVar"),
+      gateway: GatewayIdSchema,
+      envVar: EnvVarNameSchema,
+      sources: z.array(SecretSourceSchema).default(() => []),
+      paths: z.array(z.string().trim()).default(() => []),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("secretFile"),
+      scope: SecretScopeSchema,
+      gateway: GatewayIdSchema.optional(),
+      fileId: z.string().trim().min(1),
+      targetPath: z.string().trim().min(1),
+      message: z.string().trim().min(1),
+    })
+    .strict(),
+]);
+
+export type MissingSecretConfig = z.infer<typeof MissingSecretConfigSchema>;
+
+export const SecretsPlanWarningSchema = z
+  .object({
+    kind: z.enum(["inlineToken", "inlineApiKey", "statefulChannel", "config", "auth"]),
+    message: z.string().trim().min(1),
+    path: z.string().trim().optional(),
+    suggestion: z.string().trim().optional(),
+    channel: z.string().trim().optional(),
+    provider: z.string().trim().optional(),
+    gateway: GatewayIdSchema.optional(),
+  })
+  .strict();
+
+export type SecretsPlanWarning = z.infer<typeof SecretsPlanWarningSchema>;
+
+export const SecretsPlanSchema = z
+  .object({
+    required: z.array(SecretSpecSchema).default(() => []),
+    optional: z.array(SecretSpecSchema).default(() => []),
+    missing: z.array(MissingSecretConfigSchema).default(() => []),
+    warnings: z.array(SecretsPlanWarningSchema).default(() => []),
+    scopes: SecretsPlanScopeSetsSchema.default(() => ({
+      bootstrapRequired: [],
+      updatesRequired: [],
+      openclawRequired: [],
+    })),
+  })
+  .strict();
+
+export type SecretsPlan = z.infer<typeof SecretsPlanSchema>;

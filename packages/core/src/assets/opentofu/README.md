@@ -1,16 +1,23 @@
-# OpenTofu (Hetzner) — infra state
+# OpenTofu provider assets
 
-Clawlets uses OpenTofu for Hetzner provisioning (runtime state dir: `.clawlets/infra/opentofu/<host>/**`).
+Clawlets stores provider OpenTofu assets under:
+
+- `providers/hetzner/`
+- `providers/aws/`
+
+Runtime state dir:
+
+- `.clawlets/infra/opentofu/<host>/providers/<provider>/**`
 
 Notes:
-- State lives in `.clawlets/infra/opentofu/<host>/terraform.tfstate` (gitignored).
+- State is provider-scoped to avoid cross-provider state collisions.
 - Policy (recommended): single operator at a time; always `plan` before `apply`.
 - Preferred workflow: use the CLI (`clawlets bootstrap` / `clawlets infra apply`) so vars/outputs match what the rest of the repo expects.
 
 Manual runs (debugging):
 
 ```bash
-nix run --impure nixpkgs#opentofu -- -chdir=.clawlets/infra/opentofu/<host> init
-nix run --impure nixpkgs#opentofu -- -chdir=.clawlets/infra/opentofu/<host> plan
-nix run --impure nixpkgs#opentofu -- -chdir=.clawlets/infra/opentofu/<host> apply
+nix run --impure nixpkgs#opentofu -- -chdir=.clawlets/infra/opentofu/<host>/providers/<provider> init
+nix run --impure nixpkgs#opentofu -- -chdir=.clawlets/infra/opentofu/<host>/providers/<provider> plan
+nix run --impure nixpkgs#opentofu -- -chdir=.clawlets/infra/opentofu/<host>/providers/<provider> apply
 ```

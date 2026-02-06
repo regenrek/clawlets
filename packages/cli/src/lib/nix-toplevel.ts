@@ -1,6 +1,6 @@
 import process from "node:process";
-import { capture } from "@clawlets/core/lib/run";
-import { withFlakesEnv } from "@clawlets/core/lib/nix-flakes";
+import { capture } from "@clawlets/core/lib/runtime/run";
+import { withFlakesEnv } from "@clawlets/core/lib/nix/nix-flakes";
 
 export function requireToplevel(value: string): string {
   const v = value.trim();

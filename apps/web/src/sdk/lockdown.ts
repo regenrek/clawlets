@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start"
-import { loadClawletsConfig, getSshExposureMode } from "@clawlets/core/lib/clawlets-config"
+import { loadClawletsConfig, getSshExposureMode } from "@clawlets/core/lib/config/clawlets-config"
 import { api } from "../../convex/_generated/api"
 import type { Id } from "../../convex/_generated/dataModel"
 import { createConvexClient, type ConvexClient } from "~/server/convex"

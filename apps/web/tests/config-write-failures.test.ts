@@ -26,9 +26,9 @@ async function loadConfigForWrite() {
   vi.doMock("~/server/run-manager", () => ({
     runWithEvents,
   }))
-  vi.doMock("@clawlets/core/lib/clawlets-config", async () => {
-    const actual = await vi.importActual<typeof import("@clawlets/core/lib/clawlets-config")>(
-      "@clawlets/core/lib/clawlets-config",
+  vi.doMock("@clawlets/core/lib/config/clawlets-config", async () => {
+    const actual = await vi.importActual<typeof import("@clawlets/core/lib/config/clawlets-config")>(
+      "@clawlets/core/lib/config/clawlets-config",
     )
     return {
       ...actual,
@@ -65,9 +65,9 @@ async function loadConfigForValidation() {
   vi.doMock("~/server/run-manager", () => ({
     runWithEvents,
   }))
-  vi.doMock("@clawlets/core/lib/clawlets-config", async () => {
-    const actual = await vi.importActual<typeof import("@clawlets/core/lib/clawlets-config")>(
-      "@clawlets/core/lib/clawlets-config",
+  vi.doMock("@clawlets/core/lib/config/clawlets-config", async () => {
+    const actual = await vi.importActual<typeof import("@clawlets/core/lib/config/clawlets-config")>(
+      "@clawlets/core/lib/config/clawlets-config",
     )
     return {
       ...actual,

@@ -3,9 +3,9 @@ import { api } from "../../convex/_generated/api"
 import { createConvexClient } from "~/server/convex"
 import { readClawletsEnvTokens } from "~/server/redaction"
 import { spawnCommandCapture } from "~/server/run-manager"
-import { capture } from "@clawlets/core/lib/run"
+import { capture } from "@clawlets/core/lib/runtime/run"
 import { getAdminProjectContext, getRepoRoot } from "~/sdk/repo-root"
-import { sanitizeErrorMessage } from "@clawlets/core/lib/safe-error"
+import { sanitizeErrorMessage } from "@clawlets/core/lib/runtime/safe-error"
 
 export type GitRepoStatus = {
   branch: string | null

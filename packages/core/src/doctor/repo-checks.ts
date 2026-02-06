@@ -1,16 +1,16 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { RepoLayout } from "../repo-layout.js";
-import { capture } from "../lib/run.js";
-import { findInlineScriptingViolations } from "../lib/inline-script-ban.js";
-import { validateDocsIndexIntegrity } from "../lib/docs-index.js";
-import { validateFleetPolicy, type FleetConfig } from "../lib/fleet-policy.js";
-import { evalFleetConfig } from "../lib/fleet-nix-eval.js";
-import { ClawletsConfigSchema, type ClawletsConfig } from "../lib/clawlets-config.js";
-import { buildOpenClawGatewayConfig } from "../lib/openclaw-config-invariants.js";
-import { lintOpenclawSecurityConfig } from "../lib/openclaw-security-lint.js";
-import { checkSchemaVsNixClawdbot } from "./schema-checks.js";
-import { findClawdbotSecretViolations, findFleetSecretViolations } from "./repo-checks-secrets.js";
+import { capture } from "../lib/runtime/run.js";
+import { findInlineScriptingViolations } from "../lib/security/inline-script-ban.js";
+import { validateDocsIndexIntegrity } from "../lib/project/docs-index.js";
+import { validateFleetPolicy, type FleetConfig } from "../lib/config/fleet-policy.js";
+import { evalFleetConfig } from "../lib/nix/fleet-nix-eval.js";
+import { ClawletsConfigSchema, type ClawletsConfig } from "../lib/config/clawlets-config.js";
+import { buildOpenClawGatewayConfig } from "../lib/openclaw/config-invariants.js";
+import { lintOpenclawSecurityConfig } from "../lib/openclaw/security-lint.js";
+import { checkSchemaVsNixOpenclaw } from "./schema-checks.js";
+import { findOpenclawSecretViolations, findFleetSecretViolations } from "./repo-checks-secrets.js";
 import { evalWheelAccess, getClawletsRevFromFlakeLock } from "./repo-checks-nix.js";
 import type { DoctorPush } from "./types.js";
 import { dirHasAnyFile, loadKnownBundledSkills, resolveTemplateRoot } from "./util.js";
@@ -73,7 +73,7 @@ export async function addRepoChecks(params: {
   }
 
   {
-    const checks = await checkSchemaVsNixClawdbot({ repoRoot });
+    const checks = await checkSchemaVsNixOpenclaw({ repoRoot });
     for (const check of checks) params.push(check);
   }
 
@@ -214,41 +214,41 @@ export async function addRepoChecks(params: {
   }
 
   {
-    const scan = findClawdbotSecretViolations(repoRoot);
+    const scan = findOpenclawSecretViolations(repoRoot);
     if (scan.violations.length > 0) {
       const first = scan.violations[0]!;
       params.push({
         scope: "repo",
         status: "missing",
-        label: "clawdbot config secrets",
+        label: "openclaw config secrets",
         detail: `${path.relative(repoRoot, first.file)} matched ${first.label}`,
       });
     } else {
       params.push({
         scope: "repo",
         status: "ok",
-        label: "clawdbot config secrets",
-        detail: scan.files.length > 0 ? `(scanned ${scan.files.length} clawdbot.json5)` : "(no clawdbot.json5 found)",
+        label: "openclaw config secrets",
+        detail: scan.files.length > 0 ? `(scanned ${scan.files.length} openclaw.json5)` : "(no openclaw.json5 found)",
       });
     }
 
     if (templateRoot) {
-      const scanTemplate = findClawdbotSecretViolations(templateRoot);
+      const scanTemplate = findOpenclawSecretViolations(templateRoot);
       if (scanTemplate.violations.length > 0) {
         const first = scanTemplate.violations[0]!;
         params.push({
           scope: "repo",
           status: "missing",
-          label: "template clawdbot config secrets",
+          label: "template openclaw config secrets",
           detail: `${path.relative(repoRoot, first.file)} matched ${first.label}`,
         });
       } else {
         params.push({
           scope: "repo",
           status: "ok",
-          label: "template clawdbot config secrets",
+          label: "template openclaw config secrets",
           detail:
-            scanTemplate.files.length > 0 ? `(scanned ${scanTemplate.files.length} clawdbot.json5)` : "(no clawdbot.json5 found)",
+            scanTemplate.files.length > 0 ? `(scanned ${scanTemplate.files.length} openclaw.json5)` : "(no openclaw.json5 found)",
         });
       }
     }

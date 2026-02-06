@@ -23,7 +23,7 @@ async function loadSecretsVerify(options: { getRepoRootThrows: boolean }) {
       run: { kind: "secrets_verify", status: "running" },
     }),
   }))
-  vi.doMock("@clawlets/core/lib/clawlets-config", () => ({
+  vi.doMock("@clawlets/core/lib/config/clawlets-config", () => ({
     loadClawletsConfig: () => {
       if (options.getRepoRootThrows) throw new Error("repo missing")
       return { config: { defaultHost: "alpha", hosts: { alpha: {} } } }
@@ -57,7 +57,7 @@ async function loadSecretsSync(options: { spawnThrows: boolean }) {
       run: { kind: "secrets_sync", status: "running" },
     }),
   }))
-  vi.doMock("@clawlets/core/lib/clawlets-config", () => ({
+  vi.doMock("@clawlets/core/lib/config/clawlets-config", () => ({
     loadClawletsConfig: () => ({ config: { defaultHost: "alpha", hosts: { alpha: {} } } }),
   }))
   vi.doMock("~/server/redaction", () => ({ readClawletsEnvTokens: async () => [] }))

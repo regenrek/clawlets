@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import process from "node:process";
-import { run } from "@clawlets/core/lib/run";
+import { run } from "@clawlets/core/lib/runtime/run";
 
 export function resolveManifestSignaturePath(params: {
   cwd: string;

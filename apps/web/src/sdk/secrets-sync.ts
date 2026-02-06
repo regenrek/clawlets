@@ -1,8 +1,8 @@
 import fs from "node:fs/promises"
 
 import { createServerFn } from "@tanstack/react-start"
-import { loadClawletsConfig } from "@clawlets/core/lib/clawlets-config"
-import { createSecretsTar } from "@clawlets/core/lib/secrets-tar"
+import { loadClawletsConfig } from "@clawlets/core/lib/config/clawlets-config"
+import { createSecretsTar } from "@clawlets/core/lib/secrets/secrets-tar"
 import { getRepoLayout, getHostRemoteSecretsDir, getHostSecretsDir } from "@clawlets/core/repo-layout"
 
 import { api } from "../../convex/_generated/api"

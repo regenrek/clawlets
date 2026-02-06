@@ -1,0 +1,149 @@
+import fs from "node:fs";
+import path from "node:path";
+import { tmpdir } from "node:os";
+import YAML from "yaml";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { getRepoLayout } from "@clawlets/core/repo-layout";
+import { getHostAgeKeySopsCreationRulePathRegex, getHostSecretsSopsCreationRulePathRegex } from "@clawlets/core/lib/security/sops-rules";
+import { makeConfig, baseHost } from "./fixtures.js";
+
+const loadHostContextMock = vi.fn();
+const loadDeployCredsMock = vi.fn();
+const buildFleetSecretsPlanMock = vi.fn();
+const sopsDecryptMock = vi.fn();
+const agePublicKeyFromIdentityFileMock = vi.fn();
+
+vi.mock("@clawlets/core/lib/runtime/context", () => ({
+  loadHostContextOrExit: loadHostContextMock,
+}));
+
+vi.mock("@clawlets/core/lib/infra/deploy-creds", () => ({
+  loadDeployCreds: loadDeployCredsMock,
+}));
+
+vi.mock("@clawlets/core/lib/secrets/plan", () => ({
+  buildFleetSecretsPlan: buildFleetSecretsPlanMock,
+}));
+
+vi.mock("@clawlets/core/lib/security/age-keygen", () => ({
+  agePublicKeyFromIdentityFile: agePublicKeyFromIdentityFileMock,
+}));
+
+vi.mock("@clawlets/core/lib/security/sops", () => ({
+  sopsDecryptYamlFile: sopsDecryptMock,
+}));
+
+const buildPlan = (overrides: Record<string, unknown>) => {
+  const hostSecretNamesRequired = (overrides["hostSecretNamesRequired"] as string[] | undefined) || ["admin_password_hash"];
+  const secretNamesRequired = (overrides["secretNamesRequired"] as string[] | undefined) || [];
+  const required =
+    (overrides["required"] as Array<Record<string, unknown>> | undefined) ||
+    [
+      ...hostSecretNamesRequired.map((name) => ({ name, kind: "extra", scope: "host", source: "custom" })),
+      ...secretNamesRequired
+        .filter((name) => !hostSecretNamesRequired.includes(name))
+        .map((name) => ({ name, kind: "env", scope: "gateway", source: "custom" })),
+    ];
+  return {
+    gateways: [],
+    hostSecretNamesRequired,
+    secretNamesAll: [],
+    secretNamesRequired,
+    required,
+    optional: [],
+    missing: [],
+    warnings: [],
+    missingSecretConfig: [],
+    byGateway: {},
+    hostSecretFiles: {},
+    ...overrides,
+  };
+};
+
+describe("secrets verify", () => {
+  let logSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.exitCode = 0;
+    logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    agePublicKeyFromIdentityFileMock.mockResolvedValue("age1operator");
+  });
+
+  afterEach(() => {
+    logSpy.mockRestore();
+  });
+
+  it("verifies secrets and prints json", async () => {
+    const repoRoot = fs.mkdtempSync(path.join(tmpdir(), "clawlets-secrets-verify-"));
+    const layout = getRepoLayout(repoRoot);
+    const config = makeConfig({
+      hostName: "alpha",
+      hostOverrides: { ...baseHost, tailnet: { mode: "none" }, gatewaysOrder: ["maren"], gateways: { maren: {} } },
+    });
+    const hostCfg = config.hosts.alpha;
+    loadHostContextMock.mockReturnValue({ layout, config, hostName: "alpha", hostCfg });
+    const ageKeyPath = path.join(repoRoot, "keys", "op.agekey");
+    loadDeployCredsMock.mockReturnValue({ values: { NIX_BIN: "nix", SOPS_AGE_KEY_FILE: ageKeyPath } });
+    buildFleetSecretsPlanMock.mockReturnValue(buildPlan({
+      hostSecretNamesRequired: ["admin_password_hash"],
+      secretNamesAll: ["discord_token_maren"],
+      secretNamesRequired: ["discord_token_maren"],
+    }));
+
+    const secretsDir = path.join(layout.secretsHostsDir, "alpha");
+    fs.mkdirSync(secretsDir, { recursive: true });
+    fs.mkdirSync(path.dirname(ageKeyPath), { recursive: true });
+    fs.writeFileSync(ageKeyPath, "AGE-SECRET-KEY-1", "utf8");
+    fs.writeFileSync(path.join(secretsDir, "discord_token_maren.yaml"), "encrypted", "utf8");
+    fs.writeFileSync(path.join(secretsDir, "admin_password_hash.yaml"), "encrypted", "utf8");
+    sopsDecryptMock.mockImplementation(async ({ filePath }: { filePath: string }) => {
+      if (filePath.endsWith("admin_password_hash.yaml")) return "admin_password_hash: hash\n";
+      return "discord_token_maren: token\n";
+    });
+
+    const { secretsVerify } = await import("../src/commands/secrets/verify.js");
+    await secretsVerify.run({ args: { host: "alpha", json: true } } as any);
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("\"results\""));
+    expect(process.exitCode).toBe(0);
+  });
+
+  it("fails when operator key does not match sops recipients", async () => {
+    const repoRoot = fs.mkdtempSync(path.join(tmpdir(), "clawlets-secrets-verify-"));
+    const layout = getRepoLayout(repoRoot);
+    const config = makeConfig({
+      hostName: "alpha",
+      hostOverrides: { ...baseHost, tailnet: { mode: "none" }, gatewaysOrder: ["maren"], gateways: { maren: {} } },
+    });
+    const hostCfg = config.hosts.alpha;
+    loadHostContextMock.mockReturnValue({ layout, config, hostName: "alpha", hostCfg });
+
+    const ageKeyPath = path.join(repoRoot, "keys", "op.agekey");
+    loadDeployCredsMock.mockReturnValue({ values: { NIX_BIN: "nix", SOPS_AGE_KEY_FILE: ageKeyPath } });
+    buildFleetSecretsPlanMock.mockReturnValue(buildPlan({
+      hostSecretNamesRequired: ["admin_password_hash"],
+      secretNamesAll: ["discord_token_maren"],
+      secretNamesRequired: ["discord_token_maren"],
+    }));
+
+    fs.mkdirSync(path.dirname(ageKeyPath), { recursive: true });
+    fs.writeFileSync(ageKeyPath, "AGE-SECRET-KEY-1", "utf8");
+
+    const hostSecretsRule = getHostSecretsSopsCreationRulePathRegex(layout, "alpha");
+    const hostKeyRule = getHostAgeKeySopsCreationRulePathRegex(layout, "alpha");
+    const sopsYaml = YAML.stringify({
+      creation_rules: [
+        { path_regex: hostSecretsRule, key_groups: [{ age: ["age1wrong"] }] },
+        { path_regex: hostKeyRule, key_groups: [{ age: ["age1wrong"] }] },
+      ],
+    });
+    fs.mkdirSync(path.dirname(layout.sopsConfigPath), { recursive: true });
+    fs.writeFileSync(layout.sopsConfigPath, sopsYaml, "utf8");
+
+    const { secretsVerify } = await import("../src/commands/secrets/verify.js");
+    await secretsVerify.run({ args: { host: "alpha", json: true } } as any);
+
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("sops recipients"));
+    expect(process.exitCode).toBe(1);
+  });
+});

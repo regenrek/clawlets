@@ -18,23 +18,26 @@ Related:
 A typical flow looks like this:
 
 1) scaffold a repo
-2) configure hosts + gateways
+2) choose provider + configure host Day 0 fields
 3) wire secrets
-4) bootstrap
+4) bootstrap Day 0 infra
 5) apply updates
+6) iterate OpenClaw Day X config
 
 Example command sequence:
 
 - scaffold: `clawlets project init --dir ./clawlets-myproject`
 - add SSH keys (fleet scope): `clawlets host set --add-ssh-key-file ~/.ssh/id_ed25519.pub`
+- choose provider first: `clawlets host set --host <host> --provider hetzner`
 - add host settings:
   - `clawlets host set --host <host> --admin-cidr <cidr> --ssh-pubkey-file ~/.ssh/id_ed25519.pub`
-  - optional: `clawlets host set --host <host> --server-type cx43 --hetzner-location nbg1`
+  - provider fields (Hetzner): `clawlets host set --host <host> --server-type cx43 --hetzner-location nbg1`
+  - provider fields (AWS): `clawlets host set --host <host> --aws-region us-east-1 --aws-instance-type t3.large --aws-ami-id ami-... --aws-use-default-vpc true`
 - add gateways: `clawlets gateway add --host <host> --gateway <gatewayId>`
 - wire secrets:
   - map env vars in `fleet.secretEnv` / per‑gateway overrides
   - or autowire: `clawlets config wire-secrets --write`
-- init deploy creds: `clawlets env init` (edit `.clawlets/env` and set `HCLOUD_TOKEN`)
+- init deploy creds: `clawlets env init` (edit `.clawlets/env`; set provider credentials: `HCLOUD_TOKEN` for Hetzner or AWS keys for AWS)
 - init secrets: `clawlets secrets init` (TTY prompt) or `clawlets secrets init --from-json <file>`
 - preflight: `clawlets doctor --scope bootstrap`
 - bootstrap: `clawlets bootstrap` (or `--mode image`)
@@ -43,6 +46,9 @@ Example command sequence:
 - lockdown (tailnet‑only SSH):
   - `clawlets host set --host <host> --ssh-exposure tailnet`
   - `clawlets lockdown`
+
+Day 0 scope: provider bootstrap and host connectivity (`bootstrap`, `infra`, `lockdown`).
+Day X scope: OpenClaw gateway config, channels, skills, and ongoing updates.
 
 ## Server ops (SSH)
 

@@ -1,9 +1,9 @@
 import process from "node:process";
 import { defineCommand } from "citty";
-import { loadDeployCreds } from "@clawlets/core/lib/deploy-creds";
+import { loadDeployCreds } from "@clawlets/core/lib/infra/deploy-creds";
 import { buildCattleLabelSelector, listCattleServers } from "@clawlets/cattle-core/lib/hcloud-cattle";
-import { run } from "@clawlets/core/lib/run";
-import { loadHostContextOrExit } from "@clawlets/core/lib/context";
+import { run } from "@clawlets/core/lib/runtime/run";
+import { loadHostContextOrExit } from "@clawlets/core/lib/runtime/context";
 import { requireEnabled, resolveOne, resolveTailscaleIpv4 } from "./common.js";
 
 export const cattleSsh = defineCommand({

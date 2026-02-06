@@ -49,6 +49,7 @@ function HostsSetup() {
   const [enable, setEnable] = useState(false)
   const [diskDevice, setDiskDevice] = useState("/dev/sda")
   const [targetHost, setTargetHost] = useState("")
+  const [provider, setProvider] = useState<"hetzner" | "aws">("hetzner")
   const [adminCidr, setAdminCidr] = useState("")
   const [sshPubkeyFile, setSshPubkeyFile] = useState("")
   const [sshExposure, setSshExposure] = useState<"tailnet" | "bootstrap" | "public">("bootstrap")
@@ -56,6 +57,14 @@ function HostsSetup() {
   const [serverType, setServerType] = useState("cx43")
   const [hetznerImage, setHetznerImage] = useState("")
   const [hetznerLocation, setHetznerLocation] = useState("nbg1")
+  const [hetznerAllowTailscaleUdpIngress, setHetznerAllowTailscaleUdpIngress] = useState(true)
+  const [awsRegion, setAwsRegion] = useState("us-east-1")
+  const [awsInstanceType, setAwsInstanceType] = useState("t3.large")
+  const [awsAmiId, setAwsAmiId] = useState("")
+  const [awsVpcId, setAwsVpcId] = useState("")
+  const [awsSubnetId, setAwsSubnetId] = useState("")
+  const [awsUseDefaultVpc, setAwsUseDefaultVpc] = useState(true)
+  const [awsAllowTailscaleUdpIngress, setAwsAllowTailscaleUdpIngress] = useState(true)
   const [flakeHost, setFlakeHost] = useState("")
   const [agentModelPrimary, setAgentModelPrimary] = useState("")
   const [hostThemeEmoji, setHostThemeEmoji] = useState("🖥️")
@@ -74,11 +83,19 @@ function HostsSetup() {
       .filter(Boolean)
   }
 
+  function formatValidationIssues(issues: unknown): string {
+    const list = Array.isArray(issues) ? (issues as Array<any>) : []
+    const first = list[0]
+    const message = typeof first?.message === "string" ? first.message : "Validation failed"
+    const path = Array.isArray(first?.path) && first.path.length ? String(first.path.join(".")) : ""
+    return path ? `${message} (${path})` : message
+  }
   useEffect(() => {
     if (!hostCfg) return
     setEnable(Boolean(hostCfg.enable))
     setDiskDevice(hostCfg.diskDevice || "/dev/sda")
     setTargetHost(hostCfg.targetHost || "")
+    setProvider((hostCfg.provisioning?.provider as "hetzner" | "aws") || "hetzner")
     setAdminCidr(hostCfg.provisioning?.adminCidr || "")
     setSshPubkeyFile(hostCfg.provisioning?.sshPubkeyFile || "")
     setSshExposure((hostCfg.sshExposure?.mode as any) || "bootstrap")
@@ -86,6 +103,14 @@ function HostsSetup() {
     setServerType(hostCfg.hetzner?.serverType || "cx43")
     setHetznerImage(hostCfg.hetzner?.image || "")
     setHetznerLocation(hostCfg.hetzner?.location || "nbg1")
+    setHetznerAllowTailscaleUdpIngress(hostCfg.hetzner?.allowTailscaleUdpIngress !== false)
+    setAwsRegion(hostCfg.aws?.region || "us-east-1")
+    setAwsInstanceType(hostCfg.aws?.instanceType || "t3.large")
+    setAwsAmiId(hostCfg.aws?.amiId || "")
+    setAwsVpcId(hostCfg.aws?.vpcId || "")
+    setAwsSubnetId(hostCfg.aws?.subnetId || "")
+    setAwsUseDefaultVpc(Boolean(hostCfg.aws?.useDefaultVpc))
+    setAwsAllowTailscaleUdpIngress(hostCfg.aws?.allowTailscaleUdpIngress !== false)
     setFlakeHost(hostCfg.flakeHost || "")
     setAgentModelPrimary((hostCfg as any).agentModelPrimary || "")
     const theme = normalizeHostTheme((hostCfg as any).theme)
@@ -124,6 +149,7 @@ function HostsSetup() {
             theme: normalizedTheme,
             provisioning: {
               ...hostCfg.provisioning,
+              provider,
               adminCidr: adminCidr.trim(),
               sshPubkeyFile: sshPubkeyFileTrimmed,
             },
@@ -134,6 +160,17 @@ function HostsSetup() {
               serverType: serverType.trim(),
               image: hetznerImage.trim(),
               location: hetznerLocation.trim(),
+              allowTailscaleUdpIngress: Boolean(hetznerAllowTailscaleUdpIngress),
+            },
+            aws: {
+              ...hostCfg.aws,
+              region: awsRegion.trim(),
+              instanceType: awsInstanceType.trim(),
+              amiId: awsAmiId.trim(),
+              vpcId: awsVpcId.trim(),
+              subnetId: awsSubnetId.trim(),
+              useDefaultVpc: Boolean(awsUseDefaultVpc),
+              allowTailscaleUdpIngress: Boolean(awsAllowTailscaleUdpIngress),
             },
             agentModelPrimary: agentModelPrimary.trim(),
             selfUpdate: {
@@ -155,7 +192,7 @@ function HostsSetup() {
       if (res.ok) {
         toast.success("Saved")
         void queryClient.invalidateQueries({ queryKey: ["clawletsConfig", projectId] })
-      } else toast.error("Validation failed")
+      } else toast.error(formatValidationIssues(res.issues))
     },
     onError: (err) => {
       toast.error(err instanceof Error ? err.message : String(err))
@@ -242,6 +279,29 @@ function HostsSetup() {
           </SettingsSection>
 
           <SettingsSection
+            title="Infrastructure Provider"
+            description="Choose provider first, then fill provider-specific fields."
+            statusText="Day 0 infrastructure lifecycle"
+            actions={<Button disabled={save.isPending} onClick={() => save.mutate()}>Save</Button>}
+          >
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <LabelWithHelp htmlFor="provider" help={setupFieldHelp.hosts.provider}>
+                  Provider
+                </LabelWithHelp>
+                <NativeSelect id="provider" value={provider} onChange={(e) => setProvider(e.target.value as "hetzner" | "aws")}>
+                  <NativeSelectOption value="hetzner">hetzner</NativeSelectOption>
+                  <NativeSelectOption value="aws">aws</NativeSelectOption>
+                </NativeSelect>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                Day 0 includes <code>bootstrap</code>/<code>infra</code>/<code>lockdown</code>.
+                OpenClaw gateway config remains Day X and is provider-neutral.
+              </div>
+            </div>
+          </SettingsSection>
+
+          <SettingsSection
             title="Connection"
             description="SSH target and admin access settings."
             statusText="Used for provisioning access."
@@ -306,32 +366,85 @@ function HostsSetup() {
             </div>
           </SettingsSection>
 
-          <SettingsSection
-            title="Hetzner Cloud"
-            description="Cloud provider configuration for this host."
-            actions={<Button disabled={save.isPending} onClick={() => save.mutate()}>Save</Button>}
-          >
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <LabelWithHelp htmlFor="serverType" help={setupFieldHelp.hosts.hetznerServerType}>
-                  Server type
-                </LabelWithHelp>
-                <Input id="serverType" value={serverType} onChange={(e) => setServerType(e.target.value)} />
+          {provider === "hetzner" ? (
+            <SettingsSection
+              title="Hetzner Cloud"
+              description="Provider-specific settings for Hetzner hosts."
+              actions={<Button disabled={save.isPending} onClick={() => save.mutate()}>Save</Button>}
+            >
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <LabelWithHelp htmlFor="serverType" help={setupFieldHelp.hosts.hetznerServerType}>
+                    Server type
+                  </LabelWithHelp>
+                  <Input id="serverType" value={serverType} onChange={(e) => setServerType(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <LabelWithHelp htmlFor="location" help={setupFieldHelp.hosts.hetznerLocation}>
+                    Location
+                  </LabelWithHelp>
+                  <Input id="location" value={hetznerLocation} onChange={(e) => setHetznerLocation(e.target.value)} />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <LabelWithHelp htmlFor="image" help={setupFieldHelp.hosts.hetznerImage}>
+                    Image
+                  </LabelWithHelp>
+                  <Input id="image" value={hetznerImage} onChange={(e) => setHetznerImage(e.target.value)} />
+                </div>
+                <div className="flex items-center gap-3 md:col-span-2">
+                  <Switch checked={hetznerAllowTailscaleUdpIngress} onCheckedChange={setHetznerAllowTailscaleUdpIngress} />
+                  <div className="text-sm text-muted-foreground">{setupFieldHelp.hosts.hetznerAllowTailscaleUdpIngress}</div>
+                </div>
               </div>
-              <div className="space-y-2">
-                <LabelWithHelp htmlFor="location" help={setupFieldHelp.hosts.hetznerLocation}>
-                  Location
-                </LabelWithHelp>
-                <Input id="location" value={hetznerLocation} onChange={(e) => setHetznerLocation(e.target.value)} />
+            </SettingsSection>
+          ) : (
+            <SettingsSection
+              title="AWS"
+              description="Provider-specific settings for AWS hosts."
+              actions={<Button disabled={save.isPending} onClick={() => save.mutate()}>Save</Button>}
+            >
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <LabelWithHelp htmlFor="awsRegion" help={setupFieldHelp.hosts.awsRegion}>
+                    Region
+                  </LabelWithHelp>
+                  <Input id="awsRegion" value={awsRegion} onChange={(e) => setAwsRegion(e.target.value)} placeholder="us-east-1" />
+                </div>
+                <div className="space-y-2">
+                  <LabelWithHelp htmlFor="awsInstanceType" help={setupFieldHelp.hosts.awsInstanceType}>
+                    Instance type
+                  </LabelWithHelp>
+                  <Input id="awsInstanceType" value={awsInstanceType} onChange={(e) => setAwsInstanceType(e.target.value)} placeholder="t3.large" />
+                </div>
+                <div className="space-y-2">
+                  <LabelWithHelp htmlFor="awsAmiId" help={setupFieldHelp.hosts.awsAmiId}>
+                    AMI ID
+                  </LabelWithHelp>
+                  <Input id="awsAmiId" value={awsAmiId} onChange={(e) => setAwsAmiId(e.target.value)} placeholder="ami-0123456789abcdef0" />
+                </div>
+                <div className="space-y-2">
+                  <LabelWithHelp htmlFor="awsVpcId" help={setupFieldHelp.hosts.awsVpcId}>
+                    VPC ID
+                  </LabelWithHelp>
+                  <Input id="awsVpcId" value={awsVpcId} onChange={(e) => setAwsVpcId(e.target.value)} placeholder="vpc-..." />
+                </div>
+                <div className="space-y-2">
+                  <LabelWithHelp htmlFor="awsSubnetId" help={setupFieldHelp.hosts.awsSubnetId}>
+                    Subnet ID
+                  </LabelWithHelp>
+                  <Input id="awsSubnetId" value={awsSubnetId} onChange={(e) => setAwsSubnetId(e.target.value)} placeholder="subnet-..." />
+                </div>
+                <div className="flex items-center gap-3 md:col-span-2">
+                  <Switch checked={awsUseDefaultVpc} onCheckedChange={setAwsUseDefaultVpc} />
+                  <div className="text-sm text-muted-foreground">{setupFieldHelp.hosts.awsUseDefaultVpc}</div>
+                </div>
+                <div className="flex items-center gap-3 md:col-span-2">
+                  <Switch checked={awsAllowTailscaleUdpIngress} onCheckedChange={setAwsAllowTailscaleUdpIngress} />
+                  <div className="text-sm text-muted-foreground">{setupFieldHelp.hosts.awsAllowTailscaleUdpIngress}</div>
+                </div>
               </div>
-              <div className="space-y-2 md:col-span-2">
-                <LabelWithHelp htmlFor="image" help={setupFieldHelp.hosts.hetznerImage}>
-                  Image
-                </LabelWithHelp>
-                <Input id="image" value={hetznerImage} onChange={(e) => setHetznerImage(e.target.value)} />
-              </div>
-            </div>
-          </SettingsSection>
+            </SettingsSection>
+          )}
 
           <SettingsSection
             title="NixOS Configuration"
