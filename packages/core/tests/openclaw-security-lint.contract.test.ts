@@ -74,4 +74,38 @@ describe("openclaw security lint", () => {
     expect(ids).toContain("inlineSecret.skills.entries.brave-search.apiKey");
     expect(res.summary.critical).toBe(3);
   });
+
+  it("flags mixed inline plus env-ref token values", async () => {
+    const { lintOpenclawSecurityConfig } = await import("../src/lib/openclaw/security-lint.js");
+
+    const res = lintOpenclawSecurityConfig({
+      openclaw: {
+        channels: {
+          discord: {
+            token: "abc${DISCORD_BOT_TOKEN}",
+          },
+        },
+      },
+    });
+
+    expect(res.findings.map((f) => f.id)).toContain("inlineSecret.channels.discord.token");
+    expect(res.summary.critical).toBe(1);
+  });
+
+  it("accepts exact env-ref token values", async () => {
+    const { lintOpenclawSecurityConfig } = await import("../src/lib/openclaw/security-lint.js");
+
+    const res = lintOpenclawSecurityConfig({
+      openclaw: {
+        channels: {
+          discord: {
+            token: "${DISCORD_BOT_TOKEN}",
+          },
+        },
+      },
+    });
+
+    expect(res.findings.map((f) => f.id)).not.toContain("inlineSecret.channels.discord.token");
+    expect(res.summary.critical).toBe(0);
+  });
 });

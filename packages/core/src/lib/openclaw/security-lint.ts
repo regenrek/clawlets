@@ -1,5 +1,5 @@
 import { getAtPath } from "../storage/object-path.js";
-import { HOOKS_GMAIL_PUSH_TOKEN_ENV_VAR, HOOKS_TOKEN_ENV_VAR, skillApiKeyEnvVar } from "../secrets/env-vars.js";
+import { extractEnvVarRef, HOOKS_GMAIL_PUSH_TOKEN_ENV_VAR, HOOKS_TOKEN_ENV_VAR, skillApiKeyEnvVar } from "../secrets/env-vars.js";
 import { listOpenclawChannelPolicySpecs, toDotPath } from "./channel-policy-metadata.js";
 import { listPinnedChannelUiModels } from "./channel-ui-metadata.js";
 
@@ -38,7 +38,7 @@ function readStringArray(value: unknown): string[] {
 }
 
 function hasEnvVarRef(value: string): boolean {
-  return value.includes("${");
+  return extractEnvVarRef(value) !== null;
 }
 
 function envVarRef(envVar: string): string {
