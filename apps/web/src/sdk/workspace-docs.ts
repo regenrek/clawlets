@@ -6,6 +6,12 @@ import type {
   WorkspaceDocWriteScope,
 } from "~/sdk/workspace-docs-model"
 import { parseProjectIdInput } from "~/sdk/serverfn-validators"
+import {
+  listWorkspaceDocsServer,
+  readWorkspaceDocServer,
+  resetWorkspaceDocOverrideServer,
+  writeWorkspaceDocServer,
+} from "~/server/workspace-docs.server"
 
 export const listWorkspaceDocs = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => {
@@ -13,11 +19,10 @@ export const listWorkspaceDocs = createServerFn({ method: "POST" })
     const d = data as Record<string, unknown>
     return {
       ...base,
-      botId: String(d["botId"] || ""),
+      gatewayId: String(d["gatewayId"] || ""),
     }
   })
   .handler(async ({ data }) => {
-    const { listWorkspaceDocsServer } = await import("~/server/workspace-docs.server")
     return await listWorkspaceDocsServer(data)
   })
 
@@ -29,13 +34,12 @@ export const readWorkspaceDoc = createServerFn({ method: "POST" })
     if (scope !== "common" && scope !== "gateway" && scope !== "effective") throw new Error("invalid scope")
     return {
       ...base,
-      botId: typeof d["botId"] === "string" ? d["botId"] : "",
+      gatewayId: typeof d["gatewayId"] === "string" ? d["gatewayId"] : "",
       scope: scope as WorkspaceDocScope,
       name: String(d["name"] || ""),
     }
   })
   .handler(async ({ data }): Promise<WorkspaceDocReadResult> => {
-    const { readWorkspaceDocServer } = await import("~/server/workspace-docs.server")
     return await readWorkspaceDocServer(data)
   })
 
@@ -47,7 +51,7 @@ export const writeWorkspaceDoc = createServerFn({ method: "POST" })
     if (scope !== "common" && scope !== "gateway") throw new Error("invalid scope")
     return {
       ...base,
-      botId: typeof d["botId"] === "string" ? d["botId"] : "",
+      gatewayId: typeof d["gatewayId"] === "string" ? d["gatewayId"] : "",
       scope: scope as WorkspaceDocWriteScope,
       name: String(d["name"] || ""),
       content: typeof d["content"] === "string" ? d["content"] : "",
@@ -55,7 +59,6 @@ export const writeWorkspaceDoc = createServerFn({ method: "POST" })
     }
   })
   .handler(async ({ data }): Promise<WorkspaceDocWriteResult> => {
-    const { writeWorkspaceDocServer } = await import("~/server/workspace-docs.server")
     return await writeWorkspaceDocServer(data)
   })
 
@@ -65,12 +68,11 @@ export const resetWorkspaceDocOverride = createServerFn({ method: "POST" })
     const d = data as Record<string, unknown>
     return {
       ...base,
-      botId: String(d["botId"] || ""),
+      gatewayId: String(d["gatewayId"] || ""),
       name: String(d["name"] || ""),
       expectedSha256: typeof d["expectedSha256"] === "string" ? d["expectedSha256"] : "",
     }
   })
   .handler(async ({ data }): Promise<WorkspaceDocWriteResult> => {
-    const { resetWorkspaceDocOverrideServer } = await import("~/server/workspace-docs.server")
     return await resetWorkspaceDocOverrideServer(data)
   })

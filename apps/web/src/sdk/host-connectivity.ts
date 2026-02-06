@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start"
 import { loadClawletsConfig } from "@clawlets/core/lib/config/clawlets-config"
 import { getRepoLayout, getHostOpenTofuDir } from "@clawlets/core/repo-layout"
 import { loadDeployCreds } from "@clawlets/core/lib/infra/deploy-creds"
+import { capture } from "@clawlets/core/lib/runtime/run"
 import { sshCapture, validateTargetHost } from "@clawlets/core/lib/security/ssh-remote"
 import {
   extractFirstIpv4,
@@ -59,7 +60,6 @@ export const getHostPublicIpv4 = createServerFn({ method: "POST" })
     const opentofuDir = getHostOpenTofuDir(layout, data.host)
     const deployCreds = loadDeployCreds({ cwd: repoRoot })
     const nixBin = String(deployCreds.values.NIX_BIN || "nix").trim() || "nix"
-    const { capture } = await import("@clawlets/core/lib/runtime/run")
 
     try {
       const raw = await capture(

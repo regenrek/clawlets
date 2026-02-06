@@ -1,8 +1,6 @@
 import process from "node:process";
 import { defineCommand } from "citty";
-async function loadPlugins() {
-  return await import("../../lib/plugins.js");
-}
+import { installPlugin, listInstalledPlugins, removePlugin } from "../../lib/plugins.js";
 
 function resolveSlug(args: any): string {
   const raw = String(args.name || args._?.[0] || "").trim();
@@ -17,7 +15,6 @@ const list = defineCommand({
     runtimeDir: { type: "string", description: "Runtime directory (default: .clawlets)." },
   },
   async run({ args }) {
-    const { listInstalledPlugins } = await loadPlugins();
     const errors: { slug: string; error: Error }[] = [];
     const plugins = listInstalledPlugins({
       cwd: process.cwd(),
@@ -57,7 +54,6 @@ const add = defineCommand({
     if (!args.allowThirdParty && !packageName.startsWith("@clawlets/")) {
       throw new Error("third-party plugins disabled (pass --allow-third-party to override)");
     }
-    const { installPlugin } = await loadPlugins();
     const plugin = await installPlugin({
       cwd: process.cwd(),
       runtimeDir: args.runtimeDir as string | undefined,
@@ -78,7 +74,6 @@ const rm = defineCommand({
   },
   async run({ args }) {
     const slug = resolveSlug(args);
-    const { removePlugin } = await loadPlugins();
     removePlugin({ cwd: process.cwd(), runtimeDir: args.runtimeDir as string | undefined, slug });
     console.log(`ok: removed ${slug}`);
   },
