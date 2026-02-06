@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { assertRunBoundToProject } from "../src/sdk/run-binding"
+import { assertRunBoundToProject } from "~/sdk/runtime"
 
 describe("run binding", () => {
   it("rejects cross-project runId", () => {

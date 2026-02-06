@@ -5,7 +5,7 @@ import { toast } from "sonner"
 import type { Id } from "../../../../convex/_generated/dataModel"
 import { Badge } from "~/components/ui/badge"
 import { Button } from "~/components/ui/button"
-import { listWorkspaceDocs, resetWorkspaceDocOverride } from "~/sdk/workspace-docs"
+import { listWorkspaceDocs, resetWorkspaceDocOverride } from "~/sdk/workspace"
 import { WorkspaceDocDialog } from "./workspace-doc-dialog"
 
 type WorkspaceDocListItem = {

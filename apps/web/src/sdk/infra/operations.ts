@@ -1,0 +1,162 @@
+import { createServerFn } from "@tanstack/react-start"
+import type { DoctorCheck } from "@clawlets/core/doctor"
+import { collectDoctorChecks } from "@clawlets/core/doctor"
+
+import { api } from "../../../convex/_generated/api"
+import type { Id } from "../../../convex/_generated/dataModel"
+import { createConvexClient } from "~/server/convex"
+import { resolveClawletsCliEntry } from "~/server/clawlets-cli"
+import { readClawletsEnvTokens } from "~/server/redaction"
+import { getClawletsCliEnv } from "~/server/run-env"
+import { runWithEvents, spawnCommand } from "~/server/run-manager"
+import { getAdminProjectContext } from "~/sdk/project"
+import { requireAdminAndBoundRun } from "~/sdk/runtime"
+import { parseProjectIdInput } from "~/sdk/runtime"
+
+function checkLevel(status: DoctorCheck["status"]): "info" | "warn" | "error" {
+  if (status === "ok") return "info"
+  if (status === "warn") return "warn"
+  return "error"
+}
+
+export const runDoctor = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => {
+    const base = parseProjectIdInput(data)
+    const d = data as Record<string, unknown>
+    return {
+      ...base,
+      host: String(d["host"] || ""),
+      scope: (typeof d["scope"] === "string" ? d["scope"] : "all") as
+        | "repo"
+        | "bootstrap"
+        | "updates"
+        | "cattle"
+        | "all",
+    }
+  })
+  .handler(async ({ data }) => {
+    const client = createConvexClient()
+    const { repoRoot } = await getAdminProjectContext(client, data.projectId)
+    const redactTokens = await readClawletsEnvTokens(repoRoot)
+
+    const { runId } = await client.mutation(api.runs.create, {
+      projectId: data.projectId,
+      kind: "doctor",
+      title: `Doctor (${data.scope})`,
+      host: data.host,
+    })
+
+    const checks = await collectDoctorChecks({
+      cwd: repoRoot,
+      host: data.host,
+      scope: data.scope,
+    })
+
+    await runWithEvents({
+      client,
+      runId,
+      redactTokens,
+      fn: async (emit) => {
+        await emit({ level: "info", message: `Doctor scope=${data.scope} host=${data.host}` })
+        for (const c of checks) {
+          await emit({
+            level: checkLevel(c.status),
+            message: `${c.scope}: ${c.status}: ${c.label}${c.detail ? ` (${c.detail})` : ""}`,
+          })
+        }
+      },
+    })
+
+    const hasMissing = checks.some((c) => c.status === "missing")
+    await client.mutation(api.runs.setStatus, {
+      runId,
+      status: hasMissing ? "failed" : "succeeded",
+      errorMessage: hasMissing ? "doctor: missing requirements" : undefined,
+    })
+
+    return { runId, checks: checks as any, ok: !hasMissing }
+  })
+
+export const bootstrapStart = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => {
+    const base = parseProjectIdInput(data)
+    const d = data as Record<string, unknown>
+    return {
+      ...base,
+      host: String(d["host"] || ""),
+      mode: (String(d["mode"] || "nixos-anywhere").trim() || "nixos-anywhere") as "nixos-anywhere" | "image",
+    }
+  })
+  .handler(async ({ data }) => {
+    const client = createConvexClient()
+    const { runId } = await client.mutation(api.runs.create, {
+      projectId: data.projectId,
+      kind: "bootstrap",
+      title: `Bootstrap (${data.host})`,
+      host: data.host,
+    })
+    await client.mutation(api.auditLogs.append, {
+      projectId: data.projectId,
+      action: "bootstrap",
+      target: { host: data.host, mode: data.mode },
+      data: { runId },
+    })
+    return { runId }
+  })
+
+export const bootstrapExecute = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => {
+    const base = parseProjectIdInput(data)
+    const d = data as Record<string, unknown>
+    return {
+      ...base,
+      runId: d["runId"] as Id<"runs">,
+      host: String(d["host"] || ""),
+      mode: (String(d["mode"] || "nixos-anywhere").trim() || "nixos-anywhere") as "nixos-anywhere" | "image",
+      force: Boolean(d["force"]),
+      dryRun: Boolean(d["dryRun"]),
+      lockdownAfter: Boolean(d["lockdownAfter"]),
+      rev: typeof d["rev"] === "string" ? d["rev"] : "",
+    }
+  })
+  .handler(async ({ data }) => {
+    const client = createConvexClient()
+    const { repoRoot } = await requireAdminAndBoundRun({
+      client,
+      projectId: data.projectId,
+      runId: data.runId,
+      expectedKind: "bootstrap",
+    })
+    const redactTokens = await readClawletsEnvTokens(repoRoot)
+    const cliEntry = resolveClawletsCliEntry()
+    const cliEnv = getClawletsCliEnv()
+
+    try {
+      await spawnCommand({
+        client,
+        runId: data.runId,
+        cwd: repoRoot,
+        cmd: "node",
+        args: [
+          cliEntry,
+          "bootstrap",
+          "--host",
+          data.host,
+          `--mode=${data.mode}`,
+          ...(data.rev.trim() ? ["--rev", data.rev.trim()] : []),
+          ...(data.lockdownAfter ? ["--lockdown-after"] : []),
+          ...(data.force ? ["--force"] : []),
+          ...(data.dryRun ? ["--dry-run"] : []),
+        ],
+        env: cliEnv.env,
+        envAllowlist: cliEnv.envAllowlist,
+        redactTokens,
+      })
+      await client.mutation(api.runs.setStatus, { runId: data.runId, status: "succeeded" })
+      return { ok: true as const }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      await client.mutation(api.runs.setStatus, { runId: data.runId, status: "failed", errorMessage: message })
+      return { ok: false as const, message }
+    }
+  })

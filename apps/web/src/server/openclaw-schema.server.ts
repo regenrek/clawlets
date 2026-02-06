@@ -10,7 +10,7 @@ import { fetchNixOpenclawSourceInfo, getNixOpenclawRevFromFlakeLock } from "@cla
 import { shellQuote, sshCapture, validateTargetHost } from "@clawlets/core/lib/security/ssh-remote"
 import { GatewayIdSchema } from "@clawlets/shared/lib/identifiers"
 import { createConvexClient } from "~/server/convex"
-import { getProjectContext } from "~/sdk/repo-root"
+import { getProjectContext } from "~/sdk/project"
 import { sanitizeErrorMessage } from "@clawlets/core/lib/runtime/safe-error"
 
 const SOURCE_TTL_MS = 5 * 60 * 1000

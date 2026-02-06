@@ -18,7 +18,7 @@ import {
   parseServerUpdateStatusStartInput,
   parseSecretsInitExecuteInput,
   parseWriteHostSecretsInput,
-} from "../src/sdk/serverfn-validators"
+} from "~/sdk/runtime"
 
 describe("serverfn validators", () => {
   it("accepts allowed server channels ops", () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { ensureHostGatewayEntry } from "~/sdk/config-gateways"
+import { ensureHostGatewayEntry } from "~/sdk/config"
 
 describe("ensureHostGatewayEntry", () => {
   it("reconciles gatewaysOrder-only state by creating gateways entry", () => {

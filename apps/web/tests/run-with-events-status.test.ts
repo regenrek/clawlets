@@ -10,7 +10,7 @@ describe("runWithEventsAndStatus", () => {
       },
     }))
 
-    const { runWithEventsAndStatus } = await import("~/sdk/run-with-events")
+    const { runWithEventsAndStatus } = await import("~/sdk/runtime")
 
     type Result = { ok: true } | { ok: false; message: string }
     const res = await runWithEventsAndStatus<Result>({

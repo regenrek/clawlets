@@ -5,7 +5,7 @@ import type { Id } from "../../../convex/_generated/dataModel"
 import { Button } from "~/components/ui/button"
 import { Badge } from "~/components/ui/badge"
 import { Spinner } from "~/components/ui/spinner"
-import { getHostPublicIpv4, probeHostTailscaleIpv4, probeSshReachability } from "~/sdk/host-connectivity"
+import { getHostPublicIpv4, probeHostTailscaleIpv4, probeSshReachability } from "~/sdk/host"
 import { configDotSet } from "~/sdk/config"
 
 type ConnectivityPanelProps = {

@@ -12,7 +12,7 @@ import { Label } from "~/components/ui/label"
 import { Textarea } from "~/components/ui/textarea"
 import { useProjectBySlug } from "~/lib/project-data"
 import { getClawletsConfig } from "~/sdk/config"
-import { serverAuditExecute, serverAuditStart, serverStatusExecute, serverStatusStart } from "~/sdk/server-ops"
+import { serverAuditExecute, serverAuditStart, serverStatusExecute, serverStatusStart } from "~/sdk/server"
 
 export const Route = createFileRoute("/$projectSlug/hosts/$host/audit")({
   component: AuditOperate,

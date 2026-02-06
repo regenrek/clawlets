@@ -18,7 +18,7 @@ async function loadWorkspaceDocs(options: { pathExists: boolean; writeThrows: bo
   vi.doMock("~/server/convex", () => ({
     createConvexClient: () => ({ mutation, query: vi.fn(async () => ({})) }) as any,
   }))
-  vi.doMock("~/sdk/repo-root", () => ({ getRepoRoot: async () => "/tmp/repo" }))
+  vi.doMock("~/sdk/project", () => ({ getRepoRoot: async () => "/tmp/repo" }))
   vi.doMock("~/server/redaction", () => ({ readClawletsEnvTokens: async () => [] }))
   vi.doMock("~/server/run-manager", () => ({
     runWithEvents: async ({ fn }: { fn: (emit: (e: any) => Promise<void>) => Promise<void> }) => {
@@ -52,7 +52,7 @@ async function loadWorkspaceDocs(options: { pathExists: boolean; writeThrows: bo
     },
   }))
 
-  const mod = await import("~/sdk/workspace-docs")
+  const mod = await import("~/sdk/workspace")
   return { mod, mutation }
 }
 

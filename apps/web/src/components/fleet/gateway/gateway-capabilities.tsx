@@ -8,7 +8,7 @@ import { Badge } from "~/components/ui/badge"
 import { Button } from "~/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select"
 import { Switch } from "~/components/ui/switch"
-import { applyGatewayCapabilityPreset, previewGatewayCapabilityPreset } from "~/sdk/gateways"
+import { applyGatewayCapabilityPreset, previewGatewayCapabilityPreset } from "~/sdk/openclaw"
 
 export function GatewayCapabilities(props: {
   projectId: string

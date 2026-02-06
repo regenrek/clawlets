@@ -10,7 +10,7 @@ import { Label } from "~/components/ui/label"
 import { NativeSelect, NativeSelectOption } from "~/components/ui/native-select"
 import { useProjectBySlug } from "~/lib/project-data"
 import { getClawletsConfig } from "~/sdk/config"
-import { serverRestartExecute, serverRestartStart } from "~/sdk/server-ops"
+import { serverRestartExecute, serverRestartStart } from "~/sdk/server"
 
 export const Route = createFileRoute("/$projectSlug/hosts/$host/restart")({
   component: RestartOperate,

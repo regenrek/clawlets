@@ -3,7 +3,7 @@ import type { Id } from "../../convex/_generated/dataModel"
 import { api } from "../../convex/_generated/api"
 import { getDashboardOverview } from "~/sdk/dashboard"
 import { getClawletsConfig } from "~/sdk/config"
-import { getDeployCredsStatus } from "~/sdk/deploy-creds"
+import { getDeployCredsStatus } from "~/sdk/infra"
 
 export const queryKeys = {
   dashboardOverview: ["dashboardOverview"] as const,

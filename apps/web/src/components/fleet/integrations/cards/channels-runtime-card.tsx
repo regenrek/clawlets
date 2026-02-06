@@ -5,7 +5,7 @@ import type { Id } from "../../../../../convex/_generated/dataModel"
 import type { ChannelUiModel } from "@clawlets/core/lib/openclaw/channel-ui-metadata"
 import { RunLogTail } from "~/components/run-log-tail"
 import { Button } from "~/components/ui/button"
-import { serverChannelsExecute, serverChannelsStart } from "~/sdk/server-channels"
+import { serverChannelsExecute, serverChannelsStart } from "~/sdk/server"
 
 export function ChannelsRuntimeCard(props: {
   projectId: string

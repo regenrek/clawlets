@@ -14,7 +14,7 @@ import {
   projectCreateExecute,
   projectCreateStart,
   projectInitPlan,
-} from "~/sdk/projects"
+} from "~/sdk/project"
 import type { Id } from "../../../convex/_generated/dataModel"
 
 export const Route = createFileRoute("/projects/new")({

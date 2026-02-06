@@ -11,7 +11,7 @@ import { NativeSelect, NativeSelectOption } from "~/components/ui/native-select"
 import { Switch } from "~/components/ui/switch"
 import { useProjectBySlug } from "~/lib/project-data"
 import { getClawletsConfig } from "~/sdk/config"
-import { serverLogsExecute, serverLogsStart } from "~/sdk/server-ops"
+import { serverLogsExecute, serverLogsStart } from "~/sdk/server"
 
 export const Route = createFileRoute("/$projectSlug/hosts/$host/logs")({
   component: LogsOperate,

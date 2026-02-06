@@ -20,7 +20,7 @@ describe("secrets write admin guard", () => {
     const sopsEncryptYamlToFile = vi.fn(async () => {})
     const writeFileAtomic = vi.fn(async () => {})
 
-    vi.doMock("~/sdk/repo-root", () => ({
+    vi.doMock("~/sdk/project", () => ({
       getAdminProjectContext: async () => {
         throw new Error("admin required")
       },
@@ -32,7 +32,7 @@ describe("secrets write admin guard", () => {
     vi.doMock("@clawlets/core/lib/security/sops", () => ({ sopsEncryptYamlToFile }))
     vi.doMock("@clawlets/core/lib/storage/fs-safe", () => ({ writeFileAtomic }))
 
-    const { writeHostSecrets } = await import("~/sdk/secrets-write")
+    const { writeHostSecrets } = await import("~/sdk/secrets")
     await expect(
       runWithStartContext(startContext, async () =>
         await writeHostSecrets({

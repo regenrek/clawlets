@@ -11,15 +11,15 @@ import { api } from "../../convex/_generated/api"
 import type { Id } from "../../convex/_generated/dataModel"
 import { createConvexClient } from "~/server/convex"
 import { readClawletsEnvTokens } from "~/server/redaction"
-import { runWithEventsAndStatus } from "~/sdk/run-with-events"
-import { getRepoRoot } from "~/sdk/repo-root"
+import { runWithEventsAndStatus } from "~/sdk/runtime"
+import { getRepoRoot } from "~/sdk/project"
 import type {
   WorkspaceDocListItem,
   WorkspaceDocReadResult,
   WorkspaceDocScope,
   WorkspaceDocWriteResult,
   WorkspaceDocWriteScope,
-} from "~/sdk/workspace-docs-model"
+} from "~/sdk/workspace"
 
 const MAX_DOC_BYTES = 256 * 1024
 

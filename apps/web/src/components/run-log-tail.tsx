@@ -5,7 +5,7 @@ import * as React from "react";
 import type { Id } from "../../convex/_generated/dataModel";
 import { api } from "../../convex/_generated/api";
 import { Button } from "~/components/ui/button";
-import { cancelRun } from "~/sdk/runs";
+import { cancelRun } from "~/sdk/runtime";
 
 export function RunLogTail({ runId, onDone }: { runId: Id<"runs">; onDone?: (status: string) => void }) {
   const router = useRouter();

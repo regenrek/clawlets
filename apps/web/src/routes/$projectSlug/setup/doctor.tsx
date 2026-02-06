@@ -11,7 +11,7 @@ import { NativeSelect, NativeSelectOption } from "~/components/ui/native-select"
 import { useProjectBySlug } from "~/lib/project-data"
 import { setupFieldHelp } from "~/lib/setup-field-help"
 import { getClawletsConfig } from "~/sdk/config"
-import { runDoctor } from "~/sdk/operations"
+import { runDoctor } from "~/sdk/infra"
 
 export const Route = createFileRoute("/$projectSlug/setup/doctor")({
   component: DoctorSetup,
