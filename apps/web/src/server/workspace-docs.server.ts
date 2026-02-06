@@ -11,7 +11,7 @@ import { api } from "../../convex/_generated/api"
 import type { Id } from "../../convex/_generated/dataModel"
 import { createConvexClient } from "~/server/convex"
 import { readClawletsEnvTokens } from "~/server/redaction"
-import { runWithEventsAndStatus } from "~/sdk/runtime"
+import { runWithEventsAndStatus } from "~/sdk/runtime/server"
 import { getRepoRoot } from "~/sdk/project"
 import type {
   WorkspaceDocListItem,

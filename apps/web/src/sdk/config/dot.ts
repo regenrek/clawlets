@@ -12,7 +12,7 @@ import { createConvexClient } from "~/server/convex"
 import { readClawletsEnvTokens } from "~/server/redaction"
 import { GATEWAY_OPENCLAW_POLICY_MESSAGE, isGatewayOpenclawPath } from "./helpers"
 import { getAdminProjectContext } from "~/sdk/project"
-import { mapValidationIssues, runWithEventsAndStatus, type ValidationIssue } from "~/sdk/runtime"
+import { mapValidationIssues, runWithEventsAndStatus, type ValidationIssue } from "~/sdk/runtime/server"
 import { parseProjectIdInput } from "~/sdk/runtime"
 
 export const configDotGet = createServerFn({ method: "POST" })

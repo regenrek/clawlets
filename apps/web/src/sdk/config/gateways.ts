@@ -10,7 +10,7 @@ import { api } from "../../../convex/_generated/api"
 import { createConvexClient } from "~/server/convex"
 import { readClawletsEnvTokens } from "~/server/redaction"
 import { getAdminProjectContext } from "~/sdk/project"
-import { runWithEventsAndStatus } from "~/sdk/runtime"
+import { runWithEventsAndStatus } from "~/sdk/runtime/server"
 import { parseProjectIdInput } from "~/sdk/runtime"
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {

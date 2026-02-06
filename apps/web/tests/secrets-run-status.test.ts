@@ -15,8 +15,8 @@ async function loadSecretsVerify(options: { getRepoRootThrows: boolean }) {
   vi.doMock("~/server/convex", () => ({
     createConvexClient: () => ({ mutation, query: vi.fn() }) as any,
   }))
-  vi.doMock("~/sdk/runtime", async (importOriginal) => {
-    const actual = await importOriginal<typeof import("~/sdk/runtime")>()
+  vi.doMock("~/sdk/runtime/server", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("~/sdk/runtime/server")>()
     return {
       ...actual,
       requireAdminAndBoundRun: async () => ({
@@ -53,8 +53,8 @@ async function loadSecretsSync(options: { spawnThrows: boolean }) {
   vi.doMock("~/server/convex", () => ({
     createConvexClient: () => ({ mutation, query: vi.fn() }) as any,
   }))
-  vi.doMock("~/sdk/runtime", async (importOriginal) => {
-    const actual = await importOriginal<typeof import("~/sdk/runtime")>()
+  vi.doMock("~/sdk/runtime/server", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("~/sdk/runtime/server")>()
     return {
       ...actual,
       requireAdminAndBoundRun: async () => ({

@@ -7,7 +7,7 @@ import { resolveClawletsCliEntry } from "~/server/clawlets-cli"
 import { readClawletsEnvTokens } from "~/server/redaction"
 import { getClawletsCliEnv } from "~/server/run-env"
 import { spawnCommand, spawnCommandCapture } from "~/server/run-manager"
-import { requireAdminAndBoundRun } from "~/sdk/runtime"
+import { requireAdminAndBoundRun } from "~/sdk/runtime/server"
 import {
   parseServerAuditExecuteInput,
   parseServerAuditStartInput,

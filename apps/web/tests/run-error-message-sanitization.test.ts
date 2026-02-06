@@ -10,7 +10,7 @@ describe("run error message sanitization", () => {
       },
     }))
 
-    const { runWithEventsAndStatus } = await import("~/sdk/runtime")
+    const { runWithEventsAndStatus } = await import("~/sdk/runtime/server")
 
     type Result = { ok: true } | { ok: false; message: string }
     const res = await runWithEventsAndStatus<Result>({

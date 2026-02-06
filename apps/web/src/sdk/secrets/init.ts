@@ -27,7 +27,7 @@ import { runWithEvents, spawnCommand } from "~/server/run-manager"
 import { getAdminProjectContext } from "~/sdk/project"
 import { parseProjectHostInput, parseSecretsInitExecuteInput } from "~/sdk/runtime"
 import { resolveHostFromConfig } from "./helpers"
-import { requireAdminAndBoundRun } from "~/sdk/runtime"
+import { requireAdminAndBoundRun } from "~/sdk/runtime/server"
 
 export const getSecretsTemplate = createServerFn({ method: "POST" })
   .inputValidator(parseProjectHostInput)

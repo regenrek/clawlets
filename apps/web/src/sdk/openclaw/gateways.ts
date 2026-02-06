@@ -26,7 +26,7 @@ import {
   parseProjectGatewayInput,
   parseProjectHostGatewayInput,
 } from "~/sdk/runtime"
-import { mapValidationIssues, runWithEventsAndStatus, type ValidationIssue } from "~/sdk/runtime"
+import { mapValidationIssues, runWithEventsAndStatus, type ValidationIssue } from "~/sdk/runtime/server"
 import { sanitizeErrorMessage } from "@clawlets/core/lib/runtime/safe-error"
 
 export const LIVE_SCHEMA_ERROR_FALLBACK = "Unable to fetch schema. Check logs."

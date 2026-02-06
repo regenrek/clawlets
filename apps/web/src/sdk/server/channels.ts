@@ -9,7 +9,7 @@ import { getClawletsCliEnv } from "~/server/run-env"
 import { spawnCommand } from "~/server/run-manager"
 import { getAdminProjectContext } from "~/sdk/project"
 import { parseServerChannelsExecuteInput, parseServerChannelsStartInput } from "~/sdk/runtime"
-import { requireAdminAndBoundRun } from "~/sdk/runtime"
+import { requireAdminAndBoundRun } from "~/sdk/runtime/server"
 
 export const serverChannelsStart = createServerFn({ method: "POST" })
   .inputValidator(parseServerChannelsStartInput)

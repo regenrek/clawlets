@@ -6,7 +6,7 @@ import { api } from "../../../convex/_generated/api"
 import { createConvexClient } from "~/server/convex"
 import { readClawletsEnvTokens } from "~/server/redaction"
 import { getRepoRoot } from "~/sdk/project"
-import { mapValidationIssues, runWithEventsAndStatus, type ValidationIssue } from "~/sdk/runtime"
+import { mapValidationIssues, runWithEventsAndStatus, type ValidationIssue } from "~/sdk/runtime/server"
 import { readFile } from "node:fs/promises"
 import { parseProjectIdInput } from "~/sdk/runtime"
 

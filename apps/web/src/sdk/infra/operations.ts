@@ -10,7 +10,7 @@ import { readClawletsEnvTokens } from "~/server/redaction"
 import { getClawletsCliEnv } from "~/server/run-env"
 import { runWithEvents, spawnCommand } from "~/server/run-manager"
 import { getAdminProjectContext } from "~/sdk/project"
-import { requireAdminAndBoundRun } from "~/sdk/runtime"
+import { requireAdminAndBoundRun } from "~/sdk/runtime/server"
 import { parseProjectIdInput } from "~/sdk/runtime"
 
 function checkLevel(status: DoctorCheck["status"]): "info" | "warn" | "error" {

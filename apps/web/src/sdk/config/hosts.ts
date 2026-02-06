@@ -14,7 +14,7 @@ import { createConvexClient } from "~/server/convex"
 import { readClawletsEnvTokens } from "~/server/redaction"
 import { getAdminProjectContext } from "~/sdk/project"
 import { parseProjectIdInput, parseProjectSshKeysInput } from "~/sdk/runtime"
-import { runWithEventsAndStatus } from "~/sdk/runtime"
+import { runWithEventsAndStatus } from "~/sdk/runtime/server"
 
 export const addHost = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => {

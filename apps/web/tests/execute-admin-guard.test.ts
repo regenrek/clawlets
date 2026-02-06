@@ -20,8 +20,8 @@ describe("execute admin guard", () => {
     const spawnCommand = vi.fn(async () => {})
     const spawnCommandCapture = vi.fn(async () => ({ exitCode: 0, stdout: "", stderr: "" }))
 
-    vi.doMock("~/sdk/runtime", async (importOriginal) => {
-      const actual = await importOriginal<typeof import("~/sdk/runtime")>()
+    vi.doMock("~/sdk/runtime/server", async (importOriginal) => {
+      const actual = await importOriginal<typeof import("~/sdk/runtime/server")>()
       return {
         ...actual,
         requireAdminAndBoundRun: async () => {
@@ -67,8 +67,8 @@ describe("execute admin guard", () => {
     const spawnCommand = vi.fn(async () => {})
     const spawnCommandCapture = vi.fn(async () => ({ exitCode: 0, stdout: "", stderr: "" }))
 
-    vi.doMock("~/sdk/runtime", async (importOriginal) => {
-      const actual = await importOriginal<typeof import("~/sdk/runtime")>()
+    vi.doMock("~/sdk/runtime/server", async (importOriginal) => {
+      const actual = await importOriginal<typeof import("~/sdk/runtime/server")>()
       return {
         ...actual,
         requireAdminAndBoundRun: async () => {
