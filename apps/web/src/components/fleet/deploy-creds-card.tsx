@@ -7,7 +7,7 @@ import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "
 import { SecretInput } from "~/components/ui/secret-input"
 import { SettingsSection } from "~/components/ui/settings-section"
 import { StackedField } from "~/components/ui/stacked-field"
-import { detectSopsAgeKey, generateSopsAgeKey, getDeployCredsStatus, updateDeployCreds } from "~/sdk/deploy-creds"
+import { detectSopsAgeKey, generateSopsAgeKey, getDeployCredsStatus, updateDeployCreds } from "~/sdk/infra"
 
 type DeployCredsCardProps = {
   projectId: Id<"projects">

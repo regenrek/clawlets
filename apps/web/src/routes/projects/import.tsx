@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Button } from "~/components/ui/button"
 import { Input } from "~/components/ui/input"
 import { Label } from "~/components/ui/label"
-import { projectImport } from "~/sdk/projects"
+import { projectImport } from "~/sdk/project"
 import { slugifyProjectName } from "~/lib/project-routing"
 
 export const Route = createFileRoute("/projects/import")({

@@ -39,7 +39,7 @@ async function loadProjects(
   vi.doMock("~/server/run-manager", () => ({ runWithEvents }))
   vi.doMock("~/server/template-spec", () => ({ resolveTemplateSpec: () => "github:owner/repo" }))
 
-  const mod = await import("~/sdk/projects")
+  const mod = await import("~/sdk/project")
   return { mod, initProject, runWithEvents, mutation }
 }
 

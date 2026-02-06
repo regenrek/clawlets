@@ -20,17 +20,21 @@ describe("execute admin guard", () => {
     const spawnCommand = vi.fn(async () => {})
     const spawnCommandCapture = vi.fn(async () => ({ exitCode: 0, stdout: "", stderr: "" }))
 
-    vi.doMock("~/sdk/run-guards", () => ({
-      requireAdminAndBoundRun: async () => {
-        throw new Error("admin required")
-      },
-    }))
+    vi.doMock("~/sdk/runtime/server", async (importOriginal) => {
+      const actual = await importOriginal<typeof import("~/sdk/runtime/server")>()
+      return {
+        ...actual,
+        requireAdminAndBoundRun: async () => {
+          throw new Error("admin required")
+        },
+      }
+    })
     vi.doMock("~/server/run-manager", () => ({ spawnCommand, spawnCommandCapture }))
     vi.doMock("~/server/redaction", () => ({ readClawletsEnvTokens: async () => [] }))
     vi.doMock("~/server/clawlets-cli", () => ({ resolveClawletsCliEntry: () => "cli.js" }))
     vi.doMock("~/server/convex", () => ({ createConvexClient: () => ({ mutation: vi.fn(), query: vi.fn() }) as any }))
 
-    const mod = await import("~/sdk/server-ops")
+    const mod = await import("~/sdk/server")
 
     await expect(
       runWithStartContext(startContext, async () =>
@@ -63,11 +67,15 @@ describe("execute admin guard", () => {
     const spawnCommand = vi.fn(async () => {})
     const spawnCommandCapture = vi.fn(async () => ({ exitCode: 0, stdout: "", stderr: "" }))
 
-    vi.doMock("~/sdk/run-guards", () => ({
-      requireAdminAndBoundRun: async () => {
-        throw new Error("admin required")
-      },
-    }))
+    vi.doMock("~/sdk/runtime/server", async (importOriginal) => {
+      const actual = await importOriginal<typeof import("~/sdk/runtime/server")>()
+      return {
+        ...actual,
+        requireAdminAndBoundRun: async () => {
+          throw new Error("admin required")
+        },
+      }
+    })
     vi.doMock("~/server/run-manager", () => ({ spawnCommand, spawnCommandCapture, runWithEvents: vi.fn(async () => {}) }))
     vi.doMock("~/server/redaction", () => ({ readClawletsEnvTokens: async () => [] }))
     vi.doMock("~/server/clawlets-cli", () => ({ resolveClawletsCliEntry: () => "cli.js" }))
@@ -83,9 +91,9 @@ describe("execute admin guard", () => {
     }))
 
     const [{ secretsInitExecute }, { serverChannelsExecute }, { bootstrapExecute }] = await Promise.all([
-      import("~/sdk/secrets-init"),
-      import("~/sdk/server-channels"),
-      import("~/sdk/operations"),
+      import("~/sdk/secrets"),
+      import("~/sdk/server"),
+      import("~/sdk/infra"),
     ])
 
     await expect(

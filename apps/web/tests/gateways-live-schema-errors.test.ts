@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest"
 import { AsyncLocalStorage } from "node:async_hooks"
 
-import { LIVE_SCHEMA_ERROR_FALLBACK } from "~/sdk/gateways"
+import { LIVE_SCHEMA_ERROR_FALLBACK } from "~/sdk/openclaw"
 
 const GLOBAL_STORAGE_KEY = Symbol.for("tanstack-start:start-storage-context")
 const globalObj = globalThis as { [GLOBAL_STORAGE_KEY]?: AsyncLocalStorage<unknown> }
@@ -49,7 +49,7 @@ async function loadGateways(options: {
       options.fetchLive ?? (async () => ({ ok: true, schema: { schema: { type: "object" } } })),
   }))
 
-  const mod = await import("~/sdk/gateways")
+  const mod = await import("~/sdk/openclaw")
   return { mod, mutation }
 }
 

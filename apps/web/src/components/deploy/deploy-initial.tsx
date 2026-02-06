@@ -26,9 +26,9 @@ import { canBootstrapFromDoctorGate } from "~/lib/bootstrap-gate"
 import { useProjectBySlug } from "~/lib/project-data"
 import { setupFieldHelp } from "~/lib/setup-field-help"
 import { getClawletsConfig } from "~/sdk/config"
-import { getDeployCredsStatus } from "~/sdk/deploy-creds"
-import { gitPushExecute, gitRepoStatus } from "~/sdk/git"
-import { bootstrapExecute, bootstrapStart, runDoctor } from "~/sdk/operations"
+import { getDeployCredsStatus } from "~/sdk/infra"
+import { gitPushExecute, gitRepoStatus } from "~/sdk/vcs"
+import { bootstrapExecute, bootstrapStart, runDoctor } from "~/sdk/infra"
 
 type DeployInitialInstallProps = {
   projectSlug: string

@@ -16,7 +16,7 @@ describe("openclaw schema status cache", () => {
     vi.doMock("~/server/convex", () => ({
       createConvexClient: () => ({}) as any,
     }))
-    vi.doMock("~/sdk/repo-root", () => ({
+    vi.doMock("~/sdk/project", () => ({
       getProjectContext: async (_client: unknown, projectId: string) => ({
         project: { localPath: `/tmp/${projectId}` },
         role: "admin",
@@ -59,7 +59,7 @@ describe("openclaw schema status cache", () => {
     vi.doMock("~/server/convex", () => ({
       createConvexClient: () => ({}) as any,
     }))
-    vi.doMock("~/sdk/repo-root", () => ({
+    vi.doMock("~/sdk/project", () => ({
       getProjectContext: async (_client: unknown, projectId: string) => ({
         project: { localPath: `/tmp/${projectId}` },
         role: "admin",
@@ -95,7 +95,7 @@ describe("openclaw schema status cache", () => {
     vi.doMock("~/server/convex", () => ({
       createConvexClient: () => ({}) as any,
     }))
-    vi.doMock("~/sdk/repo-root", () => ({
+    vi.doMock("~/sdk/project", () => ({
       getProjectContext: async (_client: unknown, projectId: string) => ({
         project: { localPath: `/tmp/${projectId}` },
         role: "admin",
@@ -147,7 +147,7 @@ describe("openclaw schema status cache", () => {
     vi.doMock("~/server/convex", () => ({
       createConvexClient: () => ({}) as any,
     }))
-    vi.doMock("~/sdk/repo-root", () => ({
+    vi.doMock("~/sdk/project", () => ({
       getProjectContext: async (_client: unknown, projectId: string) => ({
         project: { localPath: `/tmp/${projectId}` },
         role: "admin",

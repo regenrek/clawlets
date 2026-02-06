@@ -17,14 +17,18 @@ async function loadSecretsInit(options: { mkpasswdThrows: boolean; writeThrows: 
   vi.doMock("~/server/convex", () => ({
     createConvexClient: () => ({ mutation, query: vi.fn() }) as any,
   }))
-  vi.doMock("~/sdk/run-guards", () => ({
-    requireAdminAndBoundRun: async () => ({
-      project: { localPath: "/tmp/repo" },
-      role: "admin",
-      repoRoot: "/tmp/repo",
-      run: { kind: "secrets_init", status: "running" },
-    }),
-  }))
+  vi.doMock("~/sdk/runtime/server", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("~/sdk/runtime/server")>()
+    return {
+      ...actual,
+      requireAdminAndBoundRun: async () => ({
+        project: { localPath: "/tmp/repo" },
+        role: "admin",
+        repoRoot: "/tmp/repo",
+        run: { kind: "secrets_init", status: "running" },
+      }),
+    }
+  })
   vi.doMock("@clawlets/core/lib/config/clawlets-config", () => ({
     loadClawletsConfig: () => ({ config: { defaultHost: "alpha", hosts: { alpha: {} } } }),
   }))
@@ -52,7 +56,7 @@ async function loadSecretsInit(options: { mkpasswdThrows: boolean; writeThrows: 
     },
   }))
 
-  const mod = await import("~/sdk/secrets-init")
+  const mod = await import("~/sdk/secrets")
   return { mod, mutation }
 }
 

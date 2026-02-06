@@ -6,7 +6,7 @@ import type { Id } from "../../../../convex/_generated/dataModel"
 import { Button } from "~/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "~/components/ui/dialog"
 import { Textarea } from "~/components/ui/textarea"
-import { readWorkspaceDoc, resetWorkspaceDocOverride, writeWorkspaceDoc } from "~/sdk/workspace-docs"
+import { readWorkspaceDoc, resetWorkspaceDocOverride, writeWorkspaceDoc } from "~/sdk/workspace"
 
 export function WorkspaceDocDialog(props: {
   open: boolean

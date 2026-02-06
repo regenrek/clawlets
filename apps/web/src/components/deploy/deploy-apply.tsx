@@ -18,7 +18,7 @@ import {
   serverUpdateLogsStart,
   serverUpdateStatusExecute,
   serverUpdateStatusStart,
-} from "~/sdk/server-ops"
+} from "~/sdk/server"
 
 type DeployApplyChangesProps = {
   projectSlug: string

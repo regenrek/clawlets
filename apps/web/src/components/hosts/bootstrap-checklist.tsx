@@ -7,9 +7,9 @@ import { Badge } from "~/components/ui/badge"
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert"
 import { RunLogTail } from "~/components/run-log-tail"
 import { configDotSet } from "~/sdk/config"
-import { getHostPublicIpv4, probeHostTailscaleIpv4 } from "~/sdk/host-connectivity"
-import { serverUpdateApplyExecute, serverUpdateApplyStart } from "~/sdk/server-ops"
-import { lockdownExecute, lockdownStart } from "~/sdk/lockdown"
+import { getHostPublicIpv4, probeHostTailscaleIpv4 } from "~/sdk/host"
+import { serverUpdateApplyExecute, serverUpdateApplyStart } from "~/sdk/server"
+import { lockdownExecute, lockdownStart } from "~/sdk/infra"
 import { secretsVerifyExecute, secretsVerifyStart } from "~/sdk/secrets"
 
 function ChecklistStep({

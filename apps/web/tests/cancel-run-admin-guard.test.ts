@@ -28,7 +28,7 @@ async function loadCancelRun(options: { role: "admin" | "viewer"; status: string
     createConvexClient: () => ({ mutation, query }) as any,
   }))
 
-  const mod = await import("~/sdk/runs")
+  const mod = await import("~/sdk/runtime")
   return { mod, cancelActiveRun, runWithEvents, mutation }
 }
 

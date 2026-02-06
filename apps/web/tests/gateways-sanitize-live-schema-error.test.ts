@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { LIVE_SCHEMA_ERROR_FALLBACK, sanitizeLiveSchemaError } from "~/sdk/gateways"
+import { LIVE_SCHEMA_ERROR_FALLBACK, sanitizeLiveSchemaError } from "~/sdk/openclaw"
 
 describe("setGatewayOpenclawConfig live schema errors", () => {
   it("sanitizes unsafe schema errors", () => {

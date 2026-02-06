@@ -46,7 +46,7 @@ async function loadGateways(role: "admin" | "viewer") {
     }
   })
 
-  const mod = await import("~/sdk/gateways")
+  const mod = await import("~/sdk/openclaw")
   return { mod, mutation, runWithEvents }
 }
 

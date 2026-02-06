@@ -10,8 +10,8 @@ import { Button } from "~/components/ui/button"
 import { Switch } from "~/components/ui/switch"
 import { Badge } from "~/components/ui/badge"
 import { MonacoJsonEditor, type JsonEditorDiagnostic } from "~/components/editor/monaco-json-editor"
-import { hardenGatewayOpenclawConfig, setGatewayOpenclawConfig, verifyGatewayOpenclawSchema } from "~/sdk/gateways"
-import { getOpenclawSchemaLive, getOpenclawSchemaStatus, type OpenclawSchemaLiveResult } from "~/sdk/openclaw-schema"
+import { hardenGatewayOpenclawConfig, setGatewayOpenclawConfig, verifyGatewayOpenclawSchema } from "~/sdk/openclaw"
+import { getOpenclawSchemaLive, getOpenclawSchemaStatus, type OpenclawSchemaLiveResult } from "~/sdk/openclaw"
 import { createOpenclawParseScheduler, parseOpenclawConfigText } from "~/lib/openclaw-parse"
 
 export function shouldDisableSave(params: {

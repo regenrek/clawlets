@@ -15,14 +15,18 @@ async function loadSecretsVerify(options: { getRepoRootThrows: boolean }) {
   vi.doMock("~/server/convex", () => ({
     createConvexClient: () => ({ mutation, query: vi.fn() }) as any,
   }))
-  vi.doMock("~/sdk/run-guards", () => ({
-    requireAdminAndBoundRun: async () => ({
-      project: { localPath: "/tmp/repo" },
-      role: "admin",
-      repoRoot: "/tmp/repo",
-      run: { kind: "secrets_verify", status: "running" },
-    }),
-  }))
+  vi.doMock("~/sdk/runtime/server", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("~/sdk/runtime/server")>()
+    return {
+      ...actual,
+      requireAdminAndBoundRun: async () => ({
+        project: { localPath: "/tmp/repo" },
+        role: "admin",
+        repoRoot: "/tmp/repo",
+        run: { kind: "secrets_verify", status: "running" },
+      }),
+    }
+  })
   vi.doMock("@clawlets/core/lib/config/clawlets-config", () => ({
     loadClawletsConfig: () => {
       if (options.getRepoRootThrows) throw new Error("repo missing")
@@ -38,7 +42,7 @@ async function loadSecretsVerify(options: { getRepoRootThrows: boolean }) {
     spawnCommandCapture: async () => ({ exitCode: 0, stdout: "{}", stderr: "" }),
   }))
 
-  const mod = await import("~/sdk/secrets-verify")
+  const mod = await import("~/sdk/secrets")
   return { mod, mutation }
 }
 
@@ -49,14 +53,18 @@ async function loadSecretsSync(options: { spawnThrows: boolean }) {
   vi.doMock("~/server/convex", () => ({
     createConvexClient: () => ({ mutation, query: vi.fn() }) as any,
   }))
-  vi.doMock("~/sdk/run-guards", () => ({
-    requireAdminAndBoundRun: async () => ({
-      project: { localPath: "/tmp/repo" },
-      role: "admin",
-      repoRoot: "/tmp/repo",
-      run: { kind: "secrets_sync", status: "running" },
-    }),
-  }))
+  vi.doMock("~/sdk/runtime/server", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("~/sdk/runtime/server")>()
+    return {
+      ...actual,
+      requireAdminAndBoundRun: async () => ({
+        project: { localPath: "/tmp/repo" },
+        role: "admin",
+        repoRoot: "/tmp/repo",
+        run: { kind: "secrets_sync", status: "running" },
+      }),
+    }
+  })
   vi.doMock("@clawlets/core/lib/config/clawlets-config", () => ({
     loadClawletsConfig: () => ({ config: { defaultHost: "alpha", hosts: { alpha: {} } } }),
   }))
@@ -68,7 +76,7 @@ async function loadSecretsSync(options: { spawnThrows: boolean }) {
     },
   }))
 
-  const mod = await import("~/sdk/secrets-sync")
+  const mod = await import("~/sdk/secrets")
   return { mod, mutation }
 }
 
