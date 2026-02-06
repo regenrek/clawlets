@@ -76,6 +76,8 @@ function buildSharedTfArgs(params: {
     `ssh_exposure_mode=${params.spec.sshExposureMode}`,
     "-var",
     `tailnet_mode=${params.spec.tailnetMode}`,
+    "-var",
+    `tailscale_udp_ingress_enabled=${params.spec.hetzner.allowTailscaleUdpIngress ? "true" : "false"}`,
   ];
 
   const serverType = String(params.spec.hetzner.serverType || "").trim();

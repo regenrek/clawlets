@@ -368,6 +368,7 @@ describe("clawlets config schema", () => {
     expect(cfg.hosts["openclaw-fleet-host"].cache?.netrc?.enable).toBe(false);
     expect(cfg.hosts["openclaw-fleet-host"].provisioning?.adminCidrAllowWorldOpen).toBe(false);
     expect(cfg.hosts["openclaw-fleet-host"].provisioning?.provider).toBe("hetzner");
+    expect(cfg.hosts["openclaw-fleet-host"].hetzner?.allowTailscaleUdpIngress).toBe(true);
     expect(cfg.hosts["openclaw-fleet-host"].aws?.useDefaultVpc).toBe(false);
     expect(cfg.hosts["openclaw-fleet-host"].aws?.allowTailscaleUdpIngress).toBe(true);
     expect(cfg.hosts["openclaw-fleet-host"].aws?.amiId).toBe("");

@@ -78,6 +78,7 @@ also define which gateways run on this host.
 - `hetzner.serverType`: e.g. `cx43` (required when `provider=hetzner`)
 - `hetzner.image`: custom image ID/name (optional; used for image‑based bootstrap)
 - `hetzner.location`: e.g. `nbg1` (required when `provider=hetzner`)
+- `hetzner.allowTailscaleUdpIngress`: allow inbound UDP/41641 for direct Tailscale WireGuard paths (default: `true`; set `false` for relay-only mode / reduced public exposure)
 - `aws.region`: e.g. `us-east-1` (required when `provider=aws`)
 - `aws.instanceType`: e.g. `t3.large` (required when `provider=aws`)
 - `aws.amiId`: AMI ID for image-mode bootstrap/provisioning (required when `provider=aws`)
@@ -226,7 +227,12 @@ repo, run:
       },
       "diskDevice": "/dev/sda",
       "flakeHost": "",
-      "hetzner": { "serverType": "cx43", "image": "", "location": "nbg1" },
+      "hetzner": {
+        "serverType": "cx43",
+        "image": "",
+        "location": "nbg1",
+        "allowTailscaleUdpIngress": true
+      },
       "aws": {
         "region": "us-east-1",
         "instanceType": "t3.large",

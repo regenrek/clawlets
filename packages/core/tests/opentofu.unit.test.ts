@@ -47,6 +47,7 @@ describe("opentofu", () => {
             serverType: "cx43",
             image: "debian-12",
             location: "nbg1",
+            allowTailscaleUdpIngress: false,
           },
         },
         runtime: {
@@ -79,6 +80,7 @@ describe("opentofu", () => {
       expect(args2).toContain("ssh_key_id=123");
       expect(args2).toContain("ssh_exposure_mode=tailnet");
       expect(args2).toContain("tailnet_mode=tailscale");
+      expect(args2).toContain("tailscale_udp_ingress_enabled=false");
       expect(args2).toContain("server_type=cx43");
       expect(opts2.env?.HCLOUD_TOKEN).toBe("token");
 

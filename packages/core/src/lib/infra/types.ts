@@ -24,6 +24,7 @@ export type HetznerProvisionSpec = HostProvisionSpecBase & {
     serverType: string;
     image: string;
     location: string;
+    allowTailscaleUdpIngress: boolean;
   };
 };
 

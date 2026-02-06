@@ -5,8 +5,9 @@ export const HetznerHostSchema = z
     serverType: z.string().trim().min(1).default("cx43"),
     image: z.string().trim().default(""),
     location: z.string().trim().min(1).default("nbg1"),
+    allowTailscaleUdpIngress: z.boolean().default(true),
   })
-  .default(() => ({ serverType: "cx43", image: "", location: "nbg1" }));
+  .default(() => ({ serverType: "cx43", image: "", location: "nbg1", allowTailscaleUdpIngress: true }));
 
 export type HetznerHostConfig = z.infer<typeof HetznerHostSchema>;
 

@@ -54,8 +54,16 @@ const add = defineCommand({
       flakeHost: "",
       targetHost: undefined,
       theme: { emoji: HOST_THEME_DEFAULT_EMOJI, color: HOST_THEME_DEFAULT_COLOR },
-      hetzner: { serverType: "cx43", image: "", location: "nbg1" },
-      aws: { region: "", instanceType: "", amiId: "", vpcId: "", subnetId: "", useDefaultVpc: false },
+      hetzner: { serverType: "cx43", image: "", location: "nbg1", allowTailscaleUdpIngress: true },
+      aws: {
+        region: "",
+        instanceType: "",
+        amiId: "",
+        vpcId: "",
+        subnetId: "",
+        useDefaultVpc: false,
+        allowTailscaleUdpIngress: true,
+      },
       provisioning: { provider: "hetzner", adminCidr: "", adminCidrAllowWorldOpen: false, sshPubkeyFile: "" },
       sshExposure: { mode: "bootstrap" },
       tailnet: { mode: "tailscale" },
@@ -135,6 +143,7 @@ const set = defineCommand({
     "aws-vpc-id": { type: "string", description: "AWS VPC ID (e.g. vpc-1234)." },
     "aws-subnet-id": { type: "string", description: "AWS subnet ID (e.g. subnet-1234)." },
     "aws-use-default-vpc": { type: "string", description: "Use AWS default VPC (true/false)." },
+    "aws-allow-tailscale-udp-ingress": { type: "string", description: "Allow inbound UDP/41641 for direct Tailscale (true/false)." },
     "cache-substituter": { type: "string", description: "Nix substituter (repeatable; replaces host cache list).", array: true },
     "cache-trusted-public-key": { type: "string", description: "Nix trusted public key (repeatable; replaces host cache list).", array: true },
     "cache-netrc-enable": { type: "string", description: "Enable netrc-file for private cache auth (true/false).", },
@@ -155,6 +164,7 @@ const set = defineCommand({
     "server-type": { type: "string", description: "Hetzner server type (e.g. cx43)." },
     "hetzner-image": { type: "string", description: "Hetzner image ID/name (custom image or snapshot)." },
     "hetzner-location": { type: "string", description: "Hetzner location (e.g. nbg1, fsn1)." },
+    "hetzner-allow-tailscale-udp-ingress": { type: "string", description: "Allow inbound UDP/41641 for direct Tailscale (true/false)." },
     "admin-cidr": { type: "string", description: "ADMIN_CIDR (e.g. 1.2.3.4/32)." },
     "ssh-pubkey-file": { type: "string", description: "SSH public key file path used for provisioning (e.g. ~/.ssh/id_ed25519.pub)." },
     "clear-ssh-keys": { type: "boolean", description: "Clear fleet.sshAuthorizedKeys.", default: false },
@@ -221,6 +231,10 @@ const set = defineCommand({
       const v = parseBoolOrUndefined((args as any)["aws-use-default-vpc"]);
       if (v !== undefined) next.aws.useDefaultVpc = v;
     }
+    if ((args as any)["aws-allow-tailscale-udp-ingress"] !== undefined) {
+      const v = parseBoolOrUndefined((args as any)["aws-allow-tailscale-udp-ingress"]);
+      if (v !== undefined) next.aws.allowTailscaleUdpIngress = v;
+    }
 
     if (Array.isArray((args as any)["cache-substituter"])) {
       next.cache.substituters = (args as any)["cache-substituter"].map((x: unknown) => String(x).trim()).filter(Boolean);
@@ -282,6 +296,10 @@ const set = defineCommand({
     if ((args as any)["server-type"] !== undefined) next.hetzner.serverType = String((args as any)["server-type"]).trim();
     if ((args as any)["hetzner-image"] !== undefined) next.hetzner.image = String((args as any)["hetzner-image"]).trim();
     if ((args as any)["hetzner-location"] !== undefined) next.hetzner.location = String((args as any)["hetzner-location"]).trim();
+    if ((args as any)["hetzner-allow-tailscale-udp-ingress"] !== undefined) {
+      const v = parseBoolOrUndefined((args as any)["hetzner-allow-tailscale-udp-ingress"]);
+      if (v !== undefined) next.hetzner.allowTailscaleUdpIngress = v;
+    }
     if ((args as any)["admin-cidr"] !== undefined) next.provisioning.adminCidr = String((args as any)["admin-cidr"]).trim();
     if ((args as any)["ssh-pubkey-file"] !== undefined) next.provisioning.sshPubkeyFile = String((args as any)["ssh-pubkey-file"]).trim();
 

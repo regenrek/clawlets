@@ -14,6 +14,7 @@ export const setupFieldHelp = {
     hetznerServerType: "Hetzner server type (e.g. `cx43`). Used by provisioning.",
     hetznerLocation: "Hetzner DC location (e.g. `nbg1`).",
     hetznerImage: "Optional Hetzner image override (usually leave empty when using nixos-anywhere).",
+    hetznerAllowTailscaleUdpIngress: "Controls inbound UDP/41641 for direct Tailscale WireGuard paths. Disable for relay-only mode and reduced public exposure.",
     awsRegion: "AWS region (e.g. `us-east-1`).",
     awsInstanceType: "AWS instance type (e.g. `t3.large`).",
     awsVpcId: "Optional explicit VPC id (`vpc-*`). Required if useDefaultVpc=false and subnet is not set.",

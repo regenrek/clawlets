@@ -38,7 +38,7 @@ export function createDefaultClawletsConfig(params: { host: string; gateways?: s
         openclaw: { enable: false },
         diskDevice: "/dev/sda",
         flakeHost: "",
-        hetzner: { serverType: "cx43", image: "", location: "nbg1" },
+        hetzner: { serverType: "cx43", image: "", location: "nbg1", allowTailscaleUdpIngress: true },
         aws: {
           region: "",
           instanceType: "",

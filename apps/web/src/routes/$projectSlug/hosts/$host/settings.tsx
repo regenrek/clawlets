@@ -54,6 +54,7 @@ function HostsSetup() {
   const [serverType, setServerType] = useState("cx43")
   const [hetznerImage, setHetznerImage] = useState("")
   const [hetznerLocation, setHetznerLocation] = useState("nbg1")
+  const [hetznerAllowTailscaleUdpIngress, setHetznerAllowTailscaleUdpIngress] = useState(true)
   const [awsRegion, setAwsRegion] = useState("us-east-1")
   const [awsInstanceType, setAwsInstanceType] = useState("t3.large")
   const [awsVpcId, setAwsVpcId] = useState("")
@@ -119,6 +120,7 @@ function HostsSetup() {
     setServerType(hostCfg.hetzner?.serverType || "cx43")
     setHetznerImage(hostCfg.hetzner?.image || "")
     setHetznerLocation(hostCfg.hetzner?.location || "nbg1")
+    setHetznerAllowTailscaleUdpIngress(hostCfg.hetzner?.allowTailscaleUdpIngress !== false)
     setAwsRegion(hostCfg.aws?.region || "us-east-1")
     setAwsInstanceType(hostCfg.aws?.instanceType || "t3.large")
     setAwsVpcId(hostCfg.aws?.vpcId || "")
@@ -174,6 +176,7 @@ function HostsSetup() {
               serverType: serverType.trim(),
               image: hetznerImage.trim(),
               location: hetznerLocation.trim(),
+              allowTailscaleUdpIngress: Boolean(hetznerAllowTailscaleUdpIngress),
             },
             aws: {
               ...hostCfg.aws,
@@ -428,6 +431,10 @@ function HostsSetup() {
                     Image
                   </LabelWithHelp>
                   <Input id="image" value={hetznerImage} onChange={(e) => setHetznerImage(e.target.value)} />
+                </div>
+                <div className="flex items-center gap-3 md:col-span-2">
+                  <Switch checked={hetznerAllowTailscaleUdpIngress} onCheckedChange={setHetznerAllowTailscaleUdpIngress} />
+                  <div className="text-sm text-muted-foreground">{setupFieldHelp.hosts.hetznerAllowTailscaleUdpIngress}</div>
                 </div>
               </div>
             </SettingsSection>
