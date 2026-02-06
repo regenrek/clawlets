@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 
 type ProviderInfo = {
   auth: "apiKey" | "oauth" | "mixed";
@@ -27,9 +27,63 @@ const argValue = (flag: string): string | null => {
 const readText = (p: string): string => fs.readFileSync(p, "utf8");
 const readJson = <T = unknown>(p: string): T => JSON.parse(readText(p)) as T;
 
-const parseEnvMap = (text: string): Record<string, string[]> => {
+const extractBetweenMarkers = (params: {
+  text: string;
+  startMarker: string;
+  endMarker: string;
+  sourcePath: string;
+}): string => {
+  const startIdx = params.text.indexOf(params.startMarker);
+  if (startIdx === -1) {
+    throw new Error(
+      `failed to parse ${params.sourcePath}: missing marker "${params.startMarker}"`,
+    );
+  }
+  const endIdx = params.text.indexOf(params.endMarker, startIdx + params.startMarker.length);
+  if (endIdx === -1) {
+    throw new Error(
+      `failed to parse ${params.sourcePath}: missing marker "${params.endMarker}" after "${params.startMarker}"`,
+    );
+  }
+  return params.text.slice(startIdx + params.startMarker.length, endIdx);
+};
+
+const extractFunctionBody = (params: {
+  text: string;
+  functionName: string;
+  sourcePath: string;
+}): string => {
+  const marker = `export function ${params.functionName}`;
+  const fnStart = params.text.indexOf(marker);
+  if (fnStart === -1) {
+    throw new Error(`failed to parse ${params.sourcePath}: missing function "${params.functionName}"`);
+  }
+  const bodyStart = params.text.indexOf("{", fnStart);
+  if (bodyStart === -1) {
+    throw new Error(`failed to parse ${params.sourcePath}: missing body for "${params.functionName}"`);
+  }
+  let depth = 0;
+  for (let i = bodyStart; i < params.text.length; i += 1) {
+    const ch = params.text[i];
+    if (ch === "{") depth += 1;
+    if (ch === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        return params.text.slice(bodyStart + 1, i);
+      }
+    }
+  }
+  throw new Error(`failed to parse ${params.sourcePath}: unbalanced braces in "${params.functionName}"`);
+};
+
+const parseEnvMap = (params: { text: string; sourcePath: string }): Record<string, string[]> => {
   const out: Record<string, string[]> = {};
-  const block = text.split("export function resolveEnvApiKey")[1]?.split("export function resolveModelAuthMode")[0] ?? "";
+  const block = extractBetweenMarkers({
+    text: params.text,
+    startMarker: "export function resolveEnvApiKey",
+    endMarker: "export function resolveModelAuthMode",
+    sourcePath: params.sourcePath,
+  });
   const ifRegex = /if\s*\(([^)]*)\)\s*\{([\s\S]*?)\n\s*\}/g;
   let match: RegExpExecArray | null;
   while ((match = ifRegex.exec(block))) {
@@ -57,34 +111,58 @@ const parseEnvMap = (text: string): Record<string, string[]> => {
       out[provider] = Array.from(new Set([...(out[provider] ?? []), envVar]));
     }
   }
+  if (Object.keys(out).length === 0) {
+    throw new Error(
+      `failed to parse ${params.sourcePath}: no provider env mappings extracted from resolveEnvApiKey block`,
+    );
+  }
   return out;
 };
 
-const readOAuthProviders = async (src: string): Promise<string[]> => {
-  try {
-    const oauthModuleUrl = pathToFileURL(
-      path.join(src, "node_modules", "@mariozechner", "pi-ai", "dist", "utils", "oauth", "index.js"),
-    ).href;
-    const mod = await import(oauthModuleUrl);
-    const raw = typeof mod.getOAuthProviders === "function" ? mod.getOAuthProviders() : [];
-    if (!Array.isArray(raw)) return [];
-    return raw
-      .map((entry) => {
-        if (typeof entry === "string") return entry.trim();
-        if (entry && typeof entry === "object" && "id" in entry) {
-          return String((entry as { id?: unknown }).id || "").trim();
-        }
-        return "";
-      })
-      .filter(Boolean);
-  } catch {
-    return [];
+const readOAuthProviders = (src: string): string[] => {
+  const oauthIndexPath = path.join(
+    src,
+    "node_modules",
+    "@mariozechner",
+    "pi-ai",
+    "dist",
+    "utils",
+    "oauth",
+    "index.js",
+  );
+  if (!fs.existsSync(oauthIndexPath)) {
+    throw new Error(
+      `missing OAuth module file: ${oauthIndexPath} (run install in openclaw source and ensure @mariozechner/pi-ai is present)`,
+    );
   }
+  const oauthText = readText(oauthIndexPath);
+  const body = extractFunctionBody({
+    text: oauthText,
+    functionName: "getOAuthProviders",
+    sourcePath: oauthIndexPath,
+  });
+  const ids = Array.from(body.matchAll(/\bid\s*:\s*"([^"]+)"/g))
+    .map((m) => String(m[1] || "").trim())
+    .filter(Boolean);
+  if (ids.length === 0) {
+    throw new Error(
+      `failed to parse ${oauthIndexPath}: getOAuthProviders() contains no provider ids`,
+    );
+  }
+  return Array.from(new Set(ids)).sort();
 };
 
-const parseProviderAliases = (text: string): Record<string, string[]> => {
+const parseProviderAliases = (params: {
+  text: string;
+  sourcePath: string;
+}): Record<string, string[]> => {
   const out: Record<string, string[]> = {};
-  const block = text.split("export function normalizeProviderId")[1] ?? "";
+  const block = extractBetweenMarkers({
+    text: params.text,
+    startMarker: "export function normalizeProviderId",
+    endMarker: "export function isCliProvider",
+    sourcePath: params.sourcePath,
+  });
   const ifRegex = /if\s*\(([^)]*normalized[^)]*)\)\s*return\s+"([^"]+)"/g;
   let match: RegExpExecArray | null;
   while ((match = ifRegex.exec(block))) {
@@ -222,8 +300,14 @@ const main = async () => {
   const modelAuthText = readText(path.join(sourceDir, "src", "agents", "model-auth.ts"));
   const modelSelectionText = readText(path.join(sourceDir, "src", "agents", "model-selection.ts"));
   const envText = readText(path.join(sourceDir, "src", "infra", "env.ts"));
-  const envMap = parseEnvMap(modelAuthText);
-  const aliases = parseProviderAliases(modelSelectionText);
+  const envMap = parseEnvMap({
+    text: modelAuthText,
+    sourcePath: path.join(sourceDir, "src", "agents", "model-auth.ts"),
+  });
+  const aliases = parseProviderAliases({
+    text: modelSelectionText,
+    sourcePath: path.join(sourceDir, "src", "agents", "model-selection.ts"),
+  });
   const envAliases = parseEnvAliases(envText);
   for (const [provider, envs] of Object.entries(envMap)) {
     const expanded = new Set(envs);
@@ -235,11 +319,7 @@ const main = async () => {
     envMap[provider] = Array.from(expanded);
   }
 
-  const oauthProviders = await readOAuthProviders(sourceDir);
-  if (oauthProviders.length === 0) {
-    console.error("error: failed to resolve OAuth providers (pi-ai utils/oauth)");
-    process.exit(1);
-  }
+  const oauthProviders = readOAuthProviders(sourceDir);
 
   const providerInfo = buildProviderInfo({ envMap, aliases, oauthProviders });
   writeJson(path.resolve(providersOut), providerInfo);
