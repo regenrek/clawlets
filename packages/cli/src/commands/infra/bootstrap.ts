@@ -96,7 +96,7 @@ function resolveHostFromFlake(flakeBase: string): string | null {
 export const bootstrap = defineCommand({
   meta: {
     name: "bootstrap",
-    description: "Provision VM + install NixOS (nixos-anywhere or image; hetzner only).",
+    description: "Provision VM + install NixOS (Hetzner: nixos-anywhere|image, AWS: image only).",
   },
 	  args: {
 	    runtimeDir: { type: "string", description: "Runtime directory (default: .clawlets)." },
