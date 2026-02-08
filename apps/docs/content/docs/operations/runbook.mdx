@@ -55,10 +55,9 @@ Apply updates:
 
 - `clawlets server update apply --host <host> --target-host admin@<vpn-ip>`
 
-Orchestrator (if cattle enabled):
+Orchestrator (if CLF plugin enabled):
 
-- `systemctl status clf-orchestrator.socket`
-- `systemctl status clf-orchestrator`
+- see [CLF Orchestrator](/plugins/clf-orchestrator)
 - gateway‑facing: `sudo -u gateway-maren clf jobs list --json`
 
 Secrets rotation:

@@ -4,6 +4,7 @@ import { createFileRoute, redirect } from "@tanstack/react-router"
 import type { Id } from "../../../../convex/_generated/dataModel"
 import { projectsListQueryOptions } from "~/lib/query-options"
 import { slugifyProjectName } from "~/lib/project-routing"
+import { resolveSetupHost } from "~/lib/setup/setup-entry"
 
 export const Route = createFileRoute("/$projectSlug/setup/")({
   loader: async ({ context, params }) => {
@@ -21,15 +22,7 @@ export const Route = createFileRoute("/$projectSlug/setup/")({
     const hosts = await context.queryClient.ensureQueryData(
       convexQuery(api.controlPlane.hosts.listByProject, { projectId: projectId as Id<"projects"> }),
     )
-    const hostNames = hosts.map((row) => row.hostName).toSorted()
-    const defaultHost = hostNames[0] ?? null
-
-    if (!defaultHost) {
-      throw redirect({
-        to: "/$projectSlug/hosts",
-        params: { projectSlug: params.projectSlug },
-      })
-    }
+    const defaultHost = resolveSetupHost(hosts.map((row) => row.hostName))
 
     throw redirect({
       to: "/$projectSlug/hosts/$host/setup",

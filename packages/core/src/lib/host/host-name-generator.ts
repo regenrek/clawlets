@@ -1,4 +1,3 @@
-import { randomInt } from "node:crypto";
 import { assertSafeHostName } from "@clawlets/shared/lib/identifiers";
 
 export const HOST_NAME_ADJECTIVES = [
@@ -56,6 +55,25 @@ function pickFromDictionary(words: readonly string[], randomIntFn: RandomIntFn):
   return picked;
 }
 
+function defaultRandomInt(min: number, max: number): number {
+  if (!Number.isInteger(min) || !Number.isInteger(max) || max <= min) {
+    throw new Error("invalid random range");
+  }
+  const span = max - min;
+  const webCrypto = globalThis.crypto;
+  if (webCrypto?.getRandomValues) {
+    const upperBound = 0x1_0000_0000;
+    const unbiasedMax = Math.floor(upperBound / span) * span;
+    const buf = new Uint32Array(1);
+    while (true) {
+      webCrypto.getRandomValues(buf);
+      const value = buf[0] ?? 0;
+      if (value < unbiasedMax) return min + (value % span);
+    }
+  }
+  return min + Math.floor(Math.random() * span);
+}
+
 function resolveMaxAttempts(raw: number | undefined): number {
   if (raw === undefined) return DEFAULT_MAX_ATTEMPTS;
   if (!Number.isInteger(raw) || raw <= 0) throw new Error("maxAttempts must be a positive integer");
@@ -74,7 +92,7 @@ function normalizeExistingHosts(existingHosts: Iterable<string>): Set<string> {
 export function generateHostName(params: GenerateHostNameParams): string {
   const existing = normalizeExistingHosts(params.existingHosts);
   const maxAttempts = resolveMaxAttempts(params.maxAttempts);
-  const randomIntFn = params.randomIntFn ?? randomInt;
+  const randomIntFn = params.randomIntFn ?? defaultRandomInt;
 
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     const adjective = pickFromDictionary(HOST_NAME_ADJECTIVES, randomIntFn);

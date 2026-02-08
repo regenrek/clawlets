@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router"
 import type { Id } from "../../../../../convex/_generated/dataModel"
+import { RunnerStatusBanner } from "~/components/fleet/runner-status-banner"
 import { HostSecretsPanel } from "~/components/secrets/host-secrets-panel"
 import { PageHeader } from "~/components/ui/page-header"
 import { useProjectBySlug } from "~/lib/project-data"
@@ -28,6 +29,10 @@ function HostSecrets() {
       <PageHeader
         title="Secrets"
         description={<>Host-scoped secrets stored under <code>secrets/hosts/&lt;host&gt;</code>.</>}
+      />
+      <RunnerStatusBanner
+        projectId={projectId as Id<"projects">}
+        setupHref={`/${projectSlug}/hosts/${host}/setup`}
       />
       <HostSecretsPanel projectId={projectId as Id<"projects">} host={host} />
     </div>

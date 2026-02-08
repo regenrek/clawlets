@@ -30,11 +30,13 @@ export function SetupStepHost(props: {
       if (!trimmed) throw new Error("Host name required")
       return await addHost({ data: { projectId: props.projectId, host: trimmed } })
     },
-    onSuccess: () => {
-      toast.success("Host added")
+    onSuccess: (result) => {
+      if (result.queued) toast.success("Host add queued. Runner still processing.")
+      else if (result.alreadyExists) toast.success("Host already exists")
+      else toast.success("Host added")
       const nextHost = newHost.trim()
       setNewHost("")
-      if (nextHost) props.onSelectHost(nextHost)
+      if (nextHost && !result.queued) props.onSelectHost(nextHost)
     },
     onError: (err) => {
       toast.error(err instanceof Error ? err.message : String(err))

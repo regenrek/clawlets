@@ -109,24 +109,12 @@ sudo -u gateway-maren env HOME=/srv/openclaw/maren codex login --device-auth
 sudo -u gateway-gunnar env HOME=/srv/openclaw/gunnar codex login --device-auth
 ```
 
-## Orchestrator (`clf`)
+## Orchestrator (`clf`, optional plugin)
 
-Use these commands to check the control plane and inspect jobs.
+CLF is opt-in. See plugin docs for deployment, status checks, and job inspection:
 
-Service health:
-
-```bash
-systemctl status clf-orchestrator.socket
-systemctl status clf-orchestrator
-journalctl -u clf-orchestrator --since 10m --no-pager
-```
-
-Gateway/job inspection:
-
-```bash
-sudo -u gateway-maren clf jobs list --json
-sudo -u gateway-maren clf jobs show --job-id <jobId> --json
-```
+- [CLF Orchestrator](/plugins/clf-orchestrator)
+- [CLF Queue](/plugins/clf-queue)
 
 ## Tailscale
 
