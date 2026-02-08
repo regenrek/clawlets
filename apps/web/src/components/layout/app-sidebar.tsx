@@ -41,7 +41,6 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Label } from "~/components/ui/label"
 import { HostThemeBadge } from "~/components/hosts/host-theme"
 import { NavUser } from "~/components/layout/nav-user"
-import { useProjectCreateModal } from "~/components/projects/project-create-modal-provider"
 import { useProjectBySlug, useProjectsList } from "~/lib/project-data"
 import {
   buildHostPath,
@@ -111,7 +110,6 @@ type NavItem = {
 }
 
 function AppSidebar() {
-  const { openProjectCreateModal } = useProjectCreateModal()
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const instanceHost = getInstanceHostFromWindow()
   const projectSlug = parseProjectSlug(pathname)
@@ -319,7 +317,10 @@ function AppSidebar() {
                   <DropdownMenuItem disabled>No projects</DropdownMenuItem>
                 )}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={openProjectCreateModal}>
+                <DropdownMenuItem
+                  nativeButton={false}
+                  render={<Link to="/projects/new" />}
+                >
                   New project
                 </DropdownMenuItem>
                 <DropdownMenuItem nativeButton={false} render={<Link to="/projects" />}>

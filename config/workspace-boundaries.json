@@ -25,7 +25,7 @@
       "allow": ["@clawlets/cattle-core", "@clawlets/clf-queue", "@clawlets/shared"]
     },
     "clf": {
-      "allow": ["@clawlets/cattle-core", "@clawlets/clf-queue"]
+      "allow": ["@clawlets/cattle-core", "@clawlets/clf-queue", "@clawlets/shared"]
     },
     "clawlets": {
       "allow": ["@clawlets/core", "@clawlets/shared"]
