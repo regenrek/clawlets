@@ -36,7 +36,7 @@
             fetcherVersion = 3;
             pnpmWorkspaces = pnpmWorkspacesClf;
             # CLF-specific hash - update this when pnpm-lock.yaml changes
-            hash = "sha256-5z5SdwG6yROSSi1KHppRPIBykwcww2TCIODx1XYOFJM=";
+            hash = "sha256-2qUg0fdr+1dFmMhq/00sdvLbtZJfYfaX/oxZdmUGkDE=";
           };
         in
         pkgs.buildNpmPackage {
