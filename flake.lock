@@ -69,11 +69,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1770615938,
-        "narHash": "sha256-H7QJfKd00VrgbR/im+eaM9g3If4VnWubarcQdr0jrTs=",
+        "lastModified": 1770550621,
+        "narHash": "sha256-GcKx1Uu1ZQSL9SrntrgIFe6x3AhsOXJpJ8mkZm53E4I=",
         "owner": "openclaw",
         "repo": "nix-openclaw",
-        "rev": "477c30e14da3e912a1374c08dfa74865e7030284",
+        "rev": "868b8fcdf6fa2fc45dc75a930416312da57df17d",
         "type": "github"
       },
       "original": {
@@ -171,17 +171,17 @@
     "openclaw-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1769987695,
-        "narHash": "sha256-PoCZVW64tQ5uKAmpOon1Q21iHfh0oD4JGcLUajIxosE=",
+        "lastModified": 1770547002,
+        "narHash": "sha256-DYC1ynNKBLJhezrKwklAPq2Pq33gzs2KGd9bGngbqlo=",
         "owner": "openclaw",
         "repo": "openclaw",
-        "rev": "92112a61db519296a7258d508677aa6c49f9a558",
+        "rev": "28e1a65ebc580f07533966f5693f4df0a18d7085",
         "type": "github"
       },
       "original": {
         "owner": "openclaw",
         "repo": "openclaw",
-        "rev": "92112a61db519296a7258d508677aa6c49f9a558",
+        "rev": "28e1a65ebc580f07533966f5693f4df0a18d7085",
         "type": "github"
       }
     },

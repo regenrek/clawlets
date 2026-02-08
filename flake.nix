@@ -17,7 +17,7 @@
     nix-openclaw.inputs.nixpkgs.follows = "nixpkgs";
 
     openclaw-src = {
-      url = "github:openclaw/openclaw/92112a61db519296a7258d508677aa6c49f9a558";
+      url = "github:openclaw/openclaw/28e1a65ebc580f07533966f5693f4df0a18d7085";
       flake = false;
     };
 
@@ -68,7 +68,7 @@
             fetcherVersion = 3;
             pnpmWorkspaces = pnpmWorkspacesOpenclaw;
             # Update this when the OpenClaw pnpm-lock.yaml changes
-            hash = "sha256-5r44dpkWymFcEqPuxx2QlGXctXIucYTff3rxXY1Jjkw=";
+            hash = "sha256-vnnuR6JH3xtr0eItSuZu5FWvmcLReQP7QmDRKT+bVdQ=";
           };
 
           openclawSrcWithDeps = pkgs.buildNpmPackage {
