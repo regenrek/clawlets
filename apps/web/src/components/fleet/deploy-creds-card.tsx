@@ -1,16 +1,21 @@
 import { useMemo, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { convexQuery } from "@convex-dev/react-query"
 import { toast } from "sonner"
 import type { Id } from "../../../convex/_generated/dataModel"
+import { api } from "../../../convex/_generated/api"
+import { RunnerStatusBanner } from "~/components/fleet/runner-status-banner"
 import { Button } from "~/components/ui/button"
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "~/components/ui/input-group"
 import { SecretInput } from "~/components/ui/secret-input"
 import { SettingsSection } from "~/components/ui/settings-section"
 import { StackedField } from "~/components/ui/stacked-field"
+import { isProjectRunnerOnline } from "~/lib/setup/runner-status"
 import { detectSopsAgeKey, generateSopsAgeKey, getDeployCredsStatus, updateDeployCreds } from "~/sdk/infra"
 
 type DeployCredsCardProps = {
   projectId: Id<"projects">
+  setupHref?: string | null
 }
 
 async function submitLocalRunnerUpdates(params: {
@@ -41,11 +46,17 @@ async function submitLocalRunnerUpdates(params: {
   throw new Error(detail || `runner local submit failed (${response.status})`)
 }
 
-export function DeployCredsCard({ projectId }: DeployCredsCardProps) {
+export function DeployCredsCard({ projectId, setupHref = null }: DeployCredsCardProps) {
   const queryClient = useQueryClient()
+  const runnersQuery = useQuery({
+    ...convexQuery(api.controlPlane.runners.listByProject, { projectId }),
+  })
+  const runnerOnline = useMemo(() => isProjectRunnerOnline(runnersQuery.data ?? []), [runnersQuery.data])
+
   const creds = useQuery({
     queryKey: ["deployCreds", projectId],
     queryFn: async () => await getDeployCredsStatus({ data: { projectId } }),
+    enabled: runnerOnline,
   })
 
   const credsByKey = useMemo(() => {
@@ -74,6 +85,7 @@ export function DeployCredsCard({ projectId }: DeployCredsCardProps) {
 
   const save = useMutation({
     mutationFn: async () => {
+      if (!runnerOnline) throw new Error("Runner offline. Start runner first.")
       const updates: Record<string, string> = {
         ...(hcloudToken.trim() ? { HCLOUD_TOKEN: hcloudToken.trim() } : {}),
         ...(githubToken.trim() ? { GITHUB_TOKEN: githubToken.trim() } : {}),
@@ -133,7 +145,10 @@ export function DeployCredsCard({ projectId }: DeployCredsCardProps) {
   })
 
   const detectSops = useMutation({
-    mutationFn: async () => await detectSopsAgeKey({ data: { projectId } }),
+    mutationFn: async () => {
+      if (!runnerOnline) throw new Error("Runner offline. Start runner first.")
+      return await detectSopsAgeKey({ data: { projectId } })
+    },
     onSuccess: (res) => {
       if (res.recommendedPath) {
         setSopsAgeKeyFileOverride(res.recommendedPath)
@@ -148,7 +163,10 @@ export function DeployCredsCard({ projectId }: DeployCredsCardProps) {
   })
 
   const generateSops = useMutation({
-    mutationFn: async () => await generateSopsAgeKey({ data: { projectId } }),
+    mutationFn: async () => {
+      if (!runnerOnline) throw new Error("Runner offline. Start runner first.")
+      return await generateSopsAgeKey({ data: { projectId } })
+    },
     onSuccess: async (res) => {
       if (res.ok) {
         setSopsAgeKeyFileOverride(res.keyPath)
@@ -169,12 +187,28 @@ export function DeployCredsCard({ projectId }: DeployCredsCardProps) {
       title="Deploy credentials"
       description="Local-only operator tokens used by bootstrap, infra, and doctor."
       actions={
-        <Button type="button" disabled={save.isPending || creds.isPending} onClick={() => save.mutate()}>
+        <Button
+          type="button"
+          disabled={save.isPending || creds.isPending || runnersQuery.isPending || !runnerOnline}
+          onClick={() => save.mutate()}
+        >
           Save
         </Button>
       }
     >
-      {creds.isPending ? (
+      <RunnerStatusBanner
+        projectId={projectId}
+        setupHref={setupHref}
+        runnerOnline={runnerOnline}
+        isChecking={runnersQuery.isPending}
+      />
+      {!runnerOnline && !runnersQuery.isPending ? (
+        <div className="text-sm text-muted-foreground">
+          Connect your runner to load and update deploy credentials.
+        </div>
+      ) : null}
+
+      {!runnerOnline ? null : creds.isPending ? (
         <div className="text-muted-foreground text-sm">Loading…</div>
       ) : creds.error ? (
         <div className="text-sm text-destructive">{String(creds.error)}</div>
@@ -248,10 +282,10 @@ export function DeployCredsCard({ projectId }: DeployCredsCardProps) {
                 placeholder=".clawlets/keys/operators/<user>.agekey"
               />
               <InputGroupAddon align="inline-end">
-                <InputGroupButton disabled={detectSops.isPending} onClick={() => detectSops.mutate()}>
+                <InputGroupButton disabled={!runnerOnline || detectSops.isPending} onClick={() => detectSops.mutate()}>
                   {detectSops.isPending ? "Finding…" : "Find"}
                 </InputGroupButton>
-                <InputGroupButton disabled={generateSops.isPending} onClick={() => generateSops.mutate()}>
+                <InputGroupButton disabled={!runnerOnline || generateSops.isPending} onClick={() => generateSops.mutate()}>
                   {generateSops.isPending ? "Generating…" : "Generate"}
                 </InputGroupButton>
               </InputGroupAddon>

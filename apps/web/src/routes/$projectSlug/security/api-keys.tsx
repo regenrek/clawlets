@@ -30,7 +30,10 @@ function SecurityApiKeys() {
         </p>
       </div>
 
-      <DeployCredsCard projectId={projectQuery.projectId as Id<"projects">} />
+      <DeployCredsCard
+        projectId={projectQuery.projectId as Id<"projects">}
+        setupHref={`/${projectSlug}/setup/`}
+      />
     </div>
   )
 }

@@ -6,6 +6,7 @@ import type { Id } from "../../../convex/_generated/dataModel"
 import { api } from "../../../convex/_generated/api"
 import { useProjectBySlug } from "~/lib/project-data"
 import { deployCredsQueryOptions } from "~/lib/query-options"
+import { isProjectRunnerOnline } from "~/lib/setup/runner-status"
 import { coerceSetupStepId, deriveSetupModel, type SetupModel, type SetupStepId } from "~/lib/setup/setup-model"
 import type { DeployCredsStatus } from "~/sdk/infra"
 import { configDotGet } from "~/sdk/config"
@@ -14,6 +15,8 @@ import { SECRETS_VERIFY_BOOTSTRAP_RUN_KIND } from "~/sdk/secrets/run-kind"
 export type SetupSearch = {
   step?: string
 }
+
+export type RepoProbeState = "idle" | "checking" | "ok" | "error"
 
 type SetupConfig = {
   hosts: Record<string, Record<string, unknown>>
@@ -48,9 +51,21 @@ export function useSetupModel(params: { projectSlug: string; host: string; searc
   const projectStatus = projectQuery.project?.status
   const isReady = projectStatus === "ready"
 
+  const runnersQuery = useQuery({
+    ...convexQuery(api.controlPlane.runners.listByProject, {
+      projectId: projectId as Id<"projects">,
+    }),
+    enabled: Boolean(projectId && isReady),
+  })
+  const runners = runnersQuery.data ?? []
+  const runnerOnline = React.useMemo(
+    () => isProjectRunnerOnline(runners),
+    [runners],
+  )
+
   const configQuery = useQuery({
     queryKey: ["hostSetupConfig", projectId, params.host],
-    enabled: Boolean(projectId && isReady && params.host),
+    enabled: Boolean(projectId && isReady && params.host && runnerOnline),
     queryFn: async () => {
       const [hostNode, sshKeysNode] = await Promise.all([
         configDotGet({
@@ -77,9 +92,21 @@ export function useSetupModel(params: { projectSlug: string; host: string; searc
 
   const deployCredsQuery = useQuery({
     ...deployCredsQueryOptions(projectId),
-    enabled: Boolean(projectId && isReady),
+    enabled: Boolean(projectId && isReady && runnerOnline),
   })
   const deployCreds: DeployCredsStatus | null = deployCredsQuery.data ?? null
+
+  const repoProbeOk = runnerOnline && configQuery.isSuccess
+  const repoProbeState: RepoProbeState = !runnerOnline
+    ? "idle"
+    : configQuery.isPending
+      ? "checking"
+      : configQuery.isSuccess
+        ? "ok"
+        : configQuery.isError
+          ? "error"
+          : "checking"
+  const repoProbeError = repoProbeState === "error" ? configQuery.error : null
 
   const latestBootstrapRunQuery = useQuery({
     ...convexQuery(api.controlPlane.runs.latestByProjectHostKind, {
@@ -102,6 +129,8 @@ export function useSetupModel(params: { projectSlug: string; host: string; searc
   const model: SetupModel = React.useMemo(
     () =>
       deriveSetupModel({
+        runnerOnline,
+        repoProbeOk,
         config,
         hostFromRoute: params.host,
         stepFromSearch: params.search.step,
@@ -112,6 +141,8 @@ export function useSetupModel(params: { projectSlug: string; host: string; searc
     [
       config,
       deployCreds,
+      repoProbeOk,
+      runnerOnline,
       latestBootstrapRunQuery.data,
       latestBootstrapSecretsVerifyRunQuery.data,
       params.host,
@@ -157,8 +188,14 @@ export function useSetupModel(params: { projectSlug: string; host: string; searc
     projectId,
     projectStatus,
     isReady,
+    runnersQuery,
+    runners,
+    runnerOnline,
     configQuery,
     config,
+    repoProbeOk,
+    repoProbeState,
+    repoProbeError,
     deployCredsQuery,
     deployCreds,
     latestBootstrapRunQuery,

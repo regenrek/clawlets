@@ -1,4 +1,3 @@
 builds:
   include:
-    - "packages.x86_64-linux.clf"
     - "devShells.x86_64-linux.default"

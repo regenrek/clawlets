@@ -5,8 +5,23 @@ import {
 import { generateHostName as generateRandomHostName } from "@clawlets/core/lib/host/host-name-generator"
 import { parseSshPublicKeysFromText } from "@clawlets/core/lib/security/ssh"
 import { parseKnownHostsFromText } from "@clawlets/core/lib/security/ssh-files"
-import { coerceString, coerceTrimmedString, parseProjectIdInput, parseProjectSshKeysInput } from "~/sdk/runtime"
+import { api } from "../../../convex/_generated/api"
+import { createConvexClient } from "~/server/convex"
+import { isProjectRunnerOnline } from "~/lib/setup/runner-status"
+import { requireAdminProjectAccess } from "~/sdk/project"
+import {
+  coerceString,
+  coerceTrimmedString,
+  enqueueRunnerCommand,
+  lastErrorMessage,
+  listRunMessages,
+  parseProjectIdInput,
+  parseProjectSshKeysInput,
+  waitForRunTerminal,
+} from "~/sdk/runtime"
 import { configDotBatch, configDotGet, configDotSet } from "./dot"
+
+const HOST_ADD_SYNC_WAIT_MS = 8_000
 
 function asStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return []
@@ -23,39 +38,59 @@ export const addHost = createServerFn({ method: "POST" })
     const host = data.host.trim()
     assertSafeHostName(host)
 
-    const hostsNode = await configDotGet({
-      data: { projectId: data.projectId, path: "hosts" },
-    })
-    const hosts =
-      hostsNode.value && typeof hostsNode.value === "object" && !Array.isArray(hostsNode.value)
-        ? (hostsNode.value as Record<string, unknown>)
-        : {}
-    if (Object.prototype.hasOwnProperty.call(hosts, host)) return { ok: true as const }
+    const client = createConvexClient()
+    await requireAdminProjectAccess(client, data.projectId)
 
-    const defaultHostNode = await configDotGet({
-      data: { projectId: data.projectId, path: "defaultHost" },
+    const runners = await client.query(api.controlPlane.runners.listByProject, { projectId: data.projectId })
+    if (!isProjectRunnerOnline(runners)) {
+      throw new Error("Runner offline. Start runner first.")
+    }
+    const hostRows = await client.query(api.controlPlane.hosts.listByProject, { projectId: data.projectId })
+    if (hostRows.some((row) => String(row?.hostName || "").trim() === host)) {
+      return { ok: true as const, queued: false as const, alreadyExists: true as const }
+    }
+
+    const queued = await enqueueRunnerCommand({
+      client,
+      projectId: data.projectId,
+      runKind: "config_write",
+      title: `host add ${host}`,
+      args: ["config", "host", "add", "--host", host],
+      note: "dashboard host add",
     })
-    const hasDefaultHost = typeof defaultHostNode.value === "string" && defaultHostNode.value.trim().length > 0
-    const ops = [
-      { path: `hosts.${host}`, valueJson: "{}", del: false },
-      ...(hasDefaultHost ? [] : [{ path: "defaultHost", value: host, del: false }]),
-    ]
-    return await configDotBatch({
-      data: { projectId: data.projectId, ops },
+    const terminal = await waitForRunTerminal({
+      client,
+      projectId: data.projectId,
+      runId: queued.runId,
+      timeoutMs: HOST_ADD_SYNC_WAIT_MS,
     })
+    if (terminal.status === "failed" || terminal.status === "canceled") {
+      const messages = await listRunMessages({ client, runId: queued.runId, limit: 300 })
+      throw new Error(terminal.errorMessage || lastErrorMessage(messages, "host add failed"))
+    }
+    if (terminal.status !== "succeeded") {
+      return { ok: true as const, runId: queued.runId, jobId: queued.jobId, queued: true as const }
+    }
+
+    await client.mutation(api.controlPlane.hosts.upsert, {
+      projectId: data.projectId,
+      hostName: host,
+      patch: {},
+    })
+
+    return { ok: true as const, runId: queued.runId, jobId: queued.jobId, queued: false as const }
   })
 
 export const generateHostName = createServerFn({ method: "POST" })
   .inputValidator(parseProjectIdInput)
   .handler(async ({ data }) => {
-    const hostsNode = await configDotGet({
-      data: { projectId: data.projectId, path: "hosts" },
-    })
-    const hosts =
-      hostsNode.value && typeof hostsNode.value === "object" && !Array.isArray(hostsNode.value)
-        ? Object.keys(hostsNode.value as Record<string, unknown>)
-        : []
-    return { host: generateRandomHostName({ existingHosts: hosts }) }
+    const client = createConvexClient()
+    await requireAdminProjectAccess(client, data.projectId)
+    const hostRows = await client.query(api.controlPlane.hosts.listByProject, { projectId: data.projectId })
+    const existingHosts = (hostRows || [])
+      .map((row) => (typeof row?.hostName === "string" ? row.hostName.trim() : ""))
+      .filter(Boolean)
+    return { host: generateRandomHostName({ existingHosts }) }
   })
 
 export const addProjectSshKeys = createServerFn({ method: "POST" })

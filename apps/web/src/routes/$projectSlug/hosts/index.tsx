@@ -3,9 +3,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link, createFileRoute } from "@tanstack/react-router"
 import { useMemo, useState } from "react"
 import { ArrowPathIcon, PlusIcon } from "@heroicons/react/24/outline"
+import { generateHostName as generateRandomHostName } from "@clawlets/core/lib/host/host-name-generator"
 import { toast } from "sonner"
 import type { Id } from "../../../../convex/_generated/dataModel"
 import { api } from "../../../../convex/_generated/api"
+import { RunnerStatusBanner } from "~/components/fleet/runner-status-banner"
 import { Badge } from "~/components/ui/badge"
 import { Button } from "~/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card"
@@ -13,7 +15,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "~/components/ui/input-group"
 import { Label } from "~/components/ui/label"
 import { useProjectBySlug } from "~/lib/project-data"
-import { addHost, generateHostName } from "~/sdk/config"
+import { isProjectRunnerOnline } from "~/lib/setup/runner-status"
+import { addHost } from "~/sdk/config"
 import { projectsListQueryOptions } from "~/lib/query-options"
 import { slugifyProjectName } from "~/lib/project-routing"
 
@@ -41,6 +44,11 @@ function HostsOverview() {
     ...hostsQuerySpec,
     enabled: Boolean(projectId && isReady),
   })
+  const runnersQuery = useQuery({
+    ...convexQuery(api.controlPlane.runners.listByProject, { projectId: projectId as Id<"projects"> }),
+    enabled: Boolean(projectId && isReady),
+  })
+  const runnerOnline = useMemo(() => isProjectRunnerOnline(runnersQuery.data ?? []), [runnersQuery.data])
 
   const hostRows = hostsQuery.data
   const hosts = useMemo(() => (hostRows ?? []).map((row) => row.hostName), [hostRows])
@@ -51,28 +59,19 @@ function HostsOverview() {
   const onlineHosts = useMemo(() => (hostRows ?? []).filter((row) => row.lastStatus === "online").length, [hostRows])
   const [newHostOpen, setNewHostOpen] = useState(false)
   const [newHost, setNewHost] = useState("")
-  const generateHostMutation = useMutation({
-    mutationFn: async () => {
-      if (!projectId) throw new Error("project missing")
-      const generated = await generateHostName({ data: { projectId: projectId as Id<"projects"> } })
-      return generated.host
-    },
-    onSuccess: (host) => {
-      setNewHost(host)
-    },
-    onError: (err) => {
-      toast.error(err instanceof Error ? err.message : String(err))
-    },
-  })
+
   const addHostMutation = useMutation({
     mutationFn: async () => {
+      if (!runnerOnline) throw new Error("Runner offline. Start runner first.")
       const trimmed = newHost.trim()
       if (!trimmed) throw new Error("Host name required")
-      if (hosts.includes(trimmed)) return { ok: true as const }
+      if (hosts.includes(trimmed)) return { ok: true as const, queued: false as const, alreadyExists: true as const }
       return await addHost({ data: { projectId: projectId as Id<"projects">, host: trimmed } })
     },
-    onSuccess: () => {
-      toast.success("Host added")
+    onSuccess: (result) => {
+      if (result.queued) toast.success("Host add queued. Runner still processing.")
+      else if (result.alreadyExists) toast.success("Host already exists")
+      else toast.success("Host added")
       setNewHost("")
       setNewHostOpen(false)
       void queryClient.invalidateQueries({ queryKey: hostsQuerySpec.queryKey })
@@ -81,6 +80,15 @@ function HostsOverview() {
       toast.error(err instanceof Error ? err.message : String(err))
     },
   })
+
+  const onGenerateHost = () => {
+    try {
+      const generated = generateRandomHostName({ existingHosts: hosts })
+      setNewHost(generated)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err))
+    }
+  }
 
   if (projectQuery.isPending) {
     return <div className="text-muted-foreground">Loading…</div>
@@ -106,6 +114,12 @@ function HostsOverview() {
         <div className="text-sm text-destructive">{String(hostsQuery.error)}</div>
       ) : (
         <div className="space-y-6">
+          <RunnerStatusBanner
+            projectId={projectId as Id<"projects">}
+            setupHref={`/${projectSlug}/setup/`}
+            runnerOnline={runnerOnline}
+            isChecking={runnersQuery.isPending}
+          />
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
               <h1 className="text-2xl font-black tracking-tight">Hosts Overview</h1>
@@ -138,17 +152,14 @@ function HostsOverview() {
                       <InputGroupButton
                         type="button"
                         variant="secondary"
-                        disabled={generateHostMutation.isPending || addHostMutation.isPending}
-                        onClick={() => generateHostMutation.mutate()}
+                        disabled={addHostMutation.isPending}
+                        onClick={onGenerateHost}
                       >
                         <ArrowPathIcon />
                         Generate
                       </InputGroupButton>
                     </InputGroupAddon>
                   </InputGroup>
-                  <div className="text-xs text-muted-foreground">
-                    Uses the same naming rules as config host IDs.
-                  </div>
                 </div>
                 <DialogFooter>
                   <Button
@@ -160,7 +171,7 @@ function HostsOverview() {
                   </Button>
                   <Button
                     type="button"
-                    disabled={addHostMutation.isPending || !newHost.trim()}
+                    disabled={addHostMutation.isPending || !newHost.trim() || !runnerOnline}
                     onClick={() => addHostMutation.mutate()}
                   >
                     Add host

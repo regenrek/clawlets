@@ -7,6 +7,12 @@ Setup is a command center for getting a new project to its first successful depl
 It is derived from real state (config, secrets, local deploy credentials, and runs),
 so you can stop halfway and resume later.
 
+<Callout type="note" title="Runner comes first">
+  Setup now starts with **Connect Runner**. The runner must be online and repo-reachable
+  before server access, credentials, secrets, or deploy steps unlock.
+  See [Runner Agent](/operations/runner-agent).
+</Callout>
+
 ## Where to start
 
 Open:
@@ -18,6 +24,12 @@ Open:
 ## Flow
 
 <Steps>
+  <Step>
+    <strong>Connect runner</strong>
+    <br />
+    Create a runner token inline, copy the generated <code>clawlets runner start</code> command,
+    and start a runner on a machine that has access to your project repo.
+  </Step>
   <Step>
     <strong>Choose host</strong>
     <br />

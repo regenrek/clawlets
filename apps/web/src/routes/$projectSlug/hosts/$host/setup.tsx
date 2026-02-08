@@ -1,7 +1,7 @@
 "use client"
 
 import { convexQuery } from "@convex-dev/react-query"
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, useRouter } from "@tanstack/react-router"
 import { z } from "zod"
 import type { HostTheme } from "@clawlets/core/lib/host/host-theme"
 import type { Id } from "../../../../../convex/_generated/dataModel"
@@ -12,10 +12,12 @@ import { SetupSection } from "~/components/setup/setup-section"
 import { SetupStepConnection } from "~/components/setup/steps/step-connection"
 import { SetupStepCreds } from "~/components/setup/steps/step-creds"
 import { SetupStepDeploy } from "~/components/setup/steps/step-deploy"
+import { SetupStepHost } from "~/components/setup/steps/step-host"
+import { SetupStepRunner } from "~/components/setup/steps/step-runner"
 import { SetupStepSecrets } from "~/components/setup/steps/step-secrets"
 import { SetupStepVerify } from "~/components/setup/steps/step-verify"
 import { Accordion } from "~/components/ui/accordion"
-import { deployCredsQueryOptions, projectsListQueryOptions } from "~/lib/query-options"
+import { projectsListQueryOptions } from "~/lib/query-options"
 import { buildHostPath, slugifyProjectName } from "~/lib/project-routing"
 import { coerceSetupStepId } from "~/lib/setup/setup-model"
 import { useSetupModel } from "~/lib/setup/use-setup-model"
@@ -41,7 +43,9 @@ export const Route = createFileRoute("/$projectSlug/hosts/$host/setup")({
       context.queryClient.ensureQueryData(
         convexQuery(api.controlPlane.hosts.listByProject, { projectId: projectId as Id<"projects"> }),
       ),
-      context.queryClient.ensureQueryData(deployCredsQueryOptions(projectId)),
+      context.queryClient.ensureQueryData(
+        convexQuery(api.controlPlane.runners.listByProject, { projectId: projectId as Id<"projects"> }),
+      ),
     ])
   },
   component: HostSetupPage,
@@ -50,6 +54,7 @@ export const Route = createFileRoute("/$projectSlug/hosts/$host/setup")({
 function HostSetupPage() {
   const { projectSlug, host } = Route.useParams()
   const search = Route.useSearch()
+  const router = useRouter()
   const setup = useSetupModel({ projectSlug, host, search })
   const projectId = setup.projectId
 
@@ -69,27 +74,58 @@ function HostSetupPage() {
     return <div className="text-sm text-destructive">Project setup failed. Check Runs for details.</div>
   }
 
+  const requiredSteps = setup.model.steps.filter((s) => !s.optional)
+  const requiredDone = requiredSteps.filter((s) => s.status === "done").length
+  const runnerStep = setup.model.steps.find((step) => step.id === "runner") ?? null
   const selectedHost = setup.model.selectedHost
-  if (!selectedHost) {
-    return <div className="text-muted-foreground">Host not found in config.</div>
+  if (!selectedHost && runnerStep?.status === "done") {
+    return (
+      <div className="mx-auto w-full max-w-2xl space-y-6">
+        <SetupHeader
+          selectedHost={null}
+          selectedHostTheme={null}
+          requiredDone={requiredDone}
+          requiredTotal={requiredSteps.length}
+          deployHref={null}
+        />
+        <Accordion value={["host"]} className="space-y-3">
+          <SetupSection value="host" index={1} title="Add First Host" status="active">
+            <SetupStepHost
+              projectId={projectId as Id<"projects">}
+              config={setup.config}
+              selectedHost={null}
+              onSelectHost={(nextHost) => {
+                const clean = String(nextHost || "").trim()
+                if (!clean) return
+                void router.navigate({
+                  to: "/$projectSlug/hosts/$host/setup",
+                  params: { projectSlug, host: clean },
+                  search: { step: "connection" },
+                })
+              }}
+              onContinue={() => {}}
+            />
+          </SetupSection>
+        </Accordion>
+      </div>
+    )
   }
+  const activeHost = selectedHost ?? host
 
-  const hostCfg = (setup.config?.hosts?.[selectedHost] as
+  const hostCfg = (setup.config?.hosts?.[activeHost] as
     | { theme?: HostTheme; provisioning?: { provider?: string } }
     | undefined) ?? null
   const selectedHostTheme: HostTheme | null = hostCfg?.theme ?? null
   const provider = String(hostCfg?.provisioning?.provider || "hetzner") === "aws" ? "aws" : "hetzner"
 
-  const requiredSteps = setup.model.steps.filter((s) => !s.optional)
-  const requiredDone = requiredSteps.filter((s) => s.status === "done").length
-  const deployHref = `${buildHostPath(projectSlug, selectedHost)}/deploy`
+  const deployHref = `${buildHostPath(projectSlug, activeHost)}/deploy`
   const visibleSteps = setup.model.steps.filter((s) => s.status !== "locked")
   const accordionValue = [setup.model.activeStepId]
 
   return (
     <div className="mx-auto w-full max-w-2xl space-y-6">
       <SetupHeader
-        selectedHost={selectedHost}
+        selectedHost={activeHost}
         selectedHostTheme={selectedHostTheme}
         requiredDone={requiredDone}
         requiredTotal={requiredSteps.length}
@@ -101,9 +137,9 @@ function HostSetupPage() {
           title="Server installed"
           description="Bootstrap complete. Next: run the Post-bootstrap checklist to lock down SSH, then install OpenClaw."
           primaryLabel="Install OpenClaw"
-          primaryTo={`${buildHostPath(projectSlug, selectedHost)}/openclaw-setup`}
+          primaryTo={`${buildHostPath(projectSlug, activeHost)}/openclaw-setup`}
           secondaryLabel="Go to host overview"
-          secondaryTo={buildHostPath(projectSlug, selectedHost)}
+          secondaryTo={buildHostPath(projectSlug, activeHost)}
         />
       ) : null}
 
@@ -122,13 +158,36 @@ function HostSetupPage() {
       >
         {visibleSteps.map((step, idx) => {
           const index = idx + 1
+          if (step.id === "runner") {
+            return (
+              <SetupSection key={step.id} value={step.id} index={index} title={step.title} status={step.status}>
+                <SetupStepRunner
+                  projectId={projectId as Id<"projects">}
+                  projectLocalPath={setup.projectQuery.project?.localPath ?? null}
+                  host={activeHost}
+                  stepStatus={step.status}
+                  isCurrentStep={setup.model.activeStepId === step.id}
+                  runnerOnline={setup.runnerOnline}
+                  repoProbeOk={setup.repoProbeOk}
+                  repoProbeState={setup.repoProbeState}
+                  repoProbeError={setup.repoProbeError}
+                  runners={setup.runners.map((runner) => ({
+                    runnerName: String(runner.runnerName || ""),
+                    lastStatus: String(runner.lastStatus || "offline"),
+                    lastSeenAt: Number(runner.lastSeenAt || 0),
+                  }))}
+                  onContinue={setup.advance}
+                />
+              </SetupSection>
+            )
+          }
           if (step.id === "connection") {
             return (
               <SetupSection key={step.id} value={step.id} index={index} title={step.title} status={step.status}>
                 <SetupStepConnection
                   projectId={projectId as Id<"projects">}
                   config={setup.config}
-                  host={selectedHost}
+                  host={activeHost}
                   stepStatus={step.status}
                   onContinue={setup.advance}
                 />
@@ -153,7 +212,7 @@ function HostSetupPage() {
                 <SetupStepSecrets
                   projectSlug={projectSlug}
                   projectId={projectId as Id<"projects">}
-                  host={selectedHost}
+                  host={activeHost}
                   isComplete={step.status === "done"}
                   onContinue={setup.advance}
                 />
@@ -165,7 +224,7 @@ function HostSetupPage() {
               <SetupSection key={step.id} value={step.id} index={index} title={step.title} status={step.status}>
                 <SetupStepDeploy
                   projectSlug={projectSlug}
-                  host={selectedHost}
+                  host={activeHost}
                   hasBootstrapped={setup.model.hasBootstrapped}
                   onContinue={setup.advance}
                 />
@@ -178,7 +237,7 @@ function HostSetupPage() {
                 <SetupStepVerify
                   projectSlug={projectSlug}
                   projectId={projectId as Id<"projects">}
-                  host={selectedHost}
+                  host={activeHost}
                   config={setup.config}
                 />
               </SetupSection>

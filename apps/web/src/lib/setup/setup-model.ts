@@ -1,4 +1,5 @@
 export const SETUP_STEP_IDS = [
+  "runner",
   "connection",
   "creds",
   "secrets",
@@ -42,6 +43,8 @@ export type SetupModel = {
 }
 
 export type DeriveSetupModelInput = {
+  runnerOnline: boolean
+  repoProbeOk: boolean
   config: MinimalConfig | null
   hostFromRoute: string | null
   stepFromSearch?: string | null
@@ -81,6 +84,7 @@ function resolveProviderCredsOk(params: {
 }
 
 export function deriveSetupModel(input: DeriveSetupModelInput): SetupModel {
+  const runnerReady = input.runnerOnline && input.repoProbeOk
   const hosts = input.config?.hosts && typeof input.config.hosts === "object"
     ? Object.keys(input.config.hosts)
     : []
@@ -110,30 +114,35 @@ export function deriveSetupModel(input: DeriveSetupModelInput): SetupModel {
 
   const steps: SetupStep[] = [
     {
+      id: "runner",
+      title: "Connect Runner",
+      status: runnerReady ? "done" : "active",
+    },
+    {
       id: "connection",
       title: "Server Access",
-      status: !selectedHost ? "locked" : connectionOk ? "done" : "active",
+      status: !runnerReady || !selectedHost ? "locked" : connectionOk ? "done" : "active",
     },
     {
       id: "creds",
       title: "Provider Tokens",
-      status: !connectionOk ? "locked" : credsOk ? "done" : "active",
+      status: !runnerReady || !connectionOk ? "locked" : credsOk ? "done" : "active",
     },
     {
       id: "secrets",
       title: "Server Passwords",
-      status: !credsOk ? "locked" : latestSecretsVerifyOk ? "done" : "active",
+      status: !runnerReady || !credsOk ? "locked" : latestSecretsVerifyOk ? "done" : "active",
     },
     {
       id: "deploy",
       title: "Install Server",
-      status: !latestSecretsVerifyOk ? "locked" : latestBootstrapOk ? "done" : "active",
+      status: !runnerReady || !latestSecretsVerifyOk ? "locked" : latestBootstrapOk ? "done" : "active",
     },
     {
       id: "verify",
       title: "Secure and Verify",
       optional: true,
-      status: !latestBootstrapOk ? "locked" : "pending",
+      status: !runnerReady || !latestBootstrapOk ? "locked" : "pending",
     },
   ]
 
@@ -142,7 +151,7 @@ export function deriveSetupModel(input: DeriveSetupModelInput): SetupModel {
   const requestedStep = requested && steps.find((step) => step.id === requested && visible(step)) ? requested : null
   const firstIncomplete = steps.find((step) => visible(step) && step.status !== "done")?.id
     ?? steps.find((step) => visible(step))?.id
-    ?? "connection"
+    ?? "runner"
   const requiredSteps = steps.filter((step) => !step.optional)
   const showCelebration = requiredSteps.every((step) => step.status === "done")
 

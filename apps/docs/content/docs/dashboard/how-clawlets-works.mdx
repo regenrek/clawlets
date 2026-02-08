@@ -40,13 +40,20 @@ For UI details: [First login](/dashboard/first-login).
 
 Route: `/<projectSlug>/hosts/<host>/setup`
 
+<Callout type="warning" title="Connect runner first">
+  Stage 2 starts with a required **Connect Runner** step. Until a fresh runner heartbeat
+  and repo probe succeed, all other setup steps remain locked.
+  See [Runner Agent](/operations/runner-agent).
+</Callout>
+
 Step order and gating:
 
-1. `Server Access` (`connection`): requires `provisioning.adminCidr` and at least one `fleet.sshAuthorizedKeys` entry.
-2. `Provider Tokens` (`creds`): requires `SOPS_AGE_KEY_FILE` and provider creds.
-3. `Server Passwords` (`secrets`): requires successful run `secrets_verify_bootstrap`.
-4. `Install Server` (`deploy`): requires successful bootstrap run (`bootstrap`).
-5. `Secure and Verify` (`verify`): optional post-bootstrap hardening checklist.
+1. `Connect Runner` (`runner`): requires fresh online runner + successful repo probe.
+2. `Server Access` (`connection`): requires `provisioning.adminCidr` and at least one `fleet.sshAuthorizedKeys` entry.
+3. `Provider Tokens` (`creds`): requires `SOPS_AGE_KEY_FILE` and provider creds.
+4. `Server Passwords` (`secrets`): requires successful run `secrets_verify_bootstrap`.
+5. `Install Server` (`deploy`): requires successful bootstrap run (`bootstrap`).
+6. `Secure and Verify` (`verify`): optional post-bootstrap hardening checklist.
 
 Canonical provider guidance:
 

@@ -22,7 +22,6 @@ in {
     ../infra/modules/clawlets-host-baseline.nix
     ../infra/modules/clawlets-self-update.nix
     ../openclaw/modules/openclaw-fleet.nix
-    ../openclaw/modules/clf-orchestrator.nix
     ../infra/modules/clawlets-host-meta.nix
   ];
 

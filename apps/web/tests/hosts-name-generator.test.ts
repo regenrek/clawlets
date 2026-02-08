@@ -16,18 +16,25 @@ function startContext() {
 }
 
 describe("hosts sdk name generation", () => {
-  it("generates host names using current hosts for collision avoidance", async () => {
+  it("generates host names from control-plane host rows without runner reads", async () => {
     vi.resetModules()
-    const configDotGet = vi.fn(async ({ data }: { data: { path: string } }) => {
-      if (data.path === "hosts") {
-        return { path: "hosts", value: { alpha: {}, bravo: {} } }
-      }
-      return { path: data.path, value: null }
+    const query = vi.fn(async (_query: unknown, payload?: { projectId?: string }) => {
+      expect(payload?.projectId).toBe("p1")
+      return [
+        { hostName: "alpha" },
+        { hostName: "bravo" },
+      ]
     })
     const generateHostName = vi.fn(() => "brisk-atlas-42")
 
+    vi.doMock("~/server/convex", () => ({
+      createConvexClient: () => ({ query, mutation: vi.fn(), action: vi.fn() }) as any,
+    }))
+    vi.doMock("~/sdk/project", () => ({
+      requireAdminProjectAccess: vi.fn(async () => ({ role: "admin" })),
+    }))
     vi.doMock("~/sdk/config/dot", () => ({
-      configDotGet,
+      configDotGet: vi.fn(),
       configDotSet: vi.fn(),
       configDotBatch: vi.fn(),
     }))
@@ -42,5 +49,6 @@ describe("hosts sdk name generation", () => {
 
     expect(result).toEqual({ host: "brisk-atlas-42" })
     expect(generateHostName).toHaveBeenCalledWith({ existingHosts: ["alpha", "bravo"] })
+    expect(query).toHaveBeenCalledTimes(1)
   })
 })
