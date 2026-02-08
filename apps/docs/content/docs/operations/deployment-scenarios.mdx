@@ -3,8 +3,8 @@ title: Deployment scenarios
 description: Choose control-plane and runner topology for your environment.
 ---
 
-Model C lets you split control plane and execution. The right topology depends on your
-trust boundary, uptime needs, and who operates the fleet.
+Clawlets lets you split control plane and execution. The right topology depends on your
+trust boundary, uptime needs, and operator model.
 
 Use this page before finalizing install/deploy architecture.
 
@@ -89,7 +89,7 @@ Risks:
 
 For most teams:
 
-1. Start with **VPS dashboard + local runner** for fast adoption and clear Model C split.
+1. Start with **VPS dashboard + local runner** for fast adoption and clear control-plane/runner split.
 2. Move to **VPS dashboard + VPS runner** when you need shared/on-call execution.
 3. Standardize Day-2 on **CI publish + host pull updates**.
 
