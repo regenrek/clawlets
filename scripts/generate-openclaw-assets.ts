@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 type ProviderInfo = {
   auth: "apiKey" | "oauth" | "mixed";
@@ -119,7 +119,7 @@ const parseEnvMap = (params: { text: string; sourcePath: string }): Record<strin
   return out;
 };
 
-const readOAuthProviders = (src: string): string[] => {
+const readOAuthProviders = async (src: string): Promise<string[]> => {
   const oauthIndexPath = path.join(
     src,
     "node_modules",
@@ -135,15 +135,41 @@ const readOAuthProviders = (src: string): string[] => {
       `missing OAuth module file: ${oauthIndexPath} (run install in openclaw source and ensure @mariozechner/pi-ai is present)`,
     );
   }
-  const oauthText = readText(oauthIndexPath);
-  const body = extractFunctionBody({
-    text: oauthText,
-    functionName: "getOAuthProviders",
-    sourcePath: oauthIndexPath,
-  });
-  const ids = Array.from(body.matchAll(/\bid\s*:\s*"([^"]+)"/g))
-    .map((m) => String(m[1] || "").trim())
-    .filter(Boolean);
+
+  let ids: string[] = [];
+  try {
+    const oauthModule = (await import(pathToFileURL(oauthIndexPath).href)) as {
+      getOAuthProviders?: () => Array<{ id?: unknown }>;
+      getOAuthProviderInfoList?: () => Array<{ id?: unknown }>;
+    };
+    const providers =
+      (typeof oauthModule.getOAuthProviders === "function" && oauthModule.getOAuthProviders()) ||
+      (typeof oauthModule.getOAuthProviderInfoList === "function" && oauthModule.getOAuthProviderInfoList()) ||
+      [];
+    ids = Array.isArray(providers)
+      ? providers
+          .map((provider) => {
+            const id = provider?.id;
+            return typeof id === "string" ? id.trim() : "";
+          })
+          .filter(Boolean)
+      : [];
+  } catch {
+    // Fall back to static parsing for older module layouts.
+  }
+
+  if (ids.length === 0) {
+    const oauthText = readText(oauthIndexPath);
+    const body = extractFunctionBody({
+      text: oauthText,
+      functionName: "getOAuthProviders",
+      sourcePath: oauthIndexPath,
+    });
+    ids = Array.from(body.matchAll(/\bid\s*:\s*"([^"]+)"/g))
+      .map((m) => String(m[1] || "").trim())
+      .filter(Boolean);
+  }
+
   if (ids.length === 0) {
     throw new Error(
       `failed to parse ${oauthIndexPath}: getOAuthProviders() contains no provider ids`,
@@ -319,7 +345,7 @@ const main = async () => {
     envMap[provider] = Array.from(expanded);
   }
 
-  const oauthProviders = readOAuthProviders(sourceDir);
+  const oauthProviders = await readOAuthProviders(sourceDir);
 
   const providerInfo = buildProviderInfo({ envMap, aliases, oauthProviders });
   writeJson(path.resolve(providersOut), providerInfo);
