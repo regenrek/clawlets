@@ -97,4 +97,4 @@ Project erasure runs `PROJECT_DELETION_STAGES` in this order:
 - Runner auth uses bearer token over HTTP routes; Convex stores token hashes only.
 - Tokens are passed in headers, not mutation args.
 - Secret values must never appear in table fields, logs, payloads, or audit entries.
-- Control-plane payloads are bounded and validated (length limits + key denylist for secret-like keys).
+- Control-plane payloads are bounded and validated (length limits + key denylist for secret-like keys: `value`, `token`, `key`, `password`, `secret`, `apikey`, `privatekey`).
