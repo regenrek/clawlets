@@ -7,6 +7,7 @@ export default defineConfig({
     tsConfigPaths({
       projects: ['./tsconfig.json'],
     }),
+    // Required for createServerFn AST transforms used by sdk/server modules in tests.
     tanstackStart(),
   ],
   ssr: {
