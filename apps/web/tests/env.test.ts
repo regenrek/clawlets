@@ -43,12 +43,10 @@ describe("convex env", () => {
   it("requires server auth env vars", () => {
     delete process.env["SITE_URL"]
     delete process.env["BETTER_AUTH_SECRET"]
-    delete process.env["CONVEX_SITE_URL"]
     expect(hasConvexAuthEnv()).toBe(false)
 
     process.env["SITE_URL"] = "http://localhost:3000"
     process.env["BETTER_AUTH_SECRET"] = "secret"
-    process.env["CONVEX_SITE_URL"] = "https://example.convex.site"
     expect(hasConvexAuthEnv()).toBe(true)
   })
 })

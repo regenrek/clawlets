@@ -19,6 +19,8 @@ import type * as lib_auth from "../lib/auth.js";
 import type * as lib_controlPlane from "../lib/controlPlane.js";
 import type * as lib_env from "../lib/env.js";
 import type * as lib_errors from "../lib/errors.js";
+import type * as lib_projectErasureStages from "../lib/projectErasureStages.js";
+import type * as lib_projectMetadata from "../lib/projectMetadata.js";
 import type * as lib_rateLimit from "../lib/rateLimit.js";
 import type * as lib_validators from "../lib/validators.js";
 import type * as lib_workspaceRef from "../lib/workspaceRef.js";
@@ -53,6 +55,8 @@ declare const fullApi: ApiFromModules<{
   "lib/controlPlane": typeof lib_controlPlane;
   "lib/env": typeof lib_env;
   "lib/errors": typeof lib_errors;
+  "lib/projectErasureStages": typeof lib_projectErasureStages;
+  "lib/projectMetadata": typeof lib_projectMetadata;
   "lib/rateLimit": typeof lib_rateLimit;
   "lib/validators": typeof lib_validators;
   "lib/workspaceRef": typeof lib_workspaceRef;

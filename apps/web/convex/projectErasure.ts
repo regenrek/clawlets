@@ -7,7 +7,7 @@ import type { Id } from "./_generated/dataModel";
 import { requireAuthQuery, requireProjectAccessMutation, requireProjectAccessQuery, requireAdmin } from "./lib/auth";
 import { fail } from "./lib/errors";
 import { rateLimit } from "./lib/rateLimit";
-import { PROJECT_DELETION_STAGES } from "./lib/project-erasure-stages";
+import { PROJECT_DELETION_STAGES } from "./lib/projectErasureStages";
 import { ProjectDeletionStage } from "./schema";
 
 const DELETE_BATCH_SIZE = 200;
