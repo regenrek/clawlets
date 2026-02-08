@@ -32,6 +32,7 @@ import { cancelFlow, navOnCancel, NAV_EXIT } from "../../lib/wizard.js";
 import { loadHostContextOrExit } from "@clawlets/core/lib/runtime/context";
 import { parseSecretsScope, upsertYamlScalarLine } from "./common.js";
 import { writeClawletsConfig } from "@clawlets/core/lib/config/clawlets-config";
+import { coerceString } from "@clawlets/shared/lib/strings";
 
 function wantsInteractive(flag: boolean | undefined): boolean {
   if (flag) return true;
@@ -113,7 +114,7 @@ export const secretsInit = defineCommand({
     const localSecretsDir = getHostSecretsDir(layout, hostName);
 
     const gateways = hostCfg.gatewaysOrder || [];
-    if (gateways.length === 0) {
+    if (scope !== "bootstrap" && gateways.length === 0) {
       throw new Error(`hosts.${hostName}.gatewaysOrder is empty (set gateways in fleet/clawlets.json)`);
     }
 
@@ -121,7 +122,7 @@ export const secretsInit = defineCommand({
     const cacheNetrcEnabled = Boolean(cacheNetrc?.enable);
     const cacheNetrcPath = cacheNetrcEnabled ? String(cacheNetrc?.path || "/etc/nix/netrc").trim() : "";
 
-    let secretsPlan = buildFleetSecretsPlan({ config: clawletsConfig, hostName });
+    let secretsPlan = buildFleetSecretsPlan({ config: clawletsConfig, hostName, scope });
     if (secretsPlan.missingSecretConfig.length > 0) {
       if (a.autowire) {
         const plan = planSecretsAutowire({ config: clawletsConfig, hostName });
@@ -136,7 +137,7 @@ export const secretsInit = defineCommand({
         const nextConfig = applySecretsAutowire({ config: clawletsConfig, plan, hostName });
         await writeClawletsConfig({ configPath: layout.clawletsConfigPath, config: nextConfig });
         clawletsConfig = nextConfig;
-        secretsPlan = buildFleetSecretsPlan({ config: clawletsConfig, hostName });
+        secretsPlan = buildFleetSecretsPlan({ config: clawletsConfig, hostName, scope });
       } else {
         const first = secretsPlan.missingSecretConfig[0]!;
         if (first.kind === "envVar") {
@@ -292,7 +293,7 @@ export const secretsInit = defineCommand({
           if (fs.existsSync(extraFilesKeyPath)) {
             const keyText = fs.readFileSync(extraFilesKeyPath, "utf8");
             const parsed = parseAgeKeyFile(keyText);
-            if (!parsed.secretKey) throw new Error(`invalid extra-files key: ${extraFilesKeyPath}`);
+            if (!parsed.secretKey) throw new Error(`invalid extra-files key: ${extraFilesKeyPath}`, { cause: e });
             const publicKey = await agePublicKeyFromIdentityFile(extraFilesKeyPath, nix);
             hostKeys = { secretKey: parsed.secretKey, publicKey };
             shouldRewriteHostKeyFile = true;
@@ -404,7 +405,7 @@ export const secretsInit = defineCommand({
           continue;
         }
 
-        const s = String(v ?? "");
+        const s = coerceString(v);
         if (step.kind === "adminPassword") values.adminPassword = s;
         else if (step.kind === "tailscaleAuthKey") values.tailscaleAuthKey = s;
         else if (step.kind === "cacheNetrcFile") {
@@ -431,13 +432,13 @@ export const secretsInit = defineCommand({
       values.secrets = input.secrets || {};
     }
 
-    const allowlist = buildManagedHostSecretNameAllowlist({ config: clawletsConfig, host: hostName });
+    const allowlist = buildManagedHostSecretNameAllowlist({ config: clawletsConfig, host: hostName, scope });
     assertSecretsAreManaged({ allowlist, secrets: values.secrets });
 
     const secretsToWrite = Array.from(new Set([
       ...sets.requiredSecretNames,
       ...sets.optionalSecrets,
-    ])).sort();
+    ])).toSorted();
 
     const isOptionalMarker = (v: string): boolean => String(v || "").trim() === "<OPTIONAL>";
     const requiredSecretNamesForValue = new Set<string>(sets.requiredSecretNames);

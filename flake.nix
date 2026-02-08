@@ -17,7 +17,7 @@
     nix-openclaw.inputs.nixpkgs.follows = "nixpkgs";
 
     openclaw-src = {
-      url = "github:openclaw/openclaw/92112a61db519296a7258d508677aa6c49f9a558";
+      url = "github:openclaw/openclaw/28e1a65ebc580f07533966f5693f4df0a18d7085";
       flake = false;
     };
 
@@ -68,7 +68,7 @@
             fetcherVersion = 3;
             pnpmWorkspaces = pnpmWorkspacesOpenclaw;
             # Update this when the OpenClaw pnpm-lock.yaml changes
-            hash = "sha256-5r44dpkWymFcEqPuxx2QlGXctXIucYTff3rxXY1Jjkw=";
+            hash = "sha256-vnnuR6JH3xtr0eItSuZu5FWvmcLReQP7QmDRKT+bVdQ=";
           };
 
           openclawSrcWithDeps = pkgs.buildNpmPackage {
@@ -237,13 +237,13 @@
         '';
 
         nix-module-eval = let
-          projectConfig = {
+          infraConfig = {
+            schemaVersion = 2;
             fleet = {
               secretEnv = { };
               secretFiles = { };
               sshAuthorizedKeys = [ ];
               sshKnownHosts = [ ];
-              codex = { enable = false; gateways = [ ]; };
               backups = { restic = { enable = false; repository = ""; }; };
             };
             cattle = {
@@ -261,15 +261,36 @@
             hosts = {
               "openclaw-fleet-host" = {
                 enable = false;
-                gatewaysOrder = [ "maren" ];
-                gateways = { maren = { }; };
-                openclaw = { enable = false; };
+                diskDevice = "/dev/sda";
+                flakeHost = "";
+                targetHost = "admin@127.0.0.1";
                 tailnet = { mode = "none"; };
-                agentModelPrimary = "zai/glm-4.7";
               };
             };
           };
-          project = { root = toString ./.; config = projectConfig; };
+          openclawConfig = {
+            schemaVersion = 1;
+            hosts = {
+              "openclaw-fleet-host" = {
+                enable = false;
+                gatewaysOrder = [ "maren" ];
+                gateways = { maren = { }; };
+                agentModelPrimary = "zai/glm-4.7";
+              };
+            };
+            fleet = {
+              secretEnv = { };
+              secretFiles = { };
+              gatewayArchitecture = "multi";
+              codex = { enable = false; gateways = [ ]; };
+            };
+          };
+          project = {
+            root = toString ./.;
+            infraConfig = infraConfig;
+            openclawConfig = openclawConfig;
+            config = infraConfig;
+          };
           flakeInfo = { project = { rev = "eval"; }; };
           evalSystem = nixpkgs.lib.nixosSystem {
             system = systemLinux;

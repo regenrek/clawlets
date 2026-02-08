@@ -14,12 +14,19 @@ export const cancelRun = createServerFn({ method: "POST" })
   })
   .handler(async ({ data }) => {
     const client = createConvexClient();
-    const { run, project, role } = await client.query(api.runs.get, { runId: data.runId });
+    const { run, project, role } = await client.query(api.controlPlane.runs.get, { runId: data.runId });
     if (role !== "admin") throw new Error("admin required");
+    if (project.executionMode !== "local") {
+      throw new Error("cancel unavailable for remote_runner projects");
+    }
+    const localPath = String(project.localPath || "").trim();
+    if (!localPath) {
+      throw new Error("project localPath missing for local execution mode");
+    }
     if (run.status === "succeeded" || run.status === "failed" || run.status === "canceled") {
       return { canceled: false };
     }
-    const repoRoot = assertRepoRootPath(project.localPath, { allowMissing: false, requireRepoLayout: true });
+    const repoRoot = assertRepoRootPath(localPath, { allowMissing: false, requireRepoLayout: true });
     const redactTokens = await readClawletsEnvTokens(repoRoot);
 
     const canceled = cancelActiveRun(data.runId);
@@ -31,6 +38,6 @@ export const cancelRun = createServerFn({ method: "POST" })
         await emit({ level: "warn", message: "Cancel requested." });
       },
     });
-    await client.mutation(api.runs.setStatus, { runId: data.runId, status: "canceled" });
+    await client.mutation(api.controlPlane.runs.setStatus, { runId: data.runId, status: "canceled" });
     return { canceled };
   });

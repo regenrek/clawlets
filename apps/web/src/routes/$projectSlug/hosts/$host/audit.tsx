@@ -1,3 +1,4 @@
+import { convexQuery } from "@convex-dev/react-query"
 import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query"
 import { createFileRoute, useRouter } from "@tanstack/react-router"
 import { useMemo, useState } from "react"
@@ -11,7 +12,6 @@ import { Input } from "~/components/ui/input"
 import { Label } from "~/components/ui/label"
 import { Textarea } from "~/components/ui/textarea"
 import { useProjectBySlug } from "~/lib/project-data"
-import { getClawletsConfig } from "~/sdk/config"
 import { serverAuditExecute, serverAuditStart, serverStatusExecute, serverStatusStart } from "~/sdk/server"
 
 export const Route = createFileRoute("/$projectSlug/hosts/$host/audit")({
@@ -24,11 +24,10 @@ function AuditOperate() {
   const projectId = projectQuery.projectId
   const router = useRouter()
   const convexQueryClient = router.options.context.convexQueryClient
-  const cfg = useQuery({
-    queryKey: ["clawletsConfig", projectId],
-    queryFn: async () =>
-      await getClawletsConfig({ data: { projectId: projectId as Id<"projects"> } }),
+  const hostsQuery = useQuery({
+    ...convexQuery(api.controlPlane.hosts.listByProject, { projectId: projectId as Id<"projects"> }),
     enabled: Boolean(projectId),
+    gcTime: 5_000,
   })
 
   const auditLogsQuery = useInfiniteQuery({
@@ -41,9 +40,9 @@ function AuditOperate() {
         paginationOpts: { numItems: 50, cursor: pageParam },
       }
       if (convexQueryClient.serverHttpClient) {
-        return await convexQueryClient.serverHttpClient.consistentQuery(api.auditLogs.listByProjectPage, args)
+        return await convexQueryClient.serverHttpClient.consistentQuery(api.security.auditLogs.listByProjectPage, args)
       }
-      return await convexQueryClient.convexClient.query(api.auditLogs.listByProjectPage, args)
+      return await convexQueryClient.convexClient.query(api.security.auditLogs.listByProjectPage, args)
     },
     getNextPageParam: (lastPage) => (lastPage.isDone ? undefined : lastPage.continueCursor),
     enabled: Boolean(projectId),
@@ -51,7 +50,7 @@ function AuditOperate() {
   })
   const auditLogs = auditLogsQuery.data?.pages.flatMap((p) => p.page) ?? []
 
-  const config = cfg.data?.config as any
+  const hostExists = Boolean(hostsQuery.data?.some((row) => row.hostName === host))
 
   const [targetHost, setTargetHost] = useState("")
 
@@ -104,12 +103,12 @@ function AuditOperate() {
         <div className="text-sm text-destructive">{String(projectQuery.error)}</div>
       ) : !projectId ? (
         <div className="text-muted-foreground">Project not found.</div>
-      ) : cfg.isPending ? (
+      ) : hostsQuery.isPending ? (
         <div className="text-muted-foreground">Loading…</div>
-      ) : cfg.error ? (
-        <div className="text-sm text-destructive">{String(cfg.error)}</div>
-      ) : !config ? (
-        <div className="text-muted-foreground">Missing config.</div>
+      ) : hostsQuery.error ? (
+        <div className="text-sm text-destructive">{String(hostsQuery.error)}</div>
+      ) : !hostExists ? (
+        <div className="text-muted-foreground">Host not found in control-plane metadata.</div>
       ) : (
         <div className="space-y-6">
           <div className="rounded-lg border bg-card p-6 space-y-4">

@@ -13,7 +13,7 @@ import { getHostAgeKeySopsCreationRulePathRegex, getHostAgeKeySopsCreationRulePa
 import { validateHostSecretsYamlFiles } from "../lib/secrets/secrets-policy.js";
 import { buildFleetSecretsPlan } from "../lib/secrets/plan.js";
 import { capture } from "../lib/runtime/run.js";
-import { looksLikeSshKeyContents, normalizeSshPublicKey } from "../lib/security/ssh.js";
+import { looksLikeSshKeyContents } from "../lib/security/ssh.js";
 import type { DoctorCheck } from "./types.js";
 import {
   getSshExposureMode,
@@ -33,6 +33,7 @@ import { getSopsCreationRuleAgeRecipients } from "../lib/security/sops-config.js
 import { readYamlScalarFromMapping } from "../lib/storage/yaml-scalar.js";
 import { mapWithConcurrency } from "../lib/runtime/concurrency.js";
 import type { DoctorPush } from "./types.js";
+import { coerceTrimmedString } from "@clawlets/shared/lib/strings";
 
 export async function addDeployChecks(params: {
   cwd: string;
@@ -136,10 +137,16 @@ export async function addDeployChecks(params: {
   if (!clawletsConfigError && !clawletsHostCfg) {
     push({ status: "warn", label: "host config", detail: `(missing host in fleet/clawlets.json: ${host})` });
   } else if (clawletsHostCfg) {
+    const openclawEnabled = Boolean(clawletsHostCfg.openclaw?.enable);
+    push({
+      status: openclawEnabled ? "ok" : "warn",
+      label: "services.openclawFleet.enable",
+      detail: openclawEnabled ? "(true)" : `(false; set fleet/openclaw.json hosts.${host}.enable=true)`,
+    });
     push({
       status: clawletsHostCfg.enable ? "ok" : "warn",
-      label: "services.openclawFleet.enable",
-      detail: clawletsHostCfg.enable ? "(true)" : "(false; host will install but fleet services/VPN won't run until enabled)",
+      label: "host.enable",
+      detail: clawletsHostCfg.enable ? "(true)" : `(false; set fleet/clawlets.json hosts.${host}.enable=true)`,
     });
 
     {
@@ -343,25 +350,39 @@ export async function addDeployChecks(params: {
       }
     }
 
-    const gatewaysForSecrets = secretsPlan?.gateways?.length ? secretsPlan.gateways : params.fleetGateways || [];
+    const gatewaysFromHostCfg = (() => {
+      if (!clawletsHostCfg) return [];
+      const cfg = clawletsHostCfg as any;
+      const gatewaysOrder = Array.isArray(cfg.gatewaysOrder) ? cfg.gatewaysOrder : [];
+      const gatewaysKeys = Object.keys(cfg.gateways || {});
+      return (gatewaysOrder.length > 0 ? gatewaysOrder : gatewaysKeys)
+        .map((id: unknown) => coerceTrimmedString(id))
+        .filter(Boolean);
+    })();
+
+    const gatewaysForSecrets = secretsPlan?.gateways?.length
+      ? secretsPlan.gateways
+      : gatewaysFromHostCfg.length > 0
+        ? gatewaysFromHostCfg
+        : params.fleetGateways || [];
     const hostSecretNamesRequired = secretsPlan?.hostSecretNamesRequired || ["admin_password_hash"];
     const secretNamesAll = secretsPlan?.secretNamesAll || [];
+    const required = Array.from(new Set([
+      ...hostSecretNamesRequired,
+      ...(gatewaysForSecrets.length > 0 ? secretNamesAll : []),
+    ]));
 
-    if (gatewaysForSecrets.length > 0) {
-      const required = Array.from(new Set([
-        ...hostSecretNamesRequired,
-        ...secretNamesAll,
-      ]));
-      for (const secretName of required) {
-        const f = path.join(secretsLocalDir, `${secretName}.yaml`);
-        push({
-          status: fs.existsSync(f) ? "ok" : "missing",
-          label: `secret: ${secretName}`,
-          detail: fs.existsSync(f) ? undefined : f,
-        });
-      }
-    } else {
-      push({ status: "warn", label: "required secrets", detail: "(host gateways list missing; cannot validate per-gateway secrets)" });
+    for (const secretName of required) {
+      const f = path.join(secretsLocalDir, `${secretName}.yaml`);
+      push({
+        status: fs.existsSync(f) ? "ok" : "missing",
+        label: `secret: ${secretName}`,
+        detail: fs.existsSync(f) ? undefined : f,
+      });
+    }
+
+    if (gatewaysForSecrets.length === 0) {
+      push({ status: "warn", label: "required secrets", detail: "(host gateways list missing; skipping per-gateway secret checks)" });
     }
 
     const requiredForValues = Array.from(new Set([
@@ -458,7 +479,7 @@ export async function addDeployChecks(params: {
         }
 
         const checkRule = (label: string, expected: string, detail: string) => {
-          const hasRule = rules.some((r) => String(r?.path_regex || "") === expected);
+          const hasRule = rules.some((r) => coerceTrimmedString(r?.path_regex) === expected);
           push({
             status: hasRule ? "ok" : "missing",
             label,

@@ -1,5 +1,5 @@
 {
-  "openclawRev": "92112a61db519296a7258d508677aa6c49f9a558",
+  "openclawRev": "28e1a65ebc580f07533966f5693f4df0a18d7085",
   "schema": {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "additionalProperties": false,
@@ -473,6 +473,9 @@
               "heartbeat": {
                 "additionalProperties": false,
                 "properties": {
+                  "accountId": {
+                    "type": "string"
+                  },
                   "ackMaxChars": {
                     "maximum": 9007199254740991,
                     "minimum": 0,
@@ -639,6 +642,10 @@
                         "type": "string"
                       },
                       {
+                        "const": "voyage",
+                        "type": "string"
+                      },
+                      {
                         "const": "none",
                         "type": "string"
                       }
@@ -671,6 +678,10 @@
                       },
                       {
                         "const": "gemini",
+                        "type": "string"
+                      },
+                      {
+                        "const": "voyage",
                         "type": "string"
                       }
                     ]
@@ -875,6 +886,9 @@
                         "type": "string"
                       },
                       "type": "object"
+                    },
+                    "streaming": {
+                      "type": "boolean"
                     }
                   },
                   "type": "object"
@@ -1192,6 +1206,9 @@
                         "type": "object"
                       }
                     ]
+                  },
+                  "thinking": {
+                    "type": "string"
                   }
                 },
                 "type": "object"
@@ -1325,6 +1342,9 @@
                 "heartbeat": {
                   "additionalProperties": false,
                   "properties": {
+                    "accountId": {
+                      "type": "string"
+                    },
                     "ackMaxChars": {
                       "maximum": 9007199254740991,
                       "minimum": 0,
@@ -1488,6 +1508,10 @@
                           "type": "string"
                         },
                         {
+                          "const": "voyage",
+                          "type": "string"
+                        },
+                        {
                           "const": "none",
                           "type": "string"
                         }
@@ -1520,6 +1544,10 @@
                         },
                         {
                           "const": "gemini",
+                          "type": "string"
+                        },
+                        {
+                          "const": "voyage",
                           "type": "string"
                         }
                       ]
@@ -1989,6 +2017,12 @@
                   },
                   "type": "object"
                 },
+                "skills": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
                 "subagents": {
                   "additionalProperties": false,
                   "properties": {
@@ -2019,6 +2053,9 @@
                           "type": "object"
                         }
                       ]
+                    },
+                    "thinking": {
+                      "type": "string"
                     }
                   },
                   "type": "object"
@@ -2592,7 +2629,7 @@
                 "driver": {
                   "anyOf": [
                     {
-                      "const": "openclaw",
+                      "const": "clawd",
                       "type": "string"
                     },
                     {
@@ -3064,6 +3101,9 @@
                         "polls": {
                           "type": "boolean"
                         },
+                        "presence": {
+                          "type": "boolean"
+                        },
                         "reactions": {
                           "type": "boolean"
                         },
@@ -3296,6 +3336,9 @@
                                   "type": "boolean"
                                 },
                                 "enabled": {
+                                  "type": "boolean"
+                                },
+                                "includeThreadStarter": {
                                   "type": "boolean"
                                 },
                                 "requireMention": {
@@ -3561,6 +3604,9 @@
                         }
                       ]
                     },
+                    "responsePrefix": {
+                      "type": "string"
+                    },
                     "retry": {
                       "additionalProperties": false,
                       "properties": {
@@ -3637,6 +3683,9 @@
                     "type": "boolean"
                   },
                   "polls": {
+                    "type": "boolean"
+                  },
+                  "presence": {
                     "type": "boolean"
                   },
                   "reactions": {
@@ -3871,6 +3920,9 @@
                             "type": "boolean"
                           },
                           "enabled": {
+                            "type": "boolean"
+                          },
+                          "includeThreadStarter": {
                             "type": "boolean"
                           },
                           "requireMention": {
@@ -4136,6 +4188,9 @@
                   }
                 ]
               },
+              "responsePrefix": {
+                "type": "string"
+              },
               "retry": {
                 "additionalProperties": false,
                 "properties": {
@@ -4173,6 +4228,622 @@
             },
             "required": [
               "groupPolicy"
+            ],
+            "type": "object"
+          },
+          "feishu": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "additionalProperties": false,
+            "properties": {
+              "accounts": {
+                "additionalProperties": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "allowFrom": {
+                      "items": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "number"
+                          }
+                        ]
+                      },
+                      "type": "array"
+                    },
+                    "appId": {
+                      "type": "string"
+                    },
+                    "appSecret": {
+                      "type": "string"
+                    },
+                    "blockStreamingCoalesce": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean"
+                        },
+                        "maxDelayMs": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "minDelayMs": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "capabilities": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "chunkMode": {
+                      "enum": [
+                        "length",
+                        "newline"
+                      ],
+                      "type": "string"
+                    },
+                    "configWrites": {
+                      "type": "boolean"
+                    },
+                    "connectionMode": {
+                      "enum": [
+                        "websocket",
+                        "webhook"
+                      ],
+                      "type": "string"
+                    },
+                    "dmHistoryLimit": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "dmPolicy": {
+                      "enum": [
+                        "open",
+                        "pairing",
+                        "allowlist"
+                      ],
+                      "type": "string"
+                    },
+                    "dms": {
+                      "additionalProperties": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "enabled": {
+                            "type": "boolean"
+                          },
+                          "systemPrompt": {
+                            "type": "string"
+                          }
+                        },
+                        "type": "object"
+                      },
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "type": "object"
+                    },
+                    "domain": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "feishu",
+                            "lark"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "format": "uri",
+                          "pattern": "^https:\\/\\/.*",
+                          "type": "string"
+                        }
+                      ]
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "encryptKey": {
+                      "type": "string"
+                    },
+                    "groupAllowFrom": {
+                      "items": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "number"
+                          }
+                        ]
+                      },
+                      "type": "array"
+                    },
+                    "groupPolicy": {
+                      "enum": [
+                        "open",
+                        "allowlist",
+                        "disabled"
+                      ],
+                      "type": "string"
+                    },
+                    "groups": {
+                      "additionalProperties": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "allowFrom": {
+                            "items": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            "type": "array"
+                          },
+                          "enabled": {
+                            "type": "boolean"
+                          },
+                          "requireMention": {
+                            "type": "boolean"
+                          },
+                          "skills": {
+                            "items": {
+                              "type": "string"
+                            },
+                            "type": "array"
+                          },
+                          "systemPrompt": {
+                            "type": "string"
+                          },
+                          "tools": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "allow": {
+                                "items": {
+                                  "type": "string"
+                                },
+                                "type": "array"
+                              },
+                              "deny": {
+                                "items": {
+                                  "type": "string"
+                                },
+                                "type": "array"
+                              }
+                            },
+                            "type": "object"
+                          }
+                        },
+                        "type": "object"
+                      },
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "type": "object"
+                    },
+                    "heartbeat": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "intervalMs": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "visibility": {
+                          "enum": [
+                            "visible",
+                            "hidden"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "historyLimit": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "markdown": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "mode": {
+                          "enum": [
+                            "native",
+                            "escape",
+                            "strip"
+                          ],
+                          "type": "string"
+                        },
+                        "tableMode": {
+                          "enum": [
+                            "native",
+                            "ascii",
+                            "simple"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "mediaMaxMb": {
+                      "exclusiveMinimum": 0,
+                      "type": "number"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "renderMode": {
+                      "enum": [
+                        "auto",
+                        "raw",
+                        "card"
+                      ],
+                      "type": "string"
+                    },
+                    "requireMention": {
+                      "type": "boolean"
+                    },
+                    "textChunkLimit": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "tools": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "doc": {
+                          "type": "boolean"
+                        },
+                        "drive": {
+                          "type": "boolean"
+                        },
+                        "perm": {
+                          "type": "boolean"
+                        },
+                        "scopes": {
+                          "type": "boolean"
+                        },
+                        "wiki": {
+                          "type": "boolean"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "verificationToken": {
+                      "type": "string"
+                    },
+                    "webhookPath": {
+                      "type": "string"
+                    },
+                    "webhookPort": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    }
+                  },
+                  "type": "object"
+                },
+                "propertyNames": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              "allowFrom": {
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ]
+                },
+                "type": "array"
+              },
+              "appId": {
+                "type": "string"
+              },
+              "appSecret": {
+                "type": "string"
+              },
+              "blockStreamingCoalesce": {
+                "additionalProperties": false,
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "maxDelayMs": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "minDelayMs": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  }
+                },
+                "type": "object"
+              },
+              "capabilities": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "chunkMode": {
+                "enum": [
+                  "length",
+                  "newline"
+                ],
+                "type": "string"
+              },
+              "configWrites": {
+                "type": "boolean"
+              },
+              "connectionMode": {
+                "default": "websocket",
+                "enum": [
+                  "websocket",
+                  "webhook"
+                ],
+                "type": "string"
+              },
+              "dmHistoryLimit": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "dmPolicy": {
+                "default": "pairing",
+                "enum": [
+                  "open",
+                  "pairing",
+                  "allowlist"
+                ],
+                "type": "string"
+              },
+              "dms": {
+                "additionalProperties": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "systemPrompt": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                },
+                "propertyNames": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              "domain": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "feishu",
+                      "lark"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "format": "uri",
+                    "pattern": "^https:\\/\\/.*",
+                    "type": "string"
+                  }
+                ],
+                "default": "feishu"
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "encryptKey": {
+                "type": "string"
+              },
+              "groupAllowFrom": {
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ]
+                },
+                "type": "array"
+              },
+              "groupPolicy": {
+                "default": "allowlist",
+                "enum": [
+                  "open",
+                  "allowlist",
+                  "disabled"
+                ],
+                "type": "string"
+              },
+              "groups": {
+                "additionalProperties": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "allowFrom": {
+                      "items": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "number"
+                          }
+                        ]
+                      },
+                      "type": "array"
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "requireMention": {
+                      "type": "boolean"
+                    },
+                    "skills": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "systemPrompt": {
+                      "type": "string"
+                    },
+                    "tools": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "allow": {
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        "deny": {
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  },
+                  "type": "object"
+                },
+                "propertyNames": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              "heartbeat": {
+                "additionalProperties": false,
+                "properties": {
+                  "intervalMs": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "visibility": {
+                    "enum": [
+                      "visible",
+                      "hidden"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              },
+              "historyLimit": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "markdown": {
+                "additionalProperties": false,
+                "properties": {
+                  "mode": {
+                    "enum": [
+                      "native",
+                      "escape",
+                      "strip"
+                    ],
+                    "type": "string"
+                  },
+                  "tableMode": {
+                    "enum": [
+                      "native",
+                      "ascii",
+                      "simple"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              },
+              "mediaMaxMb": {
+                "exclusiveMinimum": 0,
+                "type": "number"
+              },
+              "renderMode": {
+                "enum": [
+                  "auto",
+                  "raw",
+                  "card"
+                ],
+                "type": "string"
+              },
+              "requireMention": {
+                "default": true,
+                "type": "boolean"
+              },
+              "textChunkLimit": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "tools": {
+                "additionalProperties": false,
+                "properties": {
+                  "doc": {
+                    "type": "boolean"
+                  },
+                  "drive": {
+                    "type": "boolean"
+                  },
+                  "perm": {
+                    "type": "boolean"
+                  },
+                  "scopes": {
+                    "type": "boolean"
+                  },
+                  "wiki": {
+                    "type": "boolean"
+                  }
+                },
+                "type": "object"
+              },
+              "verificationToken": {
+                "type": "string"
+              },
+              "webhookPath": {
+                "default": "/feishu/events",
+                "type": "string"
+              },
+              "webhookPort": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "domain",
+              "connectionMode",
+              "webhookPath",
+              "dmPolicy",
+              "groupPolicy",
+              "requireMention"
             ],
             "type": "object"
           },
@@ -4398,6 +5069,9 @@
                     },
                     "requireMention": {
                       "type": "boolean"
+                    },
+                    "responsePrefix": {
+                      "type": "string"
                     },
                     "serviceAccount": {
                       "anyOf": [
@@ -4663,6 +5337,9 @@
               },
               "requireMention": {
                 "type": "boolean"
+              },
+              "responsePrefix": {
+                "type": "string"
               },
               "serviceAccount": {
                 "anyOf": [
@@ -4950,6 +5627,9 @@
                     "remoteHost": {
                       "type": "string"
                     },
+                    "responsePrefix": {
+                      "type": "string"
+                    },
                     "service": {
                       "anyOf": [
                         {
@@ -5219,6 +5899,9 @@
               "remoteHost": {
                 "type": "string"
               },
+              "responsePrefix": {
+                "type": "string"
+              },
               "service": {
                 "anyOf": [
                   {
@@ -5355,6 +6038,9 @@
                     "name": {
                       "type": "string"
                     },
+                    "responsePrefix": {
+                      "type": "string"
+                    },
                     "secretFile": {
                       "type": "string"
                     },
@@ -5474,6 +6160,9 @@
                 "type": "number"
               },
               "name": {
+                "type": "string"
+              },
+              "responsePrefix": {
                 "type": "string"
               },
               "secretFile": {
@@ -5717,6 +6406,9 @@
                 ],
                 "type": "string"
               },
+              "responsePrefix": {
+                "type": "string"
+              },
               "rooms": {
                 "additionalProperties": {
                   "additionalProperties": false,
@@ -5938,6 +6630,9 @@
                     "requireMention": {
                       "type": "boolean"
                     },
+                    "responsePrefix": {
+                      "type": "string"
+                    },
                     "textChunkLimit": {
                       "exclusiveMinimum": 0,
                       "maximum": 9007199254740991,
@@ -6082,6 +6777,9 @@
               },
               "requireMention": {
                 "type": "boolean"
+              },
+              "responsePrefix": {
+                "type": "string"
               },
               "textChunkLimit": {
                 "exclusiveMinimum": 0,
@@ -6238,6 +6936,12 @@
                 },
                 "type": "array"
               },
+              "mediaAuthAllowHosts": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
               "mediaMaxMb": {
                 "exclusiveMinimum": 0,
                 "type": "number"
@@ -6251,6 +6955,9 @@
               },
               "requireMention": {
                 "type": "boolean"
+              },
+              "responsePrefix": {
+                "type": "string"
               },
               "sharePointSiteId": {
                 "type": "string"
@@ -6575,6 +7282,9 @@
                     "name": {
                       "type": "string"
                     },
+                    "responsePrefix": {
+                      "type": "string"
+                    },
                     "rooms": {
                       "additionalProperties": {
                         "additionalProperties": false,
@@ -6792,6 +7502,9 @@
                 "type": "number"
               },
               "name": {
+                "type": "string"
+              },
+              "responsePrefix": {
                 "type": "string"
               },
               "rooms": {
@@ -7212,6 +7925,9 @@
                         }
                       ]
                     },
+                    "responsePrefix": {
+                      "type": "string"
+                    },
                     "sendReadReceipts": {
                       "type": "boolean"
                     },
@@ -7463,6 +8179,9 @@
                     "type": "string"
                   }
                 ]
+              },
+              "responsePrefix": {
+                "type": "string"
               },
               "sendReadReceipts": {
                 "type": "boolean"
@@ -7942,6 +8661,9 @@
                     },
                     "requireMention": {
                       "type": "boolean"
+                    },
+                    "responsePrefix": {
+                      "type": "string"
                     },
                     "signingSecret": {
                       "type": "string"
@@ -8459,6 +9181,9 @@
               "requireMention": {
                 "type": "boolean"
               },
+              "responsePrefix": {
+                "type": "string"
+              },
               "signingSecret": {
                 "type": "string"
               },
@@ -8775,6 +9500,14 @@
                           "enabled": {
                             "type": "boolean"
                           },
+                          "groupPolicy": {
+                            "enum": [
+                              "open",
+                              "disabled",
+                              "allowlist"
+                            ],
+                            "type": "string"
+                          },
                           "requireMention": {
                             "type": "boolean"
                           },
@@ -8860,6 +9593,14 @@
                                 },
                                 "enabled": {
                                   "type": "boolean"
+                                },
+                                "groupPolicy": {
+                                  "enum": [
+                                    "open",
+                                    "disabled",
+                                    "allowlist"
+                                  ],
+                                  "type": "string"
                                 },
                                 "requireMention": {
                                   "type": "boolean"
@@ -8977,6 +9718,9 @@
                           "type": "string"
                         }
                       ]
+                    },
+                    "responsePrefix": {
+                      "type": "string"
                     },
                     "retry": {
                       "additionalProperties": false,
@@ -9294,6 +10038,14 @@
                     "enabled": {
                       "type": "boolean"
                     },
+                    "groupPolicy": {
+                      "enum": [
+                        "open",
+                        "disabled",
+                        "allowlist"
+                      ],
+                      "type": "string"
+                    },
                     "requireMention": {
                       "type": "boolean"
                     },
@@ -9379,6 +10131,14 @@
                           },
                           "enabled": {
                             "type": "boolean"
+                          },
+                          "groupPolicy": {
+                            "enum": [
+                              "open",
+                              "disabled",
+                              "allowlist"
+                            ],
+                            "type": "string"
                           },
                           "requireMention": {
                             "type": "boolean"
@@ -9497,6 +10257,9 @@
                   }
                 ]
               },
+              "responsePrefix": {
+                "type": "string"
+              },
               "retry": {
                 "additionalProperties": false,
                 "properties": {
@@ -9596,6 +10359,9 @@
                     "name": {
                       "type": "string"
                     },
+                    "responsePrefix": {
+                      "type": "string"
+                    },
                     "ship": {
                       "minLength": 1,
                       "type": "string"
@@ -9677,6 +10443,9 @@
                 "type": "array"
               },
               "name": {
+                "type": "string"
+              },
+              "responsePrefix": {
                 "type": "string"
               },
               "ship": {
@@ -9780,6 +10549,9 @@
                       "requireMention": {
                         "type": "boolean"
                       },
+                      "responsePrefix": {
+                        "type": "string"
+                      },
                       "username": {
                         "type": "string"
                       }
@@ -9881,6 +10653,9 @@
                             },
                             "requireMention": {
                               "type": "boolean"
+                            },
+                            "responsePrefix": {
+                              "type": "string"
                             },
                             "username": {
                               "type": "string"
@@ -10161,6 +10936,9 @@
                     "name": {
                       "type": "string"
                     },
+                    "responsePrefix": {
+                      "type": "string"
+                    },
                     "selfChatMode": {
                       "type": "boolean"
                     },
@@ -10437,6 +11215,9 @@
               "messagePrefix": {
                 "type": "string"
               },
+              "responsePrefix": {
+                "type": "string"
+              },
               "selfChatMode": {
                 "type": "boolean"
               },
@@ -10516,6 +11297,9 @@
                     "proxy": {
                       "type": "string"
                     },
+                    "responsePrefix": {
+                      "type": "string"
+                    },
                     "tokenFile": {
                       "type": "string"
                     },
@@ -10586,6 +11370,9 @@
                 "type": "string"
               },
               "proxy": {
+                "type": "string"
+              },
+              "responsePrefix": {
                 "type": "string"
               },
               "tokenFile": {
@@ -10706,6 +11493,9 @@
                     },
                     "profile": {
                       "type": "string"
+                    },
+                    "responsePrefix": {
+                      "type": "string"
                     }
                   },
                   "type": "object"
@@ -10811,6 +11601,9 @@
               },
               "profile": {
                 "type": "string"
+              },
+              "responsePrefix": {
+                "type": "string"
               }
             },
             "type": "object"
@@ -10863,6 +11656,19 @@
               }
             ],
             "default": "auto"
+          },
+          "ownerAllowFrom": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                }
+              ]
+            },
+            "type": "array"
           },
           "restart": {
             "type": "boolean"
@@ -11008,9 +11814,6 @@
           "wideArea": {
             "additionalProperties": false,
             "properties": {
-              "domain": {
-                "type": "string"
-              },
               "enabled": {
                 "type": "boolean"
               }
@@ -11108,6 +11911,12 @@
           "controlUi": {
             "additionalProperties": false,
             "properties": {
+              "allowedOrigins": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
               "allowInsecureAuth": {
                 "type": "boolean"
               },
@@ -11119,6 +11928,9 @@
               },
               "enabled": {
                 "type": "boolean"
+              },
+              "root": {
+                "type": "string"
               }
             },
             "type": "object"
@@ -11929,6 +12741,224 @@
         "properties": {
           "preserveFilenames": {
             "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "memory": {
+        "additionalProperties": false,
+        "properties": {
+          "backend": {
+            "anyOf": [
+              {
+                "const": "builtin",
+                "type": "string"
+              },
+              {
+                "const": "qmd",
+                "type": "string"
+              }
+            ]
+          },
+          "citations": {
+            "anyOf": [
+              {
+                "const": "auto",
+                "type": "string"
+              },
+              {
+                "const": "on",
+                "type": "string"
+              },
+              {
+                "const": "off",
+                "type": "string"
+              }
+            ]
+          },
+          "qmd": {
+            "additionalProperties": false,
+            "properties": {
+              "command": {
+                "type": "string"
+              },
+              "includeDefaultMemory": {
+                "type": "boolean"
+              },
+              "limits": {
+                "additionalProperties": false,
+                "properties": {
+                  "maxInjectedChars": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "maxResults": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "maxSnippetChars": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "timeoutMs": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "type": "object"
+              },
+              "paths": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "path": {
+                      "type": "string"
+                    },
+                    "pattern": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "path"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "scope": {
+                "additionalProperties": false,
+                "properties": {
+                  "default": {
+                    "anyOf": [
+                      {
+                        "const": "allow",
+                        "type": "string"
+                      },
+                      {
+                        "const": "deny",
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "rules": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "action": {
+                          "anyOf": [
+                            {
+                              "const": "allow",
+                              "type": "string"
+                            },
+                            {
+                              "const": "deny",
+                              "type": "string"
+                            }
+                          ]
+                        },
+                        "match": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "channel": {
+                              "type": "string"
+                            },
+                            "chatType": {
+                              "anyOf": [
+                                {
+                                  "const": "direct",
+                                  "type": "string"
+                                },
+                                {
+                                  "const": "group",
+                                  "type": "string"
+                                },
+                                {
+                                  "const": "channel",
+                                  "type": "string"
+                                }
+                              ]
+                            },
+                            "keyPrefix": {
+                              "type": "string"
+                            }
+                          },
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "action"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  }
+                },
+                "type": "object"
+              },
+              "sessions": {
+                "additionalProperties": false,
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "exportDir": {
+                    "type": "string"
+                  },
+                  "retentionDays": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "type": "object"
+              },
+              "update": {
+                "additionalProperties": false,
+                "properties": {
+                  "commandTimeoutMs": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "debounceMs": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "embedInterval": {
+                    "type": "string"
+                  },
+                  "embedTimeoutMs": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "interval": {
+                    "type": "string"
+                  },
+                  "onBoot": {
+                    "type": "boolean"
+                  },
+                  "updateTimeoutMs": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "waitForBootSync": {
+                    "type": "boolean"
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "type": "object"
           }
         },
         "type": "object"
@@ -12947,6 +13977,23 @@
                 "type": "object"
               },
               "discord": {
+                "additionalProperties": false,
+                "properties": {
+                  "config": {
+                    "additionalProperties": false,
+                    "properties": {},
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "type": "object"
+                  },
+                  "enabled": {
+                    "type": "boolean"
+                  }
+                },
+                "type": "object"
+              },
+              "feishu": {
                 "additionalProperties": false,
                 "properties": {
                   "config": {
@@ -16007,6 +17054,11 @@
                     "maximum": 9007199254740991,
                     "type": "integer"
                   },
+                  "maxCharsCap": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
                   "maxRedirects": {
                     "maximum": 9007199254740991,
                     "minimum": 0,
@@ -16237,7 +17289,7 @@
       "label": "Envelope Timezone"
     },
     "agents.defaults.heartbeat.target": {
-      "help": "Delivery target (\"last\", \"none\", or a channel id). Known channels: telegram, whatsapp, discord, googlechat, slack, signal, imessage, bluebubbles, line, matrix, mattermost, msteams, nextcloud-talk, nostr, tlon, twitch, zalo, zalouser.",
+      "help": "Delivery target (\"last\", \"none\", or a channel id). Known channels: telegram, whatsapp, discord, googlechat, slack, signal, imessage, bluebubbles, feishu, line, matrix, mattermost, msteams, nextcloud-talk, nostr, tlon, twitch, zalo, zalouser.",
       "placeholder": "last"
     },
     "agents.defaults.humanDelay.maxMs": {
@@ -16302,7 +17354,7 @@
       "label": "Memory Search Model"
     },
     "agents.defaults.memorySearch.provider": {
-      "help": "Embedding provider (\"openai\", \"gemini\", or \"local\").",
+      "help": "Embedding provider (\"openai\", \"gemini\", \"voyage\", or \"local\").",
       "label": "Memory Search Provider"
     },
     "agents.defaults.memorySearch.query.hybrid.candidateMultiplier": {
@@ -16414,17 +17466,25 @@
       "label": "Workspace"
     },
     "agents.list.*.heartbeat.target": {
-      "help": "Delivery target (\"last\", \"none\", or a channel id). Known channels: telegram, whatsapp, discord, googlechat, slack, signal, imessage, bluebubbles, line, matrix, mattermost, msteams, nextcloud-talk, nostr, tlon, twitch, zalo, zalouser.",
+      "help": "Delivery target (\"last\", \"none\", or a channel id). Known channels: telegram, whatsapp, discord, googlechat, slack, signal, imessage, bluebubbles, feishu, line, matrix, mattermost, msteams, nextcloud-talk, nostr, tlon, twitch, zalo, zalouser.",
       "placeholder": "last"
     },
     "agents.list.*.identity.avatar": {
       "help": "Agent avatar (workspace-relative path, http(s) URL, or data URI).",
       "label": "Identity Avatar"
     },
+    "agents.list.*.skills": {
+      "help": "Optional allowlist of skills for this agent (omit = all skills; empty = no skills).",
+      "label": "Agent Skill Filter"
+    },
     "agents.list[].identity.avatar": {
       "help": "Avatar image path (relative to the agent workspace only) or a remote URL/data URL.",
       "label": "Agent Avatar",
       "placeholder": "avatars/openclaw.png"
+    },
+    "agents.list[].skills": {
+      "help": "Optional allowlist of skills for this agent (omit = all skills; empty = no skills).",
+      "label": "Agent Skill Filter"
     },
     "agents.list[].tools.alsoAllow": {
       "label": "Agent Tool Allowlist Additions"
@@ -16559,6 +17619,10 @@
     "channels.discord.token": {
       "label": "Discord Bot Token",
       "sensitive": true
+    },
+    "channels.feishu": {
+      "help": "飞书/Lark enterprise messaging with doc/wiki/drive tools.",
+      "label": "Feishu"
     },
     "channels.googlechat": {
       "help": "Google Workspace Chat app via HTTP webhooks.",
@@ -16820,6 +17884,10 @@
       "help": "Register native skill commands (user-invocable skills) with channels that support it.",
       "label": "Native Skill Commands"
     },
+    "commands.ownerAllowFrom": {
+      "help": "Explicit owner allowlist for owner-only tools/commands. Use channel-native IDs (optionally prefixed like \"whatsapp:+15551234567\"). '*' is ignored.",
+      "label": "Command Owners"
+    },
     "commands.restart": {
       "help": "Allow /restart and gateway restart tool actions (default: false).",
       "label": "Allow Restart"
@@ -16923,6 +17991,11 @@
       "label": "Gateway Token",
       "sensitive": true
     },
+    "gateway.controlUi.allowedOrigins": {
+      "help": "Allowed browser origins for Control UI/WebChat websocket connections (full origins only, e.g. https://control.example.com).",
+      "label": "Control UI Allowed Origins",
+      "placeholder": "https://control.example.com"
+    },
     "gateway.controlUi.allowInsecureAuth": {
       "help": "Allow Control UI auth over insecure HTTP (token-only; not recommended).",
       "label": "Allow Insecure Control UI Auth"
@@ -16935,6 +18008,11 @@
     "gateway.controlUi.dangerouslyDisableDeviceAuth": {
       "help": "DANGEROUS. Disable Control UI device identity checks (token/password only).",
       "label": "Dangerously Disable Control UI Device Auth"
+    },
+    "gateway.controlUi.root": {
+      "help": "Optional filesystem root for Control UI assets (defaults to dist/control-ui).",
+      "label": "Control UI Assets Root",
+      "placeholder": "dist/control-ui"
     },
     "gateway.http.endpoints.chatCompletions.enabled": {
       "help": "Enable the OpenAI-compatible `POST /v1/chat/completions` endpoint (default: false).",
@@ -17000,6 +18078,106 @@
       "group": "Logging",
       "label": "Logging",
       "order": 900
+    },
+    "memory": {
+      "help": "Memory backend configuration (global).",
+      "label": "Memory"
+    },
+    "memory.backend": {
+      "help": "Memory backend (\"builtin\" for OpenClaw embeddings, \"qmd\" for QMD sidecar).",
+      "label": "Memory Backend"
+    },
+    "memory.citations": {
+      "help": "Default citation behavior (\"auto\", \"on\", or \"off\").",
+      "label": "Memory Citations Mode"
+    },
+    "memory.qmd.command": {
+      "help": "Path to the qmd binary (default: resolves from PATH).",
+      "label": "QMD Binary"
+    },
+    "memory.qmd.includeDefaultMemory": {
+      "help": "Whether to automatically index MEMORY.md + memory/**/*.md (default: true).",
+      "label": "QMD Include Default Memory"
+    },
+    "memory.qmd.limits.maxInjectedChars": {
+      "help": "Max total characters injected from QMD hits per turn.",
+      "label": "QMD Max Injected Chars"
+    },
+    "memory.qmd.limits.maxResults": {
+      "help": "Max QMD results returned to the agent loop (default: 6).",
+      "label": "QMD Max Results"
+    },
+    "memory.qmd.limits.maxSnippetChars": {
+      "help": "Max characters per snippet pulled from QMD (default: 700).",
+      "label": "QMD Max Snippet Chars"
+    },
+    "memory.qmd.limits.timeoutMs": {
+      "help": "Per-query timeout for QMD searches (default: 4000).",
+      "label": "QMD Search Timeout (ms)"
+    },
+    "memory.qmd.paths": {
+      "help": "Additional directories/files to index with QMD (path + optional glob pattern).",
+      "label": "QMD Extra Paths"
+    },
+    "memory.qmd.paths.name": {
+      "help": "Optional stable name for the QMD collection (default derived from path).",
+      "label": "QMD Path Name"
+    },
+    "memory.qmd.paths.path": {
+      "help": "Absolute or ~-relative path to index via QMD.",
+      "label": "QMD Path"
+    },
+    "memory.qmd.paths.pattern": {
+      "help": "Glob pattern relative to the path root (default: **/*.md).",
+      "label": "QMD Path Pattern"
+    },
+    "memory.qmd.scope": {
+      "help": "Session/channel scope for QMD recall (same syntax as session.sendPolicy; default: direct-only).",
+      "label": "QMD Surface Scope"
+    },
+    "memory.qmd.sessions.enabled": {
+      "help": "Enable QMD session transcript indexing (experimental, default: false).",
+      "label": "QMD Session Indexing"
+    },
+    "memory.qmd.sessions.exportDir": {
+      "help": "Override directory for sanitized session exports before indexing.",
+      "label": "QMD Session Export Directory"
+    },
+    "memory.qmd.sessions.retentionDays": {
+      "help": "Retention window for exported sessions before pruning (default: unlimited).",
+      "label": "QMD Session Retention (days)"
+    },
+    "memory.qmd.update.commandTimeoutMs": {
+      "help": "Timeout for QMD maintenance commands like collection list/add (default: 30000).",
+      "label": "QMD Command Timeout (ms)"
+    },
+    "memory.qmd.update.debounceMs": {
+      "help": "Minimum delay between successive QMD refresh runs (default: 15000).",
+      "label": "QMD Update Debounce (ms)"
+    },
+    "memory.qmd.update.embedInterval": {
+      "help": "How often QMD embeddings are refreshed (duration string, default: 60m). Set to 0 to disable periodic embed.",
+      "label": "QMD Embed Interval"
+    },
+    "memory.qmd.update.embedTimeoutMs": {
+      "help": "Timeout for `qmd embed` runs (default: 120000).",
+      "label": "QMD Embed Timeout (ms)"
+    },
+    "memory.qmd.update.interval": {
+      "help": "How often the QMD sidecar refreshes indexes (duration string, default: 5m).",
+      "label": "QMD Update Interval"
+    },
+    "memory.qmd.update.onBoot": {
+      "help": "Run QMD update once on gateway startup (default: true).",
+      "label": "QMD Update on Startup"
+    },
+    "memory.qmd.update.updateTimeoutMs": {
+      "help": "Timeout for `qmd update` runs (default: 120000).",
+      "label": "QMD Update Timeout (ms)"
+    },
+    "memory.qmd.update.waitForBootSync": {
+      "help": "Block startup until the boot QMD refresh finishes (default: false).",
+      "label": "QMD Wait for Boot Sync"
     },
     "messages": {
       "group": "Messages",
@@ -17116,6 +18294,17 @@
     },
     "plugins.entries.discord.enabled": {
       "label": "Enable @openclaw/discord"
+    },
+    "plugins.entries.feishu": {
+      "help": "OpenClaw Feishu/Lark channel plugin (community maintained by @m1heng) (plugin: feishu)",
+      "label": "@openclaw/feishu"
+    },
+    "plugins.entries.feishu.config": {
+      "help": "Plugin-defined config payload for feishu.",
+      "label": "@openclaw/feishu Config"
+    },
+    "plugins.entries.feishu.enabled": {
+      "label": "Enable @openclaw/feishu"
     },
     "plugins.entries.google-antigravity-auth": {
       "help": "OpenClaw Google Antigravity OAuth provider plugin (plugin: google-antigravity-auth)",
@@ -17869,6 +19058,9 @@
       "help": "Max characters returned by web_fetch (truncated).",
       "label": "Web Fetch Max Chars"
     },
+    "tools.web.fetch.maxCharsCap": {
+      "help": "Hard cap for web_fetch maxChars (applies to config and tool calls)."
+    },
     "tools.web.fetch.maxRedirects": {
       "help": "Maximum redirects allowed for web_fetch (default: 3).",
       "label": "Web Fetch Max Redirects"
@@ -17957,5 +19149,5 @@
       "order": 20
     }
   },
-  "version": "2026.1.30"
+  "version": "2026.2.6-3"
 }

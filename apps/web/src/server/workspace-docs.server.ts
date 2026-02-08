@@ -161,7 +161,7 @@ export async function writeWorkspaceDocServer(params: {
   }
 
   const redactTokens = await readClawletsEnvTokens(repoRoot)
-  const { runId } = await client.mutation(api.runs.create, {
+  const { runId } = await client.mutation(api.controlPlane.runs.create, {
     projectId: params.projectId,
     kind: "workspace_write",
     title:
@@ -181,10 +181,19 @@ export async function writeWorkspaceDocServer(params: {
       await emit({ level: "info", message: "Done." })
     },
     onAfterEvents: async () => {
-      await client.mutation(api.auditLogs.append, {
+      if (params.scope === "common") {
+        await client.mutation(api.security.auditLogs.append, {
+          projectId: params.projectId,
+          action: "workspace.common.write",
+          target: { doc: params.name },
+          data: { runId },
+        })
+        return
+      }
+      await client.mutation(api.security.auditLogs.append, {
         projectId: params.projectId,
-        action: params.scope === "common" ? "workspace.common.write" : "workspace.gateway.write",
-        target: params.scope === "common" ? { doc: params.name } : { gatewayId: params.gatewayId, doc: params.name },
+        action: "workspace.gateway.write",
+        target: { gatewayId: params.gatewayId, doc: params.name },
         data: { runId },
       })
     },
@@ -225,7 +234,7 @@ export async function resetWorkspaceDocOverrideServer(params: {
   }
 
   const redactTokens = await readClawletsEnvTokens(repoRoot)
-  const { runId } = await client.mutation(api.runs.create, {
+  const { runId } = await client.mutation(api.controlPlane.runs.create, {
     projectId: params.projectId,
     kind: "workspace_write",
     title: `workspace reset gateways/${params.gatewayId}/${params.name}`,
@@ -241,7 +250,7 @@ export async function resetWorkspaceDocOverrideServer(params: {
       await emit({ level: "info", message: "Moved to trash." })
     },
     onAfterEvents: async () => {
-      await client.mutation(api.auditLogs.append, {
+      await client.mutation(api.security.auditLogs.append, {
         projectId: params.projectId,
         action: "workspace.gateway.reset",
         target: { gatewayId: params.gatewayId, doc: params.name },

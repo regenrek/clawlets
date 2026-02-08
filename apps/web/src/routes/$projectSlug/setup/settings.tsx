@@ -25,7 +25,7 @@ function ProjectSettings() {
   const { isAuthenticated, isLoading } = useConvexAuth()
   const canQuery = Boolean(session?.user?.id) && isAuthenticated && !isPending && !isLoading
   const project = useQuery({
-    ...convexQuery(api.projects.get, { projectId: projectId as Id<"projects"> }),
+    ...convexQuery(api.controlPlane.projects.get, { projectId: projectId as Id<"projects"> }),
     gcTime: 5_000,
     enabled: Boolean(projectId) && canQuery,
   })
@@ -61,7 +61,9 @@ function ProjectSettings() {
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
               <div className="font-medium">{p.name}</div>
-              <div className="text-muted-foreground">{p.localPath}</div>
+              <div className="text-muted-foreground">
+                {p.localPath || `${p.workspaceRef.kind}:${p.workspaceRef.id}`}
+              </div>
               <div className="text-muted-foreground">Status: {p.status}</div>
             </CardContent>
           </Card>
