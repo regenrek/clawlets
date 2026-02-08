@@ -12,7 +12,8 @@ Before choosing where to run control plane and runner, compare topologies:
 
 ## Self-hosted dashboard + remote runner
 
-In Model C, the dashboard/control plane can run on a VPS without local repo access.
+In the control-plane/runner split, the dashboard/control plane can run on a VPS without
+local repo access.
 
 - Dashboard enqueues jobs and reads metadata from Convex.
 - Runner agent executes repo/Git/SOPS/SSH actions on a runner machine.

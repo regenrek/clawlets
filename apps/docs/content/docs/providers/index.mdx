@@ -1,0 +1,27 @@
+---
+title: Providers
+description: Provider guidance and support status.
+---
+
+Clawlets has one recommended production path today: Hetzner. AWS exists as an
+experimental path and should be treated as future-facing until support is completed.
+
+Use this section to choose provider-specific docs before changing host provisioning.
+
+<Cards>
+  <Card
+    title="Hetzner (recommended)"
+    description="Current best-supported and documented production path."
+    href="/providers/hetzner"
+  />
+  <Card
+    title="AWS (experimental)"
+    description="Image/AMI-oriented path with known gaps and no production recommendation."
+    href="/providers/aws"
+  />
+</Cards>
+
+<Callout type="info" title="Canonical setup flow">
+  Core setup and install docs assume Hetzner by default. Use provider pages for
+  explicit provider-specific requirements.
+</Callout>

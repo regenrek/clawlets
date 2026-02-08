@@ -1,100 +1,95 @@
 ---
 title: Control Plane Metadata
-description: Metadata-only boundary, retention, erasure, and Git write policy.
+description: How the control plane stays metadata-only and what that means in daily operations.
 ---
 
-This page defines the control-plane boundary for dashboard data.
+This page defines the trust boundary between the dashboard control plane and the
+execution side of Clawlets.
 
-## Source of truth
+The important idea: the control plane coordinates work and stores state for the UI, but
+secret material and operator credentials stay on runner/operator systems.
 
-- Git repository is canonical for config + encrypted secrets.
-- Convex stores operational metadata only.
+## Mental model
 
-Never store in Convex:
+- Git is source of truth for config and encrypted secrets.
+- Runner executes sensitive operations (Git, SOPS, SSH, local env updates).
+- Control plane stores metadata required to coordinate jobs and render status.
 
-- Secret values (plain or encrypted)
-- Operator keys
-- Deploy credentials
+If you keep this split clear, operators can use dashboard visibility without placing
+plaintext credentials into control-plane storage.
+
+## What the control plane stores
+
+Control-plane storage is metadata that helps with coordination and observability:
+
+- run timeline, status, and redacted event logs
+- host and gateway status summaries
+- secret wiring status (`configured`, `missing`, etc.) without values
+- runner heartbeat and capability flags
+- queued/running/completed job state for scheduling and retries
+
+## What the control plane must not store
+
+- plaintext secret values
+- deploy credentials from `.clawlets/env`
+- operator private keys
 - OpenTofu/Terraform state
-- Full fleet config blobs
+- full unbounded config blobs
 
-## Metadata tables (Model C)
+<Callout type="warning" title="Operational rule">
+  If a value would let someone authenticate to cloud, Git, SSH, or app services, it
+  should not be persisted in control-plane records.
+</Callout>
 
-Convex stores metadata needed by the UI and runner coordination:
+## How data flows in practice
 
-- `runs`, `runEvents`, `auditLogs`: operational timeline and redacted logs.
-- `projectConfigs`: per-config-path hash/sync/error (`path`, `type`, `lastHash`, `lastSyncAt`, `lastError`).
-- `hosts`: per-host status + bounded desired summary (non-secret).
-- `gateways`: per-host+gateway status + bounded desired summary (non-secret).
-- `secretWiring`: secret name/scope/status only (`configured|missing|placeholder|warn`), never values.
-- `runners`: runner heartbeat and capabilities.
-- `runnerTokens`: hash-only runner auth material (token plaintext never persisted).
-- `jobs`: queue state (`queued|leased|running|succeeded|failed|canceled`) and bounded payload metadata.
+<Steps>
+  <Step>
+    Operator action in UI creates a job request and bounded metadata.
+  </Step>
+  <Step>
+    Runner leases the job and executes sensitive work locally (repo + keys + secrets path).
+  </Step>
+  <Step>
+    Runner reports status/events back as redacted metadata.
+  </Step>
+  <Step>
+    Dashboard reads metadata to show progress, history, and current state.
+  </Step>
+</Steps>
 
-## Run and audit storage
-
-- `runEvents` stores redacted message text (`message`, `level`, `ts`, `redacted`) and bounded `meta`.
-- Structured command JSON remains in server-function return values, not persisted as run events.
-- `auditLogs` uses strict action-bound payload shapes (`action`, `target`, `data`).
-- `jobs.payload` is scrubbed on completion; `payloadHash` is retained for auditability.
-
-## Project identity and PII minimization
-
-Projects use canonical workspace identity:
-
-```json
-{
-  "kind": "local | git",
-  "id": "string",
-  "relPath": "optional string"
-}
-```
-
-Rules:
-
-- `executionMode=local`: `localPath` required.
-- `executionMode=remote_runner`: `localPath` forbidden.
+For protocol details: [Runner agent](/operations/runner-agent), [Deploy credentials](/dashboard/deploy-credentials), [Architecture](/security/architecture).
 
 ## Retention and erasure
 
-Convex does not provide TTL indexes for tables. Retention is enforced by scheduled batched deletion.
+- Retention is enforced by scheduled cleanup jobs (not database TTL indexes).
+- Default operational retention is 30 days for run/audit timeline data.
+- Project deletion removes control-plane project data in staged batches.
 
-- Hourly retention sweep prunes old `runEvents`, terminal `runs`, and `auditLogs`.
-- Default retention: 30 days (per-project policy).
-- Project deletion is two-step:
-1. Start deletion and receive short-lived confirmation token.
-2. Confirm deletion with token + typed confirmation string.
-
-Erasure scope is control-plane only. Git history and external repos are outside Convex deletion scope.
-
-Project erasure runs `PROJECT_DELETION_STAGES` in this order:
-
-- `runEvents`
-- `runs`
-- `providers`
-- `projectConfigs`
-- `hosts`
-- `gateways`
-- `secretWiring`
-- `jobs`
-- `runnerTokens`
-- `runners`
-- `projectMembers`
-- `auditLogs`
-- `projectPolicies`
-- `projectDeletionTokens`
-- `project`
-- `done` (terminal marker, not a table-delete stage)
+Deletion scope is control-plane only. Git history, external repos, and host-local files
+are outside this erasure boundary.
 
 ## Git write policy
 
-- Default: PR-first (`pr_only`).
-- Direct commits require explicit per-project opt-in (`direct_commit_enabled`).
-- Policy changes are audited.
+- Default policy is PR-first (`pr_only`).
+- Direct commits require explicit project opt-in.
+- Policy changes are auditable.
 
-## Security invariants
+## Verify the boundary
 
-- Runner auth uses bearer token over HTTP routes; Convex stores token hashes only.
-- Tokens are passed in headers, not mutation args.
-- Secret values must never appear in table fields, logs, payloads, or audit entries.
-- Control-plane payloads are bounded and validated (length limits + key denylist for secret-like keys: `value`, `token`, `key`, `password`, `secret`, `apikey`, `privatekey`).
+- In setup/credentials UI, confirm provider tokens stay local (`.clawlets/env`) and are shown as status only.
+- In run history, verify events are redacted and do not include plaintext tokens/keys.
+- In troubleshooting, treat any secret-like appearance as an incident and rotate immediately.
+
+## Troubleshooting
+
+### Secret-like value appears in logs or UI
+
+1. Rotate the exposed credential immediately.
+2. Remove/redact the offending output source in runner/command logs.
+3. Re-run and confirm only redacted metadata is persisted.
+
+### Deletion did not remove external data
+
+This is expected when data lives outside the control plane. Project deletion does not
+rewrite Git history or external systems.
