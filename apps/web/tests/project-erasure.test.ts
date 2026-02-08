@@ -9,7 +9,7 @@ import {
   __test_randomToken,
   __test_sha256Hex,
 } from "../convex/projectErasure"
-import { PROJECT_DELETION_STAGES } from "../convex/lib/project-erasure-stages"
+import { PROJECT_DELETION_STAGES } from "../convex/lib/projectErasureStages"
 
 describe("project erasure primitives", () => {
   it("generates base64url tokens", () => {

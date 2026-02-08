@@ -2,7 +2,6 @@ import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { authComponent, createAuth } from "./auth";
-import { hasAuthEnv } from "./lib/env";
 import {
   ensureBoundedString,
   ensureOptionalBoundedString,
@@ -23,9 +22,6 @@ const METADATA_SYNC_LIMITS = {
 const HOST_STATUSES = new Set(["online", "offline", "degraded", "unknown"]);
 const RUN_STATUSES = new Set(["queued", "running", "succeeded", "failed", "canceled"]);
 
-if (!hasAuthEnv()) {
-  throw new Error("missing SITE_URL / BETTER_AUTH_SECRET / CONVEX_SITE_URL for Better Auth");
-}
 authComponent.registerRoutes(http, createAuth);
 
 function json(status: number, body: unknown): Response {

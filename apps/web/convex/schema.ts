@@ -8,7 +8,7 @@ import {
   SECRET_WIRING_SCOPES,
   SECRET_WIRING_STATUSES,
 } from "@clawlets/core/lib/runtime/control-plane-constants";
-import { PROJECT_DELETION_STAGES } from "./lib/project-erasure-stages";
+import { PROJECT_DELETION_STAGES } from "./lib/projectErasureStages";
 
 function literals<const T extends readonly string[]>(values: T) {
   return values.map((value) => v.literal(value));
@@ -190,9 +190,10 @@ const schema = defineSchema({
   projects: defineTable({
     ownerUserId: v.id("users"),
     name: v.string(),
-    executionMode: ExecutionMode,
-    workspaceRef: WorkspaceRef,
-    workspaceRefKey: v.string(),
+    // Legacy rows may predate metadata backfill; keep optional until all deployments are migrated.
+    executionMode: v.optional(ExecutionMode),
+    workspaceRef: v.optional(WorkspaceRef),
+    workspaceRefKey: v.optional(v.string()),
     localPath: v.optional(v.string()),
     status: ProjectStatus,
     createdAt: v.number(),
@@ -287,6 +288,8 @@ const schema = defineSchema({
     ts: v.number(),
     level: RunEventLevel,
     message: v.string(),
+    // Legacy rows may still carry pre-RunEventMeta payload under `data`.
+    data: v.optional(v.any()),
     meta: v.optional(RunEventMeta),
     redacted: v.optional(v.boolean()),
   })

@@ -14,6 +14,11 @@ import {
 import { fail } from "./lib/errors";
 import { rateLimit } from "./lib/rateLimit";
 import { GatewayIdSchema, HostNameSchema } from "@clawlets/shared/lib/identifiers";
+import {
+  resolveProjectRuntimeMetadata,
+  withResolvedProjectMetadata,
+  type ProjectRuntimeMetadata,
+} from "./lib/projectMetadata";
 import { normalizeWorkspaceRef } from "./lib/workspaceRef";
 
 const LIVE_SCHEMA_TARGET_MAX_LEN = 128;
@@ -63,7 +68,9 @@ export const list = query({
     const byId = new Map<string, Doc<"projects">>();
     for (const p of owned) byId.set(p._id, p);
     for (const p of memberProjects) byId.set(p._id, p);
-    return Array.from(byId.values()).sort((a, b) => b.updatedAt - a.updatedAt);
+    return Array.from(byId.values())
+      .map((project) => withResolvedProjectMetadata(project))
+      .sort((a, b) => b.updatedAt - a.updatedAt);
   },
 });
 
@@ -72,7 +79,7 @@ export const get = query({
   returns: v.object({ project: ProjectDoc, role: Role }),
   handler: async (ctx, { projectId }) => {
     const { project, role } = await requireProjectAccessQuery(ctx, projectId);
-    return { project, role };
+    return { project: withResolvedProjectMetadata(project), role };
   },
 });
 
@@ -160,38 +167,45 @@ export const update = mutation({
     const { projectId, ...patch } = args;
     const access = await requireProjectAccessMutation(ctx, projectId);
     requireAdmin(access.role);
+    const project = withResolvedProjectMetadata(access.project);
 
     const now = Date.now();
-    const next: Record<string, unknown> = { updatedAt: now };
-      if (typeof patch.name === "string") {
-        const name = patch.name.trim();
-        if (!name) fail("conflict", "name required");
-        if (name !== access.project.name) {
-          const existing = await ctx.db
-            .query("projects")
-            .withIndex("by_owner_name", (q) => q.eq("ownerUserId", access.project.ownerUserId).eq("name", name))
-            .take(2);
-          if (existing.some((p) => p._id !== projectId)) {
-            fail("conflict", "project name already exists");
-          }
+    const next: Record<string, unknown> = {
+      updatedAt: now,
+      executionMode: project.executionMode,
+      workspaceRef: project.workspaceRef,
+      workspaceRefKey: project.workspaceRefKey,
+    };
+    if (project.executionMode === "remote_runner") next["localPath"] = undefined;
+    if (typeof patch.name === "string") {
+      const name = patch.name.trim();
+      if (!name) fail("conflict", "name required");
+      if (name !== project.name) {
+        const existing = await ctx.db
+          .query("projects")
+          .withIndex("by_owner_name", (q) => q.eq("ownerUserId", project.ownerUserId).eq("name", name))
+          .take(2);
+        if (existing.some((p) => p._id !== projectId)) {
+          fail("conflict", "project name already exists");
         }
-        next["name"] = name;
+      }
+      next["name"] = name;
     }
     if (typeof patch.status === "string") next["status"] = patch.status;
 
     if (patch.workspaceRef) {
       const workspaceRef = normalizeWorkspaceRef(patch.workspaceRef);
-      if (access.project.executionMode === "local" && workspaceRef.kind !== "local") {
+      if (project.executionMode === "local" && workspaceRef.kind !== "local") {
         fail("conflict", "workspaceRef.kind must be local for local execution");
       }
-      if (access.project.executionMode === "remote_runner" && workspaceRef.kind !== "git") {
+      if (project.executionMode === "remote_runner" && workspaceRef.kind !== "git") {
         fail("conflict", "workspaceRef.kind must be git for remote_runner execution");
       }
-      if (workspaceRef.key !== access.project.workspaceRefKey) {
+      if (workspaceRef.key !== project.workspaceRefKey) {
         const existing = await ctx.db
           .query("projects")
           .withIndex("by_owner_workspaceRefKey", (q) =>
-            q.eq("ownerUserId", access.project.ownerUserId).eq("workspaceRefKey", workspaceRef.key),
+            q.eq("ownerUserId", project.ownerUserId).eq("workspaceRefKey", workspaceRef.key),
           )
           .take(2);
         if (existing.some((p) => p._id !== projectId)) {
@@ -204,13 +218,13 @@ export const update = mutation({
 
     if (typeof patch.localPath === "string") {
       const localPath = patch.localPath.trim();
-      if (access.project.executionMode !== "local") fail("conflict", "localPath forbidden for remote_runner execution mode");
+      if (project.executionMode !== "local") fail("conflict", "localPath forbidden for remote_runner execution mode");
       if (!localPath) fail("conflict", "localPath required");
-      if (localPath !== (access.project.localPath || "").trim()) {
+      if (localPath !== (project.localPath || "").trim()) {
         const existing = await ctx.db
           .query("projects")
           .withIndex("by_owner_localPath", (q) =>
-            q.eq("ownerUserId", access.project.ownerUserId).eq("localPath", localPath),
+            q.eq("ownerUserId", project.ownerUserId).eq("localPath", localPath),
           )
           .take(2);
         if (existing.some((p) => p._id !== projectId)) {
@@ -223,7 +237,7 @@ export const update = mutation({
     await ctx.db.patch(projectId, next);
     const updated = await ctx.db.get(projectId);
     if (!updated) fail("not_found", "project not found");
-    return updated;
+    return withResolvedProjectMetadata(updated);
   },
 });
 
@@ -258,4 +272,13 @@ export function __test_normalizeWorkspaceRef(value: {
   relPath?: string;
 }): { kind: "local" | "git"; id: string; relPath?: string; key: string } {
   return normalizeWorkspaceRef(value);
+}
+
+export function __test_resolveProjectRuntimeMetadata(input: {
+  projectId: string;
+  executionMode?: "local" | "remote_runner";
+  workspaceRef?: { kind: "local" | "git"; id: string; relPath?: string };
+  localPath?: string;
+}): ProjectRuntimeMetadata {
+  return resolveProjectRuntimeMetadata(input);
 }
