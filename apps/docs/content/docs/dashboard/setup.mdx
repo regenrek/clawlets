@@ -7,6 +7,12 @@ Setup is a command center for getting a new project to its first successful depl
 It is derived from real state (config, secrets, local deploy credentials, and runs),
 so you can stop halfway and resume later.
 
+<Callout type="note" title="Runner comes first">
+  Setup now starts with **Connect Runner**. The runner must be online and repo-reachable
+  before server access, credentials, secrets, or deploy steps unlock.
+  See [Runner Agent](/operations/runner-agent).
+</Callout>
+
 ## Where to start
 
 Open:
@@ -19,25 +25,34 @@ Open:
 
 <Steps>
   <Step>
+    <strong>Connect runner</strong>
+    <br />
+    Create a runner token inline, copy the generated <code>clawlets runner start</code> command,
+    and start a runner on a machine that has access to your project repo.
+  </Step>
+  <Step>
     <strong>Choose host</strong>
     <br />
     Select which host you will deploy first. If the project has no hosts yet, add one inline.
   </Step>
   <Step>
-    <strong>Connection</strong>
+    <strong>Server access</strong>
     <br />
     Fill <code>provisioning.adminCidr</code> and add at least one SSH key to{" "}
     <code>fleet.sshAuthorizedKeys</code>.
   </Step>
   <Step>
-    <strong>Secrets</strong>
-    <br />
-    Initialize and verify host secrets. Setup relies on <code>secrets verify</code> to confirm required values are present.
-  </Step>
-  <Step>
     <strong>Deploy credentials</strong>
     <br />
-    Configure local-only credentials in <code>.clawlets/env</code> (for example <code>HCLOUD_TOKEN</code> and <code>SOPS_AGE_KEY_FILE</code>).
+    Configure local-only credentials in <code>.clawlets/env</code>. Setup requires{" "}
+    <code>SOPS_AGE_KEY_FILE</code> plus <code>HCLOUD_TOKEN</code> (recommended Hetzner
+    path). AWS credentials are only for the experimental provider path.
+  </Step>
+  <Step>
+    <strong>Server passwords</strong>
+    <br />
+    Initialize and verify bootstrap-scope host secrets. Setup requires a successful{" "}
+    <code>secrets_verify_bootstrap</code> run before install.
   </Step>
   <Step>
     <strong>Deploy</strong>
@@ -59,6 +74,11 @@ You are “done” when:
 - The post-bootstrap checklist is green (or you have consciously accepted the remaining risk).
 - Follow-up Deploy runs apply changes cleanly.
 
+After this, continue with OpenClaw app-layer setup:
+
+- [OpenClaw setup](/dashboard/openclaw-setup)
+- [How Clawlets works](/dashboard/how-clawlets-works)
+
 ## Troubleshooting
 
 ### Setup says “project setup in progress”
@@ -77,3 +97,7 @@ run Verify, and resolve missing values.
 Open the Deploy credentials step and set the required keys in <code>.clawlets/env</code>.
 These are local-only and must not be committed.
 
+Recommended path:
+
+- Set `HCLOUD_TOKEN` (Hetzner): https://docs.hetzner.com/cloud/api/getting-started/generating-api-token
+- See provider docs: [Hetzner](/providers/hetzner), [AWS (experimental)](/providers/aws)

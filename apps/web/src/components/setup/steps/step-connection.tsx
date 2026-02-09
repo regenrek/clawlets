@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation } from "@tanstack/react-query"
 import { useMemo, useState } from "react"
 import { toast } from "sonner"
 import type { Id } from "../../../../convex/_generated/dataModel"
@@ -45,8 +45,6 @@ function SetupStepConnectionForm(props: {
   stepStatus: SetupStepStatus
   onContinue: () => void
 }) {
-  const queryClient = useQueryClient()
-
   const [adminCidr, setAdminCidr] = useState(() => String(props.hostCfg?.provisioning?.adminCidr || ""))
   const [keyText, setKeyText] = useState("")
 
@@ -89,7 +87,6 @@ function SetupStepConnectionForm(props: {
       if (res.ok) {
         toast.success("Saved")
         setKeyText("")
-        void queryClient.invalidateQueries({ queryKey: ["clawletsConfig", props.projectId] })
         props.onContinue()
         return
       }
@@ -161,4 +158,3 @@ function SetupStepConnectionForm(props: {
     </div>
   )
 }
-

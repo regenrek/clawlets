@@ -1,18 +1,23 @@
+import { convexQuery } from "@convex-dev/react-query"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link, createFileRoute } from "@tanstack/react-router"
 import { useMemo, useState } from "react"
-import { PlusIcon } from "@heroicons/react/24/outline"
+import { ArrowPathIcon, PlusIcon } from "@heroicons/react/24/outline"
+import { generateHostName as generateRandomHostName } from "@clawlets/core/lib/host/host-name-generator"
 import { toast } from "sonner"
 import type { Id } from "../../../../convex/_generated/dataModel"
+import { api } from "../../../../convex/_generated/api"
+import { RunnerStatusBanner } from "~/components/fleet/runner-status-banner"
 import { Badge } from "~/components/ui/badge"
 import { Button } from "~/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "~/components/ui/dialog"
-import { Input } from "~/components/ui/input"
+import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "~/components/ui/input-group"
 import { Label } from "~/components/ui/label"
 import { useProjectBySlug } from "~/lib/project-data"
+import { isProjectRunnerOnline } from "~/lib/setup/runner-status"
 import { addHost } from "~/sdk/config"
-import { clawletsConfigQueryOptions, projectsListQueryOptions } from "~/lib/query-options"
+import { projectsListQueryOptions } from "~/lib/query-options"
 import { slugifyProjectName } from "~/lib/project-routing"
 
 export const Route = createFileRoute("/$projectSlug/hosts/")({
@@ -22,7 +27,7 @@ export const Route = createFileRoute("/$projectSlug/hosts/")({
     const projectId = (project?._id as Id<"projects"> | null) ?? null
     if (!projectId) return
     if (project?.status !== "ready") return
-    await context.queryClient.ensureQueryData(clawletsConfigQueryOptions(projectId))
+    await context.queryClient.ensureQueryData(convexQuery(api.controlPlane.hosts.listByProject, { projectId }))
   },
   component: HostsOverview,
 })
@@ -34,36 +39,56 @@ function HostsOverview() {
   const projectStatus = projectQuery.project?.status
   const isReady = projectStatus === "ready"
   const queryClient = useQueryClient()
-  const cfg = useQuery({
-    ...clawletsConfigQueryOptions(projectId as Id<"projects"> | null),
+  const hostsQuerySpec = convexQuery(api.controlPlane.hosts.listByProject, { projectId: projectId as Id<"projects"> })
+  const hostsQuery = useQuery({
+    ...hostsQuerySpec,
     enabled: Boolean(projectId && isReady),
   })
+  const runnersQuery = useQuery({
+    ...convexQuery(api.controlPlane.runners.listByProject, { projectId: projectId as Id<"projects"> }),
+    enabled: Boolean(projectId && isReady),
+  })
+  const runnerOnline = useMemo(() => isProjectRunnerOnline(runnersQuery.data ?? []), [runnersQuery.data])
 
-  const config = cfg.data?.config as any
-  const hosts = useMemo(() => Object.keys(config?.hosts || {}).sort(), [config])
+  const hostRows = hostsQuery.data
+  const hosts = useMemo(() => (hostRows ?? []).map((row) => row.hostName), [hostRows])
   const enabledHosts = useMemo(
-    () => hosts.filter((h) => Boolean((config?.hosts as any)?.[h]?.enable)).length,
-    [config, hosts],
+    () => (hostRows ?? []).filter((row) => (row.desired?.enabled ?? true) !== false).length,
+    [hostRows],
   )
+  const onlineHosts = useMemo(() => (hostRows ?? []).filter((row) => row.lastStatus === "online").length, [hostRows])
   const [newHostOpen, setNewHostOpen] = useState(false)
   const [newHost, setNewHost] = useState("")
+
   const addHostMutation = useMutation({
     mutationFn: async () => {
+      if (!runnerOnline) throw new Error("Runner offline. Start runner first.")
       const trimmed = newHost.trim()
       if (!trimmed) throw new Error("Host name required")
-      if (hosts.includes(trimmed)) return { ok: true as const }
+      if (hosts.includes(trimmed)) return { ok: true as const, queued: false as const, alreadyExists: true as const }
       return await addHost({ data: { projectId: projectId as Id<"projects">, host: trimmed } })
     },
-    onSuccess: () => {
-      toast.success("Host added")
+    onSuccess: (result) => {
+      if (result.queued) toast.success("Host add queued. Runner still processing.")
+      else if (result.alreadyExists) toast.success("Host already exists")
+      else toast.success("Host added")
       setNewHost("")
       setNewHostOpen(false)
-      void queryClient.invalidateQueries({ queryKey: ["clawletsConfig", projectId] })
+      void queryClient.invalidateQueries({ queryKey: hostsQuerySpec.queryKey })
     },
     onError: (err) => {
       toast.error(err instanceof Error ? err.message : String(err))
     },
   })
+
+  const onGenerateHost = () => {
+    try {
+      const generated = generateRandomHostName({ existingHosts: hosts })
+      setNewHost(generated)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err))
+    }
+  }
 
   if (projectQuery.isPending) {
     return <div className="text-muted-foreground">Loading…</div>
@@ -83,14 +108,18 @@ function HostsOverview() {
 
   return (
     <div className="space-y-6">
-      {cfg.isPending ? (
+      {hostsQuery.isPending ? (
         <div className="text-muted-foreground">Loading…</div>
-      ) : cfg.error ? (
-        <div className="text-sm text-destructive">{String(cfg.error)}</div>
-      ) : !config ? (
-        <div className="text-muted-foreground">Missing config.</div>
+      ) : hostsQuery.error ? (
+        <div className="text-sm text-destructive">{String(hostsQuery.error)}</div>
       ) : (
         <div className="space-y-6">
+          <RunnerStatusBanner
+            projectId={projectId as Id<"projects">}
+            setupHref={`/${projectSlug}/setup/`}
+            runnerOnline={runnerOnline}
+            isChecking={runnersQuery.isPending}
+          />
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
               <h1 className="text-2xl font-black tracking-tight">Hosts Overview</h1>
@@ -112,15 +141,25 @@ function HostsOverview() {
                 </DialogHeader>
                 <div className="space-y-2">
                   <Label htmlFor="new-host-name">Host name</Label>
-                  <Input
-                    id="new-host-name"
-                    placeholder="clawlets-prod-01"
-                    value={newHost}
-                    onChange={(e) => setNewHost(e.target.value)}
-                  />
-                  <div className="text-xs text-muted-foreground">
-                    Uses the same naming rules as config host IDs.
-                  </div>
+                  <InputGroup>
+                    <InputGroupInput
+                      id="new-host-name"
+                      placeholder="clawlets-prod-01"
+                      value={newHost}
+                      onChange={(e) => setNewHost(e.target.value)}
+                    />
+                    <InputGroupAddon align="inline-end">
+                      <InputGroupButton
+                        type="button"
+                        variant="secondary"
+                        disabled={addHostMutation.isPending}
+                        onClick={onGenerateHost}
+                      >
+                        <ArrowPathIcon />
+                        Generate
+                      </InputGroupButton>
+                    </InputGroupAddon>
+                  </InputGroup>
                 </div>
                 <DialogFooter>
                   <Button
@@ -132,7 +171,7 @@ function HostsOverview() {
                   </Button>
                   <Button
                     type="button"
-                    disabled={addHostMutation.isPending || !newHost.trim()}
+                    disabled={addHostMutation.isPending || !newHost.trim() || !runnerOnline}
                     onClick={() => addHostMutation.mutate()}
                   >
                     Add host
@@ -142,14 +181,6 @@ function HostsOverview() {
             </Dialog>
           </div>
           <div className="grid gap-4 md:grid-cols-3">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Default host</CardTitle>
-              </CardHeader>
-              <CardContent className="text-lg font-semibold">
-                {config.defaultHost || "—"}
-              </CardContent>
-            </Card>
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium">Hosts</CardTitle>
@@ -164,6 +195,14 @@ function HostsOverview() {
               </CardHeader>
               <CardContent className="text-lg font-semibold">
                 {enabledHosts}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Online</CardTitle>
+              </CardHeader>
+              <CardContent className="text-lg font-semibold">
+                {onlineHosts}
               </CardContent>
             </Card>
           </div>
@@ -184,11 +223,11 @@ function HostsOverview() {
                   <div className="col-span-1 text-right">Status</div>
                 </div>
                 <div className="divide-y">
-                  {hosts.map((host) => {
-                    const hostCfg = (config?.hosts as any)?.[host] || {}
-                    const enabled = hostCfg?.enable !== false
-                    const channel = String(hostCfg?.selfUpdate?.channel || "prod")
-                    const target = hostCfg?.targetHost || "—"
+                  {(hostRows ?? []).map((hostRow) => {
+                    const host = hostRow.hostName
+                    const enabled = (hostRow.desired?.enabled ?? true) !== false
+                    const channel = String(hostRow.desired?.selfUpdateChannel || hostRow.desired?.updateRing || "prod")
+                    const target = hostRow.desired?.targetHost || "—"
                     return (
                       <Link
                         key={host}
@@ -199,9 +238,6 @@ function HostsOverview() {
                         <div className="col-span-5 flex items-center gap-2 min-w-0">
                           <span className={enabled ? "size-2 rounded-full bg-emerald-500" : "size-2 rounded-full bg-muted-foreground/40"} />
                           <div className="font-medium truncate">{host}</div>
-                          {config.defaultHost === host ? (
-                            <Badge variant="secondary" className="shrink-0">default</Badge>
-                          ) : null}
                         </div>
                         <div className="col-span-4 text-sm text-muted-foreground truncate">
                           {target}

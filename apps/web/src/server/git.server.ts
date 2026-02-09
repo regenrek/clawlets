@@ -274,7 +274,7 @@ export async function fetchGitRepoStatus(params: { projectId: Id<"projects"> }) 
   } catch (err) {
     const message = sanitizeErrorMessage(err, "Unable to read git status.")
     console.error("fetchGitRepoStatus failed", message)
-    throw new Error(message)
+    throw new Error(message, { cause: err })
   }
 }
 
@@ -293,9 +293,9 @@ export async function executeGitPush(params: { projectId: Id<"projects"> }) {
       if (!status.canPush) throw new Error(status.pushBlockedReason || "cannot push from this repo")
       if (status.detached || !status.branch) throw new Error("detached HEAD; checkout a branch")
 
-      const run = await client.mutation(api.runs.create, {
+      const run = await client.mutation(api.controlPlane.runs.create, {
         projectId: params.projectId,
-        kind: "custom",
+        kind: "git_push",
         title: `Git push (${status.branch})`,
       })
       runId = run.runId
@@ -322,7 +322,7 @@ export async function executeGitPush(params: { projectId: Id<"projects"> }) {
       })
 
       const ok = captured.exitCode === 0
-      await client.mutation(api.runs.setStatus, {
+      await client.mutation(api.controlPlane.runs.setStatus, {
         runId,
         status: ok ? "succeeded" : "failed",
         errorMessage: ok ? undefined : "git push failed",
@@ -337,12 +337,12 @@ export async function executeGitPush(params: { projectId: Id<"projects"> }) {
       console.error("executeGitPush failed", message)
       if (runId) {
         try {
-          await client.mutation(api.runs.setStatus, { runId, status: "failed", errorMessage: "git push failed" })
+          await client.mutation(api.controlPlane.runs.setStatus, { runId, status: "failed", errorMessage: "git push failed" })
         } catch {
           // ignore status failures
         }
       }
-      throw new Error(message)
+      throw new Error(message, { cause: err })
     } finally {
       statusCache.delete(repoRoot)
       statusInFlight.delete(repoRoot)

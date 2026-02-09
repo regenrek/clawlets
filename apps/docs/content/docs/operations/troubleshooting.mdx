@@ -86,6 +86,8 @@ clawlets server restart --target-host <host> --unit openclaw-melinda.service
 
 ## `clf` socket: permission denied / ENOENT
 
+This applies only when CLF plugin is enabled. See [CLF Orchestrator](/plugins/clf-orchestrator).
+
 - Verify socket exists:
   - `ls -la /run/clf/orchestrator.sock`
   - `systemctl status clf-orchestrator.socket`

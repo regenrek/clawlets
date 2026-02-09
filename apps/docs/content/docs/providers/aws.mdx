@@ -1,0 +1,41 @@
+---
+title: AWS
+description: Experimental provider path and current limitations.
+---
+
+<Callout type="warning" title="Experimental">
+  AWS support is experimental. It is not the recommended production path today.
+  Scope may change, and full parity with Hetzner may never be delivered.
+</Callout>
+
+AWS support currently centers on image/AMI workflows. If you need predictable
+production behavior, use [Hetzner](/providers/hetzner).
+
+## Current state
+
+- Supported direction: image/AMI-oriented bootstrap path.
+- Not documented as a fully supported production baseline.
+- Behavior and required fields may change as support evolves.
+
+## What exists today
+
+- Provider config keys under `hosts.<host>.aws.*`
+- Deploy credentials via `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`
+- Image publish/import path used for bootstrap mode image
+
+## Known operator risks
+
+- Gaps may exist in parity with Hetzner docs and runbooks.
+- Failure modes may require manual recovery patterns.
+- Changes to workflow/flags are likely while support matures.
+
+## Recommended usage
+
+- Use only for experimentation or development evaluation.
+- Keep rollback path to Hetzner when reliability is required.
+
+## Links
+
+- [Providers overview](/providers)
+- [Install](/operations/install)
+- [Image-based provisioning](/operations/image-based-provisioning)

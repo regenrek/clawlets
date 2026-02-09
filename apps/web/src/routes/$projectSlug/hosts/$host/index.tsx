@@ -1,6 +1,6 @@
+import { convexQuery } from "@convex-dev/react-query"
 import { useQuery } from "@tanstack/react-query"
 import { Link, createFileRoute, useRouter } from "@tanstack/react-router"
-import { useMemo } from "react"
 import type { Id } from "../../../../../convex/_generated/dataModel"
 import { Badge } from "~/components/ui/badge"
 import { Button } from "~/components/ui/button"
@@ -10,7 +10,7 @@ import { RecentRunsTable, type RunRow } from "~/components/dashboard/recent-runs
 import { RunActivityChart } from "~/components/dashboard/run-activity-chart"
 import { useProjectBySlug } from "~/lib/project-data"
 import { api } from "../../../../../convex/_generated/api"
-import { clawletsConfigQueryOptions, projectsListQueryOptions } from "~/lib/query-options"
+import { projectsListQueryOptions } from "~/lib/query-options"
 import { slugifyProjectName } from "~/lib/project-routing"
 
 export const Route = createFileRoute("/$projectSlug/hosts/$host/")({
@@ -20,7 +20,7 @@ export const Route = createFileRoute("/$projectSlug/hosts/$host/")({
     const projectId = (project?._id as Id<"projects"> | null) ?? null
     if (!projectId) return
     if (project?.status !== "ready") return
-    await context.queryClient.ensureQueryData(clawletsConfigQueryOptions(projectId))
+    await context.queryClient.ensureQueryData(convexQuery(api.controlPlane.hosts.listByProject, { projectId }))
   },
   component: HostOverview,
 })
@@ -29,31 +29,32 @@ function HostOverview() {
   const { projectSlug, host } = Route.useParams()
   const router = useRouter()
   const convexQueryClient = router.options.context.convexQueryClient
+  const hasServerHttpClient = Boolean(convexQueryClient.serverHttpClient)
   const projectQuery = useProjectBySlug(projectSlug)
   const projectId = projectQuery.projectId
   const projectStatus = projectQuery.project?.status
   const isReady = projectStatus === "ready"
 
-  const cfg = useQuery({
-    ...clawletsConfigQueryOptions(projectId as Id<"projects"> | null),
+  const hostsQuery = useQuery({
+    ...convexQuery(api.controlPlane.hosts.listByProject, { projectId: projectId as Id<"projects"> }),
     enabled: Boolean(projectId && isReady),
   })
 
-  const config = cfg.data?.config as any
-  const hostCfg = host && config ? (config.hosts as any)?.[host] : null
+  const hostSummary = (hostsQuery.data || []).find((row) => row.hostName === host) || null
+  const desired = hostSummary?.desired || {}
 
   const recentRuns = useQuery({
-    queryKey: ["dashboardRecentRuns", projectId, host],
+    queryKey: ["dashboardRecentRuns", projectId, host, hasServerHttpClient],
     enabled: Boolean(projectId && host),
     queryFn: async () => {
       const args = {
         projectId: projectId as Id<"projects">,
         paginationOpts: { numItems: 200, cursor: null as string | null },
       }
-      if (convexQueryClient.serverHttpClient) {
-        return await convexQueryClient.serverHttpClient.consistentQuery(api.runs.listByProjectPage, args)
+      if (hasServerHttpClient) {
+        return await convexQueryClient.serverHttpClient!.consistentQuery(api.controlPlane.runs.listByProjectPage, args)
       }
-      return await convexQueryClient.convexClient.query(api.runs.listByProjectPage, args)
+      return await convexQueryClient.convexClient.query(api.controlPlane.runs.listByProjectPage, args)
     },
   })
   const runs = (recentRuns.data?.page ?? []) as RunRow[]
@@ -76,24 +77,22 @@ function HostOverview() {
 
   return (
     <div className="space-y-6">
-      {cfg.isPending ? (
+      {hostsQuery.isPending ? (
         <div className="text-muted-foreground">Loading…</div>
-      ) : cfg.error ? (
-        <div className="text-sm text-destructive">{String(cfg.error)}</div>
-      ) : !config ? (
-        <div className="text-muted-foreground">Missing config.</div>
+      ) : hostsQuery.error ? (
+        <div className="text-sm text-destructive">{String(hostsQuery.error)}</div>
       ) : (
         <div className="space-y-6">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="min-w-0 space-y-1">
               <div className="flex items-center gap-3">
                 <h1 className="text-2xl font-black tracking-tight truncate">{host || "Host"}</h1>
-                <Badge variant={hostCfg?.enable !== false ? "secondary" : "outline"} className="capitalize">
-                  {hostCfg?.enable !== false ? "enabled" : "disabled"}
+                <Badge variant={desired.enabled !== false ? "secondary" : "outline"} className="capitalize">
+                  {desired.enabled !== false ? "enabled" : "disabled"}
                 </Badge>
               </div>
               <p className="text-muted-foreground text-sm truncate">
-                {hostCfg?.targetHost ? `Target: ${hostCfg.targetHost}` : "No target host configured"}
+                {desired.targetHost ? `Target: ${desired.targetHost}` : "No target host configured"}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -139,14 +138,14 @@ function HostOverview() {
             </div>
           </div>
 
-          {!hostCfg ? (
-            <div className="text-muted-foreground">Select a host from the list.</div>
+          {!hostSummary ? (
+            <div className="text-muted-foreground">Host metadata unavailable.</div>
           ) : (
             <>
               <div className="grid auto-rows-min gap-4 md:grid-cols-3">
-                <KpiCard title="Status" value={hostCfg.enable !== false ? "Enabled" : "Disabled"} subtext="Host state" />
-                <KpiCard title="Provider" value={hostCfg.provisioning?.provider || "hetzner"} subtext="Day 0 infra driver" />
-                <KpiCard title="Compute" value={hostCfg.provisioning?.provider === "aws" ? hostCfg.aws?.instanceType || "—" : hostCfg.hetzner?.serverType || "—"} subtext="Host class" />
+                <KpiCard title="Status" value={desired.enabled !== false ? "Enabled" : "Disabled"} subtext="Host state" />
+                <KpiCard title="Provider" value={desired.provider || hostSummary.provider || "—"} subtext="Day 0 infra driver" />
+                <KpiCard title="Region" value={desired.region || hostSummary.region || "—"} subtext="Host location" />
               </div>
 
               <div className="grid gap-4 lg:grid-cols-3">
@@ -171,36 +170,36 @@ function HostOverview() {
                 <Card>
                   <CardHeader>
                     <CardTitle>Host details</CardTitle>
-                    <CardDescription>Network and provisioning defaults.</CardDescription>
+                    <CardDescription>Metadata summary from latest runner sync.</CardDescription>
                   </CardHeader>
                   <CardContent className="grid gap-3 text-sm">
                     <div className="flex items-center justify-between gap-3">
                       <span className="text-muted-foreground">Target host</span>
-                      <span className="font-medium truncate">{hostCfg.targetHost || "—"}</span>
+                      <span className="font-medium truncate">{desired.targetHost || "—"}</span>
                     </div>
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-muted-foreground">Update ring</span>
-                    <span className="font-medium">{String(hostCfg.selfUpdate?.channel || "prod")}</span>
+                    <span className="font-medium">{String(desired.selfUpdateChannel || desired.updateRing || "prod")}</span>
                   </div>
                     <div className="flex items-center justify-between gap-3">
                       <span className="text-muted-foreground">Tailnet</span>
-                      <span className="font-medium">{hostCfg.tailnet?.mode || "—"}</span>
+                      <span className="font-medium">{desired.tailnetMode || "—"}</span>
                     </div>
                     <div className="flex items-center justify-between gap-3">
                       <span className="text-muted-foreground">SSH exposure</span>
-                      <span className="font-medium">{hostCfg.sshExposure?.mode || "—"}</span>
+                      <span className="font-medium">{desired.sshExposureMode || "—"}</span>
                     </div>
                     <div className="flex items-center justify-between gap-3">
-                      <span className="text-muted-foreground">Disk device</span>
-                      <span className="font-medium">{hostCfg.diskDevice || "—"}</span>
+                      <span className="text-muted-foreground">Gateway architecture</span>
+                      <span className="font-medium">{desired.gatewayArchitecture || "—"}</span>
                     </div>
                     <div className="flex items-center justify-between gap-3">
-                      <span className="text-muted-foreground">Provider region</span>
-                      <span className="font-medium">{hostCfg.provisioning?.provider === "aws" ? hostCfg.aws?.region || "—" : hostCfg.hetzner?.location || "—"}</span>
+                      <span className="text-muted-foreground">Gateways</span>
+                      <span className="font-medium">{typeof desired.gatewayCount === "number" ? desired.gatewayCount : "—"}</span>
                     </div>
                     <div className="flex items-center justify-between gap-3">
-                      <span className="text-muted-foreground">Admin CIDR</span>
-                      <span className="font-medium">{hostCfg.provisioning?.adminCidr || "—"}</span>
+                      <span className="text-muted-foreground">Last status</span>
+                      <span className="font-medium">{hostSummary.lastStatus || "—"}</span>
                     </div>
                   </CardContent>
                 </Card>

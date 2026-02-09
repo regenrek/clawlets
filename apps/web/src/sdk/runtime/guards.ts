@@ -1,7 +1,7 @@
 import { api } from "../../../convex/_generated/api"
 import type { Id } from "../../../convex/_generated/dataModel"
 import type { ConvexClient } from "~/server/convex"
-import { getAdminProjectContext, type ProjectContext } from "~/sdk/project"
+import { requireAdminProjectAccess, type ProjectAccess } from "~/sdk/project"
 import { assertRunBoundToProject } from "./binding"
 
 export async function requireAdminAndBoundRun(params: {
@@ -10,9 +10,9 @@ export async function requireAdminAndBoundRun(params: {
   runId: Id<"runs">
   expectedKind: string
   requireRunning?: boolean
-}): Promise<ProjectContext & { run: { kind: string; status: string } }> {
-  const context = await getAdminProjectContext(params.client, params.projectId)
-  const runGet = await params.client.query(api.runs.get, { runId: params.runId })
+}): Promise<ProjectAccess & { run: { kind: string; status: string } }> {
+  const context = await requireAdminProjectAccess(params.client, params.projectId)
+  const runGet = await params.client.query(api.controlPlane.runs.get, { runId: params.runId })
 
   assertRunBoundToProject({
     runId: params.runId,

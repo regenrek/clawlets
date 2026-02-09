@@ -44,6 +44,17 @@
       }
     ]
   },
+  "cloudflare-ai-gateway": {
+    "auth": "apiKey",
+    "credentials": [
+      {
+        "id": "api_key",
+        "anyOfEnv": [
+          "CLOUDFLARE_AI_GATEWAY_API_KEY"
+        ]
+      }
+    ]
+  },
   "deepgram": {
     "auth": "apiKey",
     "credentials": [
@@ -160,6 +171,17 @@
       }
     ]
   },
+  "ollama": {
+    "auth": "apiKey",
+    "credentials": [
+      {
+        "id": "api_key",
+        "anyOfEnv": [
+          "OLLAMA_API_KEY"
+        ]
+      }
+    ]
+  },
   "openai": {
     "auth": "apiKey",
     "credentials": [
@@ -194,6 +216,17 @@
         "id": "api_key",
         "anyOfEnv": [
           "OPENROUTER_API_KEY"
+        ]
+      }
+    ]
+  },
+  "qianfan": {
+    "auth": "apiKey",
+    "credentials": [
+      {
+        "id": "api_key",
+        "anyOfEnv": [
+          "QIANFAN_API_KEY"
         ]
       }
     ]
@@ -244,6 +277,17 @@
         "id": "api_key",
         "anyOfEnv": [
           "AI_GATEWAY_API_KEY"
+        ]
+      }
+    ]
+  },
+  "voyage": {
+    "auth": "apiKey",
+    "credentials": [
+      {
+        "id": "api_key",
+        "anyOfEnv": [
+          "VOYAGE_API_KEY"
         ]
       }
     ]

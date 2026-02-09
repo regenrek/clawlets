@@ -50,7 +50,7 @@ export function makeConfig(params?: {
   fleetOverrides?: Record<string, unknown>;
 }): ClawletsConfig {
   const hostName = params?.hostName ?? "alpha";
-  const host = { ...baseHost, ...(params?.hostOverrides ?? {}) };
+  const host = { ...baseHost, ...params?.hostOverrides };
   const fleet = {
     secretEnv: {},
     secretFiles: {},
@@ -58,10 +58,10 @@ export function makeConfig(params?: {
     sshKnownHosts: [] as string[],
     codex: { enable: false, gateways: [] },
     backups: { restic: { enable: false, repository: "" } },
-    ...(params?.fleetOverrides ?? {}),
+    ...params?.fleetOverrides,
   };
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     defaultHost: hostName,
     baseFlake: "",
     fleet,

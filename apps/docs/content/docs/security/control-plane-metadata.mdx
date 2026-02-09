@@ -1,0 +1,95 @@
+---
+title: Control Plane Metadata
+description: How the control plane stays metadata-only and what that means in daily operations.
+---
+
+This page defines the trust boundary between the dashboard control plane and the
+execution side of Clawlets.
+
+The important idea: the control plane coordinates work and stores state for the UI, but
+secret material and operator credentials stay on runner/operator systems.
+
+## Mental model
+
+- Git is source of truth for config and encrypted secrets.
+- Runner executes sensitive operations (Git, SOPS, SSH, local env updates).
+- Control plane stores metadata required to coordinate jobs and render status.
+
+If you keep this split clear, operators can use dashboard visibility without placing
+plaintext credentials into control-plane storage.
+
+## What the control plane stores
+
+Control-plane storage is metadata that helps with coordination and observability:
+
+- run timeline, status, and redacted event logs
+- host and gateway status summaries
+- secret wiring status (`configured`, `missing`, etc.) without values
+- runner heartbeat and capability flags
+- queued/running/completed job state for scheduling and retries
+
+## What the control plane must not store
+
+- plaintext secret values
+- deploy credentials from `.clawlets/env`
+- operator private keys
+- OpenTofu/Terraform state
+- full unbounded config blobs
+
+<Callout type="warning" title="Operational rule">
+  If a value would let someone authenticate to cloud, Git, SSH, or app services, it
+  should not be persisted in control-plane records.
+</Callout>
+
+## How data flows in practice
+
+<Steps>
+  <Step>
+    Operator action in UI creates a job request and bounded metadata.
+  </Step>
+  <Step>
+    Runner leases the job and executes sensitive work locally (repo + keys + secrets path).
+  </Step>
+  <Step>
+    Runner reports status/events back as redacted metadata.
+  </Step>
+  <Step>
+    Dashboard reads metadata to show progress, history, and current state.
+  </Step>
+</Steps>
+
+For protocol details: [Runner agent](/operations/runner-agent), [Deploy credentials](/dashboard/deploy-credentials), [Architecture](/security/architecture).
+
+## Retention and erasure
+
+- Retention is enforced by scheduled cleanup jobs (not database TTL indexes).
+- Default operational retention is 30 days for run/audit timeline data.
+- Project deletion removes control-plane project data in staged batches.
+
+Deletion scope is control-plane only. Git history, external repos, and host-local files
+are outside this erasure boundary.
+
+## Git write policy
+
+- Default policy is PR-first (`pr_only`).
+- Direct commits require explicit project opt-in.
+- Policy changes are auditable.
+
+## Verify the boundary
+
+- In setup/credentials UI, confirm provider tokens stay local (`.clawlets/env`) and are shown as status only.
+- In run history, verify events are redacted and do not include plaintext tokens/keys.
+- In troubleshooting, treat any secret-like appearance as an incident and rotate immediately.
+
+## Troubleshooting
+
+### Secret-like value appears in logs or UI
+
+1. Rotate the exposed credential immediately.
+2. Remove/redact the offending output source in runner/command logs.
+3. Re-run and confirm only redacted metadata is persisted.
+
+### Deletion did not remove external data
+
+This is expected when data lives outside the control plane. Project deletion does not
+rewrite Git history or external systems.

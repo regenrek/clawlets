@@ -1,9 +1,12 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { convexQuery } from "@convex-dev/react-query"
+import { useMutation, useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { useMemo, useState } from "react"
 import { toast } from "sonner"
 import type { Id } from "../../../convex/_generated/dataModel"
+import { api } from "../../../convex/_generated/api"
 import { RunLogTail } from "~/components/run-log-tail"
+import { RunnerStatusBanner } from "~/components/fleet/runner-status-banner"
 import { BootstrapChecklist } from "~/components/hosts/bootstrap-checklist"
 import { BootstrapDeploySourceSection } from "~/components/hosts/bootstrap-deploy-source"
 import { Badge } from "~/components/ui/badge"
@@ -24,8 +27,8 @@ import {
 } from "~/components/ui/alert-dialog"
 import { canBootstrapFromDoctorGate } from "~/lib/bootstrap-gate"
 import { useProjectBySlug } from "~/lib/project-data"
+import { isProjectRunnerOnline } from "~/lib/setup/runner-status"
 import { setupFieldHelp } from "~/lib/setup-field-help"
-import { getClawletsConfig } from "~/sdk/config"
 import { getDeployCredsStatus } from "~/sdk/infra"
 import { gitPushExecute, gitRepoStatus } from "~/sdk/vcs"
 import { bootstrapExecute, bootstrapStart, runDoctor } from "~/sdk/infra"
@@ -45,22 +48,26 @@ export function DeployInitialInstall({
 }: DeployInitialInstallProps) {
   const projectQuery = useProjectBySlug(projectSlug)
   const projectId = projectQuery.projectId
-  const queryClient = useQueryClient()
-  const cfg = useQuery({
-    queryKey: ["clawletsConfig", projectId],
-    queryFn: async () =>
-      await getClawletsConfig({ data: { projectId: projectId as Id<"projects"> } }),
+  const hostsQuery = useQuery({
+    ...convexQuery(api.controlPlane.hosts.listByProject, { projectId: projectId as Id<"projects"> }),
     enabled: Boolean(projectId),
+    gcTime: 5_000,
   })
+  const runnersQuery = useQuery({
+    ...convexQuery(api.controlPlane.runners.listByProject, { projectId: projectId as Id<"projects"> }),
+    enabled: Boolean(projectId),
+    gcTime: 5_000,
+  })
+  const runnerOnline = useMemo(() => isProjectRunnerOnline(runnersQuery.data ?? []), [runnersQuery.data])
+
   const creds = useQuery({
     queryKey: ["deployCreds", projectId],
     queryFn: async () =>
       await getDeployCredsStatus({ data: { projectId: projectId as Id<"projects"> } }),
-    enabled: Boolean(projectId),
+    enabled: Boolean(projectId && runnerOnline),
   })
-  const config = cfg.data?.config as any
-  const hostCfg = host && config?.hosts ? config.hosts[host] : null
-  const tailnetMode = String(hostCfg?.tailnet?.mode || "none")
+  const hostSummary = hostsQuery.data?.find((row) => row.hostName === host) ?? null
+  const tailnetMode = String(hostSummary?.desired?.tailnetMode || "none")
   const [mode, setMode] = useState<"nixos-anywhere" | "image">("nixos-anywhere")
   const [force, setForce] = useState(false)
   const [dryRun, setDryRun] = useState(false)
@@ -75,15 +82,17 @@ export function DeployInitialInstall({
       await gitRepoStatus({ data: { projectId: projectId as Id<"projects"> } }),
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    enabled: Boolean(projectId),
+    enabled: Boolean(projectId && runnerOnline),
   })
 
   const pushNow = useMutation({
-    mutationFn: async () =>
-      await gitPushExecute({ data: { projectId: projectId as Id<"projects"> } }),
+    mutationFn: async () => {
+      if (!runnerOnline) throw new Error("Runner offline. Start runner first.")
+      return await gitPushExecute({ data: { projectId: projectId as Id<"projects"> } })
+    },
     onSuccess: (res) => {
       if (res.ok) {
-        toast.info("Pushed to origin")
+        toast.info("Git push queued")
         void repoStatus.refetch()
       } else {
         toast.error("git push failed (see Runs for logs)")
@@ -95,20 +104,27 @@ export function DeployInitialInstall({
   })
 
   const doctorRun = useMutation({
-    mutationFn: async () =>
-      await runDoctor({
+    mutationFn: async () => {
+      if (!runnerOnline) throw new Error("Runner offline. Start runner first.")
+      return await runDoctor({
         data: { projectId: projectId as Id<"projects">, host, scope: "bootstrap" },
-      }),
+      })
+    },
     onSuccess: (res) => {
       setDoctor(res as any)
       toast.info(res.ok ? "Doctor ok" : "Doctor found issues")
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : String(err))
     },
   })
 
   const [runId, setRunId] = useState<Id<"runs"> | null>(null)
   const start = useMutation({
-    mutationFn: async () =>
-      await bootstrapStart({ data: { projectId: projectId as Id<"projects">, host, mode } }),
+    mutationFn: async () => {
+      if (!runnerOnline) throw new Error("Runner offline. Start runner first.")
+      return await bootstrapStart({ data: { projectId: projectId as Id<"projects">, host, mode } })
+    },
     onSuccess: (res) => {
       setRunId(res.runId)
       void bootstrapExecute({
@@ -124,6 +140,9 @@ export function DeployInitialInstall({
         },
       })
       toast.info("Initial install started")
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : String(err))
     },
   })
 
@@ -146,7 +165,7 @@ export function DeployInitialInstall({
   const lockdownAfter = canAutoLockdown && lockdownAfterRequested
 
   const doctorGateOk = canBootstrapFromDoctorGate({ host, force, doctor })
-  const canBootstrap = doctorGateOk && !repoGateBlocked
+  const canBootstrap = runnerOnline && doctorGateOk && !repoGateBlocked
   const cliCmd = useMemo(() => {
     if (!host) return ""
     const parts = ["clawlets", "bootstrap", "--host", host, "--mode", mode]
@@ -167,14 +186,23 @@ export function DeployInitialInstall({
         <div className="text-sm text-destructive">{String(projectQuery.error)}</div>
       ) : !projectId ? (
         <div className="text-muted-foreground">Project not found.</div>
-      ) : cfg.isPending ? (
+      ) : hostsQuery.isPending ? (
         <div className="text-muted-foreground">Loading…</div>
-      ) : cfg.error ? (
-        <div className="text-sm text-destructive">{String(cfg.error)}</div>
-      ) : !config ? (
-        <div className="text-muted-foreground">Missing config.</div>
+      ) : hostsQuery.error ? (
+        <div className="text-sm text-destructive">{String(hostsQuery.error)}</div>
       ) : (
         <div className="space-y-6">
+          <RunnerStatusBanner
+            projectId={projectId as Id<"projects">}
+            setupHref={`/${projectSlug}/hosts/${host}/setup`}
+            runnerOnline={runnerOnline}
+            isChecking={runnersQuery.isPending}
+          />
+          {!hostSummary ? (
+            <div className="rounded-md border border-amber-300/40 bg-amber-50/60 px-3 py-2 text-xs text-amber-900">
+              Host metadata not synced yet. Showing defaults until runner sync.
+            </div>
+          ) : null}
           <div className="rounded-lg border bg-card p-6 space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
@@ -210,7 +238,10 @@ export function DeployInitialInstall({
                   data: repoStatus.data,
                 }}
                 formatSha={formatSha}
-                onRefresh={() => void repoStatus.refetch()}
+                onRefresh={() => {
+                  if (!runnerOnline) return
+                  void repoStatus.refetch()
+                }}
                 onPushNow={() => pushNow.mutate()}
                 isPushing={pushNow.isPending}
               />
@@ -270,7 +301,12 @@ export function DeployInitialInstall({
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <Button type="button" variant="outline" disabled={doctorRun.isPending || !host} onClick={() => doctorRun.mutate()}>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={doctorRun.isPending || !host || !runnerOnline}
+                onClick={() => doctorRun.mutate()}
+              >
                 Run preflight doctor
               </Button>
               <AlertDialog>
@@ -301,7 +337,9 @@ export function DeployInitialInstall({
               </AlertDialog>
               {!canBootstrap ? (
                 <div className="text-xs text-muted-foreground">
-                  {repoGateBlocked
+                  {!runnerOnline
+                    ? "Start runner to run doctor and deploy."
+                    : repoGateBlocked
                     ? (localSelected
                       ? "Push your local commit (Local deploy), or switch to Remote deploy."
                       : "Configure a git remote and push at least once, then refresh.")
@@ -330,13 +368,18 @@ export function DeployInitialInstall({
                 type="button"
                 variant="outline"
                 size="sm"
-                disabled={creds.isFetching}
-                onClick={() => void creds.refetch()}
+                disabled={creds.isFetching || !runnerOnline}
+                onClick={() => {
+                  if (!runnerOnline) return
+                  void creds.refetch()
+                }}
               >
                 Refresh
               </Button>
             </div>
-            {creds.isPending ? (
+            {!runnerOnline ? (
+              <div className="text-muted-foreground text-sm">Runner offline. Start runner to read deploy credentials.</div>
+            ) : creds.isPending ? (
               <div className="text-muted-foreground text-sm">Loading…</div>
             ) : creds.error ? (
               <div className="text-sm text-destructive">{String(creds.error)}</div>
@@ -389,7 +432,6 @@ export function DeployInitialInstall({
             <RunLogTail
               runId={runId}
               onDone={(status) => {
-                void queryClient.invalidateQueries({ queryKey: ["clawletsConfig", projectId] })
                 if (status === "succeeded") onBootstrapped?.()
               }}
             />
@@ -397,7 +439,11 @@ export function DeployInitialInstall({
 
           {host ? (
             <div id="lockdown">
-              <BootstrapChecklist projectId={projectId as Id<"projects">} host={host} config={config} />
+              <BootstrapChecklist
+                projectId={projectId as Id<"projects">}
+                host={host}
+                hostDesired={hostSummary?.desired ?? null}
+              />
             </div>
           ) : null}
         </div>
@@ -430,4 +476,3 @@ export function DeployInitialInstall({
     </div>
   )
 }
-

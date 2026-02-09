@@ -1,104 +1,123 @@
 import { createServerFn } from "@tanstack/react-start"
 import {
-  ClawletsConfigSchema,
-  type ClawletsConfig,
   assertSafeHostName,
-  loadClawletsConfig,
-  loadClawletsConfigRaw,
-  writeClawletsConfig,
 } from "@clawlets/core/lib/config/clawlets-config"
+import { generateHostName as generateRandomHostName } from "@clawlets/core/lib/host/host-name-generator"
 import { parseSshPublicKeysFromText } from "@clawlets/core/lib/security/ssh"
 import { parseKnownHostsFromText } from "@clawlets/core/lib/security/ssh-files"
 import { api } from "../../../convex/_generated/api"
 import { createConvexClient } from "~/server/convex"
-import { readClawletsEnvTokens } from "~/server/redaction"
-import { getAdminProjectContext } from "~/sdk/project"
-import { parseProjectIdInput, parseProjectSshKeysInput } from "~/sdk/runtime"
-import { runWithEventsAndStatus } from "~/sdk/runtime/server"
+import { isProjectRunnerOnline } from "~/lib/setup/runner-status"
+import { requireAdminProjectAccess } from "~/sdk/project"
+import {
+  coerceString,
+  coerceTrimmedString,
+  enqueueRunnerCommand,
+  lastErrorMessage,
+  listRunMessages,
+  parseProjectIdInput,
+  parseProjectSshKeysInput,
+  waitForRunTerminal,
+} from "~/sdk/runtime"
+import { configDotBatch, configDotGet, configDotSet } from "./dot"
+
+const HOST_ADD_SYNC_WAIT_MS = 8_000
+
+function asStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return value.map((entry) => coerceTrimmedString(entry)).filter(Boolean)
+}
 
 export const addHost = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => {
     const base = parseProjectIdInput(data)
     const d = data as Record<string, unknown>
-    return { ...base, host: String(d["host"] || "") }
+    return { ...base, host: coerceString(d["host"]) }
   })
   .handler(async ({ data }) => {
-    const client = createConvexClient()
-    const { repoRoot } = await getAdminProjectContext(client, data.projectId)
-    const redactTokens = await readClawletsEnvTokens(repoRoot)
-    const { configPath, config: raw } = loadClawletsConfigRaw({ repoRoot })
-
     const host = data.host.trim()
     assertSafeHostName(host)
 
-    const next = structuredClone(raw) as any
-    next.hosts = next.hosts && typeof next.hosts === "object" && !Array.isArray(next.hosts) ? next.hosts : {}
-    if (next.hosts[host]) return { ok: true as const }
-    next.hosts[host] = {}
-    if (!next.defaultHost) next.defaultHost = host
+    const client = createConvexClient()
+    await requireAdminProjectAccess(client, data.projectId)
 
-    const validated = ClawletsConfigSchema.parse(next)
-    const { runId } = await client.mutation(api.runs.create, {
-      projectId: data.projectId,
-      kind: "config_write",
-      title: `host add ${host}`,
-      host,
-    })
-    return await runWithEventsAndStatus({
+    const runners = await client.query(api.controlPlane.runners.listByProject, { projectId: data.projectId })
+    if (!isProjectRunnerOnline(runners)) {
+      throw new Error("Runner offline. Start runner first.")
+    }
+    const hostRows = await client.query(api.controlPlane.hosts.listByProject, { projectId: data.projectId })
+    if (hostRows.some((row) => String(row?.hostName || "").trim() === host)) {
+      return { ok: true as const, queued: false as const, alreadyExists: true as const }
+    }
+
+    const queued = await enqueueRunnerCommand({
       client,
-      runId,
-      redactTokens,
-      fn: async (emit) => {
-        await emit({ level: "info", message: `Adding host ${host}` })
-        await writeClawletsConfig({ configPath, config: validated })
-      },
-      onSuccess: () => ({ ok: true as const, runId }),
+      projectId: data.projectId,
+      runKind: "config_write",
+      title: `host add ${host}`,
+      args: ["config", "host", "add", "--host", host],
+      note: "dashboard host add",
     })
+    const terminal = await waitForRunTerminal({
+      client,
+      projectId: data.projectId,
+      runId: queued.runId,
+      timeoutMs: HOST_ADD_SYNC_WAIT_MS,
+    })
+    if (terminal.status === "failed" || terminal.status === "canceled") {
+      const messages = await listRunMessages({ client, runId: queued.runId, limit: 300 })
+      throw new Error(terminal.errorMessage || lastErrorMessage(messages, "host add failed"))
+    }
+    if (terminal.status !== "succeeded") {
+      return { ok: true as const, runId: queued.runId, jobId: queued.jobId, queued: true as const }
+    }
+
+    await client.mutation(api.controlPlane.hosts.upsert, {
+      projectId: data.projectId,
+      hostName: host,
+      patch: {},
+    })
+
+    return { ok: true as const, runId: queued.runId, jobId: queued.jobId, queued: false as const }
+  })
+
+export const generateHostName = createServerFn({ method: "POST" })
+  .inputValidator(parseProjectIdInput)
+  .handler(async ({ data }) => {
+    const client = createConvexClient()
+    await requireAdminProjectAccess(client, data.projectId)
+    const hostRows = await client.query(api.controlPlane.hosts.listByProject, { projectId: data.projectId })
+    const existingHosts = (hostRows || [])
+      .map((row) => (typeof row?.hostName === "string" ? row.hostName.trim() : ""))
+      .filter(Boolean)
+    return { host: generateRandomHostName({ existingHosts }) }
   })
 
 export const addProjectSshKeys = createServerFn({ method: "POST" })
   .inputValidator(parseProjectSshKeysInput)
   .handler(async ({ data }) => {
-    const client = createConvexClient()
-    const { repoRoot } = await getAdminProjectContext(client, data.projectId)
-    const redactTokens = await readClawletsEnvTokens(repoRoot)
-    const { configPath, config } = loadClawletsConfig({ repoRoot })
-
     if (!data.keyText.trim() && !data.knownHostsText.trim()) {
       throw new Error("no ssh keys or known_hosts entries provided")
     }
     const keysFromText = data.keyText.trim() ? parseSshPublicKeysFromText(data.keyText) : []
-    const mergedKeys = Array.from(new Set([...(config.fleet.sshAuthorizedKeys || []), ...keysFromText]))
-
     const knownHostsFromText = data.knownHostsText.trim() ? parseKnownHostsFromText(data.knownHostsText) : []
-    const mergedKnownHosts = Array.from(
-      new Set([...(config.fleet.sshKnownHosts || []), ...knownHostsFromText]),
-    )
+    const [existingKeysNode, existingKnownHostsNode] = await Promise.all([
+      configDotGet({ data: { projectId: data.projectId, path: "fleet.sshAuthorizedKeys" } }),
+      configDotGet({ data: { projectId: data.projectId, path: "fleet.sshKnownHosts" } }),
+    ])
+    const existingKeys = asStringArray(existingKeysNode.value)
+    const existingKnownHosts = asStringArray(existingKnownHostsNode.value)
+    const mergedKeys = Array.from(new Set([...existingKeys, ...keysFromText]))
+    const mergedKnownHosts = Array.from(new Set([...existingKnownHosts, ...knownHostsFromText]))
 
-    const next: ClawletsConfig = ClawletsConfigSchema.parse({
-      ...config,
-      fleet: {
-        ...config.fleet,
-        sshAuthorizedKeys: mergedKeys,
-        sshKnownHosts: mergedKnownHosts,
+    return await configDotBatch({
+      data: {
+        projectId: data.projectId,
+        ops: [
+          { path: "fleet.sshAuthorizedKeys", valueJson: JSON.stringify(mergedKeys), del: false },
+          { path: "fleet.sshKnownHosts", valueJson: JSON.stringify(mergedKnownHosts), del: false },
+        ],
       },
-    })
-
-    const { runId } = await client.mutation(api.runs.create, {
-      projectId: data.projectId,
-      kind: "config_write",
-      title: "project ssh keys",
-    })
-
-    return await runWithEventsAndStatus({
-      client,
-      runId,
-      redactTokens,
-      fn: async (emit) => {
-        await emit({ level: "info", message: "Updating project SSH keys" })
-        await writeClawletsConfig({ configPath, config: next })
-      },
-      onSuccess: () => ({ ok: true as const, runId }),
     })
   })
 
@@ -106,43 +125,22 @@ export const removeProjectSshAuthorizedKey = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => {
     const base = parseProjectIdInput(data)
     const d = data as Record<string, unknown>
-    return { ...base, key: String(d["key"] || "") }
+    return { ...base, key: coerceString(d["key"]) }
   })
   .handler(async ({ data }) => {
-    const client = createConvexClient()
-    const { repoRoot } = await getAdminProjectContext(client, data.projectId)
-    const redactTokens = await readClawletsEnvTokens(repoRoot)
-    const { configPath, config } = loadClawletsConfig({ repoRoot })
-
     const key = data.key.trim()
     if (!key) throw new Error("missing key")
-
-    const existingKeys = config.fleet.sshAuthorizedKeys || []
+    const node = await configDotGet({
+      data: { projectId: data.projectId, path: "fleet.sshAuthorizedKeys" },
+    })
+    const existingKeys = asStringArray(node.value)
     if (!existingKeys.includes(key)) throw new Error("key not found")
-
-    const next: ClawletsConfig = ClawletsConfigSchema.parse({
-      ...config,
-      fleet: {
-        ...config.fleet,
-        sshAuthorizedKeys: existingKeys.filter((k) => k !== key),
+    return await configDotSet({
+      data: {
+        projectId: data.projectId,
+        path: "fleet.sshAuthorizedKeys",
+        valueJson: JSON.stringify(existingKeys.filter((entry) => entry !== key)),
       },
-    })
-
-    const { runId } = await client.mutation(api.runs.create, {
-      projectId: data.projectId,
-      kind: "config_write",
-      title: "project ssh key rm",
-    })
-
-    return await runWithEventsAndStatus({
-      client,
-      runId,
-      redactTokens,
-      fn: async (emit) => {
-        await emit({ level: "info", message: "Removing SSH authorized key" })
-        await writeClawletsConfig({ configPath, config: next })
-      },
-      onSuccess: () => ({ ok: true as const, runId }),
     })
   })
 
@@ -150,42 +148,21 @@ export const removeProjectSshKnownHost = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => {
     const base = parseProjectIdInput(data)
     const d = data as Record<string, unknown>
-    return { ...base, entry: String(d["entry"] || "") }
+    return { ...base, entry: coerceString(d["entry"]) }
   })
   .handler(async ({ data }) => {
-    const client = createConvexClient()
-    const { repoRoot } = await getAdminProjectContext(client, data.projectId)
-    const redactTokens = await readClawletsEnvTokens(repoRoot)
-    const { configPath, config } = loadClawletsConfig({ repoRoot })
-
     const entry = data.entry.trim()
     if (!entry) throw new Error("missing known_hosts entry")
-
-    const existing = config.fleet.sshKnownHosts || []
+    const node = await configDotGet({
+      data: { projectId: data.projectId, path: "fleet.sshKnownHosts" },
+    })
+    const existing = asStringArray(node.value)
     if (!existing.includes(entry)) throw new Error("known_hosts entry not found")
-
-    const next: ClawletsConfig = ClawletsConfigSchema.parse({
-      ...config,
-      fleet: {
-        ...config.fleet,
-        sshKnownHosts: existing.filter((e) => e !== entry),
+    return await configDotSet({
+      data: {
+        projectId: data.projectId,
+        path: "fleet.sshKnownHosts",
+        valueJson: JSON.stringify(existing.filter((value) => value !== entry)),
       },
-    })
-
-    const { runId } = await client.mutation(api.runs.create, {
-      projectId: data.projectId,
-      kind: "config_write",
-      title: "project known-host rm",
-    })
-
-    return await runWithEventsAndStatus({
-      client,
-      runId,
-      redactTokens,
-      fn: async (emit) => {
-        await emit({ level: "info", message: "Removing known_hosts entry" })
-        await writeClawletsConfig({ configPath, config: next })
-      },
-      onSuccess: () => ({ ok: true as const, runId }),
     })
   })

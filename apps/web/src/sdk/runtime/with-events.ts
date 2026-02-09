@@ -27,21 +27,28 @@ export async function runWithEventsAndStatus<T>(params: {
         const safeMessage = sanitizeErrorMessage(err, "post-run cleanup failed")
         const message = safeMessage === "post-run cleanup failed" ? safeMessage : `post-run cleanup failed: ${safeMessage}`
         try {
-          await params.client.mutation(api.runEvents.appendBatch, {
+          await params.client.mutation(api.controlPlane.runEvents.appendBatch, {
             runId: params.runId,
-            events: [{ ts: Date.now(), level: "warn", message }],
+            events: [
+              {
+                ts: Date.now(),
+                level: "warn",
+                message,
+                meta: { kind: "phase", phase: "post_run_cleanup" },
+              },
+            ],
           })
         } catch {
           // ignore post-run event failures
         }
       }
     }
-    await params.client.mutation(api.runs.setStatus, { runId: params.runId, status: "succeeded" })
+    await params.client.mutation(api.controlPlane.runs.setStatus, { runId: params.runId, status: "succeeded" })
     return params.onSuccess()
   } catch (err) {
     const safeMessage = sanitizeErrorMessage(err, "run failed")
-    await params.client.mutation(api.runs.setStatus, { runId: params.runId, status: "failed", errorMessage: safeMessage })
+    await params.client.mutation(api.controlPlane.runs.setStatus, { runId: params.runId, status: "failed", errorMessage: safeMessage })
     if (params.onError) return params.onError(safeMessage)
-    throw new Error(safeMessage)
+    throw new Error(safeMessage, { cause: err })
   }
 }

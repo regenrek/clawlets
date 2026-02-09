@@ -138,13 +138,13 @@ function setConfig(hostOverrides: Partial<typeof baseHost>) {
   const provisioning = {
     ...baseHost.provisioning,
     sshPubkeyFile: defaultPubkeyFile,
-    ...(hostOverrides.provisioning || {}),
+    ...hostOverrides.provisioning,
   };
   loadClawletsConfigMock.mockReturnValue({
     layout: getRepoLayout("/repo"),
     configPath: "/repo/fleet/clawlets.json",
     config: {
-      schemaVersion: 1,
+      schemaVersion: 2,
       defaultHost: hostName,
       baseFlake: "",
       fleet: {

@@ -8,19 +8,38 @@
  * @module
  */
 
-import type * as auditLogs from "../auditLogs.js";
 import type * as auth from "../auth.js";
+import type * as controlPlane_gateways from "../controlPlane/gateways.js";
+import type * as controlPlane_hosts from "../controlPlane/hosts.js";
+import type * as controlPlane_httpParsers from "../controlPlane/httpParsers.js";
+import type * as controlPlane_jobState from "../controlPlane/jobState.js";
+import type * as controlPlane_jobs from "../controlPlane/jobs.js";
+import type * as controlPlane_projectConfigs from "../controlPlane/projectConfigs.js";
+import type * as controlPlane_projectErasure from "../controlPlane/projectErasure.js";
+import type * as controlPlane_projectErasureHelpers from "../controlPlane/projectErasureHelpers.js";
+import type * as controlPlane_projectPolicies from "../controlPlane/projectPolicies.js";
+import type * as controlPlane_projects from "../controlPlane/projects.js";
+import type * as controlPlane_runEvents from "../controlPlane/runEvents.js";
+import type * as controlPlane_runnerTokens from "../controlPlane/runnerTokens.js";
+import type * as controlPlane_runners from "../controlPlane/runners.js";
+import type * as controlPlane_runs from "../controlPlane/runs.js";
+import type * as controlPlane_secretWiring from "../controlPlane/secretWiring.js";
+import type * as crons from "../crons.js";
 import type * as http from "../http.js";
-import type * as lib_auth from "../lib/auth.js";
-import type * as lib_env from "../lib/env.js";
-import type * as lib_errors from "../lib/errors.js";
-import type * as lib_rateLimit from "../lib/rateLimit.js";
-import type * as lib_validators from "../lib/validators.js";
-import type * as maintenance from "../maintenance.js";
-import type * as projects from "../projects.js";
-import type * as runEvents from "../runEvents.js";
-import type * as runs from "../runs.js";
-import type * as users from "../users.js";
+import type * as identity_users from "../identity/users.js";
+import type * as ops_maintenance from "../ops/maintenance.js";
+import type * as ops_retention from "../ops/retention.js";
+import type * as ops_retentionHelpers from "../ops/retentionHelpers.js";
+import type * as security_auditLogs from "../security/auditLogs.js";
+import type * as shared_auth from "../shared/auth.js";
+import type * as shared_controlPlane from "../shared/controlPlane.js";
+import type * as shared_env from "../shared/env.js";
+import type * as shared_errors from "../shared/errors.js";
+import type * as shared_projectErasureStages from "../shared/projectErasureStages.js";
+import type * as shared_rateLimit from "../shared/rateLimit.js";
+import type * as shared_returnShapes from "../shared/returnShapes.js";
+import type * as shared_validators from "../shared/validators.js";
+import type * as shared_workspaceRef from "../shared/workspaceRef.js";
 
 import type {
   ApiFromModules,
@@ -29,19 +48,38 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  auditLogs: typeof auditLogs;
   auth: typeof auth;
+  "controlPlane/gateways": typeof controlPlane_gateways;
+  "controlPlane/hosts": typeof controlPlane_hosts;
+  "controlPlane/httpParsers": typeof controlPlane_httpParsers;
+  "controlPlane/jobState": typeof controlPlane_jobState;
+  "controlPlane/jobs": typeof controlPlane_jobs;
+  "controlPlane/projectConfigs": typeof controlPlane_projectConfigs;
+  "controlPlane/projectErasure": typeof controlPlane_projectErasure;
+  "controlPlane/projectErasureHelpers": typeof controlPlane_projectErasureHelpers;
+  "controlPlane/projectPolicies": typeof controlPlane_projectPolicies;
+  "controlPlane/projects": typeof controlPlane_projects;
+  "controlPlane/runEvents": typeof controlPlane_runEvents;
+  "controlPlane/runnerTokens": typeof controlPlane_runnerTokens;
+  "controlPlane/runners": typeof controlPlane_runners;
+  "controlPlane/runs": typeof controlPlane_runs;
+  "controlPlane/secretWiring": typeof controlPlane_secretWiring;
+  crons: typeof crons;
   http: typeof http;
-  "lib/auth": typeof lib_auth;
-  "lib/env": typeof lib_env;
-  "lib/errors": typeof lib_errors;
-  "lib/rateLimit": typeof lib_rateLimit;
-  "lib/validators": typeof lib_validators;
-  maintenance: typeof maintenance;
-  projects: typeof projects;
-  runEvents: typeof runEvents;
-  runs: typeof runs;
-  users: typeof users;
+  "identity/users": typeof identity_users;
+  "ops/maintenance": typeof ops_maintenance;
+  "ops/retention": typeof ops_retention;
+  "ops/retentionHelpers": typeof ops_retentionHelpers;
+  "security/auditLogs": typeof security_auditLogs;
+  "shared/auth": typeof shared_auth;
+  "shared/controlPlane": typeof shared_controlPlane;
+  "shared/env": typeof shared_env;
+  "shared/errors": typeof shared_errors;
+  "shared/projectErasureStages": typeof shared_projectErasureStages;
+  "shared/rateLimit": typeof shared_rateLimit;
+  "shared/returnShapes": typeof shared_returnShapes;
+  "shared/validators": typeof shared_validators;
+  "shared/workspaceRef": typeof shared_workspaceRef;
 }>;
 
 /**

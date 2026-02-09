@@ -1,0 +1,56 @@
+---
+title: Hetzner
+description: Recommended provider path for production fleets.
+---
+
+Hetzner is the current best-supported path in Clawlets. If you want the most tested
+bootstrap and day-2 behavior, use this provider path first.
+
+## Why this is the default path
+
+- Fully supported for bootstrap and lockdown workflows.
+- Main setup/install docs are authored against this path.
+- Operational troubleshooting coverage is strongest here.
+
+## Prereqs
+
+- Host config uses `hosts.<host>.provisioning.provider = "hetzner"`.
+- Deploy credentials include `HCLOUD_TOKEN`.
+- Host has required Hetzner fields in config (`serverType`, `location`, optional image).
+
+## Get a Hetzner API token
+
+Create an API token in Hetzner Cloud Console:
+
+- https://docs.hetzner.com/cloud/api/getting-started/generating-api-token
+
+Store it as `HCLOUD_TOKEN` in `.clawlets/env` (local-only, gitignored).
+
+## Setup steps (provider-specific)
+
+<Steps>
+  <Step>
+    Set provider: <code>clawlets host set --host &lt;host&gt; --provider hetzner</code>
+  </Step>
+  <Step>
+    Set host fields: <code>hosts.&lt;host&gt;.hetzner.serverType</code> and <code>hosts.&lt;host&gt;.hetzner.location</code>
+  </Step>
+  <Step>
+    Set <code>HCLOUD_TOKEN</code> in deploy credentials.
+  </Step>
+  <Step>
+    Run setup/deploy flow from dashboard or CLI bootstrap flow.
+  </Step>
+</Steps>
+
+## Verify
+
+- Setup `Provider Tokens` step completes with `HCLOUD_TOKEN` set.
+- Bootstrap run succeeds for the host.
+- Follow-up apply updates succeed without provider credential errors.
+
+## Links
+
+- [Setup](/dashboard/setup)
+- [Install](/operations/install)
+- [Deploy](/operations/deploy)

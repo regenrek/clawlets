@@ -19,7 +19,7 @@ export function getGatewayChannels(params: { config: unknown; host: string; gate
     openclawCfg?.channels && typeof openclawCfg.channels === "object" && !Array.isArray(openclawCfg.channels)
       ? Object.keys(openclawCfg.channels)
       : []
-  return Array.from(new Set([...typedChannels, ...openclawChannels])).sort()
+  return Array.from(new Set([...typedChannels, ...openclawChannels])).toSorted()
 }
 
 export function formatChannelsLabel(channels: string[]): string {
@@ -47,26 +47,37 @@ function getGatewayPort(params: { config: unknown; host: string; gatewayId: stri
   return null
 }
 
+export type GatewayRosterDetail = {
+  channels?: string[]
+  port?: number | null
+}
+
 export function GatewayRoster(props: {
   projectSlug: string
   host: string
   projectId: string
   gateways: string[]
-  config: any
+  config?: any
+  gatewayDetails?: Record<string, GatewayRosterDetail>
   canEdit: boolean
   emptyText?: string
 }) {
-  if (props.gateways.length === 0) {
-    return <div className="text-muted-foreground">{props.emptyText ?? "No gateways yet."}</div>
-  }
-
   const portByGateway = useMemo(() => {
     const next = new Map<string, number | null>()
     for (const gatewayId of props.gateways) {
-      next.set(gatewayId, getGatewayPort({ config: props.config, host: props.host, gatewayId }))
+      const detailedPort = props.gatewayDetails?.[gatewayId]?.port
+      if (typeof detailedPort === "number") {
+        next.set(gatewayId, detailedPort)
+        continue
+      }
+      if (props.config) {
+        next.set(gatewayId, getGatewayPort({ config: props.config, host: props.host, gatewayId }))
+        continue
+      }
+      next.set(gatewayId, null)
     }
     return next
-  }, [props.gateways, props.config])
+  }, [props.gateways, props.config, props.gatewayDetails, props.host])
 
   const portConflicts = useMemo(() => {
     const byPort = new Map<number, string[]>()
@@ -78,8 +89,12 @@ export function GatewayRoster(props: {
     }
     return Array.from(byPort.entries())
       .filter(([, gateways]) => gateways.length > 1)
-      .sort(([a], [b]) => a - b)
+      .toSorted(([a], [b]) => a - b)
   }, [portByGateway])
+
+  if (props.gateways.length === 0) {
+    return <div className="text-muted-foreground">{props.emptyText ?? "No gateways yet."}</div>
+  }
 
   return (
     <div className="w-full space-y-3">
@@ -99,7 +114,9 @@ export function GatewayRoster(props: {
       <div className="w-full overflow-hidden rounded-lg border">
         <ItemGroup className="gap-0">
           {props.gateways.map((gatewayId) => {
-            const channels = getGatewayChannels({ config: props.config, host: props.host, gatewayId })
+            const channels = props.gatewayDetails?.[gatewayId]?.channels
+              ? Array.from(new Set((props.gatewayDetails[gatewayId]?.channels || []).map((entry) => String(entry || "").trim()).filter(Boolean))).toSorted()
+              : (props.config ? getGatewayChannels({ config: props.config, host: props.host, gatewayId }) : [])
             const channelsLabel = formatChannelsLabel(channels)
             const port = portByGateway.get(gatewayId)
             const portLabel = typeof port === "number" ? `port ${port}` : null

@@ -6,9 +6,12 @@
     "index",
     "requirements",
     "convex-setup",
-    "local-dev",
     "first-login",
     "setup",
+    "openclaw-setup",
+    "deploy-credentials",
+    "how-clawlets-works",
+    "local-dev",
     "troubleshooting"
   ]
 }

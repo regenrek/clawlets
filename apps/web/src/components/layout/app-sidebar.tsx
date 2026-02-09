@@ -1,5 +1,6 @@
+import { convexQuery } from "@convex-dev/react-query"
 import { useQuery } from "@tanstack/react-query"
-import { Link, useRouter, useRouterState } from "@tanstack/react-router"
+import { Link, useRouterState } from "@tanstack/react-router"
 import * as React from "react"
 import {
   ArrowPathIcon,
@@ -18,6 +19,8 @@ import {
   SparklesIcon,
   UserGroupIcon,
 } from "@heroicons/react/24/outline"
+import type { Id } from "../../../convex/_generated/dataModel"
+import { api } from "../../../convex/_generated/api"
 import {
   Sidebar,
   SidebarContent,
@@ -38,6 +41,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Label } from "~/components/ui/label"
 import { HostThemeBadge } from "~/components/hosts/host-theme"
 import { NavUser } from "~/components/layout/nav-user"
+import { useProjectCreateModal } from "~/components/projects/project-create-modal-provider"
 import { useProjectBySlug, useProjectsList } from "~/lib/project-data"
 import {
   buildHostPath,
@@ -50,7 +54,6 @@ import {
   slugifyProjectName,
   storeLastProjectSlug,
 } from "~/lib/project-routing"
-import { clawletsConfigQueryOptions } from "~/lib/query-options"
 import { cn } from "~/lib/utils"
 
 function NavLink({
@@ -108,27 +111,35 @@ type NavItem = {
 }
 
 function AppSidebar() {
-  const router = useRouter()
+  const { openProjectCreateModal } = useProjectCreateModal()
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const instanceHost = getInstanceHostFromWindow()
   const projectSlug = parseProjectSlug(pathname)
   const activeHost = parseHostName(pathname)
   const projectsQuery = useProjectsList()
-  const projects = projectsQuery.data ?? []
+  const projects = projectsQuery.data
   const activeProject = React.useMemo(
     () =>
-      projectSlug
+      projectSlug && projects?.length
         ? projects.find((project) => slugifyProjectName(project.name) === projectSlug) || null
         : null,
     [projectSlug, projects],
   )
   const { projectId } = useProjectBySlug(projectSlug)
-  const configQuery = useQuery({
-    ...clawletsConfigQueryOptions(projectId),
+  const hostsQuery = useQuery({
+    ...convexQuery(api.controlPlane.hosts.listByProject, { projectId: projectId as Id<"projects"> }),
+    gcTime: 5_000,
     enabled: Boolean(projectId),
   })
-  const config = configQuery.data?.config as any
-  const activeHostTheme = activeHost ? (config?.hosts as any)?.[activeHost]?.theme : null
+  const hostByName = React.useMemo(
+    () => new Map((hostsQuery.data ?? []).map((row) => [row.hostName, row] as const)),
+    [hostsQuery.data],
+  )
+  const activeHostTheme = activeHost
+    ? (hostByName.get(activeHost)?.desired?.theme
+        ? { color: hostByName.get(activeHost)?.desired?.theme as any }
+        : null)
+    : null
   const [navQuery, setNavQuery] = React.useState("")
 
   if (!projectSlug) {
@@ -144,11 +155,8 @@ function AppSidebar() {
   const projectGlobalBase = buildProjectGlobalBase(projectSlug)
   const hostsBase = buildHostsPath(projectSlug)
   const hostBase = activeHost ? buildHostPath(projectSlug, activeHost) : null
-  const hostAwarePath = React.useCallback(
-    (hostSuffix: string, globalSlug: string) =>
-      hostBase ? `${hostBase}/${hostSuffix}` : `${projectGlobalBase}/${globalSlug}`,
-    [hostBase, projectGlobalBase],
-  )
+  const hostAwarePath = (hostSuffix: string, globalSlug: string) =>
+    hostBase ? `${hostBase}/${hostSuffix}` : `${projectGlobalBase}/${globalSlug}`
   const overviewIcon = activeHost ? (
     <HostThemeBadge theme={activeHostTheme} size="xs" />
   ) : null
@@ -162,10 +170,11 @@ function AppSidebar() {
       tooltip: hostBase ? "Single host overview." : "Fleet host overview.",
     },
     {
-      to: `${projectBase}/setup`,
+      to: hostBase ? `${hostBase}/setup` : `${projectBase}/setup`,
       label: "Setup",
       icon: CheckIcon,
-      tooltip: "Guided first deploy checklist.",
+      tooltip: "Server and OpenClaw setup guides.",
+      aliases: hostBase ? [`${hostBase}/openclaw-setup`] : undefined,
     },
     {
       to: hostAwarePath("deploy", "deploy"),
@@ -254,10 +263,10 @@ function AppSidebar() {
   const hasMatches =
     filteredInfra.length || filteredOpenclaw.length || filteredProject.length
 
-  const isActiveItem = React.useCallback((item: NavItem) => {
+  const isActiveItem = (item: NavItem) => {
     const targets = [item.to, ...(item.aliases ?? [])]
     return targets.some((target) => pathname === target || pathname.startsWith(`${target}/`))
-  }, [pathname])
+  }
 
   return (
     <Sidebar variant="sidebar" collapsible="icon">
@@ -285,8 +294,8 @@ function AppSidebar() {
               <DropdownMenuContent align="start">
                 {projectsQuery.isPending ? (
                   <DropdownMenuItem disabled>Loading projects...</DropdownMenuItem>
-                ) : projects.length ? (
-                  projects.map((project) => {
+                ) : (projects?.length ?? 0) > 0 ? (
+                  projects?.map((project) => {
                     const slug = slugifyProjectName(project.name)
                     const isActive = slug === projectSlug
                     return (
@@ -310,7 +319,7 @@ function AppSidebar() {
                   <DropdownMenuItem disabled>No projects</DropdownMenuItem>
                 )}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem nativeButton={false} render={<Link to="/projects/new" />}>
+                <DropdownMenuItem onClick={openProjectCreateModal}>
                   New project
                 </DropdownMenuItem>
                 <DropdownMenuItem nativeButton={false} render={<Link to="/projects" />}>
@@ -350,7 +359,7 @@ function AppSidebar() {
             <SidebarMenu>
               {filteredInfra.map((item) => (
                 <NavLink
-                  key={item.to}
+                  key={`${item.to}:${item.label}`}
                   item={item}
                   isActive={isActiveItem(item)}
                 />
@@ -366,7 +375,7 @@ function AppSidebar() {
               <SidebarMenu>
                 {filteredOpenclaw.map((item) => (
                   <NavLink
-                    key={item.to}
+                    key={`${item.to}:${item.label}`}
                     item={item}
                     isActive={isActiveItem(item)}
                   />
@@ -384,7 +393,7 @@ function AppSidebar() {
               <SidebarMenu>
                 {filteredProject.map((item) => (
                   <NavLink
-                    key={item.to}
+                    key={`${item.to}:${item.label}`}
                     item={item}
                     isActive={isActiveItem(item)}
                   />

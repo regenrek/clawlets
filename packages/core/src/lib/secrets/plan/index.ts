@@ -24,11 +24,17 @@ import {
 } from "./spec-aggregation.js";
 import { validateGatewaySecretFileTargetPath, validateHostSecretFileTargetPath } from "./target-path-policy.js";
 import type { FleetSecretsPlan, MissingFleetSecretConfig } from "./types.js";
+import type { SecretsPlanScope } from "../secrets-plan.js";
 
 export type { FleetSecretsPlan, MissingFleetSecretConfig } from "./types.js";
 
-export function buildFleetSecretsPlan(params: { config: ClawletsConfig; hostName: string }): FleetSecretsPlan {
+export function buildFleetSecretsPlan(params: {
+  config: ClawletsConfig;
+  hostName: string;
+  scope?: SecretsPlanScope | "all";
+}): FleetSecretsPlan {
   const hostName = params.hostName.trim();
+  const scope = params.scope ?? "all";
   const hostCfg = params.config.hosts[hostName];
   if (!hostCfg) throw new Error(`missing host in config.hosts: ${hostName}`);
 
@@ -95,7 +101,10 @@ export function buildFleetSecretsPlan(params: { config: ClawletsConfig; hostName
     "OPENCLAW_GATEWAY_TOKEN",
   ]);
 
-  for (const gatewayId of gateways) {
+  const shouldScanGateways = scope !== "bootstrap";
+  const gatewayIds = shouldScanGateways ? gateways : [];
+
+  for (const gatewayId of gatewayIds) {
     const gatewayCfgRaw = gatewayConfigs[gatewayId] || {};
     const gatewayCfg = gatewayCfgRaw as { profile?: { secretEnv?: unknown; secretFiles?: unknown } };
     const profile = gatewayCfg.profile || {};
@@ -148,7 +157,7 @@ export function buildFleetSecretsPlan(params: { config: ClawletsConfig; hostName
       envVarPathsByVar[canonical] = (envVarPathsByVar[canonical] || []).concat(paths);
     }
     const envVarRefs = {
-      vars: Object.keys(envVarPathsByVar).sort(),
+      vars: Object.keys(envVarPathsByVar).toSorted(),
       pathsByVar: envVarPathsByVar,
     };
 
@@ -193,7 +202,7 @@ export function buildFleetSecretsPlan(params: { config: ClawletsConfig; hostName
 
     normalizeEnvVarPaths(envVarPathsByVar);
 
-    const envVarsRequired = Array.from(requiredEnvBySource.keys()).sort();
+    const envVarsRequired = Array.from(requiredEnvBySource.keys()).toSorted();
     const envVarToSecretName: Record<string, string> = {};
     for (const envVar of envVarsRequired) {
       const secretName = String(secretEnv[envVar] || "").trim();
@@ -267,10 +276,10 @@ export function buildFleetSecretsPlan(params: { config: ClawletsConfig; hostName
   const { required, optional, scopes } = finalizeSecretSpecs(secretSpecs);
 
   return {
-    gateways,
-    hostSecretNamesRequired: Array.from(hostSecretNamesRequired).sort(),
-    secretNamesAll: Array.from(secretNamesAll).sort(),
-    secretNamesRequired: Array.from(secretNamesRequired).sort(),
+    gateways: gatewayIds,
+    hostSecretNamesRequired: Array.from(hostSecretNamesRequired).toSorted(),
+    secretNamesAll: Array.from(secretNamesAll).toSorted(),
+    secretNamesRequired: Array.from(secretNamesRequired).toSorted(),
     required,
     optional,
     scopes,

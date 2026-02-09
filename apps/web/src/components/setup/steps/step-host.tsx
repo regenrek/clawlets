@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation } from "@tanstack/react-query"
 import { useMemo, useState } from "react"
 import { toast } from "sonner"
 import type { Id } from "../../../../convex/_generated/dataModel"
@@ -15,7 +15,6 @@ export function SetupStepHost(props: {
   onSelectHost: (host: string) => void
   onContinue: () => void
 }) {
-  const queryClient = useQueryClient()
   const hosts = useMemo(() => Object.keys(props.config?.hosts || {}).sort(), [props.config])
   const [query, setQuery] = useState("")
   const normalizedQuery = query.trim().toLowerCase()
@@ -31,12 +30,13 @@ export function SetupStepHost(props: {
       if (!trimmed) throw new Error("Host name required")
       return await addHost({ data: { projectId: props.projectId, host: trimmed } })
     },
-    onSuccess: () => {
-      toast.success("Host added")
+    onSuccess: (result) => {
+      if (result.queued) toast.success("Host add queued. Runner still processing.")
+      else if (result.alreadyExists) toast.success("Host already exists")
+      else toast.success("Host added")
       const nextHost = newHost.trim()
       setNewHost("")
-      void queryClient.invalidateQueries({ queryKey: ["clawletsConfig", props.projectId] })
-      if (nextHost) props.onSelectHost(nextHost)
+      if (nextHost && !result.queued) props.onSelectHost(nextHost)
     },
     onError: (err) => {
       toast.error(err instanceof Error ? err.message : String(err))
@@ -126,4 +126,3 @@ export function SetupStepHost(props: {
     </div>
   )
 }
-
