@@ -8,108 +8,258 @@ const startStorage = globalObj[GLOBAL_STORAGE_KEY]
 const runWithStartContext = <T>(context: unknown, fn: () => Promise<T>) =>
   startStorage?.run(context, fn) as Promise<T>
 
-async function loadProjects(
-  role: "admin" | "viewer",
-  options: {
-    runProjectId?: string
-  } = {},
-) {
+type MutationPayload = {
+  executionMode?: string
+  kind?: string
+  workspaceRef?: { kind?: string; id?: string }
+  payloadMeta?: { args?: unknown } & Record<string, unknown>
+} & Record<string, unknown>
+
+async function loadProjectsModule() {
   vi.resetModules()
-  const initProject = vi.fn(async () => ({ plannedFiles: [], nextSteps: [] }))
-  const runWithEvents = vi.fn(async ({ fn }: { fn: (emit: (e: any) => Promise<void>) => Promise<void> }) => {
-    await fn(async () => {})
-  })
-  const mutation = vi.fn(async (_mutation: unknown, payload?: { kind?: string; status?: string; errorMessage?: string }) => {
-    if (payload?.kind) return { runId: "run1" }
+  const mutation = vi.fn(async (_mutation: unknown, payload?: Record<string, unknown>) => {
+    if (payload?.executionMode) return { projectId: "p1" }
+    if (typeof payload?.kind === "string" && !("payloadMeta" in (payload || {}))) return { runId: "r1" }
+    if (typeof payload?.kind === "string" && "payloadMeta" in (payload || {})) return { runId: "r1", jobId: "j1" }
+    if (typeof payload?.runnerName === "string") return { token: "tok_1" }
     return null
   })
-  const query = vi.fn(async (_query: unknown, args?: { runId?: string }) => {
-    if (args?.runId) return { run: { projectId: options.runProjectId ?? "p1" } }
-    return { project: { executionMode: "local", localPath: "/tmp" }, role }
-  })
 
-  vi.doMock("@clawlets/core/lib/project/project-init", () => ({
-    initProject,
-    planProjectInit: async () => ({ plannedFiles: [], nextSteps: [] }),
-  }))
   vi.doMock("~/server/convex", () => ({
-    createConvexClient: () => ({ mutation, query }) as any,
+    createConvexClient: () => ({ mutation }) as any,
   }))
-  vi.doMock("~/server/redaction", () => ({ readClawletsEnvTokens: async () => [] }))
-  vi.doMock("~/server/run-manager", () => ({ runWithEvents }))
-  vi.doMock("~/server/template-spec", () => ({ resolveTemplateSpec: () => "github:owner/repo" }))
 
   const mod = await import("~/sdk/project")
-  return { mod, initProject, runWithEvents, mutation }
+  return { mod, mutation }
 }
 
-describe("project create execute guard", () => {
-  it("blocks viewer and avoids side effects", async () => {
-    const { mod, initProject, runWithEvents, mutation } = await loadProjects("viewer")
-    await expect(
-      runWithStartContext(
-        { request: new Request("http://localhost"), contextAfterGlobalMiddlewares: {}, executedRequestMiddlewares: new Set() },
-        async () =>
-          await mod.projectCreateExecute({
-            data: {
-              projectId: "p1" as any,
-              runId: "run1" as any,
-              host: "openclaw-fleet-host",
-              templateSpec: { name: "default" } as any,
-              gitInit: true,
-            },
-          }),
-      ),
-    ).rejects.toThrow(/admin required/i)
-    expect(initProject).not.toHaveBeenCalled()
-    expect(runWithEvents).not.toHaveBeenCalled()
-    expect(mutation).not.toHaveBeenCalled()
-  })
-
-  it("allows admin and updates status", async () => {
-    const { mod, initProject, runWithEvents, mutation } = await loadProjects("admin")
-    const res = await runWithStartContext(
+describe("project create/import runner queue", () => {
+  it("queues remote project_init with structured payload and no args", async () => {
+    const { mod, mutation } = await loadProjectsModule()
+    const result = await runWithStartContext(
       { request: new Request("http://localhost"), contextAfterGlobalMiddlewares: {}, executedRequestMiddlewares: new Set() },
       async () =>
-        await mod.projectCreateExecute({
+        await mod.projectCreateStart({
           data: {
-            projectId: "p1" as any,
-            runId: "run1" as any,
-            host: "openclaw-fleet-host",
-            templateSpec: { name: "default" } as any,
-            gitInit: true,
+            name: "Fleet A",
+            runnerRepoPath: " ~/.clawlets//projects\\Fleet-A/ ",
+            host: "alpha",
+            runnerName: "runner-alpha",
+            templateRepo: "owner/repo",
+            templatePath: "templates/default",
+            templateRef: "main",
           },
         }),
     )
-    expect(res.ok).toBe(true)
-    expect(initProject).toHaveBeenCalled()
-    expect(runWithEvents).toHaveBeenCalled()
-    const statusUpdates = mutation.mock.calls
-      .map(([, payload]) => payload)
-      .filter((payload) => payload?.status)
-      .map((payload) => payload?.status)
-    expect(statusUpdates).toEqual(expect.arrayContaining(["ready", "succeeded"]))
+
+	    expect(result).toMatchObject({
+	      projectId: "p1",
+	      runId: "r1",
+      token: "tok_1",
+      runnerName: "runner-alpha",
+      runnerRepoPath: "~/.clawlets/projects/Fleet-A",
+      host: "alpha",
+    })
+
+	    const payloads = mutation.mock.calls.map(([, payload]) => (payload ?? {}) as MutationPayload)
+	    const createPayload = payloads
+	      .find((payload) => payload?.executionMode === "remote_runner")
+    expect(createPayload).toMatchObject({
+      executionMode: "remote_runner",
+      runnerRepoPath: "~/.clawlets/projects/Fleet-A",
+      workspaceRef: { kind: "git" },
+    })
+    expect(createPayload?.workspaceRef?.id).toMatch(/^seeded:sha256:[a-f0-9]{64}$/)
+
+	    const runPayload = payloads
+	      .find((payload) => payload?.kind === "project_init" && payload?.payloadMeta === undefined)
+    expect(runPayload).toMatchObject({
+      kind: "project_init",
+      title: "Create project",
+      host: "alpha",
+    })
+
+	    const enqueuePayload = payloads
+	      .find((payload) => payload?.kind === "project_init" && payload?.payloadMeta)
+    expect(enqueuePayload).toMatchObject({
+      kind: "project_init",
+      payloadMeta: {
+        hostName: "alpha",
+        templateRepo: "owner/repo",
+        templatePath: "templates/default",
+        templateRef: "main",
+      },
+    })
+    expect(enqueuePayload?.payloadMeta?.args).toBeUndefined()
   })
 
-  it("rejects runId mismatch and avoids side effects", async () => {
-    const { mod, initProject, runWithEvents, mutation } = await loadProjects("admin", { runProjectId: "p2" })
+  it("queues remote project_import with structured payload and canonical workspaceRef", async () => {
+    const { mod, mutation } = await loadProjectsModule()
+    const result = await runWithStartContext(
+      { request: new Request("http://localhost"), contextAfterGlobalMiddlewares: {}, executedRequestMiddlewares: new Set() },
+      async () =>
+        await mod.projectImport({
+          data: {
+            name: "Fleet B",
+            repoUrl: "git@GitHub.com:Owner/Repo.git",
+            runnerRepoPath: "~/.clawlets/projects/fleet-b/",
+            runnerName: "runner-beta",
+            branch: "main",
+            depth: "1",
+          },
+        }),
+    )
+
+	    expect(result).toMatchObject({
+	      projectId: "p1",
+	      runId: "r1",
+      token: "tok_1",
+      runnerName: "runner-beta",
+      runnerRepoPath: "~/.clawlets/projects/fleet-b",
+      repoUrl: "git@GitHub.com:Owner/Repo.git",
+    })
+
+	    const payloads = mutation.mock.calls.map(([, payload]) => (payload ?? {}) as MutationPayload)
+	    const createPayload = payloads
+	      .find((payload) => payload?.executionMode === "remote_runner")
+    expect(createPayload).toMatchObject({
+      executionMode: "remote_runner",
+      runnerRepoPath: "~/.clawlets/projects/fleet-b",
+      workspaceRef: { kind: "git", id: "git@github.com:Owner/Repo" },
+    })
+
+	    const runPayload = payloads
+	      .find((payload) => payload?.kind === "project_import" && payload?.payloadMeta === undefined)
+    expect(runPayload).toMatchObject({
+      kind: "project_import",
+      title: "Import project",
+    })
+
+	    const enqueuePayload = payloads
+	      .find((payload) => payload?.kind === "project_import" && payload?.payloadMeta)
+    expect(enqueuePayload).toMatchObject({
+      kind: "project_import",
+      payloadMeta: {
+        repoUrl: "git@GitHub.com:Owner/Repo.git",
+        branch: "main",
+        depth: 1,
+      },
+    })
+    expect(enqueuePayload?.payloadMeta?.args).toBeUndefined()
+  })
+
+  it("rejects project import for insecure repo protocols", async () => {
+    const { mod } = await loadProjectsModule()
     await expect(
       runWithStartContext(
         { request: new Request("http://localhost"), contextAfterGlobalMiddlewares: {}, executedRequestMiddlewares: new Set() },
         async () =>
-          await mod.projectCreateExecute({
+          await mod.projectImport({
             data: {
-              projectId: "p1" as any,
-              runId: "run1" as any,
-              host: "openclaw-fleet-host",
-              templateSpec: { name: "default" } as any,
-              gitInit: true,
+              name: "Fleet C",
+              repoUrl: "http://github.com/owner/repo.git",
+              runnerRepoPath: "~/.clawlets/projects/fleet-c",
+              runnerName: "runner-gamma",
             },
           }),
       ),
-    ).rejects.toThrow(/runid does not match project/i)
-    expect(initProject).not.toHaveBeenCalled()
-    expect(runWithEvents).not.toHaveBeenCalled()
-    expect(mutation).not.toHaveBeenCalled()
+    ).rejects.toThrow(/invalid protocol/i)
+
+    await expect(
+      runWithStartContext(
+        { request: new Request("http://localhost"), contextAfterGlobalMiddlewares: {}, executedRequestMiddlewares: new Set() },
+        async () =>
+          await mod.projectImport({
+            data: {
+              name: "Fleet C",
+              repoUrl: "git://github.com/owner/repo.git",
+              runnerRepoPath: "~/.clawlets/projects/fleet-c",
+              runnerName: "runner-gamma",
+            },
+          }),
+      ),
+    ).rejects.toThrow(/invalid protocol/i)
+  })
+
+  it("rejects project import for loopback and link-local repo hosts", async () => {
+    const { mod } = await loadProjectsModule()
+    await expect(
+      runWithStartContext(
+        { request: new Request("http://localhost"), contextAfterGlobalMiddlewares: {}, executedRequestMiddlewares: new Set() },
+        async () =>
+          await mod.projectImport({
+            data: {
+              name: "Fleet D",
+              repoUrl: "https://localhost/owner/repo.git",
+              runnerRepoPath: "~/.clawlets/projects/fleet-d",
+              runnerName: "runner-delta",
+            },
+          }),
+      ),
+    ).rejects.toThrow(/host is not allowed/i)
+
+    await expect(
+      runWithStartContext(
+        { request: new Request("http://localhost"), contextAfterGlobalMiddlewares: {}, executedRequestMiddlewares: new Set() },
+        async () =>
+          await mod.projectImport({
+            data: {
+              name: "Fleet D",
+              repoUrl: "git@[::1]:owner/repo.git",
+              runnerRepoPath: "~/.clawlets/projects/fleet-d",
+              runnerName: "runner-delta",
+            },
+          }),
+      ),
+    ).rejects.toThrow(/host is not allowed/i)
+
+    await expect(
+      runWithStartContext(
+        { request: new Request("http://localhost"), contextAfterGlobalMiddlewares: {}, executedRequestMiddlewares: new Set() },
+        async () =>
+          await mod.projectImport({
+            data: {
+              name: "Fleet D",
+              repoUrl: "https://169.254.169.254/owner/repo.git",
+              runnerRepoPath: "~/.clawlets/projects/fleet-d",
+              runnerName: "runner-delta",
+            },
+          }),
+      ),
+    ).rejects.toThrow(/host is not allowed/i)
+  })
+
+  it("rejects runnerRepoPath traversal in create/import inputs", async () => {
+    const { mod } = await loadProjectsModule()
+
+    await expect(
+      runWithStartContext(
+        { request: new Request("http://localhost"), contextAfterGlobalMiddlewares: {}, executedRequestMiddlewares: new Set() },
+        async () =>
+          await mod.projectCreateStart({
+            data: {
+              name: "Fleet E",
+              runnerRepoPath: "~/.clawlets/projects/../escape",
+              host: "alpha",
+              runnerName: "runner-echo",
+            },
+          }),
+      ),
+    ).rejects.toThrow(/cannot contain '\.\.' path segments/i)
+
+    await expect(
+      runWithStartContext(
+        { request: new Request("http://localhost"), contextAfterGlobalMiddlewares: {}, executedRequestMiddlewares: new Set() },
+        async () =>
+          await mod.projectImport({
+            data: {
+              name: "Fleet E",
+              repoUrl: "https://github.com/owner/repo.git",
+              runnerRepoPath: "~/.clawlets/projects/../escape",
+              runnerName: "runner-echo",
+            },
+          }),
+      ),
+    ).rejects.toThrow(/cannot contain '\.\.' path segments/i)
   })
 })

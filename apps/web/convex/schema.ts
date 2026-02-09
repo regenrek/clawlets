@@ -20,6 +20,7 @@ export const RunEventLevel = v.union(...literals(RUN_EVENT_LEVELS));
 export const HostStatus = v.union(...literals(HOST_STATUSES));
 export const RunnerStatus = v.union(...literals(RUNNER_STATUSES));
 export const SecretWiringScope = v.union(...literals(SECRET_WIRING_SCOPES));
+export const JobSecretScope = v.union(SecretWiringScope, v.literal("all"));
 export const SecretWiringStatus = v.union(...literals(SECRET_WIRING_STATUSES));
 export const JobStatus = v.union(...literals(JOB_STATUSES));
 export const RunEventMeta = v.union(
@@ -160,11 +161,17 @@ export const ProviderConfigSummary = v.object({
 export const JobPayloadMeta = v.object({
   hostName: v.optional(v.string()),
   gatewayId: v.optional(v.string()),
-  scope: v.optional(SecretWiringScope),
+  scope: v.optional(JobSecretScope),
   secretNames: v.optional(v.array(v.string())),
   configPaths: v.optional(v.array(v.string())),
   args: v.optional(v.array(v.string())),
   note: v.optional(v.string()),
+  repoUrl: v.optional(v.string()),
+  branch: v.optional(v.string()),
+  depth: v.optional(v.number()),
+  templateRepo: v.optional(v.string()),
+  templatePath: v.optional(v.string()),
+  templateRef: v.optional(v.string()),
 });
 export const RunnerCapabilities = v.object({
   supportsLocalSecretsSubmit: v.optional(v.boolean()),
@@ -194,6 +201,7 @@ const schema = defineSchema({
     workspaceRef: WorkspaceRef,
     workspaceRefKey: v.string(),
     localPath: v.optional(v.string()),
+    runnerRepoPath: v.optional(v.string()),
     status: ProjectStatus,
     createdAt: v.number(),
     updatedAt: v.number(),

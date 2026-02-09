@@ -1,4 +1,5 @@
 import { JOB_STATUSES } from "@clawlets/core/lib/runtime/control-plane-constants";
+import { validateRunnerJobPayload } from "@clawlets/core/lib/runtime/runner-command-policy";
 import { sanitizeErrorMessage } from "@clawlets/core/lib/runtime/safe-error";
 import { v } from "convex/values";
 
@@ -51,6 +52,15 @@ export const enqueue = mutation({
 
     const normalizedKind = ensureBoundedString(kind, "kind", CONTROL_PLANE_LIMITS.jobKind);
     if (payloadMeta) assertNoSecretLikeKeys(payloadMeta, "payloadMeta");
+    const validatedPayload = validateRunnerJobPayload({
+      kind: normalizedKind,
+      payloadMeta,
+    });
+    if (!validatedPayload.ok) fail("conflict", validatedPayload.error);
+    const payload =
+      Object.keys(validatedPayload.payloadMeta).length > 0
+        ? validatedPayload.payloadMeta
+        : undefined;
     const now = Date.now();
 
     let nextRunId = runId;
@@ -76,13 +86,13 @@ export const enqueue = mutation({
       });
     }
 
-    const payloadHash = payloadMeta ? await sha256Hex(JSON.stringify(payloadMeta)) : undefined;
+    const payloadHash = payload ? await sha256Hex(JSON.stringify(payload)) : undefined;
     const jobId = await ctx.db.insert("jobs", {
       projectId,
       runId: nextRunId,
       kind: normalizedKind,
       status: "queued",
-      payload: payloadMeta,
+      payload,
       payloadHash,
       attempt: 0,
       createdAt: now,
@@ -149,6 +159,23 @@ export const get = query({
 });
 
 const RunnerTerminalStatus = v.union(v.literal("succeeded"), v.literal("failed"), v.literal("canceled"));
+
+export function resolveProjectStatusFromRunCompletion(params: {
+  runKind: string;
+  status: "succeeded" | "failed" | "canceled";
+}): "ready" | "error" | null {
+  if (params.runKind !== "project_init" && params.runKind !== "project_import") return null;
+  return params.status === "succeeded" ? "ready" : "error";
+}
+
+export function resolveProjectStatusPatchOnRunCompletion(params: {
+  projectStatus: string;
+  runKind: string;
+  status: "succeeded" | "failed" | "canceled";
+}): "ready" | "error" | null {
+  if (params.projectStatus !== "creating") return null;
+  return resolveProjectStatusFromRunCompletion({ runKind: params.runKind, status: params.status });
+}
 
 async function markRunQueued(ctx: MutationCtx, runId: Id<"runs">): Promise<void> {
   await ctx.db.patch(runId, {
@@ -318,6 +345,21 @@ export const completeInternal = internalMutation({
           ? sanitizeErrorMessage(errorMessage ?? "job failed", "job failed")
           : undefined,
     });
+    const [run, project] = await Promise.all([ctx.db.get(job.runId), ctx.db.get(job.projectId)]);
+    const projectStatus =
+      run && project
+        ? resolveProjectStatusPatchOnRunCompletion({
+            projectStatus: project.status,
+            runKind: run.kind,
+            status,
+          })
+        : null;
+    if (projectStatus) {
+      await ctx.db.patch(job.projectId, {
+        status: projectStatus,
+        updatedAt: now,
+      });
+    }
     return { ok: true, status };
   },
 });

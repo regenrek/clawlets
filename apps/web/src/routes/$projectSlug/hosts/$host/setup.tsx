@@ -160,7 +160,7 @@ function HostSetupPage() {
               <SetupSection key={step.id} value={step.id} index={index} title={step.title} status={step.status}>
                 <SetupStepRunner
                   projectId={projectId as Id<"projects">}
-                  projectLocalPath={setup.projectQuery.project?.localPath ?? null}
+                  projectRunnerRepoPath={setup.projectQuery.project?.runnerRepoPath ?? null}
                   host={activeHost}
                   stepStatus={step.status}
                   isCurrentStep={setup.model.activeStepId === step.id}

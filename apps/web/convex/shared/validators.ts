@@ -50,6 +50,7 @@ export const ProjectDoc = v.object({
   workspaceRef: WorkspaceRef,
   workspaceRefKey: v.string(),
   localPath: v.optional(v.string()),
+  runnerRepoPath: v.optional(v.string()),
   status: ProjectStatus,
   createdAt: v.number(),
   updatedAt: v.number(),
