@@ -44,7 +44,7 @@ async function copyText(label: string, value: string): Promise<void> {
 
 export function SetupStepRunner(props: {
   projectId: Id<"projects">
-  projectLocalPath?: string | null
+  projectRunnerRepoPath?: string | null
   host: string
   stepStatus: SetupStepStatus
   isCurrentStep: boolean
@@ -92,16 +92,18 @@ export function SetupStepRunner(props: {
 
   const startCommand = useMemo(() => {
     const lines: string[] = []
-    const projectPath = String(props.projectLocalPath || "").trim()
-    lines.push(`cd ${projectPath ? shellQuote(projectPath) : "<project-repo-root>"}`)
+    const repoRoot = String(props.projectRunnerRepoPath || "").trim()
+    lines.push(`mkdir -p ${repoRoot ? shellQuote(repoRoot) : "<runner-repo-root>"}`)
+    lines.push(`cd ${repoRoot ? shellQuote(repoRoot) : "<runner-repo-root>"}`)
     lines.push("clawlets runner start \\")
     lines.push(`  --project ${props.projectId} \\`)
     lines.push(`  --name ${shellQuote(runnerName.trim() || "<runner-name>")} \\`)
     lines.push(`  --token ${shellQuote(token || "<runner-token>")} \\`)
+    lines.push(`  --repoRoot ${shellQuote(repoRoot || "<runner-repo-root>")} \\`)
     lines.push(`  --control-plane-url ${shellQuote(controlPlaneUrl || "<convex-site-url>")} \\`)
     lines.push(`  --dashboardOrigin ${shellQuote(dashboardOrigin || "<dashboard-origin>")}`)
     return lines.join("\n")
-  }, [controlPlaneUrl, dashboardOrigin, props.projectId, props.projectLocalPath, runnerName, token])
+  }, [controlPlaneUrl, dashboardOrigin, props.projectId, props.projectRunnerRepoPath, runnerName, token])
 
   const runnerStatusLabel = props.runnerOnline
     ? "Connected"

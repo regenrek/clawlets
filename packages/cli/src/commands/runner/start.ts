@@ -7,6 +7,7 @@ import { defineCommand } from "citty";
 import { capture, run } from "@clawlets/core/lib/runtime/run";
 import { findRepoRoot } from "@clawlets/core/lib/project/repo";
 import { sanitizeErrorMessage } from "@clawlets/core/lib/runtime/safe-error";
+import { buildDefaultArgsForJobKind, resolveRunnerJobCommand } from "@clawlets/core/lib/runtime/runner-command-policy";
 import { coerceTrimmedString } from "@clawlets/shared/lib/strings";
 import { classifyRunnerHttpError, RunnerApiClient, type RunnerLeaseJob } from "./client.js";
 import { buildMetadataSnapshot } from "./metadata.js";
@@ -37,6 +38,15 @@ function resolveControlPlaneUrl(raw: unknown): string {
     throw new Error("missing control-plane url (--control-plane-url or CLAWLETS_CONTROL_PLANE_URL)");
   }
   return normalizeBaseUrl(env);
+}
+
+function gitJobEnv(): Record<string, string | undefined> {
+  return {
+    ...process.env,
+    GIT_TERMINAL_PROMPT: "0",
+    GIT_ASKPASS: "/bin/false",
+    GIT_ALLOW_PROTOCOL: "ssh:https",
+  };
 }
 
 function sleep(ms: number): Promise<void> {
@@ -70,36 +80,12 @@ async function writeInputJsonTemp(jobId: string, values: Record<string, string>)
 }
 
 function defaultArgsForJob(job: RunnerLeaseJob): string[] {
-  const host = job.payloadMeta?.hostName ? ["--host", job.payloadMeta.hostName] : [];
-  const scope = job.payloadMeta?.scope ? ["--scope", job.payloadMeta.scope] : [];
-  switch (job.kind) {
-    case "doctor":
-      return ["doctor", ...host];
-    case "bootstrap":
-      return ["bootstrap", ...host];
-    case "lockdown":
-      return ["lockdown", ...host];
-    case "secrets_verify":
-    case "secrets_verify_bootstrap":
-    case "secrets_verify_openclaw":
-      return ["secrets", "verify", ...host, ...scope];
-    case "secrets_sync":
-      return ["secrets", "sync", ...host];
-    case "secrets_init":
-      return ["secrets", "init", ...host, ...scope];
-    case "server_channels":
-    case "server_status":
-    case "server_logs":
-    case "server_audit":
-    case "server_restart":
-    case "server_update_apply":
-    case "server_update_status":
-    case "server_update_logs":
-    case "git_push":
-      throw new Error(`job ${job.kind} requires payloadMeta.args`);
-    default:
-      throw new Error(`unsupported job kind: ${job.kind}`);
-  }
+  const args = buildDefaultArgsForJobKind({
+    kind: job.kind,
+    payloadMeta: job.payloadMeta,
+  });
+  if (!args || args.length === 0) throw new Error(`job ${job.kind} requires payloadMeta.args`);
+  return args;
 }
 
 export function __test_defaultArgsForJob(job: RunnerLeaseJob): string[] {
@@ -139,7 +125,13 @@ async function executeJob(params: {
 }): Promise<{ output?: string }> {
   const entry = process.argv[1];
   if (!entry) throw new Error("unable to resolve cli entry path");
-  const args = [...(params.job.payloadMeta?.args ?? defaultArgsForJob(params.job))];
+  const resolved = await resolveRunnerJobCommand({
+    kind: params.job.kind,
+    payloadMeta: params.job.payloadMeta,
+    repoRoot: params.repoRoot,
+  });
+  if (!resolved.ok) throw new Error(resolved.error);
+  const args = [...resolved.args];
   if (args.length === 0) throw new Error("job args empty");
 
   const secretsPlaceholderIdx = args.findIndex((value) => value === "__RUNNER_SECRETS_JSON__");
@@ -164,12 +156,20 @@ async function executeJob(params: {
     }
 
     if (params.job.kind === "custom") {
+      if (resolved.exec !== "clawlets") throw new Error("custom jobs must execute via clawlets CLI");
       const output = await capture(process.execPath, [entry, ...args], {
         cwd: params.repoRoot,
         env: process.env,
         maxOutputBytes: 128 * 1024,
       });
       return { output: output.trim() || undefined };
+    }
+    if (resolved.exec === "git") {
+      await run("git", args, {
+        cwd: params.repoRoot,
+        env: gitJobEnv(),
+      });
+      return {};
     }
     await run(process.execPath, [entry, ...args], {
       cwd: params.repoRoot,

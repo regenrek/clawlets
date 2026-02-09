@@ -1,6 +1,6 @@
 type RunnerStatus = "online" | "offline";
 type JobStatus = "queued" | "leased" | "running" | "succeeded" | "failed" | "canceled";
-type SecretScope = "bootstrap" | "updates" | "openclaw";
+type SecretScope = "bootstrap" | "updates" | "openclaw" | "all";
 type SecretStatus = "configured" | "missing" | "placeholder" | "warn";
 type RunnerHttpErrorKind = "auth" | "permanent" | "transient" | "malformed";
 
@@ -18,6 +18,12 @@ export type RunnerLeaseJob = {
     configPaths?: string[];
     args?: string[];
     note?: string;
+    repoUrl?: string;
+    branch?: string;
+    depth?: number;
+    templateRepo?: string;
+    templatePath?: string;
+    templateRef?: string;
   };
   attempt: number;
 };

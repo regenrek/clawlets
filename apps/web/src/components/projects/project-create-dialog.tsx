@@ -1,10 +1,9 @@
 import { ArrowPathIcon } from "@heroicons/react/24/outline"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useRouter } from "@tanstack/react-router"
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import type { Id } from "../../../convex/_generated/dataModel"
-import { HostThemeBadge, HostThemeColorDropdown, HostThemeEmojiPicker, normalizeHostTheme, type HostThemeColor } from "~/components/hosts/host-theme"
 import { RunLogTail } from "~/components/run-log-tail"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "~/components/ui/accordion"
 import { AsyncButton } from "~/components/ui/async-button"
@@ -16,83 +15,102 @@ import { StackedField } from "~/components/ui/stacked-field"
 import { generateProjectName } from "~/lib/project-name-generator"
 import { projectsListQueryOptions, queryKeys } from "~/lib/query-options"
 import { slugifyProjectName } from "~/lib/project-routing"
-import { projectCreateExecute, projectCreateStart, projectInitPlan } from "~/sdk/project"
+import { projectCreateStart } from "~/sdk/project"
 
 type ProjectCreateDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
 }
 
+function shellQuote(value: string): string {
+  if (!value) return "''"
+  return `'${value.replace(/'/g, `'"'"'`)}'`
+}
+
+async function copyText(label: string, value: string): Promise<void> {
+  if (!value.trim()) {
+    toast.error(`${label} is empty`)
+    return
+  }
+  if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) {
+    toast.error("Clipboard unavailable")
+    return
+  }
+  try {
+    await navigator.clipboard.writeText(value)
+    toast.success(`${label} copied`)
+  } catch {
+    toast.error("Copy failed")
+  }
+}
+
 function ProjectCreateDialog({ open, onOpenChange }: ProjectCreateDialogProps) {
   const router = useRouter()
   const queryClient = useQueryClient()
   const [name, setName] = useState("")
-  const [baseDir, setBaseDir] = useState("")
-  const [host, setHost] = useState("")
-  const [templateSpec, setTemplateSpec] = useState("")
-  const defaultTheme = normalizeHostTheme()
-  const [hostThemeEmoji, setHostThemeEmoji] = useState(defaultTheme.emoji)
-  const [hostThemeColor, setHostThemeColor] = useState<HostThemeColor>(defaultTheme.color)
+  const [runnerRepoPathInput, setRunnerRepoPathInput] = useState("")
+  const [runnerNameInput, setRunnerNameInput] = useState("")
+  const [hostInput, setHostInput] = useState("")
+  const [templateRepoInput, setTemplateRepoInput] = useState("")
+  const [templatePathInput, setTemplatePathInput] = useState("")
+  const [templateRefInput, setTemplateRefInput] = useState("")
   const [runId, setRunId] = useState<Id<"runs"> | null>(null)
   const [projectId, setProjectId] = useState<Id<"projects"> | null>(null)
+  const [runnerToken, setRunnerToken] = useState("")
+  const [runnerRepoPathResolved, setRunnerRepoPathResolved] = useState("")
+  const [runnerNameResolved, setRunnerNameResolved] = useState("")
   const [redirected, setRedirected] = useState(false)
 
-  const directoryInputRef = useRef<HTMLInputElement>(null)
   const nameSlug = useMemo(() => slugifyProjectName(name || "project"), [name])
-  const defaultBaseDir = "~/.clawlets/projects"
-  const defaultHost = nameSlug
-  const normalizedBaseDir = (baseDir.trim() || defaultBaseDir).replace(/\/$/, "")
-  const effectiveLocalPath = normalizedBaseDir.endsWith(`/${nameSlug}`)
-    ? normalizedBaseDir
-    : `${normalizedBaseDir}/${nameSlug}`
-  const effectiveHost = host.trim() || defaultHost
-  const themeInput = normalizeHostTheme({ emoji: hostThemeEmoji, color: hostThemeColor })
+  const defaultRunnerRepoPath = `~/.clawlets/projects/${nameSlug}`
+  const defaultRunnerName = `runner-${nameSlug || "project"}`
+  const defaultHost = nameSlug || "openclaw-fleet-host"
+  const effectiveRunnerRepoPath = (runnerRepoPathInput.trim() || defaultRunnerRepoPath).replace(/\/+$/, "") || "/"
+  const effectiveRunnerName = runnerNameInput.trim() || defaultRunnerName
+  const effectiveHost = hostInput.trim() || defaultHost
   const projectsListQueryKey = projectsListQueryOptions().queryKey
 
-  useEffect(() => {
-    const input = directoryInputRef.current
-    if (!input) return
-    input.setAttribute("webkitdirectory", "")
-    input.setAttribute("directory", "")
-  }, [])
-
-  const plan = useMutation({
-    mutationFn: async () =>
-      await projectInitPlan({
-        data: {
-          localPath: effectiveLocalPath,
-          host: effectiveHost,
-          templateSpec,
-          theme: themeInput,
-        },
-      }),
-    onError: (err) => {
-      toast.error(err instanceof Error ? err.message : String(err))
-    },
-  })
+  const controlPlaneUrl = String(import.meta.env.VITE_CONVEX_SITE_URL || "").trim()
+  const dashboardOrigin = typeof window === "undefined" ? "" : String(window.location.origin || "").trim()
+  const runnerStartCommand = useMemo(() => {
+    const repoRoot = runnerRepoPathResolved || effectiveRunnerRepoPath
+    const runnerName = runnerNameResolved || effectiveRunnerName
+    const token = runnerToken || "<runner-token>"
+    const lines: string[] = []
+    lines.push(`mkdir -p ${shellQuote(repoRoot)}`)
+    lines.push(`cd ${shellQuote(repoRoot)}`)
+    lines.push("clawlets runner start \\")
+    lines.push(`  --project ${projectId || "<project-id>"} \\`)
+    lines.push(`  --name ${shellQuote(runnerName)} \\`)
+    lines.push(`  --token ${shellQuote(token)} \\`)
+    lines.push(`  --repoRoot ${shellQuote(repoRoot)} \\`)
+    lines.push(`  --control-plane-url ${shellQuote(controlPlaneUrl || "<convex-site-url>")} \\`)
+    lines.push(`  --dashboardOrigin ${shellQuote(dashboardOrigin || "<dashboard-origin>")}`)
+    return lines.join("\n")
+  }, [controlPlaneUrl, dashboardOrigin, effectiveRunnerName, effectiveRunnerRepoPath, projectId, runnerNameResolved, runnerRepoPathResolved, runnerToken])
 
   const start = useMutation({
     mutationFn: async () =>
       await projectCreateStart({
         data: {
           name,
-          localPath: effectiveLocalPath,
+          runnerRepoPath: effectiveRunnerRepoPath,
           host: effectiveHost,
-          templateSpec,
-          theme: themeInput,
-          gitInit: true,
+          runnerName: effectiveRunnerName,
+          templateRepo: templateRepoInput.trim(),
+          templatePath: templatePathInput.trim(),
+          templateRef: templateRefInput.trim(),
         },
       }),
     onSuccess: (res) => {
       setRedirected(false)
       setRunId(res.runId)
       setProjectId(res.projectId)
+      setRunnerToken(String(res.token || ""))
+      setRunnerRepoPathResolved(String(res.runnerRepoPath || effectiveRunnerRepoPath))
+      setRunnerNameResolved(String(res.runnerName || effectiveRunnerName))
       void queryClient.invalidateQueries({ queryKey: queryKeys.dashboardOverview })
       void queryClient.invalidateQueries({ queryKey: projectsListQueryKey })
-      void projectCreateExecute({ data: res }).finally(async () => {
-        await queryClient.invalidateQueries({ queryKey: queryKeys.dashboardOverview })
-        await queryClient.invalidateQueries({ queryKey: projectsListQueryKey })
-      })
     },
     onError: (err) => {
       toast.error(err instanceof Error ? err.message : String(err))
@@ -102,15 +120,18 @@ function ProjectCreateDialog({ open, onOpenChange }: ProjectCreateDialogProps) {
   useEffect(() => {
     if (!open) return
     setName("")
-    setBaseDir("")
-    setHost("")
-    setTemplateSpec("")
-    setHostThemeEmoji(defaultTheme.emoji)
-    setHostThemeColor(defaultTheme.color)
+    setRunnerRepoPathInput("")
+    setRunnerNameInput("")
+    setHostInput("")
+    setTemplateRepoInput("")
+    setTemplatePathInput("")
+    setTemplateRefInput("")
     setRunId(null)
     setProjectId(null)
+    setRunnerToken("")
+    setRunnerRepoPathResolved("")
+    setRunnerNameResolved("")
     setRedirected(false)
-    plan.reset()
     start.reset()
   }, [open]) // oxlint-disable-line react/exhaustive-deps -- reset dialog state on each open
 
@@ -145,7 +166,7 @@ function ProjectCreateDialog({ open, onOpenChange }: ProjectCreateDialogProps) {
         <DialogHeader>
           <DialogTitle>Create Project</DialogTitle>
           <DialogDescription>
-            Scaffold a new clawlets infra repository on this machine.
+            Queue remote project init on a runner host. Dashboard does not write repo files locally.
           </DialogDescription>
         </DialogHeader>
 
@@ -172,6 +193,50 @@ function ProjectCreateDialog({ open, onOpenChange }: ProjectCreateDialogProps) {
             </InputGroup>
           </StackedField>
 
+          <StackedField
+            id="runner-repo-path"
+            label="Runner repo path"
+            description={(
+              <>
+                Default: <code>{defaultRunnerRepoPath}</code>.
+              </>
+            )}
+          >
+            <InputGroup>
+              <InputGroupInput
+                id="runner-repo-path"
+                placeholder={defaultRunnerRepoPath}
+                value={runnerRepoPathInput}
+                onChange={(e) => setRunnerRepoPathInput(e.target.value)}
+              />
+              <InputGroupAddon align="inline-end">
+                <InputGroupButton
+                  onClick={() => setRunnerRepoPathInput(defaultRunnerRepoPath)}
+                  type="button"
+                >
+                  Use default
+                </InputGroupButton>
+              </InputGroupAddon>
+            </InputGroup>
+          </StackedField>
+
+          <StackedField
+            id="runner-name"
+            label="Runner name"
+            description={(
+              <>
+                Token is minted for this runner. Default: <code>{defaultRunnerName}</code>.
+              </>
+            )}
+          >
+            <Input
+              id="runner-name"
+              placeholder={defaultRunnerName}
+              value={runnerNameInput}
+              onChange={(e) => setRunnerNameInput(e.target.value)}
+            />
+          </StackedField>
+
           <Accordion className="rounded-lg border bg-muted/20">
             <AccordionItem value="advanced" className="px-4">
               <AccordionTrigger className="rounded-none border-0 px-0 py-2.5 hover:no-underline">
@@ -179,70 +244,6 @@ function ProjectCreateDialog({ open, onOpenChange }: ProjectCreateDialogProps) {
               </AccordionTrigger>
               <AccordionContent className="pb-4">
                 <div className="space-y-4">
-                  <StackedField
-                    id="path"
-                    label="Project directory (optional)"
-                    description={(
-                      <>
-                        Default: <code>{defaultBaseDir}/{nameSlug}</code>. Stored locally.
-                      </>
-                    )}
-                    actions={(
-                      <Button
-                        type="button"
-                        size="xs"
-                        variant="outline"
-                        onClick={() => directoryInputRef.current?.click()}
-                      >
-                        Choose folder
-                      </Button>
-                    )}
-                  >
-                    <InputGroup>
-                      <InputGroupInput
-                        id="path"
-                        placeholder={defaultBaseDir}
-                        value={baseDir}
-                        onChange={(e) => setBaseDir(e.target.value)}
-                      />
-                      <InputGroupAddon align="inline-end">
-                        <InputGroupButton
-                          onClick={() => setBaseDir(defaultBaseDir)}
-                          type="button"
-                        >
-                          Use default
-                        </InputGroupButton>
-                      </InputGroupAddon>
-                    </InputGroup>
-                    <input
-                      ref={directoryInputRef}
-                      type="file"
-                      className="sr-only"
-                      onChange={(event) => {
-                        const file = event.target.files?.[0]
-                        event.currentTarget.value = ""
-                        if (!file) return
-                        const rel = (file as { webkitRelativePath?: string }).webkitRelativePath || ""
-                        const root = rel.split("/")[0]
-                        const rawPath = (file as { path?: string }).path
-                        if (typeof rawPath === "string" && rel) {
-                          const parent = rawPath.slice(0, Math.max(0, rawPath.length - rel.length)).replace(/\/$/, "")
-                          const next = root ? `${parent}/${root}` : parent
-                          if (next) {
-                            setBaseDir(next)
-                            return
-                          }
-                        }
-                        if (root) {
-                          setBaseDir(`${defaultBaseDir}/${root}`)
-                          toast.message("Folder name captured. Adjust the path if needed.")
-                          return
-                        }
-                        toast.message("Folder picker unavailable. Enter a directory path.")
-                      }}
-                    />
-                  </StackedField>
-
                   <StackedField
                     id="host"
                     label="Host placeholder"
@@ -255,46 +256,51 @@ function ProjectCreateDialog({ open, onOpenChange }: ProjectCreateDialogProps) {
                     <Input
                       id="host"
                       placeholder={defaultHost}
-                      value={host}
-                      onChange={(e) => setHost(e.target.value)}
+                      value={hostInput}
+                      onChange={(e) => setHostInput(e.target.value)}
                     />
                   </StackedField>
 
                   <StackedField
-                    id="theme"
-                    label="Host theme"
-                    description="Badge shown for the default host."
-                  >
-                    <div className="grid gap-3 md:grid-cols-2">
-                      <HostThemeEmojiPicker
-                        value={hostThemeEmoji}
-                        onValueChange={setHostThemeEmoji}
-                      />
-                      <HostThemeColorDropdown
-                        value={hostThemeColor}
-                        onValueChange={setHostThemeColor}
-                      />
-                    </div>
-                    <div className="mt-3 flex items-center gap-2 rounded-lg border bg-muted/30 p-3">
-                      <HostThemeBadge theme={themeInput} size="sm" />
-                      <div className="text-xs text-muted-foreground">Preview badge</div>
-                    </div>
-                  </StackedField>
-
-                  <StackedField
-                    id="template"
-                    label="Template"
+                    id="template-repo"
+                    label="Template repo (optional)"
                     description={(
                       <>
-                        Defaults to <code>config/template-source.json</code>. Supports <code>github:</code>, <code>gh:</code>, or <code>file:</code> specs.
+                        Format: <code>owner/repo</code>.
                       </>
                     )}
                   >
                     <Input
-                      id="template"
-                      placeholder="github:owner/repo/templates/default#<40-hex-sha>"
-                      value={templateSpec}
-                      onChange={(e) => setTemplateSpec(e.target.value)}
+                      id="template-repo"
+                      placeholder="owner/repo"
+                      value={templateRepoInput}
+                      onChange={(e) => setTemplateRepoInput(e.target.value)}
+                    />
+                  </StackedField>
+
+                  <StackedField
+                    id="template-path"
+                    label="Template path (optional)"
+                    description="Relative path in template repo."
+                  >
+                    <Input
+                      id="template-path"
+                      placeholder="templates/default"
+                      value={templatePathInput}
+                      onChange={(e) => setTemplatePathInput(e.target.value)}
+                    />
+                  </StackedField>
+
+                  <StackedField
+                    id="template-ref"
+                    label="Template ref (optional)"
+                    description="Git branch/tag/commit."
+                  >
+                    <Input
+                      id="template-ref"
+                      placeholder="main"
+                      value={templateRefInput}
+                      onChange={(e) => setTemplateRefInput(e.target.value)}
                     />
                   </StackedField>
                 </div>
@@ -310,46 +316,36 @@ function ProjectCreateDialog({ open, onOpenChange }: ProjectCreateDialogProps) {
             >
               Cancel
             </Button>
-            <div className="flex flex-wrap items-center gap-2">
-              <AsyncButton
-                type="button"
-                variant="outline"
-                disabled={plan.isPending || !name.trim()}
-                pending={plan.isPending}
-                pendingText="Previewing files..."
-                onClick={() => plan.mutate()}
-              >
-                Preview files
-              </AsyncButton>
-              <AsyncButton
-                type="button"
-                disabled={
-                  start.isPending ||
-                  !!runId ||
-                  !name.trim() ||
-                  !effectiveLocalPath.trim() ||
-                  !effectiveHost.trim()
-                }
-                pending={start.isPending}
-                pendingText="Creating project..."
-                onClick={() => start.mutate()}
-              >
-                Create
-              </AsyncButton>
-            </div>
+            <AsyncButton
+              type="button"
+              disabled={start.isPending || !!runId || !name.trim() || !effectiveRunnerRepoPath.trim() || !effectiveRunnerName.trim()}
+              pending={start.isPending}
+              pendingText="Queueing runner job..."
+              onClick={() => start.mutate()}
+            >
+              Create
+            </AsyncButton>
           </div>
 
-          {plan.data ? (
-            <div className="rounded-md bg-muted/40 p-3">
-              <div className="text-sm font-medium">
-                {plan.data.plannedFiles.length} files
+          {projectId && runId ? (
+            <div className="space-y-3 rounded-md border bg-muted/30 p-3">
+              <div className="text-sm font-medium">Runner token</div>
+              <pre className="rounded-md border bg-background p-2 text-xs break-all">{runnerToken}</pre>
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="outline" onClick={() => void copyText("Runner token", runnerToken)}>
+                  Copy token
+                </Button>
               </div>
-              <pre className="text-xs text-muted-foreground mt-2 whitespace-pre-wrap break-words max-h-48 overflow-auto">
-                {plan.data.plannedFiles.slice(0, 200).join("\n")}
-                {plan.data.plannedFiles.length > 200
-                  ? `\n… +${plan.data.plannedFiles.length - 200} more`
-                  : ""}
-              </pre>
+              <div className="pt-2">
+                <div className="mb-2 text-sm font-medium">Runner start command</div>
+                <pre className="rounded-md border bg-background p-2 text-xs whitespace-pre-wrap break-words">{runnerStartCommand}</pre>
+                <div className="mt-2 flex items-center gap-2">
+                  <Button size="sm" variant="outline" onClick={() => void copyText("Runner command", runnerStartCommand)}>
+                    Copy command
+                  </Button>
+                  <span className="text-xs text-muted-foreground">Run on the runner host. Job will start after heartbeat.</span>
+                </div>
+              </div>
             </div>
           ) : null}
 
@@ -370,6 +366,9 @@ function ProjectCreateDialog({ open, onOpenChange }: ProjectCreateDialogProps) {
                   } as any)
                 }}
               />
+              <div className="text-xs text-muted-foreground">
+                If runner is offline, run remains queued and project stays <code>creating</code>.
+              </div>
               <div className="flex items-center gap-2">
                 <Button
                   size="sm"
@@ -381,20 +380,7 @@ function ProjectCreateDialog({ open, onOpenChange }: ProjectCreateDialogProps) {
                     } as any)
                   }}
                 >
-                  Continue setup
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    close({ force: true })
-                    void router.navigate({
-                      to: "/$projectSlug",
-                      params: { projectSlug: nameSlug },
-                    } as any)
-                  }}
-                >
-                  Open dashboard
+                  Open setup
                 </Button>
                 <Button
                   size="sm"
