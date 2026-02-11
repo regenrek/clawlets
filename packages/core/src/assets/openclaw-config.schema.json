@@ -1,5 +1,5 @@
 {
-  "openclawRev": "be6de9bb75bcbff3def12ce35c0cba464b37afb7",
+  "openclawRev": "aade133978cde403f55213bdd4ebeb2ab2f0dceb",
   "schema": {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "additionalProperties": false,
@@ -12931,6 +12931,12 @@
       "hooks": {
         "additionalProperties": false,
         "properties": {
+          "allowedAgentIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "enabled": {
             "type": "boolean"
           },
@@ -13180,6 +13186,9 @@
                       "type": "string"
                     }
                   ]
+                },
+                "agentId": {
+                  "type": "string"
                 },
                 "allowUnsafeExternalContent": {
                   "type": "boolean"
