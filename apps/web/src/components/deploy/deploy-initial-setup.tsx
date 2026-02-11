@@ -19,6 +19,8 @@ import { getHostPublicIpv4, probeHostTailscaleIpv4 } from "~/sdk/host"
 import { bootstrapExecute, bootstrapStart, runDoctor } from "~/sdk/infra"
 import { useProjectBySlug } from "~/lib/project-data"
 import { isProjectRunnerOnline } from "~/lib/setup/runner-status"
+import { loadSetupConfig } from "~/lib/setup/repo-probe"
+import { deriveDeploySshKeyReadiness } from "~/lib/setup/deploy-ssh-key-readiness"
 import { gitRepoStatus } from "~/sdk/vcs"
 import { lockdownExecute, lockdownStart } from "~/sdk/infra"
 import { serverUpdateApplyExecute, serverUpdateApplyStart } from "~/sdk/server"
@@ -34,6 +36,11 @@ import {
   type FinalizeStepId,
   type FinalizeStepStatus,
 } from "~/components/deploy/deploy-setup-model"
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null
+  return value as Record<string, unknown>
+}
 
 function formatShortSha(sha?: string | null): string {
   const value = String(sha || "").trim()
@@ -107,6 +114,14 @@ export function DeployInitialInstallSetup(props: {
     refetchOnReconnect: false,
     enabled: Boolean(projectId && runnerOnline),
   })
+  const setupConfigQuery = useQuery({
+    queryKey: ["hostSetupConfig", projectId],
+    enabled: Boolean(projectId && runnerOnline),
+    retry: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    queryFn: async () => await loadSetupConfig(projectId as Id<"projects">),
+  })
 
   const selectedRev = repoStatus.data?.originHead
   const missingRev = !selectedRev
@@ -122,6 +137,28 @@ export function DeployInitialInstallSetup(props: {
   const repoGateBlocked = readiness.blocksDeploy
   const statusReason = readiness.message
   const firstPushGuidance = deriveFirstPushGuidance({ upstream: repoStatus.data?.upstream })
+  const setupHostCfg = setupConfigQuery.data?.hosts?.[props.host]
+  const hostProvisioning = asRecord(setupHostCfg ? setupHostCfg["provisioning"] : null)
+  const sshKeyReadiness = deriveDeploySshKeyReadiness({
+    fleetSshAuthorizedKeys: setupConfigQuery.data?.fleet?.sshAuthorizedKeys,
+    hostProvisioningSshPubkeyFile: hostProvisioning?.["sshPubkeyFile"],
+  })
+  const sshKeyGateBlocked = runnerOnline && (
+    setupConfigQuery.isPending
+    || setupConfigQuery.isError
+    || !sshKeyReadiness.ready
+  )
+  const sshKeyGateMessage = !runnerOnline
+    ? null
+    : setupConfigQuery.isPending
+      ? "Checking SSH key source..."
+      : setupConfigQuery.isError
+        ? "Unable to read SSH key settings. Open Server Access and retry."
+        : sshKeyReadiness.ready
+          ? null
+          : "SSH key required before deploy. Add a key in Server Access or set provisioning.sshPubkeyFile."
+  const deployGateBlocked = repoGateBlocked || sshKeyGateBlocked
+  const deployStatusReason = repoGateBlocked ? statusReason : (sshKeyGateMessage || statusReason)
 
   const [bootstrapRunId, setBootstrapRunId] = useState<Id<"runs"> | null>(null)
   const [bootstrapStatus, setBootstrapStatus] = useState<"idle" | "running" | "succeeded" | "failed">("idle")
@@ -370,9 +407,13 @@ export function DeployInitialInstallSetup(props: {
   })
 
   const isBootstrapped = props.hasBootstrapped || bootstrapStatus === "succeeded"
-  const canStartDeploy = !isBootstrapped && !startDeploy.isPending && !repoGateBlocked && runnerOnline && Boolean(projectId)
+  const canStartDeploy = !isBootstrapped
+    && !startDeploy.isPending
+    && !deployGateBlocked
+    && runnerOnline
+    && Boolean(projectId)
   const cardStatus = !isBootstrapped
-    ? statusReason
+    ? deployStatusReason
     : finalizeState === "running"
       ? "Auto-hardening running..."
       : finalizeState === "failed"
@@ -471,6 +512,46 @@ export function DeployInitialInstallSetup(props: {
               </>
             )}
           </div>
+
+          {!isBootstrapped && sshKeyGateMessage && !repoGateBlocked ? (
+            <Alert
+              variant={setupConfigQuery.isPending ? "default" : "destructive"}
+              className={setupConfigQuery.isPending
+                ? "border-sky-300/50 bg-sky-50/50 text-sky-900 [&_[data-slot=alert-description]]:text-sky-900/90"
+                : undefined}
+            >
+              <AlertTitle>
+                {setupConfigQuery.isPending
+                  ? "Checking SSH key source"
+                  : setupConfigQuery.isError
+                    ? "SSH key settings unavailable"
+                    : "SSH key required"}
+              </AlertTitle>
+              <AlertDescription>
+                <div>{sshKeyGateMessage}</div>
+                {!setupConfigQuery.isPending ? (
+                  <div className="mt-1 flex flex-wrap gap-2 text-xs">
+                    <Link
+                      className="underline underline-offset-4 hover:text-foreground"
+                      to="/$projectSlug/hosts/$host/setup"
+                      params={{ projectSlug: props.projectSlug, host: props.host }}
+                      search={{ step: "connection" }}
+                    >
+                      Open Server Access
+                    </Link>
+                    <span aria-hidden="true">·</span>
+                    <Link
+                      className="underline underline-offset-4 hover:text-foreground"
+                      to="/$projectSlug/security/ssh-keys"
+                      params={{ projectSlug: props.projectSlug }}
+                    >
+                      Open SSH keys
+                    </Link>
+                  </div>
+                ) : null}
+              </AlertDescription>
+            </Alert>
+          ) : null}
 
           {!isBootstrapped && readiness.reason !== "ready" && readiness.reason !== "repo_pending" ? (
             <Alert

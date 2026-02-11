@@ -28,6 +28,7 @@ import {
   secretsSyncExecute,
   secretsSyncPreview,
   secretsSyncStart,
+  secretsVerifyAndWait,
   secretsVerifyExecute,
   secretsVerifyStart,
 } from "~/sdk/secrets"
@@ -46,6 +47,7 @@ type HostSecretsPanelProps = {
 
 const EMPTY_MISSING_SECRET_CONFIG: MissingSecretConfig[] = []
 type SecretWiringStatus = (typeof SECRET_WIRING_STATUSES)[number]
+type SetupSavePhase = "idle" | "saving" | "verifying"
 const SECRET_WIRING_STATUS_SET = new Set<string>(SECRET_WIRING_STATUSES)
 
 function isSecretWiringStatus(value: unknown): value is SecretWiringStatus {
@@ -147,65 +149,114 @@ export function HostSecretsPanel({ projectId, host, scope = "all", mode = "defau
   }, [planMissing])
 
   const [initRunId, setInitRunId] = useState<Id<"runs"> | null>(null)
+  const [setupSavePhase, setSetupSavePhase] = useState<SetupSavePhase>("idle")
+  const [setupSaveError, setSetupSaveError] = useState<string | null>(null)
+  const [setupVerifyRunId, setSetupVerifyRunId] = useState<Id<"runs"> | null>(null)
+
+  const pickTargetSealedRunner = () => {
+    if (sealedRunners.length === 1) return sealedRunners[0]
+    return sealedRunners.find((row) => String(row._id) === selectedRunnerId) ?? null
+  }
+
+  const buildSecretsInitPayload = (): Record<string, string> => {
+    const secretsPayload = Object.fromEntries(
+      Object.entries(secrets)
+        .map(([k, v]) => [k, String(v || "")])
+        .filter(([name, value]) => value.trim() && allowedSecretNames.has(name)),
+    )
+    return {
+      ...Object.fromEntries(Object.entries(secretsPayload).map(([k, v]) => [String(k), String(v)])),
+      ...(adminPassword.trim() ? { adminPasswordHash: adminPassword.trim() } : {}),
+      ...(tailscaleAuthKey.trim() ? { tailscaleAuthKey: tailscaleAuthKey.trim() } : {}),
+    }
+  }
+
+  const runSecretsInit = async (runId: Id<"runs">): Promise<void> => {
+    const runner = pickTargetSealedRunner()
+    if (!runner) throw new Error("Select an online sealed-capable runner before starting secrets init")
+
+    const inputPayload = buildSecretsInitPayload()
+    const secretNames = Object.keys(inputPayload)
+    const targetRunnerId = String(runner._id)
+    const reserve = await secretsInitExecute({
+      data: {
+        projectId,
+        runId,
+        host,
+        scope,
+        allowPlaceholders: false,
+        secretNames,
+        targetRunnerId: targetRunnerId as Id<"runners">,
+      },
+    })
+    const aad = `${projectId}:${reserve.jobId}:${reserve.kind}:${targetRunnerId}`
+    const reserveRunnerPub = String(reserve.sealedInputPubSpkiB64 || "").trim()
+    const reserveKeyId = String(reserve.sealedInputKeyId || runner.capabilities?.sealedInputKeyId || "").trim()
+    const reserveAlg = String(reserve.sealedInputAlg || runner.capabilities?.sealedInputAlg || "").trim()
+    const sealedInputB64 = await sealForRunner({
+      runnerPubSpkiB64: reserveRunnerPub || String(runner.capabilities?.sealedInputPubSpkiB64 || ""),
+      keyId: reserveKeyId,
+      alg: reserveAlg,
+      aad,
+      plaintextJson: JSON.stringify(inputPayload),
+    })
+    await secretsInitFinalize({
+      data: {
+        projectId,
+        jobId: reserve.jobId,
+        kind: reserve.kind,
+        sealedInputB64,
+        sealedInputAlg: reserveAlg,
+        sealedInputKeyId: reserveKeyId,
+      },
+    })
+  }
+
   const initStart = useMutation({
-    mutationFn: async () => await secretsInitStart({ data: { projectId, host, scope } }),
-    onSuccess: async (res) => {
+    mutationFn: async () => {
+      const res = await secretsInitStart({ data: { projectId, host, scope } })
       setInitRunId(res.runId)
-      const secretsPayload = Object.fromEntries(
-        Object.entries(secrets)
-          .map(([k, v]) => [k, String(v || "")])
-          .filter(([name, value]) => value.trim() && allowedSecretNames.has(name)),
-      )
-      const runner =
-        sealedRunners.length === 1
-          ? sealedRunners[0]
-          : sealedRunners.find((row) => String(row._id) === selectedRunnerId)
-      if (!runner) {
-        toast.error("Select an online sealed-capable runner before starting secrets init")
-        return
-      }
-      const targetRunnerId = String(runner._id)
-      const inputPayload: Record<string, string> = {
-        ...Object.fromEntries(Object.entries(secretsPayload).map(([k, v]) => [String(k), String(v)])),
-        ...(adminPassword.trim() ? { adminPasswordHash: adminPassword.trim() } : {}),
-        ...(tailscaleAuthKey.trim() ? { tailscaleAuthKey: tailscaleAuthKey.trim() } : {}),
-      }
-      const secretNames = Object.keys(inputPayload)
-      const reserve = await secretsInitExecute({
-        data: {
-          projectId,
-          runId: res.runId,
-          host,
-          scope,
-          allowPlaceholders: false,
-          secretNames,
-          targetRunnerId: targetRunnerId as Id<"runners">,
-        },
-      })
-      const aad = `${projectId}:${reserve.jobId}:${reserve.kind}:${targetRunnerId}`
-      const reserveRunnerPub = String(reserve.sealedInputPubSpkiB64 || "").trim()
-      const reserveKeyId = String(reserve.sealedInputKeyId || runner.capabilities?.sealedInputKeyId || "").trim()
-      const reserveAlg = String(reserve.sealedInputAlg || runner.capabilities?.sealedInputAlg || "").trim()
-      const sealedInputB64 = await sealForRunner({
-        runnerPubSpkiB64: reserveRunnerPub || String(runner.capabilities?.sealedInputPubSpkiB64 || ""),
-        keyId: reserveKeyId,
-        alg: reserveAlg,
-        aad,
-        plaintextJson: JSON.stringify(inputPayload),
-      })
-      await secretsInitFinalize({
-        data: {
-          projectId,
-          jobId: reserve.jobId,
-          kind: reserve.kind,
-          sealedInputB64,
-          sealedInputAlg: reserveAlg,
-          sealedInputKeyId: reserveKeyId,
-        },
-      })
+      await runSecretsInit(res.runId)
+      return res
+    },
+    onSuccess: () => {
       toast.info("Secrets init queued")
     },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : String(err))
+    },
   })
+
+  const runSetupSaveAndContinue = async () => {
+    if (!setupFlow || setupSavePhase !== "idle") return
+    setSetupSaveError(null)
+    setSetupVerifyRunId(null)
+    setSetupSavePhase("saving")
+    try {
+      const initRun = await secretsInitStart({ data: { projectId, host, scope } })
+      setInitRunId(initRun.runId)
+      await runSecretsInit(initRun.runId)
+
+      setSetupSavePhase("verifying")
+      const verify = await secretsVerifyAndWait({
+        data: { projectId, host, scope },
+      })
+      setSetupVerifyRunId(verify.runId)
+
+      if (verify.status !== "succeeded") {
+        throw new Error(verify.errorMessage || "Secrets verification did not succeed")
+      }
+
+      toast.success("Secrets verified. Continuing to deploy.")
+      setupFlow.onContinue()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      setSetupSaveError(message)
+      toast.error(message)
+    } finally {
+      setSetupSavePhase("idle")
+    }
+  }
 
   const verifyQuery = useQuery({
     queryKey: ["secretsVerify", projectId, host, scope],
@@ -217,7 +268,7 @@ export function HostSecretsPanel({ projectId, host, scope = "all", mode = "defau
       })
       return { runId: res.runId, result }
     },
-    enabled: Boolean(host),
+    enabled: Boolean(host && !setupMode),
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   })
@@ -248,33 +299,16 @@ export function HostSecretsPanel({ projectId, host, scope = "all", mode = "defau
   useEffect(() => {
     setAdminUnlocked(false)
     setTailscaleUnlocked(false)
+    setSetupSaveError(null)
+    setSetupSavePhase("idle")
+    setSetupVerifyRunId(null)
   }, [host])
 
-  const verifyResults = useMemo<any[]>(() => [], [])
-
-  const verifySummary = useMemo(() => {
-    if (verifyResults.length === 0) return null
-    let ok = 0
-    let missing = 0
-    let warn = 0
-    for (const entry of verifyResults) {
-      if (entry?.status === "ok") ok += 1
-      else if (entry?.status === "missing") missing += 1
-      else if (entry?.status === "warn") warn += 1
-    }
-    return { ok, missing, warn, total: verifyResults.length }
-  }, [verifyResults])
-
-  const secretStatusByName = useMemo<Record<string, SecretStatus>>(() => {
-    const out: Record<string, SecretStatus> = {}
-    for (const entry of verifyResults) {
-      if (!entry || typeof entry.secret !== "string") continue
-      if (entry.status === "ok" || entry.status === "missing" || entry.status === "warn") {
-        out[entry.secret] = { status: entry.status, detail: typeof entry.detail === "string" ? entry.detail : undefined }
-      }
-    }
-    return out
-  }, [verifyResults])
+  const verifySummary = useMemo<{ ok: number; missing: number; warn: number; total: number } | null>(
+    () => null,
+    [verifyQuery.dataUpdatedAt],
+  )
+  const secretStatusByName: Record<string, SecretStatus> = {}
 
   const secretWiringStatusByName = useMemo<Record<string, SecretWiringStatus>>(() => {
     const out: Record<string, SecretWiringStatus> = {}
@@ -304,9 +338,17 @@ export function HostSecretsPanel({ projectId, host, scope = "all", mode = "defau
 
   if (setupMode) {
     const canSaveInSetup = !initBlockedReason && Boolean(template.data) && !template.isPending && !template.error
+    const setupSavePending = setupSavePhase !== "idle"
+    const setupPendingText = setupSavePhase === "verifying"
+      ? "Verifying required secrets..."
+      : "Saving encrypted secrets..."
     const setupStatus = setupFlow?.isComplete
       ? "Secrets verified. Continue to deploy."
-      : initBlockedReason || "Save required secrets. Setup will re-check readiness."
+      : setupSavePhase === "saving"
+        ? "Saving encrypted secrets for this host."
+        : setupSavePhase === "verifying"
+          ? "Verifying required secrets before continuing."
+          : setupSaveError || initBlockedReason || "Save required secrets. Continue unlocks automatically after verify."
     return (
       <SettingsSection
         title="Server passwords"
@@ -319,12 +361,12 @@ export function HostSecretsPanel({ projectId, host, scope = "all", mode = "defau
         ) : (
           <AsyncButton
             type="button"
-            disabled={!canSaveInSetup || initStart.isPending}
-            pending={initStart.isPending}
-            pendingText="Saving secrets..."
-            onClick={() => initStart.mutate()}
+            disabled={!canSaveInSetup || setupSavePending}
+            pending={setupSavePending}
+            pendingText={setupPendingText}
+            onClick={() => void runSetupSaveAndContinue()}
           >
-            Save secrets
+            Save & Continue
           </AsyncButton>
         )}
       >
@@ -448,7 +490,7 @@ export function HostSecretsPanel({ projectId, host, scope = "all", mode = "defau
                   type="button"
                   size="sm"
                   variant="outline"
-                  disabled={verifyQuery.isFetching || !host}
+                  disabled={verifyQuery.isFetching || setupSavePending || !host}
                   pending={verifyQuery.isFetching}
                   pendingText="Checking..."
                   onClick={() => void verifyQuery.refetch()}
@@ -458,17 +500,30 @@ export function HostSecretsPanel({ projectId, host, scope = "all", mode = "defau
               </div>
               {setupFlow?.isComplete ? (
                 <div className="text-emerald-700">All required secrets are configured.</div>
+              ) : setupSavePhase === "saving" ? (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Spinner className="size-3" />
+                  Saving encrypted secrets...
+                </div>
+              ) : setupSavePhase === "verifying" ? (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Spinner className="size-3" />
+                  Verifying required secrets. This can take up to 45 seconds.
+                </div>
               ) : verifyQuery.isFetching ? (
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Spinner className="size-3" />
                   Checking current secret status...
                 </div>
+              ) : setupSaveError ? (
+                <div className="text-destructive">{setupSaveError}</div>
               ) : (
                 <div className="text-muted-foreground">
-                  Save secrets, then recheck. Continue unlocks when required values are ready.
+                  Save & Continue runs verify and advances automatically when secrets are ready.
                 </div>
               )}
             </div>
+            {setupVerifyRunId ? <RunLogTail runId={setupVerifyRunId} /> : null}
           </div>
         ) : (
           <div className="text-muted-foreground text-sm">Loading required secrets…</div>
