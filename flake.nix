@@ -67,7 +67,7 @@
             fetcherVersion = 3;
             pnpmWorkspaces = pnpmWorkspacesOpenclaw;
             # Update this when the OpenClaw pnpm-lock.yaml changes
-            hash = "sha256-NkW7Yz5z9ugRBcX13DSvnwUFkulDiIH+HOF/tJKKS0g=";
+            hash = "sha256-y3GPrZ0OJJaocAR6yLTSjgJPgNJ4Z6uPm0+K33PXAqQ=";
           };
 
           openclawSrcWithDeps = pkgs.buildNpmPackage {
