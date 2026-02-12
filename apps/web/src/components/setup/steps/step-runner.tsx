@@ -14,7 +14,6 @@ import { Spinner } from "~/components/ui/spinner"
 import { buildRunnerStartCommand } from "~/lib/setup/runner-start-command"
 import { isRunnerFreshOnline, pickRunnerName } from "~/lib/setup/runner-status"
 import { createRunnerToken } from "~/sdk/runtime"
-import type { SetupStepStatus } from "~/lib/setup/setup-model"
 
 type RunnerRow = {
   runnerName: string
@@ -86,15 +85,12 @@ function resolveStatusHint(params: {
 export function SetupStepRunner(props: {
   projectId: Id<"projects">
   projectRunnerRepoPath?: string | null
-  host: string
-  stepStatus: SetupStepStatus
-  isCurrentStep: boolean
   runnerOnline: boolean
   repoProbeOk: boolean
   repoProbeState: "idle" | "checking" | "ok" | "error"
   repoProbeError: unknown
   runners: RunnerRow[]
-  onContinue: () => void
+  onContinue?: () => void
 }) {
   const [fallbackRunnerName] = useState(() => generateRunnerName())
   const [tokenNonce, setTokenNonce] = useState(0)
@@ -111,7 +107,7 @@ export function SetupStepRunner(props: {
 
   const tokenQuery = useQuery({
     queryKey: ["setup", "runner-token", props.projectId, runnerName, tokenNonce],
-    enabled: typeof window !== "undefined" && props.isCurrentStep && showRemediation && Boolean(runnerName.trim()),
+    enabled: typeof window !== "undefined" && showRemediation && Boolean(runnerName.trim()),
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: 30 * 60 * 1000,
     refetchOnMount: false,
@@ -154,7 +150,7 @@ export function SetupStepRunner(props: {
       title="Runner connection"
       description="Runner status is global for this project. Setup continues while runner checks are in progress."
       statusText={runnerStatusHint}
-      actions={readyToContinue ? (
+      actions={readyToContinue && props.onContinue ? (
         <AsyncButton type="button" size="sm" onClick={props.onContinue}>
           Continue
         </AsyncButton>

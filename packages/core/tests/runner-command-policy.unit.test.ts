@@ -53,7 +53,7 @@ describe("runner command policy", () => {
     }
   });
 
-  it("builds canonical project_init command", async () => {
+  it("builds canonical project_init command with host", async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "clawlets-policy-init-ok-"));
     try {
       const result = await resolveRunnerJobCommand({
@@ -76,6 +76,38 @@ describe("runner command policy", () => {
         ".",
         "--host",
         "alpha",
+        "--template",
+        "owner/repo",
+        "--templatePath",
+        "templates/default",
+        "--templateRef",
+        "main",
+      ]);
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("builds canonical project_init command without host", async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "clawlets-policy-init-no-host-"));
+    try {
+      const result = await resolveRunnerJobCommand({
+        kind: "project_init",
+        payloadMeta: {
+          templateRepo: "owner/repo",
+          templatePath: "templates/default",
+          templateRef: "main",
+        },
+        repoRoot: dir,
+      });
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.exec).toBe("clawlets");
+      expect(result.args).toEqual([
+        "project",
+        "init",
+        "--dir",
+        ".",
         "--template",
         "owner/repo",
         "--templatePath",

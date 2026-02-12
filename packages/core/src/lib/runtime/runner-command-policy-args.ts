@@ -179,7 +179,7 @@ const specProjectInit: CommandSpec = {
     "--templatePath": { kind: "value", validate: validateTemplatePath },
     "--templateRef": { kind: "value", validate: validateTemplateRef },
   },
-  required: ["--dir", "--host"],
+  required: ["--dir"],
 };
 
 const specDoctor: CommandSpec = {

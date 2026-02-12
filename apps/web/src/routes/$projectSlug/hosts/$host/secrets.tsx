@@ -32,7 +32,7 @@ function HostSecrets() {
       />
       <RunnerStatusBanner
         projectId={projectId as Id<"projects">}
-        setupHref={`/${projectSlug}/hosts/${host}/setup`}
+        setupHref={`/${projectSlug}/runner`}
       />
       <HostSecretsPanel projectId={projectId as Id<"projects">} host={host} />
     </div>

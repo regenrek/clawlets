@@ -9,7 +9,6 @@ import { Button } from "~/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "~/components/ui/dialog"
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "~/components/ui/input-group"
 import { Spinner } from "~/components/ui/spinner"
-import { buildHostPath, buildHostsPath } from "~/lib/project-routing"
 import {
   deriveRunnerConnectionToastKind,
   RUNNER_CONNECTING_TOAST_DELAY_MS,
@@ -25,8 +24,6 @@ type RunnerStatusControlProps = {
   projectId: Id<"projects">
   projectSlug: string
   projectStatus?: string | null
-  activeHost?: string | null
-  fallbackHost?: string | null
   projectRunnerRepoPath?: string | null
 }
 
@@ -170,10 +167,7 @@ export function RunnerStatusControl(props: RunnerStatusControlProps) {
     controlPlaneUrl,
   })
 
-  const setupHost = String(props.activeHost || "").trim() || String(props.fallbackHost || "").trim()
-  const setupHref = setupHost
-    ? `${buildHostPath(props.projectSlug, setupHost)}/setup`
-    : buildHostsPath(props.projectSlug)
+  const setupHref = `/${props.projectSlug}/runner`
   const tokensHref = `/${props.projectSlug}/security/api-keys`
   const sshHref = `/${props.projectSlug}/security/ssh-keys`
 

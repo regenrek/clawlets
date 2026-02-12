@@ -38,6 +38,14 @@ describe("runner command policy args parser", () => {
     expect(result).toEqual({ ok: true });
   });
 
+  it("accepts project_init without --host", () => {
+    const result = __test_validateArgsForKind({
+      kind: "project_init",
+      args: ["project", "init", "--dir=.", "--template=owner/repo"],
+    });
+    expect(result).toEqual({ ok: true });
+  });
+
   it("rejects invalid boolean --flag=value syntax", () => {
     const result = __test_validateArgsForKind({
       kind: "custom",

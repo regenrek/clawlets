@@ -138,7 +138,6 @@ export const projectCreateStart = createServerFn({ method: "POST" })
     return {
       name: coerceString(d["name"]),
       runnerRepoPath: normalizeRunnerRepoPath(d["runnerRepoPath"]),
-      host: getHost(d["host"]),
       runnerName: normalizeRunnerName(d["runnerName"]),
       templateRepo: normalizeTemplateRepo(d["templateRepo"]),
       templatePath: normalizeTemplatePath(d["templatePath"]),
@@ -159,15 +158,12 @@ export const projectCreateStart = createServerFn({ method: "POST" })
       projectId,
       kind: "project_init",
       title: "Create project",
-      host: data.host,
     });
     await client.mutation(api.controlPlane.jobs.enqueue, {
       projectId,
       runId,
       kind: "project_init",
-      host: data.host,
       payloadMeta: {
-        hostName: data.host,
         templateRepo: data.templateRepo,
         templatePath: data.templatePath,
         templateRef: data.templateRef,
@@ -191,7 +187,6 @@ export const projectCreateStart = createServerFn({ method: "POST" })
     return {
       projectId: projectId as Id<"projects">,
       runId: runId as Id<"runs">,
-      host: data.host,
       runnerName: data.runnerName,
       runnerRepoPath: data.runnerRepoPath,
       token: tokenResult.token,

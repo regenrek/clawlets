@@ -88,8 +88,6 @@ export function useSetupModel(params: { projectSlug: string; host: string; searc
   const model: SetupModel = React.useMemo(
     () =>
       deriveSetupModel({
-        runnerOnline,
-        repoProbeOk,
         config,
         hostFromRoute: params.host,
         stepFromSearch: params.search.step,
@@ -100,8 +98,6 @@ export function useSetupModel(params: { projectSlug: string; host: string; searc
     [
       config,
       deployCreds,
-      repoProbeOk,
-      runnerOnline,
       latestBootstrapRunQuery.data,
       latestBootstrapSecretsVerifyRunQuery.data,
       params.host,
