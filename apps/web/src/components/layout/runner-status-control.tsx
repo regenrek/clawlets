@@ -209,11 +209,17 @@ export function RunnerStatusControl(props: RunnerStatusControlProps) {
         <div className="space-y-4">
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <span className="text-muted-foreground">Runner</span>
-            <Badge variant={runnerOnline ? "secondary" : "outline"}>
+            <Badge
+              variant="outline"
+              className={runnerOnline ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : undefined}
+            >
               {runnerStatusLabel}
             </Badge>
             <span className="text-muted-foreground">Repo</span>
-            <Badge variant={repoProbeState === "ok" ? "secondary" : repoProbeState === "error" ? "destructive" : "outline"}>
+            <Badge
+              variant={repoProbeState === "error" ? "destructive" : "outline"}
+              className={repoProbeState === "ok" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : undefined}
+            >
               {repoProbeState === "checking" ? <Spinner className="mr-1 size-3" /> : null}
               {repoStatusLabel}
             </Badge>

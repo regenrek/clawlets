@@ -23,37 +23,6 @@ export function SetupStepCreds(props: {
           onContinue: props.onContinue,
         }}
       />
-      {!props.isComplete ? (
-        <div className="space-y-1 text-xs text-muted-foreground">
-          <div>
-            Set <code>GITHUB_TOKEN</code> and <code>SOPS_AGE_KEY_FILE</code>.
-          </div>
-          <div>
-            Need a GitHub token?{" "}
-            <a
-              className="underline underline-offset-3 hover:text-foreground"
-              href="https://docs.clawlets.com/dashboard/github-token"
-              target="_blank"
-              rel="noreferrer"
-            >
-              How to create GitHub token
-            </a>
-            .
-          </div>
-          <div>
-            Need an age key?{" "}
-            <a
-              className="underline underline-offset-3 hover:text-foreground"
-              href="https://docs.clawlets.com/dashboard/sops-age-key"
-              target="_blank"
-              rel="noreferrer"
-            >
-              How to create SOPS age key
-            </a>
-            .
-          </div>
-        </div>
-      ) : null}
     </div>
   )
 }
