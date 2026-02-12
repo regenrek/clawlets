@@ -59,6 +59,10 @@ export const AuditAction = v.union(
   v.literal("bootstrap"),
   v.literal("config.migrate"),
   v.literal("deployCreds.update"),
+  v.literal("setup.apply.commit"),
+  v.literal("setup.draft.discard"),
+  v.literal("setup.draft.save_non_secret"),
+  v.literal("setup.draft.save_sealed_section"),
   v.literal("gateway.openclaw.harden"),
   v.literal("gateway.openclaw.write"),
   v.literal("gateway.preset.apply"),
@@ -184,6 +188,41 @@ export const RunnerCapabilities = v.object({
   sealedInputPubSpkiB64: v.optional(v.string()),
   sealedInputKeyId: v.optional(v.string()),
   supportsInfraApply: v.optional(v.boolean()),
+});
+export const SetupDraftStatus = v.union(
+  v.literal("draft"),
+  v.literal("committing"),
+  v.literal("committed"),
+  v.literal("failed"),
+);
+export const SetupDraftInfrastructure = v.object({
+  serverType: v.optional(v.string()),
+  image: v.optional(v.string()),
+  location: v.optional(v.string()),
+  allowTailscaleUdpIngress: v.optional(v.boolean()),
+});
+export const SetupDraftConnection = v.object({
+  adminCidr: v.optional(v.string()),
+  sshExposureMode: v.optional(v.union(v.literal("bootstrap"), v.literal("tailnet"), v.literal("public"))),
+  sshKeyCount: v.optional(v.number()),
+  sshAuthorizedKeys: v.optional(v.array(v.string())),
+});
+export const SetupDraftNonSecret = v.object({
+  infrastructure: v.optional(SetupDraftInfrastructure),
+  connection: v.optional(SetupDraftConnection),
+});
+export const SetupDraftSealedSection = v.object({
+  alg: v.string(),
+  keyId: v.string(),
+  targetRunnerId: v.id("runners"),
+  sealedInputB64: v.string(),
+  aad: v.string(),
+  updatedAt: v.number(),
+  expiresAt: v.number(),
+});
+export const SetupDraftSealedSections = v.object({
+  deployCreds: v.optional(SetupDraftSealedSection),
+  bootstrapSecrets: v.optional(SetupDraftSealedSection),
 });
 
 const schema = defineSchema({
@@ -370,6 +409,21 @@ const schema = defineSchema({
     .index("by_project_status_targetRunner", ["projectId", "status", "targetRunnerId"])
     .index("by_project_status_targetRunner_createdAt", ["projectId", "status", "targetRunnerId", "createdAt"])
     .index("by_project_createdAt", ["projectId", "createdAt"]),
+
+  setupDrafts: defineTable({
+    projectId: v.id("projects"),
+    hostName: v.string(),
+    status: SetupDraftStatus,
+    version: v.number(),
+    nonSecretDraft: SetupDraftNonSecret,
+    sealedSecretDrafts: SetupDraftSealedSections,
+    updatedAt: v.number(),
+    expiresAt: v.number(),
+    committedAt: v.optional(v.number()),
+    lastError: v.optional(v.string()),
+  })
+    .index("by_project_host", ["projectId", "hostName"])
+    .index("by_expiresAt", ["expiresAt"]),
 
   runnerCommandResults: defineTable({
     projectId: v.id("projects"),

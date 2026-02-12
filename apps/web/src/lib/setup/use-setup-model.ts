@@ -9,6 +9,7 @@ import { isProjectRunnerOnline } from "~/lib/setup/runner-status"
 import { deriveSetupModel, type SetupModel, type SetupStepId } from "~/lib/setup/setup-model"
 import { deriveRepoProbeState, setupConfigProbeQueryOptions, type RepoProbeState } from "~/lib/setup/repo-probe"
 import type { DeployCredsStatus } from "~/sdk/infra"
+import { setupDraftGet } from "~/sdk/setup"
 import { SECRETS_VERIFY_BOOTSTRAP_RUN_KIND } from "~/sdk/secrets/run-kind"
 
 export type SetupSearch = {
@@ -49,6 +50,17 @@ export function useSetupModel(params: { projectSlug: string; host: string; searc
     enabled: Boolean(projectId && isReady && runnerOnline),
   })
   const deployCreds: DeployCredsStatus | null = deployCredsQuery.data ?? null
+  const setupDraftQuery = useQuery({
+    queryKey: ["setupDraft", projectId, params.host],
+    queryFn: async () => {
+      if (!projectId) throw new Error("missing project id")
+      return await setupDraftGet({ data: { projectId, host: params.host } })
+    },
+    enabled: Boolean(projectId && isReady && params.host),
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  })
+  const setupDraft = setupDraftQuery.data ?? null
 
   const repoProbeOk = runnerOnline && hasConfig
   const repoProbeState: RepoProbeState = deriveRepoProbeState({
@@ -103,12 +115,14 @@ export function useSetupModel(params: { projectSlug: string; host: string; searc
         hostFromRoute: params.host,
         stepFromSearch: params.search.step,
         deployCreds,
+        setupDraft,
         latestBootstrapRun: latestBootstrapRunQuery.data ?? null,
         latestBootstrapSecretsVerifyRun: latestBootstrapSecretsVerifyRunQuery.data ?? null,
       }),
     [
       config,
       deployCreds,
+      setupDraft,
       latestBootstrapRunQuery.data,
       latestBootstrapSecretsVerifyRunQuery.data,
       params.host,
@@ -157,6 +171,8 @@ export function useSetupModel(params: { projectSlug: string; host: string; searc
     repoProbeError,
     deployCredsQuery,
     deployCreds,
+    setupDraftQuery,
+    setupDraft,
     latestBootstrapRunQuery,
     latestBootstrapSecretsVerifyRunQuery,
     projectInitRunsPageQuery,

@@ -315,7 +315,7 @@ async function writeSecretsJsonTemp(jobId: string, values: Record<string, string
   return filePath;
 }
 
-async function writeInputJsonTemp(jobId: string, values: Record<string, string>): Promise<string> {
+async function writeInputJsonTemp(jobId: string, values: unknown): Promise<string> {
   const filePath = path.join(os.tmpdir(), `clawlets-runner-input.${jobId}.${process.pid}.${randomUUID()}.json`);
   await fs.writeFile(filePath, `${JSON.stringify(values, null, 2)}\n`, { encoding: "utf8", mode: 0o600, flag: "wx" });
   await assertSecureRunnerTempFile(filePath);
@@ -410,6 +410,172 @@ function parseSealedInputStringMap(rawJson: string): Record<string, string> {
     out[name] = value;
   }
   return out;
+}
+
+type SetupApplyConfigOp = {
+  path: string;
+  value?: string;
+  valueJson?: string;
+  del: boolean;
+};
+
+type SetupApplySealedDraftSection = {
+  alg: string;
+  keyId: string;
+  targetRunnerId: string;
+  sealedInputB64: string;
+  aad: string;
+  updatedAt: number;
+  expiresAt: number;
+};
+
+type SetupApplySealedPayload = {
+  hostName: string;
+  configOps: SetupApplyConfigOp[];
+  deployCredsDraft: SetupApplySealedDraftSection;
+  bootstrapSecretsDraft: SetupApplySealedDraftSection;
+};
+
+function ensureObject(raw: unknown, field: string): Record<string, unknown> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new Error(`${field} must be an object`);
+  }
+  return raw as Record<string, unknown>;
+}
+
+function ensureNoExtraKeys(value: Record<string, unknown>, field: string, keys: string[]): void {
+  const extra = Object.keys(value).filter((k) => !keys.includes(k));
+  if (extra.length > 0) throw new Error(`${field} contains unsupported keys: ${extra.join(",")}`);
+}
+
+function ensureStringField(value: Record<string, unknown>, key: string, field: string): string {
+  const raw = typeof value[key] === "string" ? value[key] : "";
+  const normalized = raw.trim();
+  if (!normalized) throw new Error(`${field}.${key} required`);
+  if (normalized.includes("\0") || normalized.includes("\r") || normalized.includes("\n")) {
+    throw new Error(`${field}.${key} invalid`);
+  }
+  return normalized;
+}
+
+function parseSetupApplyConfigOps(raw: unknown): SetupApplyConfigOp[] {
+  if (!Array.isArray(raw)) throw new Error("setup_apply.configOps must be an array");
+  if (raw.length === 0) throw new Error("setup_apply.configOps must not be empty");
+  if (raw.length > 200) throw new Error("setup_apply.configOps too many entries");
+  const out: SetupApplyConfigOp[] = [];
+  for (let i = 0; i < raw.length; i += 1) {
+    const field = `setup_apply.configOps[${i}]`;
+    const row = ensureObject(raw[i], field);
+    ensureNoExtraKeys(row, field, ["path", "value", "valueJson", "del"]);
+    const path = ensureStringField(row, "path", field);
+    if (path.includes("\0")) throw new Error(`${field}.path invalid`);
+    const del = row.del === true;
+    const hasValue = typeof row.value === "string";
+    const hasValueJson = typeof row.valueJson === "string";
+    if (hasValue && hasValueJson) throw new Error(`${field} ambiguous value`);
+    if (del && (hasValue || hasValueJson)) throw new Error(`${field} delete cannot include value`);
+    if (!del && !hasValue && !hasValueJson) throw new Error(`${field} missing value`);
+    if (hasValue && String(row.value || "").includes("\0")) throw new Error(`${field}.value invalid`);
+    if (hasValueJson) {
+      const valueJson = String(row.valueJson || "");
+      if (valueJson.includes("\0")) throw new Error(`${field}.valueJson invalid`);
+      try {
+        JSON.parse(valueJson);
+      } catch {
+        throw new Error(`${field}.valueJson invalid JSON`);
+      }
+    }
+    out.push({
+      path,
+      value: hasValue ? String(row.value) : undefined,
+      valueJson: hasValueJson ? String(row.valueJson) : undefined,
+      del,
+    });
+  }
+  return out;
+}
+
+function parseSetupApplySealedSection(raw: unknown, field: string): SetupApplySealedDraftSection {
+  const section = ensureObject(raw, field);
+  ensureNoExtraKeys(section, field, ["alg", "keyId", "targetRunnerId", "sealedInputB64", "aad", "updatedAt", "expiresAt"]);
+  const updatedAt = Number(section.updatedAt);
+  const expiresAt = Number(section.expiresAt);
+  if (!Number.isFinite(updatedAt) || !Number.isFinite(expiresAt)) {
+    throw new Error(`${field} timestamp fields invalid`);
+  }
+  return {
+    alg: ensureStringField(section, "alg", field),
+    keyId: ensureStringField(section, "keyId", field),
+    targetRunnerId: ensureStringField(section, "targetRunnerId", field),
+    sealedInputB64: ensureStringField(section, "sealedInputB64", field),
+    aad: ensureStringField(section, "aad", field),
+    updatedAt: Math.trunc(updatedAt),
+    expiresAt: Math.trunc(expiresAt),
+  };
+}
+
+function parseSetupApplySealedPayload(rawJson: string): SetupApplySealedPayload {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(rawJson);
+  } catch {
+    throw new Error("setup_apply payload is not valid JSON");
+  }
+  const root = ensureObject(parsed, "setup_apply");
+  ensureNoExtraKeys(root, "setup_apply", ["hostName", "configOps", "deployCredsDraft", "bootstrapSecretsDraft"]);
+  return {
+    hostName: ensureStringField(root, "hostName", "setup_apply"),
+    configOps: parseSetupApplyConfigOps(root.configOps),
+    deployCredsDraft: parseSetupApplySealedSection(root.deployCredsDraft, "setup_apply.deployCredsDraft"),
+    bootstrapSecretsDraft: parseSetupApplySealedSection(root.bootstrapSecretsDraft, "setup_apply.bootstrapSecretsDraft"),
+  };
+}
+
+function validateDeployCredsValues(values: Record<string, string>): void {
+  const allowed = new Set<string>(DEPLOY_CREDS_KEYS);
+  for (const key of Object.keys(values)) {
+    if (!allowed.has(key)) throw new Error(`setup_apply deployCreds key not allowlisted: ${key}`);
+  }
+}
+
+function unsealSetupApplyInput(params: {
+  outerPlaintextJson: string;
+  projectId: string;
+  targetRunnerId: string;
+  runnerPrivateKeyPem: string;
+}): {
+  hostName: string;
+  configOps: SetupApplyConfigOp[];
+  deployCreds: Record<string, string>;
+  bootstrapSecrets: Record<string, string>;
+} {
+  const payload = parseSetupApplySealedPayload(params.outerPlaintextJson);
+  const parseSection = (section: SetupApplySealedDraftSection, sectionName: "deployCreds" | "bootstrapSecrets") => {
+    if (section.targetRunnerId !== params.targetRunnerId) {
+      throw new Error(`setup_apply ${sectionName} targetRunnerId mismatch`);
+    }
+    const expectedAad = `${params.projectId}:${payload.hostName}:setupDraft:${sectionName}:${params.targetRunnerId}`;
+    if (section.aad !== expectedAad) {
+      throw new Error(`setup_apply ${sectionName} aad mismatch`);
+    }
+    const sectionPlaintext = unsealRunnerInput({
+      runnerPrivateKeyPem: params.runnerPrivateKeyPem,
+      aad: section.aad,
+      envelopeB64: section.sealedInputB64,
+      expectedAlg: section.alg,
+      expectedKeyId: section.keyId,
+    });
+    return parseSealedInputStringMap(sectionPlaintext);
+  };
+  const deployCreds = parseSection(payload.deployCredsDraft, "deployCreds");
+  validateDeployCredsValues(deployCreds);
+  const bootstrapSecrets = parseSection(payload.bootstrapSecretsDraft, "bootstrapSecrets");
+  return {
+    hostName: payload.hostName,
+    configOps: payload.configOps,
+    deployCreds,
+    bootstrapSecrets,
+  };
 }
 
 function validateSealedInputKeysForJob(params: {
@@ -509,34 +675,53 @@ async function executeJob(params: {
         expectedAlg: params.job.sealedInputAlg,
         expectedKeyId: params.job.sealedInputKeyId,
       });
-      const secrets = parseSealedInputStringMap(plaintextJson);
-      validateSealedInputKeysForJob({
-        job: params.job,
-        values: secrets,
-        secretsPlaceholder: secretsPlaceholderIdx >= 0,
-        inputPlaceholder: inputPlaceholderIdx >= 0,
-      });
-      tempSecretsPath =
-        secretsPlaceholderIdx >= 0
-          ? await writeSecretsJsonTemp(params.job.jobId, secrets)
-          : await writeInputJsonTemp(params.job.jobId, secrets);
+      if (inputPlaceholderIdx >= 0 && params.job.kind === "setup_apply") {
+        const setupApplyInput = unsealSetupApplyInput({
+          outerPlaintextJson: plaintextJson,
+          projectId: params.projectId,
+          targetRunnerId,
+          runnerPrivateKeyPem: params.runnerPrivateKeyPem,
+        });
+        tempSecretsPath = await writeInputJsonTemp(params.job.jobId, setupApplyInput);
+        args[inputPlaceholderIdx] = tempSecretsPath;
+      } else {
+        const secrets = parseSealedInputStringMap(plaintextJson);
+        validateSealedInputKeysForJob({
+          job: params.job,
+          values: secrets,
+          secretsPlaceholder: secretsPlaceholderIdx >= 0,
+          inputPlaceholder: inputPlaceholderIdx >= 0,
+        });
+        tempSecretsPath =
+          secretsPlaceholderIdx >= 0
+            ? await writeSecretsJsonTemp(params.job.jobId, secrets)
+            : await writeInputJsonTemp(params.job.jobId, secrets);
+      }
       if (secretsPlaceholderIdx >= 0) args[secretsPlaceholderIdx] = tempSecretsPath;
       if (inputPlaceholderIdx >= 0) args[inputPlaceholderIdx] = tempSecretsPath;
     }
 
-    if (params.job.kind === "custom") {
-      if (resolved.exec !== "clawlets") throw new Error("custom jobs must execute via clawlets CLI");
-      if (secretBearingJob) {
-        await run(process.execPath, [entry, ...args], {
-          cwd: params.repoRoot,
-          env: runnerCommandEnv(),
-          stdin: "ignore",
-          ...secretOutputPolicy,
-        });
-        return {};
-      }
-      const structuredSmallResult = resolved.resultMode === "json_small";
-      const structuredLargeResult = resolved.resultMode === "json_large";
+    if (resolved.exec === "git") {
+      await run("git", args, {
+        cwd: params.repoRoot,
+        env: gitJobEnv(),
+        stdin: "ignore",
+        ...secretOutputPolicy,
+      });
+      return {};
+    }
+    if (secretBearingJob && params.job.kind === "custom") {
+      await run(process.execPath, [entry, ...args], {
+        cwd: params.repoRoot,
+        env: runnerCommandEnv(),
+        stdin: "ignore",
+        ...secretOutputPolicy,
+      });
+      return {};
+    }
+    const structuredSmallResult = resolved.resultMode === "json_small";
+    const structuredLargeResult = resolved.resultMode === "json_large";
+    if (structuredSmallResult || structuredLargeResult) {
       const captureLimit =
         structuredLargeResult
           ? Math.max(
@@ -546,9 +731,7 @@ async function executeJob(params: {
                 Math.trunc(resolved.resultMaxBytes ?? RUNNER_COMMAND_RESULT_LARGE_MAX_BYTES_LIMIT),
               ),
             )
-          : structuredSmallResult
-            ? RUNNER_COMMAND_RESULT_MAX_BYTES
-            : RUNNER_LOG_CAPTURE_MAX_BYTES;
+          : RUNNER_COMMAND_RESULT_MAX_BYTES;
       const output = await capture(process.execPath, [entry, ...args], {
         cwd: params.repoRoot,
         env: runnerCommandEnv(),
@@ -557,22 +740,21 @@ async function executeJob(params: {
       });
       if (structuredSmallResult) {
         const normalized = parseStructuredJsonObject(output, RUNNER_COMMAND_RESULT_MAX_BYTES);
+        if (secretBearingJob) return { commandResultJson: normalized };
         return { redactedOutput: true, commandResultJson: normalized };
       }
-      if (structuredLargeResult) {
-        const normalized = parseStructuredJsonObject(output, captureLimit);
-        return { redactedOutput: true, commandResultLargeJson: normalized };
-      }
-      return { output: output.trim() || undefined };
+      const normalized = parseStructuredJsonObject(output, captureLimit);
+      if (secretBearingJob) return { commandResultLargeJson: normalized };
+      return { redactedOutput: true, commandResultLargeJson: normalized };
     }
-    if (resolved.exec === "git") {
-      await run("git", args, {
+    if (params.job.kind === "custom") {
+      const output = await capture(process.execPath, [entry, ...args], {
         cwd: params.repoRoot,
-        env: gitJobEnv(),
+        env: runnerCommandEnv(),
         stdin: "ignore",
-        ...secretOutputPolicy,
+        maxOutputBytes: RUNNER_LOG_CAPTURE_MAX_BYTES,
       });
-      return {};
+      return { output: output.trim() || undefined };
     }
     await run(process.execPath, [entry, ...args], {
       cwd: params.repoRoot,

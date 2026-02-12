@@ -12,6 +12,8 @@ import {
   loadClawletsConfig,
   resolveHostName,
   writeClawletsConfig,
+  HETZNER_DEFAULT_LOCATION,
+  HETZNER_DEFAULT_SERVER_TYPE,
   type ClawletsHostConfig,
 } from "@clawlets/core/lib/config/clawlets-config";
 import { DEFAULT_NIX_SUBSTITUTERS, DEFAULT_NIX_TRUSTED_PUBLIC_KEYS } from "@clawlets/core/lib/nix/nix-cache";
@@ -60,7 +62,12 @@ const add = defineCommand({
       flakeHost: "",
       targetHost: undefined,
       theme: { emoji: HOST_THEME_DEFAULT_EMOJI, color: HOST_THEME_DEFAULT_COLOR },
-      hetzner: { serverType: "cx43", image: "", location: "nbg1", allowTailscaleUdpIngress: true },
+      hetzner: {
+        serverType: HETZNER_DEFAULT_SERVER_TYPE,
+        image: "",
+        location: HETZNER_DEFAULT_LOCATION,
+        allowTailscaleUdpIngress: true,
+      },
       aws: {
         region: "",
         instanceType: "",
@@ -167,9 +174,9 @@ const set = defineCommand({
     "self-update-healthcheck-unit": { type: "string", description: "Optional health check systemd unit (record-only)." },
     "flake-host": { type: "string", description: "Flake output host name override (default: same as host name)." },
     "target-host": { type: "string", description: "SSH target (ssh config alias or user@host)." },
-    "server-type": { type: "string", description: "Hetzner server type (e.g. cx43)." },
+    "server-type": { type: "string", description: "Hetzner server type (e.g. cpx32)." },
     "hetzner-image": { type: "string", description: "Hetzner image ID/name (custom image or snapshot)." },
-    "hetzner-location": { type: "string", description: "Hetzner location (e.g. nbg1, fsn1)." },
+    "hetzner-location": { type: "string", description: "Hetzner location (e.g. fsn1, nbg1)." },
     "hetzner-allow-tailscale-udp-ingress": { type: "string", description: "Allow inbound UDP/41641 for direct Tailscale (true/false)." },
     "admin-cidr": { type: "string", description: "ADMIN_CIDR (e.g. 1.2.3.4/32)." },
     "ssh-pubkey-file": { type: "string", description: "SSH public key file path used for provisioning (e.g. ~/.ssh/id_ed25519.pub)." },

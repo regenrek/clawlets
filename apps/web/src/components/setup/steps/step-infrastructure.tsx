@@ -2,20 +2,30 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useState } from "react"
 import { toast } from "sonner"
 import type { Id } from "../../../../convex/_generated/dataModel"
-import { HetznerTokenDialog } from "~/components/setup/hetzner-token-dialog"
+import { DeployCredsCard } from "~/components/fleet/deploy-creds-card"
+import {
+  HETZNER_LOCATION_OPTIONS,
+  HETZNER_RADIO_CUSTOM_VALUE,
+  HETZNER_SERVER_TYPE_OPTIONS,
+  HETZNER_SETUP_DEFAULT_LOCATION,
+  HETZNER_SETUP_DEFAULT_SERVER_TYPE,
+  isKnownHetznerLocation,
+  isKnownHetznerServerType,
+} from "~/components/hosts/hetzner-options"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "~/components/ui/accordion"
 import { AsyncButton } from "~/components/ui/async-button"
 import { Button } from "~/components/ui/button"
 import { Input } from "~/components/ui/input"
 import { LabelWithHelp } from "~/components/ui/label-help"
+import { RadioGroup, RadioGroupItem } from "~/components/ui/radio-group"
 import { SettingsSection } from "~/components/ui/settings-section"
 import { StackedField } from "~/components/ui/stacked-field"
 import { Switch } from "~/components/ui/switch"
-import { queryKeys } from "~/lib/query-options"
 import { setupFieldHelp } from "~/lib/setup-field-help"
 import type { SetupConfig } from "~/lib/setup/repo-probe"
-import { setupConfigProbeQueryKey } from "~/lib/setup/repo-probe"
 import type { SetupStepStatus } from "~/lib/setup/setup-model"
-import { configDotBatch } from "~/sdk/config/dot"
+import { cn } from "~/lib/utils"
+import { setupDraftSaveNonSecret, type SetupDraftView } from "~/sdk/setup"
 import type { DeployCredsStatus } from "~/sdk/infra"
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -31,18 +41,20 @@ function asBoolean(value: unknown, fallback: boolean): boolean {
   return typeof value === "boolean" ? value : fallback
 }
 
-function resolveHostDefaults(config: SetupConfig | null, host: string) {
+function resolveHostDefaults(config: SetupConfig | null, host: string, setupDraft: SetupDraftView | null) {
   const hostCfg = asRecord(config?.hosts?.[host]) ?? {}
   const hetznerCfg = asRecord(hostCfg.hetzner) ?? {}
+  const draft = setupDraft?.nonSecretDraft?.infrastructure ?? null
   return {
-    serverType: asString(hetznerCfg.serverType, "cx43"),
-    image: asString(hetznerCfg.image, ""),
-    location: asString(hetznerCfg.location, "nbg1"),
-    allowTailscaleUdpIngress: asBoolean(hetznerCfg.allowTailscaleUdpIngress, true),
+    serverType: asString(draft?.serverType, asString(hetznerCfg.serverType, HETZNER_SETUP_DEFAULT_SERVER_TYPE)),
+    image: asString(draft?.image, asString(hetznerCfg.image, "")),
+    location: asString(draft?.location, asString(hetznerCfg.location, HETZNER_SETUP_DEFAULT_LOCATION)),
+    allowTailscaleUdpIngress: asBoolean(draft?.allowTailscaleUdpIngress, asBoolean(hetznerCfg.allowTailscaleUdpIngress, true)),
   }
 }
 
-function readHcloudTokenState(deployCreds: DeployCredsStatus | null): "set" | "unset" | "unknown" {
+function readHcloudTokenState(deployCreds: DeployCredsStatus | null, setupDraft: SetupDraftView | null): "set" | "unset" | "unknown" {
+  if (setupDraft?.sealedSecretDrafts?.deployCreds?.status === "set") return "set"
   if (!deployCreds) return "unknown"
   const row = deployCreds.keys.find((entry) => entry.key === "HCLOUD_TOKEN")
   if (!row) return "unset"
@@ -52,21 +64,19 @@ function readHcloudTokenState(deployCreds: DeployCredsStatus | null): "set" | "u
 export function SetupStepInfrastructure(props: {
   projectId: Id<"projects">
   config: SetupConfig | null
+  setupDraft: SetupDraftView | null
   host: string
   deployCreds: DeployCredsStatus | null
-  deployCredsPending: boolean
-  deployCredsError: unknown
   stepStatus: SetupStepStatus
   onContinue: () => void
 }) {
   const queryClient = useQueryClient()
-  const [tokenDialogOpen, setTokenDialogOpen] = useState(false)
-  const defaults = resolveHostDefaults(props.config, props.host)
+  const defaults = resolveHostDefaults(props.config, props.host, props.setupDraft)
   const [serverType, setServerType] = useState(() => defaults.serverType)
   const [image, setImage] = useState(() => defaults.image)
   const [location, setLocation] = useState(() => defaults.location)
   const [allowTailscaleUdpIngress, setAllowTailscaleUdpIngress] = useState(() => defaults.allowTailscaleUdpIngress)
-  const hcloudTokenState = readHcloudTokenState(props.deployCreds)
+  const hcloudTokenState = readHcloudTokenState(props.deployCreds, props.setupDraft)
   const hcloudTokenReady = hcloudTokenState === "set"
   const hostConfigReady = serverType.trim().length > 0 && location.trim().length > 0
   const canContinue = props.stepStatus === "done"
@@ -75,35 +85,36 @@ export function SetupStepInfrastructure(props: {
     ...(serverType.trim().length > 0 ? [] : ["hetzner.serverType"]),
     ...(location.trim().length > 0 ? [] : ["hetzner.location"]),
   ]
+  const serverTypeTrimmed = serverType.trim()
+  const locationTrimmed = location.trim()
+  const serverTypeKnown = isKnownHetznerServerType(serverTypeTrimmed)
+  const locationKnown = isKnownHetznerLocation(locationTrimmed)
+  const serverTypeRadioValue = serverTypeKnown ? serverTypeTrimmed : HETZNER_RADIO_CUSTOM_VALUE
+  const locationRadioValue = locationKnown ? locationTrimmed : HETZNER_RADIO_CUSTOM_VALUE
 
   const saveHostSettings = useMutation({
     mutationFn: async () => {
       if (!props.host.trim()) throw new Error("missing host")
       if (!hostConfigReady) throw new Error("Set server type and location first.")
-      return await configDotBatch({
+      return await setupDraftSaveNonSecret({
         data: {
           projectId: props.projectId,
-          ops: [
-            { path: `hosts.${props.host}.provisioning.provider`, value: "hetzner" },
-            { path: `hosts.${props.host}.hetzner.serverType`, value: serverType.trim() },
-            { path: `hosts.${props.host}.hetzner.image`, value: image.trim() },
-            { path: `hosts.${props.host}.hetzner.location`, value: location.trim() },
-            {
-              path: `hosts.${props.host}.hetzner.allowTailscaleUdpIngress`,
-              valueJson: JSON.stringify(Boolean(allowTailscaleUdpIngress)),
+          host: props.host,
+          expectedVersion: props.setupDraft?.version,
+          patch: {
+            infrastructure: {
+              serverType: serverType.trim(),
+              image: image.trim(),
+              location: location.trim(),
+              allowTailscaleUdpIngress: Boolean(allowTailscaleUdpIngress),
             },
-          ],
+          },
         },
       })
     },
-    onSuccess: async (res: any) => {
-      if (res.ok) {
-        toast.success("Hetzner settings saved")
-        await queryClient.invalidateQueries({ queryKey: setupConfigProbeQueryKey(props.projectId) })
-        return
-      }
-      const first = Array.isArray(res.issues) ? res.issues[0] : null
-      toast.error(first?.message || "Validation failed")
+    onSuccess: async () => {
+      toast.success("Draft saved")
+      await queryClient.invalidateQueries({ queryKey: ["setupDraft", props.projectId, props.host] })
     },
     onError: (err) => {
       toast.error(err instanceof Error ? err.message : String(err))
@@ -112,7 +123,12 @@ export function SetupStepInfrastructure(props: {
 
   return (
     <div className="space-y-4">
-      <SettingsSection
+      <DeployCredsCard
+        projectId={props.projectId}
+        setupDraftFlow={{
+          host: props.host,
+          setupDraft: props.setupDraft,
+        }}
         title="Hetzner token"
         description={(
           <>
@@ -128,30 +144,8 @@ export function SetupStepInfrastructure(props: {
             .
           </>
         )}
-        statusText={
-          props.deployCredsPending
-            ? "Checking HCLOUD_TOKEN status..."
-            : props.deployCredsError
-              ? "Unable to read token status. Check runner."
-              : hcloudTokenState === "set"
-                ? "HCLOUD_TOKEN is set for this project."
-                : "HCLOUD_TOKEN is not set yet."
-        }
-        actions={(
-          <Button type="button" variant="outline" onClick={() => setTokenDialogOpen(true)}>
-            Add or manage
-          </Button>
-        )}
-      >
-        <div className="grid gap-2 text-sm text-muted-foreground">
-          <div>
-            Required for this step: <code>HCLOUD_TOKEN</code>
-          </div>
-          <div>
-            Recommended scope: one token per Clawlets project, backed by a dedicated Hetzner Cloud project.
-          </div>
-        </div>
-      </SettingsSection>
+        visibleKeys={["HCLOUD_TOKEN"]}
+      />
 
       <SettingsSection
         title="Hetzner host configuration"
@@ -169,65 +163,136 @@ export function SetupStepInfrastructure(props: {
           </AsyncButton>
         )}
       >
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-4">
           <StackedField
             id="setup-hetzner-server-type"
             label="Server type"
             help={setupFieldHelp.hosts.hetznerServerType}
-            description='Default: "cx43"'
+            description={`Default: "${HETZNER_SETUP_DEFAULT_SERVER_TYPE}"`}
           >
-            <Input
-              id="setup-hetzner-server-type"
-              value={serverType}
-              placeholder="cx43"
-              onChange={(event) => setServerType(event.target.value)}
-            />
+            <RadioGroup
+              value={serverTypeRadioValue}
+              onValueChange={(value) => {
+                if (value !== HETZNER_RADIO_CUSTOM_VALUE) setServerType(value)
+              }}
+              className="gap-3"
+            >
+              {HETZNER_SERVER_TYPE_OPTIONS.map((option) => (
+                <label
+                  key={option.value}
+                  className={cn(
+                    "flex items-start gap-3 rounded-md border bg-muted/10 p-3",
+                    serverTypeRadioValue === option.value && "border-primary bg-muted/20",
+                  )}
+                >
+                  <RadioGroupItem value={option.value} id={`setup-hetzner-server-type-${option.value}`} />
+                  <span className="space-y-1">
+                    <span className="block text-sm font-medium">{option.title}</span>
+                    <span className="block text-xs text-muted-foreground">{option.description}</span>
+                  </span>
+                </label>
+              ))}
+              {!serverTypeKnown && serverTypeTrimmed ? (
+                <label className="flex items-start gap-3 rounded-md border border-amber-500/60 bg-amber-500/10 p-3">
+                  <RadioGroupItem value={HETZNER_RADIO_CUSTOM_VALUE} id="setup-hetzner-server-type-custom" />
+                  <span className="space-y-1">
+                    <span className="block text-sm font-medium">Custom ({serverTypeTrimmed})</span>
+                    <span className="block text-xs text-muted-foreground">
+                      Current config value is not in presets. Selecting a preset will replace it.
+                    </span>
+                  </span>
+                </label>
+              ) : null}
+            </RadioGroup>
           </StackedField>
 
           <StackedField
             id="setup-hetzner-location"
             label="Location"
             help={setupFieldHelp.hosts.hetznerLocation}
-            description='Default: "nbg1"'
+            description={`Default: "${HETZNER_SETUP_DEFAULT_LOCATION}"`}
           >
-            <Input
-              id="setup-hetzner-location"
-              value={location}
-              placeholder="nbg1"
-              onChange={(event) => setLocation(event.target.value)}
-            />
+            <RadioGroup
+              value={locationRadioValue}
+              onValueChange={(value) => {
+                if (value !== HETZNER_RADIO_CUSTOM_VALUE) setLocation(value)
+              }}
+              className="grid gap-3 md:grid-cols-2"
+            >
+              {HETZNER_LOCATION_OPTIONS.map((option) => (
+                <label
+                  key={option.value}
+                  className={cn(
+                    "flex items-start gap-3 rounded-md border bg-muted/10 p-3",
+                    locationRadioValue === option.value && "border-primary bg-muted/20",
+                  )}
+                >
+                  <RadioGroupItem value={option.value} id={`setup-hetzner-location-${option.value}`} />
+                  <span className="mt-0.5 inline-flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-sm border bg-background">
+                    <option.flag className="size-8" />
+                  </span>
+                  <span className="space-y-1">
+                    <span className="block text-sm font-medium">{option.title}</span>
+                    <span className="block text-xs text-muted-foreground">
+                      {option.description} ({option.value})
+                    </span>
+                  </span>
+                </label>
+              ))}
+              {!locationKnown && locationTrimmed ? (
+                <label className="flex items-start gap-3 rounded-md border border-amber-500/60 bg-amber-500/10 p-3 md:col-span-2">
+                  <RadioGroupItem value={HETZNER_RADIO_CUSTOM_VALUE} id="setup-hetzner-location-custom" />
+                  <span className="space-y-1">
+                    <span className="block text-sm font-medium">Custom ({locationTrimmed})</span>
+                    <span className="block text-xs text-muted-foreground">
+                      Current config value is not in presets. Selecting a preset will replace it.
+                    </span>
+                  </span>
+                </label>
+              ) : null}
+            </RadioGroup>
           </StackedField>
 
-          <StackedField
-            id="setup-hetzner-image"
-            label="Image"
-            help={setupFieldHelp.hosts.hetznerImage}
-            description='Default: empty (uses NixOS path)'
-            className="md:col-span-2"
-          >
-            <Input
-              id="setup-hetzner-image"
-              value={image}
-              placeholder="leave empty for default"
-              onChange={(event) => setImage(event.target.value)}
-            />
-          </StackedField>
+          <Accordion className="rounded-lg border bg-muted/20">
+            <AccordionItem value="advanced" className="px-4">
+              <AccordionTrigger className="rounded-none border-0 px-0 py-2.5 hover:no-underline">
+                Advanced options
+              </AccordionTrigger>
+              <AccordionContent className="pb-4">
+                <div className="space-y-4">
+                  <StackedField
+                    id="setup-hetzner-image"
+                    label="Image"
+                    help={setupFieldHelp.hosts.hetznerImage}
+                    description='Default: empty (uses NixOS path)'
+                  >
+                    <Input
+                      id="setup-hetzner-image"
+                      value={image}
+                      placeholder="leave empty for default"
+                      onChange={(event) => setImage(event.target.value)}
+                    />
+                  </StackedField>
 
-          <div className="md:col-span-2">
-            <LabelWithHelp htmlFor="setup-hetzner-udp" help={setupFieldHelp.hosts.hetznerAllowTailscaleUdpIngress}>
-              Allow Tailscale UDP ingress
-            </LabelWithHelp>
-            <div className="mt-2 flex items-center gap-3">
-              <Switch
-                id="setup-hetzner-udp"
-                checked={allowTailscaleUdpIngress}
-                onCheckedChange={setAllowTailscaleUdpIngress}
-              />
-              <span className="text-sm text-muted-foreground">
-                Default: enabled. Disable for relay-only mode.
-              </span>
-            </div>
-          </div>
+                  <div>
+                    <LabelWithHelp htmlFor="setup-hetzner-udp" help={setupFieldHelp.hosts.hetznerAllowTailscaleUdpIngress}>
+                      Allow Tailscale UDP ingress
+                    </LabelWithHelp>
+                    <div className="mt-2 flex items-center gap-3">
+                      <Switch
+                        id="setup-hetzner-udp"
+                        checked={allowTailscaleUdpIngress}
+                        onCheckedChange={setAllowTailscaleUdpIngress}
+                      />
+                      <span className="text-sm text-muted-foreground">
+                        Default: enabled. Disable for relay-only mode.
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </div>
       </SettingsSection>
 
@@ -238,17 +303,6 @@ export function SetupStepInfrastructure(props: {
           </Button>
         </div>
       ) : null}
-
-      <HetznerTokenDialog
-        projectId={props.projectId}
-        open={tokenDialogOpen}
-        onOpenChange={(open) => {
-          setTokenDialogOpen(open)
-          if (!open) {
-            void queryClient.invalidateQueries({ queryKey: queryKeys.deployCreds(props.projectId) })
-          }
-        }}
-      />
     </div>
   )
 }

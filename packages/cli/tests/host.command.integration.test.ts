@@ -50,9 +50,13 @@ describe("host command", () => {
     const config = makeConfig();
     loadClawletsConfigMock.mockReturnValue({ configPath: "/repo/fleet/clawlets.json", config });
     const { host } = await import("../src/commands/config/host.js");
+    const { HETZNER_DEFAULT_LOCATION, HETZNER_DEFAULT_SERVER_TYPE } = await import("@clawlets/core/lib/config/clawlets-config");
     await host.subCommands?.add?.run?.({ args: { host: "beta" } } as any);
     expect(generateHostNameMock).not.toHaveBeenCalled();
     expect(writeClawletsConfigMock).toHaveBeenCalled();
+    const writeCall = writeClawletsConfigMock.mock.calls[0]?.[0] as { config?: any } | undefined;
+    expect(writeCall?.config?.hosts?.beta?.hetzner?.serverType).toBe(HETZNER_DEFAULT_SERVER_TYPE);
+    expect(writeCall?.config?.hosts?.beta?.hetzner?.location).toBe(HETZNER_DEFAULT_LOCATION);
     expect(logSpy).toHaveBeenCalledWith("ok: added host beta");
   });
 

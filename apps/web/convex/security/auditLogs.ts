@@ -265,6 +265,37 @@ export const append = mutation({
         data = { runId, jobId, targetRunnerId, updatedKeys };
         break;
       }
+      case "setup.apply.commit": {
+        const t = requireHostTarget(asObject(targetRaw, "target"));
+        const d = asObject(dataRaw, "data");
+        ensureNoExtraKeys(d, "data", ["runId", "jobId", "targetRunnerId", "updatedKeys"]);
+        if (typeof d.runId !== "string" || !d.runId.trim()) fail("conflict", "data.runId invalid");
+        if (typeof d.jobId !== "string" || !d.jobId.trim()) fail("conflict", "data.jobId invalid");
+        if (typeof d.targetRunnerId !== "string" || !d.targetRunnerId.trim()) fail("conflict", "data.targetRunnerId invalid");
+        const runId = d.runId as Id<"runs">;
+        const jobId = d.jobId as Id<"jobs">;
+        const targetRunnerId = d.targetRunnerId as Id<"runners">;
+        const updatedKeys = normalizeBoundedStringArray(d.updatedKeys, "data.updatedKeys");
+        target = t;
+        data = { runId, jobId, targetRunnerId, updatedKeys };
+        break;
+      }
+      case "setup.draft.save_non_secret":
+      case "setup.draft.save_sealed_section": {
+        const t = requireHostTarget(asObject(targetRaw, "target"));
+        const d = asObject(dataRaw, "data");
+        ensureNoExtraKeys(d, "data", ["updatedKeys"]);
+        const updatedKeys = normalizeBoundedStringArray(d.updatedKeys, "data.updatedKeys");
+        target = t;
+        data = { updatedKeys };
+        break;
+      }
+      case "setup.draft.discard": {
+        target = requireHostTarget(asObject(targetRaw, "target"));
+        if (dataRaw) fail("conflict", "data not allowed for setup.draft.discard");
+        data = undefined;
+        break;
+      }
       case "gateway.openclaw.harden": {
         const t = requireGatewayTarget(asObject(targetRaw, "target"));
         const d = asObject(dataRaw, "data");

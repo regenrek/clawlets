@@ -228,10 +228,9 @@ function StepContent(props: {
         key={`${host}:${setup.config ? "ready" : "loading"}`}
         projectId={projectId}
         config={setup.config}
+        setupDraft={setup.setupDraft}
         host={host}
         deployCreds={setup.deployCreds}
-        deployCredsPending={setup.deployCredsQuery.isPending}
-        deployCredsError={setup.deployCredsQuery.error}
         stepStatus={step.status as SetupStepStatus}
         onContinue={() => props.onContinueFromStep(stepId)}
       />
@@ -243,6 +242,7 @@ function StepContent(props: {
       <SetupStepConnection
         projectId={projectId}
         config={setup.config}
+        setupDraft={setup.setupDraft}
         host={host}
         stepStatus={step.status as SetupStepStatus}
         onContinue={() => props.onContinueFromStep(stepId)}
@@ -254,6 +254,8 @@ function StepContent(props: {
     return (
       <SetupStepCreds
         projectId={projectId}
+        host={host}
+        setupDraft={setup.setupDraft}
         isComplete={step.status === "done"}
         onContinue={() => props.onContinueFromStep(stepId)}
       />
@@ -265,6 +267,7 @@ function StepContent(props: {
       <SetupStepSecrets
         projectId={projectId}
         host={host}
+        setupDraft={setup.setupDraft}
         isComplete={step.status === "done"}
         onContinue={() => props.onContinueFromStep(stepId)}
       />

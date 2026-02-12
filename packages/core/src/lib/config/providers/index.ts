@@ -1,12 +1,27 @@
 import { z, type RefinementCtx } from "zod";
 import { AwsHostSchema, type AwsHostConfig, addAwsProvisioningIssues } from "./aws.js";
-import { HetznerHostSchema, type HetznerHostConfig, addHetznerProvisioningIssues } from "./hetzner.js";
+import {
+  HETZNER_DEFAULT_LOCATION,
+  HETZNER_DEFAULT_SERVER_TYPE,
+  HETZNER_LOCATIONS,
+  HETZNER_SERVER_TYPES,
+  HetznerHostSchema,
+  type HetznerHostConfig,
+  addHetznerProvisioningIssues,
+} from "./hetzner.js";
 
 export const PROVISIONING_PROVIDERS = ["hetzner", "aws"] as const;
 export const ProvisioningProviderSchema = z.enum(PROVISIONING_PROVIDERS);
 export type ProvisioningProvider = z.infer<typeof ProvisioningProviderSchema>;
 
-export { AwsHostSchema, HetznerHostSchema };
+export {
+  AwsHostSchema,
+  HetznerHostSchema,
+  HETZNER_DEFAULT_SERVER_TYPE,
+  HETZNER_DEFAULT_LOCATION,
+  HETZNER_SERVER_TYPES,
+  HETZNER_LOCATIONS,
+};
 export type { AwsHostConfig, HetznerHostConfig };
 
 export type ProvisioningHostConfig = {

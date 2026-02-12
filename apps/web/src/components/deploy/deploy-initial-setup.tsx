@@ -24,6 +24,7 @@ import { deriveDeploySshKeyReadiness } from "~/lib/setup/deploy-ssh-key-readines
 import { gitRepoStatus } from "~/sdk/vcs"
 import { lockdownExecute, lockdownStart } from "~/sdk/infra"
 import { serverUpdateApplyExecute, serverUpdateApplyStart } from "~/sdk/server"
+import { setupDraftCommit } from "~/sdk/setup"
 import {
   deriveDeployReadiness,
   deriveFirstPushGuidance,
@@ -155,6 +156,7 @@ export function DeployInitialInstallSetup(props: {
   const canAutoLockdown = isTailnet && hasTailscaleSecret
 
   const [bootstrapRunId, setBootstrapRunId] = useState<Id<"runs"> | null>(null)
+  const [setupApplyRunId, setSetupApplyRunId] = useState<Id<"runs"> | null>(null)
   const [bootstrapStatus, setBootstrapStatus] = useState<"idle" | "running" | "succeeded" | "failed">("idle")
   const [finalizeState, setFinalizeState] = useState<FinalizeState>("idle")
   const [finalizeError, setFinalizeError] = useState<string | null>(null)
@@ -361,6 +363,14 @@ export function DeployInitialInstallSetup(props: {
       if (!selectedRev) {
         throw new Error("No pushed revision found.")
       }
+      const setupApply = await setupDraftCommit({
+        data: {
+          projectId: projectId as Id<"projects">,
+          host: props.host,
+        },
+      })
+      setSetupApplyRunId(setupApply.runId)
+      await queryClient.invalidateQueries({ queryKey: ["setupDraft", projectId, props.host] })
       await runDoctor({
         data: {
           projectId: projectId as Id<"projects">,
@@ -666,6 +676,7 @@ export function DeployInitialInstallSetup(props: {
           />
         ) : null}
 
+        {setupApplyRunId ? <RunLogTail runId={setupApplyRunId} /> : null}
         {lockdownRunId ? <RunLogTail runId={lockdownRunId} /> : null}
         {applyRunId ? <RunLogTail runId={applyRunId} /> : null}
 

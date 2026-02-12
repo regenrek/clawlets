@@ -14,5 +14,11 @@ crons.interval(
   internal.controlPlane.jobs.purgeExpiredCommandResultsInternal,
   { limit: 500 },
 );
+crons.interval(
+  "setup-drafts-purge",
+  { minutes: 30 },
+  internal.controlPlane.setupDrafts.purgeExpiredInternal,
+  { limit: 200 },
+);
 
 export default crons;

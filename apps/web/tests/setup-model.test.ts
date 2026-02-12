@@ -132,6 +132,48 @@ describe("deriveSetupModel", () => {
     expect(step6.showCelebration).toBe(true)
     expect(step6.steps.find((s) => s.id === "verify")?.status).toBe("pending")
   })
+
+  it("resumes step completion from setup draft values and secret status", () => {
+    const model = deriveSetupModel({
+      config: {
+        hosts: {
+          h1: {
+            provisioning: { provider: "hetzner" },
+            hetzner: {
+              serverType: "",
+              location: "",
+            },
+          },
+        },
+      },
+      hostFromRoute: "h1",
+      deployCreds: { keys: [] },
+      setupDraft: {
+        nonSecretDraft: {
+          infrastructure: {
+            serverType: "cx22",
+            location: "nbg1",
+          },
+          connection: {
+            adminCidr: "203.0.113.10/32",
+            sshKeyCount: 1,
+          },
+        },
+        sealedSecretDrafts: {
+          deployCreds: { status: "set" },
+          bootstrapSecrets: { status: "set" },
+        },
+      },
+      latestBootstrapRun: null,
+      latestBootstrapSecretsVerifyRun: null,
+    })
+
+    expect(model.steps.find((s) => s.id === "infrastructure")?.status).toBe("done")
+    expect(model.steps.find((s) => s.id === "connection")?.status).toBe("done")
+    expect(model.steps.find((s) => s.id === "creds")?.status).toBe("done")
+    expect(model.steps.find((s) => s.id === "secrets")?.status).toBe("done")
+    expect(model.activeStepId).toBe("deploy")
+  })
 })
 
 describe("deriveHostSetupStepper", () => {

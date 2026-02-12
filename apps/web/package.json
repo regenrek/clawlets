@@ -60,6 +60,9 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@iconify-json/flagpack": "^1.2.7",
+    "@svgr/core": "^8.1.0",
+    "@svgr/plugin-jsx": "^8.1.0",
     "@tailwindcss/vite": "^4.1.18",
     "@types/node": "^25.2.3",
     "@types/react": "^19.2.14",
@@ -71,6 +74,7 @@
     "tailwindcss": "^4.1.18",
     "tw-animate-css": "^1.3.4",
     "typescript": "^5.9.3",
+    "unplugin-icons": "^23.0.1",
     "vite": "^7.1.7",
     "vite-tsconfig-paths": "^6.1.0",
     "vitest": "4.0.18"

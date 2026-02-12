@@ -302,4 +302,34 @@ describe("runner command policy", () => {
       await fs.rm(dir, { recursive: true, force: true });
     }
   });
+
+  it("allows setup_apply kind and resolves structured small result", async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "clawlets-policy-setup-apply-"));
+    try {
+      const payloadValidation = validateRunnerJobPayload({
+        kind: "setup_apply",
+        payloadMeta: {
+          args: ["setup", "apply", "--from-json", "__RUNNER_INPUT_JSON__", "--json"],
+          updatedKeys: ["hostName", "configOps", "deployCredsDraft", "bootstrapSecretsDraft"],
+        },
+      });
+      expect(payloadValidation.ok).toBe(true);
+
+      const result = await resolveRunnerJobCommand({
+        kind: "setup_apply",
+        payloadMeta: {
+          args: ["setup", "apply", "--from-json", "__RUNNER_INPUT_JSON__", "--json"],
+          updatedKeys: ["hostName", "configOps", "deployCredsDraft", "bootstrapSecretsDraft"],
+        },
+        repoRoot: dir,
+      });
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.exec).toBe("clawlets");
+      expect(result.resultMode).toBe("json_small");
+      expect(result.resultMaxBytes).toBe(512 * 1024);
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
 });
