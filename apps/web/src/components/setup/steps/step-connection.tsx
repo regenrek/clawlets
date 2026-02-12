@@ -28,7 +28,11 @@ export function SetupStepConnection(props: {
     ? (props.config?.fleet?.sshAuthorizedKeys as string[])
     : []
   if (!hostCfg) {
-    return <div className="text-sm text-muted-foreground">Loading…</div>
+    return (
+      <div className="text-sm text-muted-foreground">
+        Host config not loaded yet. Ensure runner is online, then retry.
+      </div>
+    )
   }
   return (
     <SetupStepConnectionForm

@@ -1,12 +1,20 @@
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, redirect } from "@tanstack/react-router"
 import type { Id } from "../../../convex/_generated/dataModel"
 import { ProjectDashboard } from "~/components/dashboard/project-dashboard"
 import { useProjectBySlug } from "~/lib/project-data"
 import { projectsListQueryOptions } from "~/lib/query-options"
+import { slugifyProjectName } from "~/lib/project-routing"
 
 export const Route = createFileRoute("/$projectSlug/")({
-  loader: async ({ context }) => {
-    await context.queryClient.ensureQueryData(projectsListQueryOptions())
+  loader: async ({ context, params }) => {
+    const projects = (await context.queryClient.ensureQueryData(projectsListQueryOptions())) as Array<any>
+    const project = projects.find((item) => slugifyProjectName(String(item?.name || "")) === params.projectSlug) || null
+    if (project?.status === "creating" || project?.status === "error") {
+      throw redirect({
+        to: "/$projectSlug/runner",
+        params: { projectSlug: params.projectSlug },
+      })
+    }
   },
   component: ProjectDashboardRoute,
 })

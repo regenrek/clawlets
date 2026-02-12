@@ -217,7 +217,6 @@ function normalizePayloadMeta(raw: unknown): RunnerCommandPayloadMeta {
 function validateStructuredPayload(kind: string, payloadMeta: RunnerCommandPayloadMeta): { ok: true } | { ok: false; error: string } {
   if (kind === "project_init") {
     if (payloadMeta.args?.length) return { ok: false, error: "project_init forbids payloadMeta.args" };
-    if (!payloadMeta.hostName) return { ok: false, error: "project_init requires payloadMeta.hostName" };
     return { ok: true };
   }
   if (kind === "project_import") {
@@ -236,7 +235,8 @@ export function buildCreateImportCommand(
   payloadMeta: RunnerCommandPayloadMeta,
 ): { exec: RunnerCommandExecutable; args: string[] } | null {
   if (kind === "project_init") {
-    const args = ["project", "init", "--dir", ".", "--host", payloadMeta.hostName || ""];
+    const args = ["project", "init", "--dir", "."];
+    if (payloadMeta.hostName) args.push("--host", payloadMeta.hostName);
     if (payloadMeta.templateRepo) args.push("--template", payloadMeta.templateRepo);
     if (payloadMeta.templatePath) args.push("--templatePath", payloadMeta.templatePath);
     if (payloadMeta.templateRef) args.push("--templateRef", payloadMeta.templateRef);

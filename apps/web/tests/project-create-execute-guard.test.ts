@@ -53,7 +53,6 @@ describe("project create/import runner queue", () => {
         data: {
           name: "Fleet A",
           runnerRepoPath: " ~/.clawlets//projects\\Fleet-A/ ",
-          host: "alpha",
           runnerName: "runner-alpha",
           templateRepo: "owner/repo",
           templatePath: "templates/default",
@@ -68,7 +67,6 @@ describe("project create/import runner queue", () => {
       token: "tok_1",
       runnerName: "runner-alpha",
       runnerRepoPath: "~/.clawlets/projects/Fleet-A",
-      host: "alpha",
     })
 
     const payloads = mutation.mock.calls.map(([, payload]) => (payload ?? {}) as MutationPayload)
@@ -81,13 +79,16 @@ describe("project create/import runner queue", () => {
     expect(createPayload?.workspaceRef?.id).toMatch(/^seeded:sha256:[a-f0-9]{64}$/)
 
     const runPayload = payloads.find((payload) => payload?.kind === "project_init" && payload?.payloadMeta === undefined)
-    expect(runPayload).toMatchObject({ kind: "project_init", title: "Create project", host: "alpha" })
+    expect(runPayload).toMatchObject({ kind: "project_init", title: "Create project" })
+    expect(runPayload?.host).toBeUndefined()
 
     const enqueuePayload = payloads.find((payload) => payload?.kind === "project_init" && payload?.payloadMeta)
     expect(enqueuePayload).toMatchObject({
       kind: "project_init",
-      payloadMeta: { hostName: "alpha", templateRepo: "owner/repo", templatePath: "templates/default", templateRef: "main" },
+      payloadMeta: { templateRepo: "owner/repo", templatePath: "templates/default", templateRef: "main" },
     })
+    expect(enqueuePayload?.host).toBeUndefined()
+    expect(enqueuePayload?.payloadMeta?.hostName).toBeUndefined()
     expect(enqueuePayload?.payloadMeta?.args).toBeUndefined()
   })
 
@@ -184,7 +185,7 @@ describe("project create/import runner queue", () => {
     await expect(
       runWithStartContext(START_CTX, async () =>
         await mod.projectCreateStart({
-          data: { name: "Fleet E", runnerRepoPath: "~/.clawlets/projects/../escape", host: "alpha", runnerName: "runner-echo" },
+          data: { name: "Fleet E", runnerRepoPath: "~/.clawlets/projects/../escape", runnerName: "runner-echo" },
         }),
       ),
     ).rejects.toThrow(/cannot contain '\.\.' path segments/i)

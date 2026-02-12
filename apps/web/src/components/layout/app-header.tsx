@@ -122,8 +122,6 @@ function AppHeader({ showSidebarToggle = true }: { showSidebarToggle?: boolean }
           projectId={projectId}
           projectSlug={projectSlug}
           projectStatus={projectQuery.project?.status ?? null}
-          activeHost={activeHost}
-          fallbackHost={hostNames[0] ?? null}
           projectRunnerRepoPath={projectQuery.project?.runnerRepoPath ?? null}
         />
       ) : null}
