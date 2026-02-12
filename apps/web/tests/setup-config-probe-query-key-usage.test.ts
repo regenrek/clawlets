@@ -13,14 +13,16 @@ describe("setup probe query key usage", () => {
     const useSetupModel = readFile("lib/setup/use-setup-model.ts")
     const runnerStatusControl = readFile("components/layout/runner-status-control.tsx")
     const deploySetup = readFile("components/deploy/deploy-initial-setup.tsx")
+    const runnerRoute = readFile("routes/$projectSlug/runner.tsx")
     const stepConnection = readFile("components/setup/steps/step-connection.tsx")
 
     expect(useSetupModel).toContain("setupConfigProbeQueryOptions")
     expect(runnerStatusControl).toContain("setupConfigProbeQueryOptions")
     expect(deploySetup).toContain("setupConfigProbeQueryOptions")
-    expect(stepConnection).toContain("setupConfigProbeQueryKey")
+    expect(runnerRoute).toContain("setupConfigProbeQueryOptions")
+    expect(deploySetup).toContain("setupConfigProbeQueryKey")
 
-    expect(`${useSetupModel}\n${runnerStatusControl}\n${deploySetup}\n${stepConnection}`)
+    expect(`${useSetupModel}\n${runnerStatusControl}\n${deploySetup}\n${runnerRoute}\n${stepConnection}`)
       .not.toContain("hostSetupConfig")
   })
 })
