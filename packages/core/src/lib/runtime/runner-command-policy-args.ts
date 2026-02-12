@@ -451,6 +451,21 @@ const specEnvApplyJson: CommandSpec = {
   resultMaxBytes: RUNNER_COMMAND_RESULT_SMALL_MAX_BYTES,
 };
 
+const specSetupApply: CommandSpec = {
+  id: "setup_apply",
+  prefix: ["setup", "apply"],
+  flags: {
+    "--from-json": {
+      kind: "value",
+      validate: validateEnum(new Set(["__RUNNER_INPUT_JSON__"]), "--from-json"),
+    },
+    "--json": { kind: "boolean" },
+  },
+  required: ["--from-json", "--json"],
+  resultMode: "json_small",
+  resultMaxBytes: RUNNER_COMMAND_RESULT_SMALL_MAX_BYTES,
+};
+
 const specEnvDetectAgeKey: CommandSpec = {
   id: "env_detect_age_key",
   prefix: ["env", "detect-age-key"],
@@ -522,6 +537,7 @@ const SPECS_BY_KIND: Record<string, CommandSpec[]> = {
   secrets_sync: [specSecretsSync],
   secrets_init: [specSecretsInit],
   secrets_write: [specSecretsInit],
+  setup_apply: [specSetupApply],
   secrets_verify: [specSecretsVerify],
   secrets_verify_bootstrap: [specSecretsVerify],
   secrets_verify_openclaw: [specSecretsVerify],

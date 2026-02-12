@@ -21,6 +21,7 @@ import { HostSshSection } from "~/components/hosts/host-ssh-section"
 import { HostUpdatesSection } from "~/components/hosts/host-updates-section"
 import { HostProviderSettingsSection } from "~/components/hosts/host-provider-settings-section"
 import { TailscaleAuthKeyCard } from "~/components/hosts/tailscale-auth-key-card"
+import { HETZNER_SETUP_DEFAULT_LOCATION, HETZNER_SETUP_DEFAULT_SERVER_TYPE } from "~/components/hosts/hetzner-options"
 import { looksLikeSshPrivateKeyText, looksLikeSshPublicKeyText } from "~/lib/form-utils"
 import { setupFieldHelp } from "~/lib/setup-field-help"
 import { ConnectivityPanel } from "~/components/hosts/connectivity-panel"
@@ -96,9 +97,9 @@ function toHostSettingsDraft(hostCfg: Record<string, unknown>): HostSettingsDraf
     sshPubkeyFile: asString(provisioning.sshPubkeyFile),
     sshExposure: asSshExposureMode(sshExposure.mode),
     tailnetMode: asTailnetMode(tailnet.mode),
-    serverType: asString(hetzner.serverType, "cx43"),
+    serverType: asString(hetzner.serverType, HETZNER_SETUP_DEFAULT_SERVER_TYPE),
     hetznerImage: asString(hetzner.image),
-    hetznerLocation: asString(hetzner.location, "nbg1"),
+    hetznerLocation: asString(hetzner.location, HETZNER_SETUP_DEFAULT_LOCATION),
     hetznerAllowTailscaleUdpIngress: hetzner.allowTailscaleUdpIngress !== false,
     flakeHost: asString(hostCfg.flakeHost),
     agentModelPrimary: asString(hostCfg.agentModelPrimary),

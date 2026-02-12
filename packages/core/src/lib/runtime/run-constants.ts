@@ -9,6 +9,7 @@ export const RUN_KINDS = [
   "secrets_verify_bootstrap",
   "secrets_verify_openclaw",
   "secrets_sync",
+  "setup_apply",
   "bootstrap",
   "lockdown",
   "server_status",

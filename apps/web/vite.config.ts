@@ -4,6 +4,7 @@ import { defineConfig } from 'vite'
 import tsConfigPaths from 'vite-tsconfig-paths'
 import viteReact from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import Icons from 'unplugin-icons/vite'
 
 export default defineConfig({
   server: {
@@ -20,6 +21,11 @@ export default defineConfig({
   },
   plugins: [
     tailwindcss(),
+    Icons({
+      compiler: 'jsx',
+      jsx: 'react',
+      autoInstall: false,
+    }),
     tsConfigPaths({
       projects: ['./tsconfig.json'],
     }),

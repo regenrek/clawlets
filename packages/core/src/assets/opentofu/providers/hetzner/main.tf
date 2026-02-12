@@ -63,7 +63,7 @@ variable "tailscale_udp_ingress_enabled" {
 
 variable "server_type" {
   type = string
-  default = "cx43"
+  default = "cpx32"
 }
 
 variable "image" {
@@ -73,7 +73,7 @@ variable "image" {
 
 variable "location" {
   type = string
-  default = "nbg1"
+  default = "fsn1"
 }
 
 provider "hcloud" {}

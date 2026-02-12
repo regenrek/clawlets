@@ -1,8 +1,11 @@
 import type { Id } from "../../../../convex/_generated/dataModel"
 import { DeployCredsCard } from "~/components/fleet/deploy-creds-card"
+import type { SetupDraftView } from "~/sdk/setup"
 
 export function SetupStepCreds(props: {
   projectId: Id<"projects">
+  host: string
+  setupDraft: SetupDraftView | null
   isComplete: boolean
   onContinue: () => void
 }) {
@@ -11,6 +14,10 @@ export function SetupStepCreds(props: {
       <DeployCredsCard
         projectId={props.projectId}
         visibleKeys={["GITHUB_TOKEN", "SOPS_AGE_KEY_FILE"]}
+        setupDraftFlow={{
+          host: props.host,
+          setupDraft: props.setupDraft,
+        }}
         setupAction={{
           isComplete: props.isComplete,
           onContinue: props.onContinue,

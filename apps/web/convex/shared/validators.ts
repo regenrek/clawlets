@@ -20,6 +20,9 @@ import {
   RunnerCapabilities,
   RunnerStatus,
   Role,
+  SetupDraftNonSecret,
+  SetupDraftSealedSections,
+  SetupDraftStatus,
   RunEventLevel,
   RunEventMeta,
   RunKind,
@@ -200,6 +203,45 @@ export const JobDoc = v.object({
   startedAt: v.optional(v.number()),
   finishedAt: v.optional(v.number()),
   errorMessage: v.optional(v.string()),
+});
+
+export const SetupDraftInfrastructureDoc = v.object({
+  serverType: v.optional(v.string()),
+  image: v.optional(v.string()),
+  location: v.optional(v.string()),
+  allowTailscaleUdpIngress: v.optional(v.boolean()),
+});
+
+export const SetupDraftConnectionDoc = v.object({
+  adminCidr: v.optional(v.string()),
+  sshExposureMode: v.optional(v.union(v.literal("bootstrap"), v.literal("tailnet"), v.literal("public"))),
+  sshKeyCount: v.optional(v.number()),
+  sshAuthorizedKeys: v.optional(v.array(v.string())),
+});
+
+export const SetupDraftSealedSectionDoc = v.object({
+  alg: v.string(),
+  keyId: v.string(),
+  targetRunnerId: v.id("runners"),
+  sealedInputB64: v.string(),
+  aad: v.string(),
+  updatedAt: v.number(),
+  expiresAt: v.number(),
+});
+
+export const SetupDraftDoc = v.object({
+  _id: v.id("setupDrafts"),
+  _creationTime: v.number(),
+  projectId: v.id("projects"),
+  hostName: v.string(),
+  status: SetupDraftStatus,
+  version: v.number(),
+  nonSecretDraft: SetupDraftNonSecret,
+  sealedSecretDrafts: SetupDraftSealedSections,
+  updatedAt: v.number(),
+  expiresAt: v.number(),
+  committedAt: v.optional(v.number()),
+  lastError: v.optional(v.string()),
 });
 
 export const RunnerCommandResultDoc = v.object({

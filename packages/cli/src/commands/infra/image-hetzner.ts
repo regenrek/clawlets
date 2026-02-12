@@ -16,7 +16,7 @@ export const imageHetznerUpload = defineCommand({
     "image-url": { type: "string", description: "Public URL for the raw image (Hetzner must reach it)." },
     compression: { type: "string", description: "Compression type (none|gz|bz2|xz).", default: "none" },
     architecture: { type: "string", description: "Architecture (x86 or arm).", default: "x86" },
-    location: { type: "string", description: "Hetzner location (default: host hetzner.location)." },
+    location: { type: "string", description: "Hetzner location (default: host hetzner.location or fsn1)." },
     name: { type: "string", description: "Image name override (optional)." },
     dryRun: { type: "boolean", description: "Print commands without executing.", default: false },
     bin: { type: "string", description: "Override hcloud-upload-image binary (default: hcloud-upload-image)." },
@@ -45,7 +45,7 @@ export const imageHetznerUpload = defineCommand({
       throw new Error("invalid --architecture (expected x86|arm)");
     }
 
-    const location = String(args.location || hostCfg.hetzner.location || "nbg1").trim() || "nbg1";
+    const location = String(args.location || hostCfg.hetzner.location || "fsn1").trim() || "fsn1";
     const name = String(args.name || "").trim();
     const bin = String(args.bin || "hcloud-upload-image").trim() || "hcloud-upload-image";
 

@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { convexQuery } from "@convex-dev/react-query"
 import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
@@ -28,17 +28,22 @@ import {
   secretsSyncExecute,
   secretsSyncPreview,
   secretsSyncStart,
-  secretsVerifyAndWait,
   secretsVerifyExecute,
   secretsVerifyStart,
 } from "~/sdk/secrets"
 import { MissingEnvWiringPanel } from "~/components/secrets/missing-env-wiring"
+import {
+  buildSetupDraftSectionAad,
+  setupDraftSaveSealedSection,
+  type SetupDraftView,
+} from "~/sdk/setup"
 
 type HostSecretsPanelProps = {
   projectId: Id<"projects">
   host: string
   scope?: "bootstrap" | "updates" | "openclaw" | "all"
   mode?: "default" | "setup"
+  setupDraft?: SetupDraftView | null
   setupFlow?: {
     isComplete: boolean
     onContinue: () => void
@@ -47,14 +52,22 @@ type HostSecretsPanelProps = {
 
 const EMPTY_MISSING_SECRET_CONFIG: MissingSecretConfig[] = []
 type SecretWiringStatus = (typeof SECRET_WIRING_STATUSES)[number]
-type SetupSavePhase = "idle" | "saving" | "verifying"
+type SetupSavePhase = "idle" | "saving"
 const SECRET_WIRING_STATUS_SET = new Set<string>(SECRET_WIRING_STATUSES)
 
 function isSecretWiringStatus(value: unknown): value is SecretWiringStatus {
   return typeof value === "string" && SECRET_WIRING_STATUS_SET.has(value)
 }
 
-export function HostSecretsPanel({ projectId, host, scope = "all", mode = "default", setupFlow }: HostSecretsPanelProps) {
+export function HostSecretsPanel({
+  projectId,
+  host,
+  scope = "all",
+  mode = "default",
+  setupDraft = null,
+  setupFlow,
+}: HostSecretsPanelProps) {
+  const queryClient = useQueryClient()
   const setupMode = mode === "setup"
   const template = useQuery({
     queryKey: ["secretsTemplate", projectId, host, scope],
@@ -151,7 +164,7 @@ export function HostSecretsPanel({ projectId, host, scope = "all", mode = "defau
   const [initRunId, setInitRunId] = useState<Id<"runs"> | null>(null)
   const [setupSavePhase, setSetupSavePhase] = useState<SetupSavePhase>("idle")
   const [setupSaveError, setSetupSaveError] = useState<string | null>(null)
-  const [setupVerifyRunId, setSetupVerifyRunId] = useState<Id<"runs"> | null>(null)
+  const setupDraftSecretsSet = setupDraft?.sealedSecretDrafts?.bootstrapSecrets?.status === "set"
 
   const pickTargetSealedRunner = () => {
     if (sealedRunners.length === 1) return sealedRunners[0]
@@ -230,24 +243,43 @@ export function HostSecretsPanel({ projectId, host, scope = "all", mode = "defau
   const runSetupSaveAndContinue = async () => {
     if (!setupFlow || setupSavePhase !== "idle") return
     setSetupSaveError(null)
-    setSetupVerifyRunId(null)
     setSetupSavePhase("saving")
     try {
-      const initRun = await secretsInitStart({ data: { projectId, host, scope } })
-      setInitRunId(initRun.runId)
-      await runSecretsInit(initRun.runId)
-
-      setSetupSavePhase("verifying")
-      const verify = await secretsVerifyAndWait({
-        data: { projectId, host, scope },
+      const runner = pickTargetSealedRunner()
+      if (!runner) throw new Error("Select an online sealed-capable runner before saving secrets")
+      const targetRunnerId = String(runner._id) as Id<"runners">
+      const runnerPub = String(runner.capabilities?.sealedInputPubSpkiB64 || "").trim()
+      const keyId = String(runner.capabilities?.sealedInputKeyId || "").trim()
+      const alg = String(runner.capabilities?.sealedInputAlg || "").trim()
+      if (!runnerPub || !keyId || !alg) throw new Error("runner sealed-input capabilities incomplete")
+      const aad = buildSetupDraftSectionAad({
+        projectId,
+        host,
+        section: "bootstrapSecrets",
+        targetRunnerId,
       })
-      setSetupVerifyRunId(verify.runId)
-
-      if (verify.status !== "succeeded") {
-        throw new Error(verify.errorMessage || "Secrets verification did not succeed")
-      }
-
-      toast.success("Secrets verified. Continuing to deploy.")
+      const sealedInputB64 = await sealForRunner({
+        runnerPubSpkiB64: runnerPub,
+        keyId,
+        alg,
+        aad,
+        plaintextJson: JSON.stringify(buildSecretsInitPayload()),
+      })
+      await setupDraftSaveSealedSection({
+        data: {
+          projectId,
+          host,
+          section: "bootstrapSecrets",
+          targetRunnerId,
+          sealedInputB64,
+          sealedInputAlg: alg,
+          sealedInputKeyId: keyId,
+          aad,
+          expectedVersion: setupDraft?.version,
+        },
+      })
+      await queryClient.invalidateQueries({ queryKey: ["setupDraft", projectId, host] })
+      toast.success("Draft saved")
       setupFlow.onContinue()
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
@@ -301,14 +333,19 @@ export function HostSecretsPanel({ projectId, host, scope = "all", mode = "defau
     setTailscaleUnlocked(false)
     setSetupSaveError(null)
     setSetupSavePhase("idle")
-    setSetupVerifyRunId(null)
   }, [host])
 
   const verifySummary = useMemo<{ ok: number; missing: number; warn: number; total: number } | null>(
     () => null,
     [verifyQuery.dataUpdatedAt],
   )
-  const secretStatusByName: Record<string, SecretStatus> = {}
+  const secretStatusByName: Record<string, SecretStatus> = useMemo(() => {
+    if (!setupMode || !setupDraftSecretsSet) return {}
+    const out: Record<string, SecretStatus> = {}
+    for (const spec of secretsPlan?.required || []) out[spec.name] = { status: "ok" }
+    for (const spec of secretsPlan?.optional || []) out[spec.name] = { status: "ok" }
+    return out
+  }, [secretsPlan, setupDraftSecretsSet, setupMode])
 
   const secretWiringStatusByName = useMemo<Record<string, SecretWiringStatus>>(() => {
     const out: Record<string, SecretWiringStatus> = {}
@@ -320,8 +357,8 @@ export function HostSecretsPanel({ projectId, host, scope = "all", mode = "defau
     return out
   }, [secretWiringQuery.data])
 
-  const adminConfigured = secretWiringStatusByName["admin_password_hash"] === "configured"
-  const tailscaleConfigured = secretWiringStatusByName["tailscale_auth_key"] === "configured"
+  const adminConfigured = setupDraftSecretsSet || secretWiringStatusByName["admin_password_hash"] === "configured"
+  const tailscaleConfigured = setupDraftSecretsSet || secretWiringStatusByName["tailscale_auth_key"] === "configured"
   const adminLocked = (adminConfigured || secretStatusByName["admin_password_hash"]?.status === "ok") && !adminUnlocked
   const tailscaleLocked = (tailscaleConfigured || secretStatusByName["tailscale_auth_key"]?.status === "ok") && !tailscaleUnlocked
   const showAdminEditorInSetup = !adminLocked || Boolean(adminPassword.trim())
@@ -339,16 +376,12 @@ export function HostSecretsPanel({ projectId, host, scope = "all", mode = "defau
   if (setupMode) {
     const canSaveInSetup = !initBlockedReason && Boolean(template.data) && !template.isPending && !template.error
     const setupSavePending = setupSavePhase !== "idle"
-    const setupPendingText = setupSavePhase === "verifying"
-      ? "Verifying required secrets..."
-      : "Saving encrypted secrets..."
+    const setupPendingText = "Saving encrypted secrets..."
     const setupStatus = setupFlow?.isComplete
-      ? "Secrets verified. Continue to deploy."
+      ? "Encrypted secrets draft set. Continue to deploy."
       : setupSavePhase === "saving"
-        ? "Saving encrypted secrets for this host."
-        : setupSavePhase === "verifying"
-          ? "Verifying required secrets before continuing."
-          : setupSaveError || initBlockedReason || "Save required secrets. Continue unlocks automatically after verify."
+        ? "Saving encrypted secrets draft for this host."
+        : setupSaveError || initBlockedReason || "Save required secrets as encrypted draft values."
     return (
       <SettingsSection
         title="Server passwords"
@@ -505,11 +538,6 @@ export function HostSecretsPanel({ projectId, host, scope = "all", mode = "defau
                   <Spinner className="size-3" />
                   Saving encrypted secrets...
                 </div>
-              ) : setupSavePhase === "verifying" ? (
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Spinner className="size-3" />
-                  Verifying required secrets. This can take up to 45 seconds.
-                </div>
               ) : verifyQuery.isFetching ? (
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Spinner className="size-3" />
@@ -519,11 +547,10 @@ export function HostSecretsPanel({ projectId, host, scope = "all", mode = "defau
                 <div className="text-destructive">{setupSaveError}</div>
               ) : (
                 <div className="text-muted-foreground">
-                  Save & Continue runs verify and advances automatically when secrets are ready.
+                  Save & Continue stores encrypted draft values and advances.
                 </div>
               )}
             </div>
-            {setupVerifyRunId ? <RunLogTail runId={setupVerifyRunId} /> : null}
           </div>
         ) : (
           <div className="text-muted-foreground text-sm">Loading required secrets…</div>

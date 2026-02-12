@@ -77,16 +77,24 @@ async function loadRunnerStartWithMocks(params: {
   vi.resetModules();
   const observed: { tempPath?: string; tempJson?: string; env?: Record<string, unknown>; stdin?: unknown } = {};
 
+  const inspectTempPath = async (argv: string[]) => {
+    for (const token of argv) {
+      if (typeof token !== "string" || !token.includes("clawlets-runner-input.")) continue;
+      observed.tempPath = token;
+      observed.tempJson = await fs.readFile(token, "utf8");
+      break;
+    }
+  };
+
   const run = vi.fn(async (_cmd: string, argv: string[], opts: any) => {
     observed.env = opts?.env;
     observed.stdin = opts?.stdin;
-    const tempPath = argv[argv.length - 1];
-    if (typeof tempPath === "string" && tempPath.includes("clawlets-runner-input.")) {
-      observed.tempPath = tempPath;
-      observed.tempJson = await fs.readFile(tempPath, "utf8");
-    }
+    await inspectTempPath(argv);
   });
-  const capture = vi.fn(async () => params.captureOutput || "");
+  const capture = vi.fn(async (_cmd: string, argv: string[]) => {
+    await inspectTempPath(argv);
+    return params.captureOutput || "";
+  });
 
   vi.doMock("@clawlets/core/lib/runtime/run", () => ({
     run,
@@ -308,6 +316,156 @@ describe("runner sealed input execution", () => {
     } finally {
       await fs.rm(tempDir, { recursive: true, force: true });
     }
+  });
+
+  it("unseals setup_apply nested drafts into final input JSON and returns structured summary", async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "clawlets-runner-start-"));
+    try {
+      const keypair = await loadOrCreateRunnerSealedInputKeypair({
+        privateKeyPath: path.join(tempDir, "runner.pem"),
+      });
+      const projectId = "p1";
+      const targetRunnerId = "r1";
+      const hostName = "alpha";
+      const jobId = "job-setup-apply";
+      const kind = "setup_apply";
+
+      const deployCredsDraft = buildEnvelope({
+        publicKeySpkiB64: keypair.publicKeySpkiB64,
+        keyId: keypair.keyId,
+        aad: `${projectId}:${hostName}:setupDraft:deployCreds:${targetRunnerId}`,
+        plaintext: JSON.stringify({
+          HCLOUD_TOKEN: "token-123",
+          GITHUB_TOKEN: "gh-123",
+          SOPS_AGE_KEY_FILE: "/tmp/operator.agekey",
+        }),
+      });
+      const bootstrapSecretsDraft = buildEnvelope({
+        publicKeySpkiB64: keypair.publicKeySpkiB64,
+        keyId: keypair.keyId,
+        aad: `${projectId}:${hostName}:setupDraft:bootstrapSecrets:${targetRunnerId}`,
+        plaintext: JSON.stringify({
+          adminPasswordHash: "$6$hash",
+          tailscaleAuthKey: "tskey-auth",
+          discord_token: "token-xyz",
+        }),
+      });
+      const outerPayload = {
+        hostName,
+        configOps: [
+          {
+            path: "hosts.alpha.provisioning.provider",
+            value: "hetzner",
+            del: false,
+          },
+        ],
+        deployCredsDraft: {
+          alg: RUNNER_SEALED_INPUT_ALG,
+          keyId: keypair.keyId,
+          targetRunnerId,
+          sealedInputB64: deployCredsDraft,
+          aad: `${projectId}:${hostName}:setupDraft:deployCreds:${targetRunnerId}`,
+          updatedAt: 1,
+          expiresAt: Date.now() + 60_000,
+        },
+        bootstrapSecretsDraft: {
+          alg: RUNNER_SEALED_INPUT_ALG,
+          keyId: keypair.keyId,
+          targetRunnerId,
+          sealedInputB64: bootstrapSecretsDraft,
+          aad: `${projectId}:${hostName}:setupDraft:bootstrapSecrets:${targetRunnerId}`,
+          updatedAt: 1,
+          expiresAt: Date.now() + 60_000,
+        },
+      };
+      const sealedInputB64 = buildEnvelope({
+        publicKeySpkiB64: keypair.publicKeySpkiB64,
+        keyId: keypair.keyId,
+        aad: `${projectId}:${jobId}:${kind}:${targetRunnerId}`,
+        plaintext: JSON.stringify(outerPayload),
+      });
+
+      const { mod, run, capture, observed } = await loadRunnerStartWithMocks({
+        resolvedKind: kind,
+        resolvedArgs: ["setup", "apply", "--from-json", "__RUNNER_INPUT_JSON__", "--json"],
+        resolvedResultMode: "json_small",
+        captureOutput: "{\"ok\":true,\"summary\":\"safe\"}",
+      });
+
+      await expect(
+        mod.__test_executeJob({
+          job: {
+            jobId,
+            runId: "run-setup-apply",
+            leaseId: "lease-setup-apply",
+            leaseExpiresAt: Date.now() + 30_000,
+            kind,
+            attempt: 1,
+            targetRunnerId,
+            sealedInputB64,
+            sealedInputAlg: RUNNER_SEALED_INPUT_ALG,
+            sealedInputKeyId: keypair.keyId,
+            payloadMeta: {
+              args: ["setup", "apply", "--from-json", "__RUNNER_INPUT_JSON__", "--json"],
+              updatedKeys: ["hostName", "configOps", "deployCredsDraft", "bootstrapSecretsDraft"],
+            },
+          },
+          repoRoot: "/tmp/repo",
+          projectId,
+          runnerPrivateKeyPem: keypair.privateKeyPem,
+        }),
+      ).resolves.toEqual({
+        commandResultJson: "{\"ok\":true,\"summary\":\"safe\"}",
+      });
+
+      expect(run).not.toHaveBeenCalled();
+      expect(capture).toHaveBeenCalledTimes(1);
+      const parsed = JSON.parse(String(observed.tempJson || "{}")) as Record<string, unknown>;
+      expect(parsed.hostName).toBe(hostName);
+      expect(parsed).toMatchObject({
+        deployCreds: {
+          HCLOUD_TOKEN: "token-123",
+          GITHUB_TOKEN: "gh-123",
+        },
+        bootstrapSecrets: {
+          adminPasswordHash: "$6$hash",
+          tailscaleAuthKey: "tskey-auth",
+          discord_token: "token-xyz",
+        },
+      });
+    } finally {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("does not append command_output events for setup_apply secret-bearing runs", async () => {
+    const appendRunEvents = vi.fn(async () => ({ ok: true }));
+    const result = await (await import("../src/commands/runner/start.js")).__test_executeLeasedJobWithRunEvents({
+      client: { appendRunEvents } as any,
+      projectId: "p1",
+      job: {
+        jobId: "job-setup-output",
+        runId: "run-setup-output",
+        leaseId: "lease-setup-output",
+        leaseExpiresAt: Date.now() + 30_000,
+        kind: "setup_apply",
+        attempt: 1,
+      },
+      maxAttempts: 3,
+      executeJobFn: vi.fn(async () => ({
+        commandResultJson: "{\"ok\":true}",
+      })),
+    });
+
+    expect(result).toEqual({
+      terminal: "succeeded",
+      commandResultJson: "{\"ok\":true}",
+      commandResultLargeJson: undefined,
+    });
+    expect(appendRunEvents.mock.calls).toHaveLength(2);
+    const messages = runEventMessages(appendRunEvents);
+    expect(messages.some((message) => message.includes("structured JSON result stored ephemerally"))).toBe(false);
+    expect(messages.some((message) => message.includes("{\"ok\":true}"))).toBe(false);
   });
 
   it("returns machine JSON via commandResultJson and redacts run-event output", async () => {

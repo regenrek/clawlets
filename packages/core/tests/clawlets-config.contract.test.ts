@@ -318,7 +318,11 @@ describe("clawlets config schema", () => {
   });
 
   it("createDefaultClawletsConfig trims and defaults", async () => {
-    const { createDefaultClawletsConfig } = await import("../src/lib/config/clawlets-config");
+    const {
+      createDefaultClawletsConfig,
+      HETZNER_DEFAULT_LOCATION,
+      HETZNER_DEFAULT_SERVER_TYPE,
+    } = await import("../src/lib/config/clawlets-config");
     const cfg = createDefaultClawletsConfig({ host: "   ", gateways: [" maren ", "", "sonja"] });
     expect(Object.keys(cfg.hosts)).toEqual(["openclaw-fleet-host"]);
     expect(cfg.defaultHost).toBe("openclaw-fleet-host");
@@ -331,6 +335,8 @@ describe("clawlets config schema", () => {
     expect(cfg.hosts["openclaw-fleet-host"].cache?.netrc?.enable).toBe(false);
     expect(cfg.hosts["openclaw-fleet-host"].provisioning?.adminCidrAllowWorldOpen).toBe(false);
     expect(cfg.hosts["openclaw-fleet-host"].provisioning?.provider).toBe("hetzner");
+    expect(cfg.hosts["openclaw-fleet-host"].hetzner?.serverType).toBe(HETZNER_DEFAULT_SERVER_TYPE);
+    expect(cfg.hosts["openclaw-fleet-host"].hetzner?.location).toBe(HETZNER_DEFAULT_LOCATION);
     expect(cfg.hosts["openclaw-fleet-host"].hetzner?.allowTailscaleUdpIngress).toBe(true);
     expect(cfg.hosts["openclaw-fleet-host"].aws?.useDefaultVpc).toBe(false);
     expect(cfg.hosts["openclaw-fleet-host"].aws?.allowTailscaleUdpIngress).toBe(true);

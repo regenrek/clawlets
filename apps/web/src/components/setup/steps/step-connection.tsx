@@ -10,15 +10,25 @@ import { LabelWithHelp } from "~/components/ui/label-help"
 import { SettingsSection } from "~/components/ui/settings-section"
 import { Textarea } from "~/components/ui/textarea"
 import { setupFieldHelp } from "~/lib/setup-field-help"
-import { setupConfigProbeQueryKey } from "~/lib/setup/repo-probe"
 import { resolveConnectionStepMissingRequirements, shouldShowConnectionSshKeyEditor } from "~/lib/setup/connection-step"
-import { configDotBatch } from "~/sdk/config/dot"
-import { addProjectSshKeys } from "~/sdk/config/hosts"
 import type { SetupStepStatus } from "~/lib/setup/setup-model"
+import { setupDraftSaveNonSecret, type SetupDraftView } from "~/sdk/setup"
+
+function parseSshPublicKeysFromText(text: string): string[] {
+  const out: string[] = []
+  for (const rawLine of text.split(/\r?\n/g)) {
+    const line = rawLine.trim()
+    if (!line || line.startsWith("#")) continue
+    if (!/^ssh-(ed25519|rsa|ecdsa)/.test(line)) continue
+    out.push(line)
+  }
+  return Array.from(new Set(out))
+}
 
 export function SetupStepConnection(props: {
   projectId: Id<"projects">
   config: any | null
+  setupDraft: SetupDraftView | null
   host: string
   stepStatus: SetupStepStatus
   onContinue: () => void
@@ -41,6 +51,7 @@ export function SetupStepConnection(props: {
       host={props.host}
       hostCfg={hostCfg}
       fleetSshKeys={fleetSshKeys}
+      setupDraft={props.setupDraft}
       stepStatus={props.stepStatus}
       onContinue={props.onContinue}
     />
@@ -52,12 +63,20 @@ function SetupStepConnectionForm(props: {
   host: string
   hostCfg: any
   fleetSshKeys: string[]
+  setupDraft: SetupDraftView | null
   stepStatus: SetupStepStatus
   onContinue: () => void
 }) {
   const queryClient = useQueryClient()
-  const [adminCidr, setAdminCidr] = useState(() => String(props.hostCfg?.provisioning?.adminCidr || ""))
-  const hasProjectSshKeys = props.fleetSshKeys.length > 0
+  const draftConnection = props.setupDraft?.nonSecretDraft?.connection
+  const [adminCidr, setAdminCidr] = useState(() => String(draftConnection?.adminCidr || props.hostCfg?.provisioning?.adminCidr || ""))
+  const knownSshKeys = Array.from(
+    new Set([
+      ...props.fleetSshKeys,
+      ...(Array.isArray(draftConnection?.sshAuthorizedKeys) ? draftConnection.sshAuthorizedKeys : []),
+    ]),
+  )
+  const hasProjectSshKeys = knownSshKeys.length > 0
   const [showKeyEditor, setShowKeyEditor] = useState(() => !hasProjectSshKeys)
   const [keyText, setKeyText] = useState("")
 
@@ -79,44 +98,42 @@ function SetupStepConnectionForm(props: {
   const save = useMutation({
     mutationFn: async () => {
       if (!props.host.trim()) throw new Error("missing host")
-      if (!hasProjectSshKeys && !keyText.trim()) {
+      const parsedNewKeys = parseSshPublicKeysFromText(keyText)
+      const mergedKeys = Array.from(new Set([...knownSshKeys, ...parsedNewKeys]))
+      if (mergedKeys.length === 0) {
         throw new Error("Add at least one SSH public key to continue.")
       }
-      if (keyText.trim()) {
-        const res = await addProjectSshKeys({
-          data: {
-            projectId: props.projectId,
-            keyText,
-            knownHostsText: "",
+      const existingMode = String(
+        draftConnection?.sshExposureMode
+        || props.hostCfg?.sshExposure?.mode
+        || "bootstrap",
+      ).trim() || "bootstrap"
+      return await setupDraftSaveNonSecret({
+        data: {
+          projectId: props.projectId,
+          host: props.host,
+          expectedVersion: props.setupDraft?.version,
+          patch: {
+            connection: {
+              adminCidr: adminCidr.trim(),
+              sshExposureMode: props.stepStatus === "done"
+                ? (existingMode as "bootstrap" | "tailnet" | "public")
+                : "bootstrap",
+              sshKeyCount: mergedKeys.length,
+              sshAuthorizedKeys: mergedKeys,
+            },
           },
-        })
-        if (!res.ok) {
-          throw new Error("Failed to save SSH keys.")
-        }
-      }
-      const ops = [
-        { path: `hosts.${props.host}.provisioning.adminCidr`, value: adminCidr.trim() },
-        // Day-0 bootstrap requires public SSH. We set this automatically during setup,
-        // but avoid overwriting once the step is already marked done.
-        ...(props.stepStatus === "done"
-          ? []
-          : [{ path: `hosts.${props.host}.sshExposure.mode`, value: "bootstrap" }]),
-      ]
-      return await configDotBatch({ data: { projectId: props.projectId, ops } })
+        },
+      })
     },
-    onSuccess: async (res: any) => {
-      if (res.ok) {
-        toast.success("Saved")
-        setKeyText("")
-        setShowKeyEditor(false)
-        await queryClient.invalidateQueries({
-          queryKey: setupConfigProbeQueryKey(props.projectId),
-        })
-        props.onContinue()
-        return
-      }
-      const first = Array.isArray(res.issues) ? res.issues[0] : null
-      toast.error(first?.message || "Validation failed")
+    onSuccess: async () => {
+      toast.success("Draft saved")
+      setKeyText("")
+      setShowKeyEditor(false)
+      await queryClient.invalidateQueries({
+        queryKey: ["setupDraft", props.projectId, props.host],
+      })
+      props.onContinue()
     },
     onError: (err) => {
       toast.error(err instanceof Error ? err.message : String(err))
@@ -161,7 +178,7 @@ function SetupStepConnectionForm(props: {
                 <InputGroupInput
                   id="setup-ssh-key-text"
                   readOnly
-                  value={`${props.fleetSshKeys.length} project SSH key${props.fleetSshKeys.length === 1 ? "" : "s"} configured`}
+                  value={`${knownSshKeys.length} project SSH key${knownSshKeys.length === 1 ? "" : "s"} configured`}
                 />
                 <InputGroupAddon align="inline-end">
                   <InputGroupButton
@@ -190,7 +207,10 @@ function SetupStepConnectionForm(props: {
               {hasProjectSshKeys ? (
                 <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
                   <span>
-                    Already configured: <strong>{props.fleetSshKeys.length}</strong> project SSH key(s).
+                    Already configured: <strong>{knownSshKeys.length}</strong> project SSH key(s).
+                    {Array.isArray(draftConnection?.sshAuthorizedKeys) && draftConnection.sshAuthorizedKeys.length > props.fleetSshKeys.length
+                      ? " (includes pending draft updates)"
+                      : null}
                     {keyText.trim() ? " Pasted keys will be added too." : null}
                   </span>
                   {showKeyEditor ? (

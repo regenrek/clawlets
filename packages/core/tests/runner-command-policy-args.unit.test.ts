@@ -65,6 +65,29 @@ describe("runner command policy args parser", () => {
     }
   });
 
+  it("accepts setup_apply canonical args", () => {
+    const result = __test_validateArgsForKind({
+      kind: "setup_apply",
+      args: ["setup", "apply", "--from-json", "__RUNNER_INPUT_JSON__", "--json"],
+    });
+    expect(result).toEqual({ ok: true });
+  });
+
+  it("resolves json_small mode for setup_apply", () => {
+    const resolved = resolveCommandSpecForKind("setup_apply", [
+      "setup",
+      "apply",
+      "--from-json",
+      "__RUNNER_INPUT_JSON__",
+      "--json",
+    ]);
+    expect(resolved.ok).toBe(true);
+    if (!resolved.ok) return;
+    expect(resolved.spec.id).toBe("setup_apply");
+    expect(resolved.spec.resultMode).toBe("json_small");
+    expect(resolved.spec.resultMaxBytes).toBe(512 * 1024);
+  });
+
   it("resolves json_large mode for openclaw schema fetch", () => {
     const resolved = resolveCommandSpecForKind("custom", [
       "openclaw",

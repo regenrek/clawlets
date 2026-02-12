@@ -22,10 +22,19 @@ import {
   getDeployCredsStatus,
   updateDeployCreds,
 } from "~/sdk/infra"
+import {
+  buildSetupDraftSectionAad,
+  setupDraftSaveSealedSection,
+  type SetupDraftView,
+} from "~/sdk/setup"
 
 type DeployCredsCardProps = {
   projectId: Id<"projects">
   setupHref?: string | null
+  setupDraftFlow?: {
+    host: string
+    setupDraft: SetupDraftView | null
+  }
   setupAction?: {
     isComplete: boolean
     onContinue: () => void
@@ -38,6 +47,7 @@ type DeployCredsCardProps = {
 export function DeployCredsCard({
   projectId,
   setupHref = null,
+  setupDraftFlow,
   setupAction,
   title = "Deploy credentials",
   description = "Local-only operator tokens used by bootstrap, infra, and doctor.",
@@ -101,6 +111,8 @@ export function DeployCredsCard({
   )
   const sopsAgeKeyFile = sopsAgeKeyFileOverride ?? defaultSopsAgeKeyFile
   const githubTokenRequired = Boolean(setupAction && showGithubToken)
+  const setupDraftDeployCredsSet = setupDraftFlow?.setupDraft?.sealedSecretDrafts?.deployCreds?.status === "set"
+  const isKeySet = (key: string) => setupDraftDeployCredsSet || credsByKey[key]?.status === "set"
 
   const save = useMutation({
     mutationFn: async () => {
@@ -124,7 +136,42 @@ export function DeployCredsCard({
           ? sealedRunners[0]
           : sealedRunners.find((row) => String(row._id) === selectedRunnerId)
       if (!runner) throw new Error("Select a sealed-capable runner")
-      const targetRunnerId = String(runner._id)
+      const targetRunnerId = String(runner._id) as Id<"runners">
+      const runnerPub = String(runner.capabilities?.sealedInputPubSpkiB64 || "").trim()
+      const keyId = String(runner.capabilities?.sealedInputKeyId || "").trim()
+      const alg = String(runner.capabilities?.sealedInputAlg || "").trim()
+      if (!runnerPub || !keyId || !alg) throw new Error("runner sealed-input capabilities incomplete")
+
+      if (setupDraftFlow) {
+        const aad = buildSetupDraftSectionAad({
+          projectId,
+          host: setupDraftFlow.host,
+          section: "deployCreds",
+          targetRunnerId,
+        })
+        const sealedInputB64 = await sealForRunner({
+          runnerPubSpkiB64: runnerPub,
+          keyId,
+          alg,
+          aad,
+          plaintextJson: JSON.stringify(updates),
+        })
+        const draft = await setupDraftSaveSealedSection({
+          data: {
+            projectId,
+            host: setupDraftFlow.host,
+            section: "deployCreds",
+            targetRunnerId,
+            sealedInputB64,
+            sealedInputAlg: alg,
+            sealedInputKeyId: keyId,
+            aad,
+            expectedVersion: setupDraftFlow.setupDraft?.version,
+          },
+        })
+        return { setupDraft: draft }
+      }
+
       const reserve = await updateDeployCreds({
         data: {
           projectId,
@@ -135,15 +182,14 @@ export function DeployCredsCard({
       const jobId = String(reserve?.jobId || "").trim()
       const kind = String(reserve?.kind || "").trim()
       if (!jobId || !kind) throw new Error("reserve response missing job metadata")
-      const runnerPub = String(reserve?.sealedInputPubSpkiB64 || runner.capabilities?.sealedInputPubSpkiB64 || "").trim()
-      const keyId = String(reserve?.sealedInputKeyId || runner.capabilities?.sealedInputKeyId || "").trim()
-      const alg = String(reserve?.sealedInputAlg || runner.capabilities?.sealedInputAlg || "").trim()
-      if (!runnerPub || !keyId || !alg) throw new Error("runner sealed-input capabilities incomplete")
+      const reserveRunnerPub = String(reserve?.sealedInputPubSpkiB64 || runnerPub).trim()
+      const reserveKeyId = String(reserve?.sealedInputKeyId || keyId).trim()
+      const reserveAlg = String(reserve?.sealedInputAlg || alg).trim()
       const aad = `${projectId}:${jobId}:${kind}:${targetRunnerId}`
       const sealedInputB64 = await sealForRunner({
-        runnerPubSpkiB64: runnerPub,
-        keyId,
-        alg,
+        runnerPubSpkiB64: reserveRunnerPub,
+        keyId: reserveKeyId,
+        alg: reserveAlg,
         aad,
         plaintextJson: JSON.stringify(updates),
       })
@@ -153,8 +199,8 @@ export function DeployCredsCard({
           jobId,
           kind,
           sealedInputB64,
-          sealedInputAlg: alg,
-          sealedInputKeyId: keyId,
+          sealedInputAlg: reserveAlg,
+          sealedInputKeyId: reserveKeyId,
           targetRunnerId,
           updatedKeys,
         },
@@ -162,12 +208,15 @@ export function DeployCredsCard({
       return { queued }
     },
     onSuccess: () => {
-      toast.success("Queued sealed update to runner")
+      toast.success(setupDraftFlow ? "Draft saved" : "Queued sealed update to runner")
       setHcloudToken("")
       setGithubToken("")
       setHcloudUnlocked(false)
       setGithubUnlocked(false)
       void queryClient.invalidateQueries({ queryKey: ["deployCreds", projectId] })
+      if (setupDraftFlow) {
+        void queryClient.invalidateQueries({ queryKey: ["setupDraft", projectId, setupDraftFlow.host] })
+      }
     },
     onError: (err) => {
       toast.error(String(err))
@@ -291,8 +340,8 @@ export function DeployCredsCard({
                 id="hcloudToken"
                 value={hcloudToken}
                 onValueChange={setHcloudToken}
-                placeholder={credsByKey["HCLOUD_TOKEN"]?.status === "set" ? "set (click Remove to edit)" : "(required)"}
-                locked={credsByKey["HCLOUD_TOKEN"]?.status === "set" && !hcloudUnlocked}
+                placeholder={isKeySet("HCLOUD_TOKEN") ? "set (click Remove to edit)" : "(required)"}
+                locked={isKeySet("HCLOUD_TOKEN") && !hcloudUnlocked}
                 onUnlock={() => setHcloudUnlocked(true)}
               />
             </StackedField>
@@ -324,12 +373,12 @@ export function DeployCredsCard({
                 id="githubToken"
                 value={githubToken}
                 onValueChange={setGithubToken}
-                placeholder={credsByKey["GITHUB_TOKEN"]?.status === "set"
+                placeholder={isKeySet("GITHUB_TOKEN")
                   ? "set (click Remove to edit)"
                   : githubTokenRequired
                     ? "(required)"
                     : "(recommended)"}
-                locked={credsByKey["GITHUB_TOKEN"]?.status === "set" && !githubUnlocked}
+                locked={isKeySet("GITHUB_TOKEN") && !githubUnlocked}
                 onUnlock={() => setGithubUnlocked(true)}
               />
             </StackedField>

@@ -1,13 +1,27 @@
 import { z, type RefinementCtx } from "zod";
 
+export const HETZNER_SERVER_TYPES = ["cpx22", "cpx32", "cpx42"] as const;
+export type HetznerServerType = (typeof HETZNER_SERVER_TYPES)[number];
+
+export const HETZNER_LOCATIONS = ["nbg1", "fsn1", "hel1", "sin", "hil", "ash"] as const;
+export type HetznerLocation = (typeof HETZNER_LOCATIONS)[number];
+
+export const HETZNER_DEFAULT_SERVER_TYPE: HetznerServerType = "cpx32";
+export const HETZNER_DEFAULT_LOCATION: HetznerLocation = "fsn1";
+
 export const HetznerHostSchema = z
   .object({
-    serverType: z.string().trim().min(1).default("cx43"),
+    serverType: z.string().trim().min(1).default(HETZNER_DEFAULT_SERVER_TYPE),
     image: z.string().trim().default(""),
-    location: z.string().trim().min(1).default("nbg1"),
+    location: z.string().trim().min(1).default(HETZNER_DEFAULT_LOCATION),
     allowTailscaleUdpIngress: z.boolean().default(true),
   })
-  .default(() => ({ serverType: "cx43", image: "", location: "nbg1", allowTailscaleUdpIngress: true }));
+  .default(() => ({
+    serverType: HETZNER_DEFAULT_SERVER_TYPE,
+    image: "",
+    location: HETZNER_DEFAULT_LOCATION,
+    allowTailscaleUdpIngress: true,
+  }));
 
 export type HetznerHostConfig = z.infer<typeof HetznerHostSchema>;
 

@@ -27,6 +27,7 @@ Control-plane storage is metadata that helps with coordination and observability
 - secret wiring status (`configured`, `missing`, etc.) without values
 - runner heartbeat and capability flags
 - queued/running/completed job state for scheduling and retries
+- setup drafts: non-secret draft fields + sealed ciphertext blobs for secret sections
 
 ## Bounded metadata constraints
 
@@ -71,6 +72,13 @@ Oversized payloads are rejected by the control plane with `400`.
 </Steps>
 
 For protocol details: [Runner agent](/operations/runner-agent), [Deploy credentials](/dashboard/deploy-credentials), [Architecture](/security/architecture).
+
+## Setup draft boundary
+
+- Non-secret setup inputs are stored as plain draft metadata (resume-safe).
+- Secret setup inputs are stored only as runner-sealed ciphertext blobs.
+- Final setup commit enqueues one sealed `setup_apply` job.
+- Secret-bearing jobs do not append raw command output to run events.
 
 ## Retention and erasure
 
