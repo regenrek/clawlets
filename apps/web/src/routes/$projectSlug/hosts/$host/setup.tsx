@@ -14,6 +14,7 @@ import { SetupHeader } from "~/components/setup/setup-header"
 import { SetupStepConnection } from "~/components/setup/steps/step-connection"
 import { SetupStepCreds } from "~/components/setup/steps/step-creds"
 import { SetupStepDeploy } from "~/components/setup/steps/step-deploy"
+import { SetupStepInfrastructure } from "~/components/setup/steps/step-infrastructure"
 import { SetupStepSecrets } from "~/components/setup/steps/step-secrets"
 import { SetupStepVerify } from "~/components/setup/steps/step-verify"
 import {
@@ -70,8 +71,9 @@ export const Route = createFileRoute("/$projectSlug/hosts/$host/setup")({
 })
 
 const STEP_META: Record<string, { title: string; description: string }> = {
+  infrastructure: { title: "Hetzner Setup", description: "Token and provisioning defaults" },
   connection: { title: "Server Access", description: "Network and SSH settings" },
-  creds: { title: "Provider Tokens", description: "Cloud and deploy credentials" },
+  creds: { title: "Provider Tokens", description: "GitHub and SOPS credentials" },
   secrets: { title: "Server Passwords", description: "Secrets encryption and sync" },
   deploy: { title: "Install Server", description: "Bootstrap and deploy the host" },
   verify: { title: "Secure and Verify", description: "Lock down SSH and verify" },
@@ -198,7 +200,7 @@ function HostSetupPage() {
             key={step.id}
             value={step.id}
             className={
-              ["connection", "creds", "secrets", "deploy"].includes(step.id)
+              ["infrastructure", "connection", "creds", "secrets", "deploy"].includes(step.id)
                 ? "text-card-foreground"
                 : "rounded-lg border bg-card p-4 text-card-foreground"
             }
@@ -229,6 +231,22 @@ function StepContent(props: {
   onContinueFromStep: (stepId: SetupStepId) => void
 }) {
   const { stepId, step, projectId, projectSlug, host, setup } = props
+
+  if (stepId === "infrastructure") {
+    return (
+      <SetupStepInfrastructure
+        key={`${host}:${setup.config ? "ready" : "loading"}`}
+        projectId={projectId}
+        config={setup.config}
+        host={host}
+        deployCreds={setup.deployCreds}
+        deployCredsPending={setup.deployCredsQuery.isPending}
+        deployCredsError={setup.deployCredsQuery.error}
+        stepStatus={step.status as SetupStepStatus}
+        onContinue={() => props.onContinueFromStep(stepId)}
+      />
+    )
+  }
 
   if (stepId === "connection") {
     return (
