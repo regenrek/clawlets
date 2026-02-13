@@ -37,11 +37,8 @@ Useful flags:
 ## If Nix is intentionally skipped
 
 `clawlets quickstart --install-nix=never` exits fast when `nix` is missing.
-Install Nix first, then rerun quickstart:
-
-```bash
-curl -fsSL https://install.determinate.systems/nix | sh -s -- install --no-confirm
-```
+Install Nix first using the checksum-verified flow in
+[Install Nix](/operations/install-nix), then rerun quickstart.
 
 If your shell cannot resolve `nix`, set `NIX_BIN`:
 
