@@ -17,7 +17,7 @@ import { configDotSet } from "~/sdk/config"
 import { getHostPublicIpv4, probeHostTailscaleIpv4 } from "~/sdk/host"
 import { bootstrapExecute, bootstrapStart, getDeployCredsStatus, runDoctor } from "~/sdk/infra"
 import { useProjectBySlug } from "~/lib/project-data"
-import { isProjectRunnerOnline } from "~/lib/setup/runner-status"
+import { deriveProjectRunnerNixReadiness, isProjectRunnerOnline } from "~/lib/setup/runner-status"
 import { setupConfigProbeQueryKey, setupConfigProbeQueryOptions } from "~/lib/setup/repo-probe"
 import { deriveDeploySshKeyReadiness } from "~/lib/setup/deploy-ssh-key-readiness"
 import { sealForRunner } from "~/lib/security/sealed-input"
@@ -169,6 +169,10 @@ export function DeployInitialInstallSetup(props: {
     ),
   })
   const runnerOnline = useMemo(() => isProjectRunnerOnline(runnersQuery.data ?? []), [runnersQuery.data])
+  const runnerNixReadiness = useMemo(
+    () => deriveProjectRunnerNixReadiness(runnersQuery.data ?? []),
+    [runnersQuery.data],
+  )
   const sealedRunners = useMemo(
     () =>
       (runnersQuery.data ?? [])
@@ -246,6 +250,12 @@ export function DeployInitialInstallSetup(props: {
   const sshKeyReadiness = deriveDeploySshKeyReadiness({
     fleetSshAuthorizedKeys: setupConfigQuery.data?.fleet?.sshAuthorizedKeys,
   })
+  const nixGateBlocked = runnerOnline && !runnerNixReadiness.ready
+  const nixGateMessage = !runnerOnline
+    ? null
+    : runnerNixReadiness.ready
+      ? null
+      : "Runner is online but Nix is missing. Install Nix on the runner host, then restart the runner."
   const sshKeyGateBlocked = runnerOnline && (
     setupConfigQuery.isPending
     || setupConfigQuery.isError
@@ -278,10 +288,10 @@ export function DeployInitialInstallSetup(props: {
         ? `Missing provider tokens: ${missingCredLabels.join(", ")}. Open Pre-Deploy.`
         : null
 
-  const deployGateBlocked = repoGateBlocked || sshKeyGateBlocked || credsGateBlocked
+  const deployGateBlocked = repoGateBlocked || nixGateBlocked || sshKeyGateBlocked || credsGateBlocked
   const deployStatusReason = repoGateBlocked
     ? statusReason
-    : sshKeyGateMessage || credsGateMessage || statusReason
+    : nixGateMessage || sshKeyGateMessage || credsGateMessage || statusReason
 
   const wantsTailscaleLockdown = props.pendingBootstrapSecrets.useTailscaleLockdown
   const hasPendingTailscaleKey = props.pendingBootstrapSecrets.tailscaleAuthKey.trim().length > 0
@@ -770,7 +780,23 @@ export function DeployInitialInstallSetup(props: {
             )}
           </div>
 
-          {!isBootstrapped && sshKeyGateMessage && !repoGateBlocked ? (
+          {!isBootstrapped && nixGateMessage && !repoGateBlocked ? (
+            <Alert variant="destructive">
+              <AlertTitle>Nix missing on runner</AlertTitle>
+              <AlertDescription>
+                <div>{nixGateMessage}</div>
+                <div className="pt-1">
+                  Install command: <code>curl -fsSL https://install.determinate.systems/nix | sh -s -- install --no-confirm</code>
+                </div>
+                <div className="pt-1">
+                  Runner: <code>{runnerNixReadiness.runnerName || "unknown"}</code>.
+                  {runnerNixReadiness.nixBin ? <> NIX_BIN: <code>{runnerNixReadiness.nixBin}</code>.</> : null}
+                </div>
+              </AlertDescription>
+            </Alert>
+          ) : null}
+
+          {!isBootstrapped && sshKeyGateMessage && !repoGateBlocked && !nixGateBlocked ? (
             <Alert
               variant={setupConfigQuery.isPending ? "default" : "destructive"}
               className={setupConfigQuery.isPending
@@ -791,7 +817,7 @@ export function DeployInitialInstallSetup(props: {
           ) : null}
 
 
-          {!isBootstrapped && credsGateMessage && !repoGateBlocked && !sshKeyGateBlocked ? (
+          {!isBootstrapped && credsGateMessage && !repoGateBlocked && !nixGateBlocked && !sshKeyGateBlocked ? (
             <Alert
               variant={deployCredsQuery.isPending ? "default" : "destructive"}
               className={deployCredsQuery.isPending

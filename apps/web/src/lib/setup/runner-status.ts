@@ -4,6 +4,15 @@ export type RunnerPresence = {
   runnerName?: string | null
   lastStatus?: string | null
   lastSeenAt?: number | null
+  capabilities?: unknown
+}
+
+export type RunnerNixReadiness = {
+  ready: boolean
+  hasFreshOnlineRunner: boolean
+  runnerName?: string
+  nixVersion?: string
+  nixBin?: string
 }
 
 export function isRunnerFreshOnline(runner: RunnerPresence, now = Date.now()): boolean {
@@ -31,4 +40,56 @@ export function pickRunnerName(runners: RunnerPresence[] | null | undefined, fal
     if (name) return name
   }
   return fallback
+}
+
+function parseRunnerNixCapability(capabilities: unknown): {
+  hasNix: boolean
+  nixVersion?: string
+  nixBin?: string
+} {
+  if (!capabilities || typeof capabilities !== "object" || Array.isArray(capabilities)) {
+    return { hasNix: false }
+  }
+  const row = capabilities as Record<string, unknown>
+  const hasNix = row.hasNix === true
+  const nixVersion = typeof row.nixVersion === "string" ? row.nixVersion.trim() : ""
+  const nixBin = typeof row.nixBin === "string" ? row.nixBin.trim() : ""
+  if (!hasNix || !nixVersion) return { hasNix: false }
+  return {
+    hasNix: true,
+    nixVersion,
+    nixBin: nixBin || undefined,
+  }
+}
+
+export function deriveProjectRunnerNixReadiness(
+  runners: RunnerPresence[] | null | undefined,
+  now = Date.now(),
+): RunnerNixReadiness {
+  if (!Array.isArray(runners) || runners.length === 0) {
+    return { ready: false, hasFreshOnlineRunner: false }
+  }
+  const freshOnline = runners
+    .filter((runner) => isRunnerFreshOnline(runner, now))
+    .sort((a, b) => Number(b.lastSeenAt || 0) - Number(a.lastSeenAt || 0))
+  if (freshOnline.length === 0) {
+    return { ready: false, hasFreshOnlineRunner: false }
+  }
+
+  for (const runner of freshOnline) {
+    const nix = parseRunnerNixCapability(runner.capabilities)
+    if (!nix.hasNix) continue
+    return {
+      ready: true,
+      hasFreshOnlineRunner: true,
+      runnerName: typeof runner.runnerName === "string" ? runner.runnerName.trim() || undefined : undefined,
+      nixVersion: nix.nixVersion,
+      nixBin: nix.nixBin,
+    }
+  }
+
+  return {
+    ready: false,
+    hasFreshOnlineRunner: true,
+  }
 }

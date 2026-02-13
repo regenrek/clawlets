@@ -1,0 +1,34 @@
+---
+title: Install Nix
+description: Required Nix install path for runner and deploy workflows.
+---
+
+Clawlets bootstrap/deploy/security flows require `nix` on the machine running the
+runner or CLI.
+
+Recommended installer (macOS + Linux):
+
+```bash
+curl -fsSL https://install.determinate.systems/nix | sh -s -- install --no-confirm
+```
+
+Verify:
+
+```bash
+nix --version
+```
+
+If your shell/GUI environment cannot find `nix`, set `NIX_BIN` explicitly:
+
+```bash
+NIX_BIN=/nix/var/nix/profiles/default/bin/nix
+```
+
+Persist in local deploy creds:
+
+```bash
+clawlets env init
+clawlets env apply-json --from-json <(printf '{"NIX_BIN":"%s"}' "$NIX_BIN")
+```
+
+For first-time local setup, `clawlets quickstart` can install Nix automatically.
