@@ -45,6 +45,8 @@ Open:
     Configure remaining local-only credentials in <code>.clawlets/env</code>.
     Setup requires <code>GITHUB_TOKEN</code> and <code>SOPS_AGE_KEY_FILE</code> from{" "}
     [Deploy credentials](/dashboard/deploy-credentials).
+    <code>GITHUB_TOKEN</code> lets the runner verify/read the base flake repository
+    during setup and bootstrap, and is required when that repo is private.
   </Step>
   <Step>
     <strong>Server Passwords</strong>
