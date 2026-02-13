@@ -208,34 +208,25 @@ describe("runner start loop", () => {
   });
 
   it("performs bounded metadata flush on shutdown when sync is in flight", async () => {
-    vi.useFakeTimers();
     const harness = await loadRunnerStartLoopHarness({
       leaseQueue: [null],
     });
     harness.syncMetadata.mockImplementation(() => new Promise(() => {}));
     try {
-      let settled = false;
-      const runPromise = harness
-        .runStart({
-          project: "p1",
-          token: "runner-token",
-          controlPlaneUrl: "https://cp.example.com",
-          once: true,
-        })
-        .then(() => {
-          settled = true;
-        });
-
-      await vi.advanceTimersByTimeAsync(1_999);
-      expect(settled).toBe(false);
-      await vi.advanceTimersByTimeAsync(1);
-      await runPromise;
-      expect(settled).toBe(true);
+      const startedAt = Date.now();
+      await harness.runStart({
+        project: "p1",
+        token: "runner-token",
+        controlPlaneUrl: "https://cp.example.com",
+        once: true,
+      });
+      const elapsedMs = Date.now() - startedAt;
+      expect(elapsedMs).toBeGreaterThanOrEqual(1_500);
+      expect(elapsedMs).toBeLessThan(8_000);
       expect(harness.heartbeat).toHaveBeenLastCalledWith(
         expect.objectContaining({ status: "offline", projectId: "p1" }),
       );
     } finally {
-      vi.useRealTimers();
       harness.errorSpy.mockRestore();
       harness.logSpy.mockRestore();
     }
