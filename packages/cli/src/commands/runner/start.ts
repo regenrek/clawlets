@@ -138,6 +138,7 @@ const RUNNER_EMPTY_LEASE_MAX_STREAK = 8;
 const RUNNER_EMPTY_LEASE_JITTER_MIN = 0.85;
 const RUNNER_EMPTY_LEASE_JITTER_MAX = 1.15;
 const RUNNER_METADATA_SYNC_MAX_AGE_MS = 10 * 60_000;
+const RUNNER_POST_JOB_IDLE_POLL_MS = 500;
 const RUNNER_METADATA_SYNC_SHUTDOWN_FLUSH_TIMEOUT_MS = 2_000;
 const RUNNER_IDLE_LEASE_WAIT_MS_DEFAULT = 0;
 const RUNNER_IDLE_POLL_MS_DEFAULT = 4_000;
@@ -145,7 +146,6 @@ const RUNNER_IDLE_POLL_MAX_MS_DEFAULT = 8_000;
 
 // Threat model: this path materializes runtime secrets on disk for execution only.
 // Temp files must be short-lived, owner-only readable, and scrubbed on all terminal paths.
-
 const RUNNER_ERROR_AUTH_BEARER_RE = /(Authorization:\s*Bearer\s+)([^\s]+)/gi;
 const RUNNER_ERROR_AUTH_BASIC_RE = /(Authorization:\s*Basic\s+)([^\s]+)/gi;
 const RUNNER_ERROR_URL_CREDENTIALS_RE = /(https?:\/\/)([^/\s@]+@)/g;
@@ -1311,6 +1311,9 @@ export const runnerStart = defineCommand({
         });
         lastRunId = job.runId;
         lastRunStatus = terminal;
+        if (RUNNER_POST_JOB_IDLE_POLL_MS > 0) {
+          await sleep(RUNNER_POST_JOB_IDLE_POLL_MS);
+        }
 
         if (stopAfterCompletionError) {
           running = false;
