@@ -45,7 +45,7 @@ Project scaffolding defaults to `config/template-source.json` (pinned commit). O
 
 ### Auth config
 
-Auth is always enabled. Configure Better Auth env vars for both the web app and Convex:
+Auth is enabled by default. Configure Better Auth env vars for both the web app and Convex:
 
 ```sh
 SITE_URL=http://localhost:3000

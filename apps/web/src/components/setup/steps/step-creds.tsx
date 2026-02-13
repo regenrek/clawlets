@@ -1,13 +1,14 @@
 import type { Id } from "../../../../convex/_generated/dataModel"
 import { DeployCredsCard } from "~/components/fleet/deploy-creds-card"
+import { SetupStepStatusBadge } from "~/components/setup/steps/step-status-badge"
+import type { SetupStepStatus } from "~/lib/setup/setup-model"
 import type { SetupDraftView } from "~/sdk/setup"
 
 export function SetupStepCreds(props: {
   projectId: Id<"projects">
   host: string
   setupDraft: SetupDraftView | null
-  isComplete: boolean
-  onContinue: () => void
+  stepStatus: SetupStepStatus
 }) {
   return (
     <div className="space-y-4">
@@ -18,42 +19,8 @@ export function SetupStepCreds(props: {
           host: props.host,
           setupDraft: props.setupDraft,
         }}
-        setupAction={{
-          isComplete: props.isComplete,
-          onContinue: props.onContinue,
-        }}
+        headerBadge={<SetupStepStatusBadge status={props.stepStatus} />}
       />
-      {!props.isComplete ? (
-        <div className="space-y-1 text-xs text-muted-foreground">
-          <div>
-            Set <code>GITHUB_TOKEN</code> and <code>SOPS_AGE_KEY_FILE</code>.
-          </div>
-          <div>
-            Need a GitHub token?{" "}
-            <a
-              className="underline underline-offset-3 hover:text-foreground"
-              href="https://docs.clawlets.com/dashboard/github-token"
-              target="_blank"
-              rel="noreferrer"
-            >
-              How to create GitHub token
-            </a>
-            .
-          </div>
-          <div>
-            Need an age key?{" "}
-            <a
-              className="underline underline-offset-3 hover:text-foreground"
-              href="https://docs.clawlets.com/dashboard/sops-age-key"
-              target="_blank"
-              rel="noreferrer"
-            >
-              How to create SOPS age key
-            </a>
-            .
-          </div>
-        </div>
-      ) : null}
     </div>
   )
 }
