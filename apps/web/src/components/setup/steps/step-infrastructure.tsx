@@ -1,6 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { useState } from "react"
-import { toast } from "sonner"
+import { useEffect, useState } from "react"
 import type { Id } from "../../../../convex/_generated/dataModel"
 import { DeployCredsCard } from "~/components/fleet/deploy-creds-card"
 import {
@@ -13,19 +11,18 @@ import {
   isKnownHetznerServerType,
 } from "~/components/hosts/hetzner-options"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "~/components/ui/accordion"
-import { AsyncButton } from "~/components/ui/async-button"
-import { Button } from "~/components/ui/button"
 import { Input } from "~/components/ui/input"
 import { LabelWithHelp } from "~/components/ui/label-help"
 import { RadioGroup, RadioGroupItem } from "~/components/ui/radio-group"
 import { SettingsSection } from "~/components/ui/settings-section"
 import { StackedField } from "~/components/ui/stacked-field"
 import { Switch } from "~/components/ui/switch"
+import { SetupStepStatusBadge } from "~/components/setup/steps/step-status-badge"
 import { setupFieldHelp } from "~/lib/setup-field-help"
 import type { SetupConfig } from "~/lib/setup/repo-probe"
 import type { SetupStepStatus } from "~/lib/setup/setup-model"
 import { cn } from "~/lib/utils"
-import { setupDraftSaveNonSecret, type SetupDraftView } from "~/sdk/setup"
+import type { SetupDraftInfrastructure, SetupDraftView } from "~/sdk/setup"
 import type { DeployCredsStatus } from "~/sdk/infra"
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -63,6 +60,7 @@ function resolveHostDefaults(config: SetupConfig | null, host: string, setupDraf
   const draftVolumeSizeGb = asNonNegativeInt(draft?.volumeSizeGb, configuredVolumeSizeGb)
   const volumeEnabled = draftVolumeEnabled ?? configuredVolumeSizeGb > 0
   const volumeSizeGb = Math.max(1, draftVolumeSizeGb > 0 ? draftVolumeSizeGb : 50)
+
   return {
     serverType: asString(draft?.serverType, asString(hetznerCfg.serverType, HETZNER_SETUP_DEFAULT_SERVER_TYPE)),
     image: asString(draft?.image, asString(hetznerCfg.image, "")),
@@ -73,24 +71,22 @@ function resolveHostDefaults(config: SetupConfig | null, host: string, setupDraf
   }
 }
 
-function readHcloudTokenState(deployCreds: DeployCredsStatus | null, setupDraft: SetupDraftView | null): "set" | "unset" | "unknown" {
+function readHcloudTokenState(setupDraft: SetupDraftView | null, deployCreds: DeployCredsStatus | null): "set" | "unset" {
+  const row = deployCreds?.keys.find((entry) => entry.key === "HCLOUD_TOKEN")
+  if (row?.status === "set") return "set"
   if (setupDraft?.sealedSecretDrafts?.deployCreds?.status === "set") return "set"
-  if (!deployCreds) return "unknown"
-  const row = deployCreds.keys.find((entry) => entry.key === "HCLOUD_TOKEN")
-  if (!row) return "unset"
-  return row.status === "set" ? "set" : "unset"
+  return "unset"
 }
 
 export function SetupStepInfrastructure(props: {
   projectId: Id<"projects">
   config: SetupConfig | null
   setupDraft: SetupDraftView | null
-  host: string
   deployCreds: DeployCredsStatus | null
+  host: string
   stepStatus: SetupStepStatus
-  onContinue: () => void
+  onDraftChange: (next: SetupDraftInfrastructure) => void
 }) {
-  const queryClient = useQueryClient()
   const defaults = resolveHostDefaults(props.config, props.host, props.setupDraft)
   const [serverType, setServerType] = useState(() => defaults.serverType)
   const [image, setImage] = useState(() => defaults.image)
@@ -100,10 +96,8 @@ export function SetupStepInfrastructure(props: {
   const [volumeSizeGbText, setVolumeSizeGbText] = useState(() => String(defaults.volumeSizeGb))
   const parsedVolumeSizeGb = parsePositiveInt(volumeSizeGbText)
   const volumeSettingsReady = !volumeEnabled || parsedVolumeSizeGb !== null
-  const hcloudTokenState = readHcloudTokenState(props.deployCreds, props.setupDraft)
+  const hcloudTokenState = readHcloudTokenState(props.setupDraft, props.deployCreds)
   const hcloudTokenReady = hcloudTokenState === "set"
-  const hostConfigReady = serverType.trim().length > 0 && location.trim().length > 0 && volumeSettingsReady
-  const canContinue = props.stepStatus === "done"
   const missingRequirements = [
     ...(hcloudTokenReady ? [] : ["HCLOUD_TOKEN"]),
     ...(serverType.trim().length > 0 ? [] : ["hetzner.serverType"]),
@@ -117,37 +111,16 @@ export function SetupStepInfrastructure(props: {
   const serverTypeRadioValue = serverTypeKnown ? serverTypeTrimmed : HETZNER_RADIO_CUSTOM_VALUE
   const locationRadioValue = locationKnown ? locationTrimmed : HETZNER_RADIO_CUSTOM_VALUE
 
-  const saveHostSettings = useMutation({
-    mutationFn: async () => {
-      if (!props.host.trim()) throw new Error("missing host")
-      if (!hostConfigReady) throw new Error("Set server type and location first.")
-      if (volumeEnabled && parsedVolumeSizeGb == null) throw new Error("Set a positive volume size in GB.")
-      return await setupDraftSaveNonSecret({
-        data: {
-          projectId: props.projectId,
-          host: props.host,
-          expectedVersion: props.setupDraft?.version,
-          patch: {
-            infrastructure: {
-              serverType: serverType.trim(),
-              image: image.trim(),
-              location: location.trim(),
-              allowTailscaleUdpIngress: Boolean(allowTailscaleUdpIngress),
-              volumeEnabled,
-              volumeSizeGb: volumeEnabled ? parsedVolumeSizeGb! : 0,
-            },
-          },
-        },
-      })
-    },
-    onSuccess: async () => {
-      toast.success("Draft saved")
-      await queryClient.invalidateQueries({ queryKey: ["setupDraft", props.projectId, props.host] })
-    },
-    onError: (err) => {
-      toast.error(err instanceof Error ? err.message : String(err))
-    },
-  })
+  useEffect(() => {
+    props.onDraftChange({
+      serverType: serverType.trim(),
+      image: image.trim(),
+      location: location.trim(),
+      allowTailscaleUdpIngress: Boolean(allowTailscaleUdpIngress),
+      volumeEnabled,
+      volumeSizeGb: volumeEnabled ? parsedVolumeSizeGb ?? undefined : 0,
+    })
+  }, [allowTailscaleUdpIngress, image, location, parsedVolumeSizeGb, props.onDraftChange, serverType, volumeEnabled])
 
   return (
     <div className="space-y-4">
@@ -173,30 +146,19 @@ export function SetupStepInfrastructure(props: {
           </>
         )}
         visibleKeys={["HCLOUD_TOKEN"]}
+        headerBadge={<SetupStepStatusBadge status={props.stepStatus} />}
       />
 
       <SettingsSection
         title="Hetzner host configuration"
-        description="Set the provisioning defaults for this host."
-        statusText={missingRequirements.length > 0 ? `Missing: ${missingRequirements.join(", ")}.` : undefined}
-        actions={(
-          <AsyncButton
-            type="button"
-            disabled={saveHostSettings.isPending || !hostConfigReady}
-            pending={saveHostSettings.isPending}
-            pendingText="Saving..."
-            onClick={() => saveHostSettings.mutate()}
-          >
-            Save
-          </AsyncButton>
-        )}
+        description="Set provisioning defaults. Values are committed during final deploy."
+        statusText={missingRequirements.length > 0 ? `Missing: ${missingRequirements.join(", ")}.` : "Ready for final deploy check."}
       >
         <div className="space-y-4">
           <StackedField
             id="setup-hetzner-server-type"
             label="Server type"
             help={setupFieldHelp.hosts.hetznerServerType}
-            description={`Default: "${HETZNER_SETUP_DEFAULT_SERVER_TYPE}"`}
           >
             <RadioGroup
               value={serverTypeRadioValue}
@@ -238,7 +200,6 @@ export function SetupStepInfrastructure(props: {
             id="setup-hetzner-location"
             label="Location"
             help={setupFieldHelp.hosts.hetznerLocation}
-            description={`Default: "${HETZNER_SETUP_DEFAULT_LOCATION}"`}
           >
             <RadioGroup
               value={locationRadioValue}
@@ -361,14 +322,6 @@ export function SetupStepInfrastructure(props: {
           </Accordion>
         </div>
       </SettingsSection>
-
-      {canContinue ? (
-        <div className="flex justify-end">
-          <Button type="button" onClick={props.onContinue}>
-            Continue
-          </Button>
-        </div>
-      ) : null}
     </div>
   )
 }

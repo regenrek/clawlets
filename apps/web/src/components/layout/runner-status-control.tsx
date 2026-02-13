@@ -6,7 +6,7 @@ import type { Id } from "../../../convex/_generated/dataModel"
 import { api } from "../../../convex/_generated/api"
 import { Badge } from "~/components/ui/badge"
 import { Button } from "~/components/ui/button"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "~/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "~/components/ui/dialog"
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "~/components/ui/input-group"
 import { Spinner } from "~/components/ui/spinner"
 import {
@@ -209,11 +209,17 @@ export function RunnerStatusControl(props: RunnerStatusControlProps) {
         <div className="space-y-4">
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <span className="text-muted-foreground">Runner</span>
-            <Badge variant={runnerOnline ? "secondary" : "outline"}>
+            <Badge
+              variant="outline"
+              className={runnerOnline ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : undefined}
+            >
               {runnerStatusLabel}
             </Badge>
             <span className="text-muted-foreground">Repo</span>
-            <Badge variant={repoProbeState === "ok" ? "secondary" : repoProbeState === "error" ? "destructive" : "outline"}>
+            <Badge
+              variant={repoProbeState === "error" ? "destructive" : "outline"}
+              className={repoProbeState === "ok" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : undefined}
+            >
               {repoProbeState === "checking" ? <Spinner className="mr-1 size-3" /> : null}
               {repoStatusLabel}
             </Badge>
@@ -329,6 +335,7 @@ export function RunnerStatusControl(props: RunnerStatusControlProps) {
             </>
           ) : null}
         </div>
+        <DialogFooter showCloseButton />
       </DialogContent>
     </Dialog>
   )

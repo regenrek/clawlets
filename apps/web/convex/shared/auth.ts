@@ -23,7 +23,10 @@ async function getUserByAuthUserId(ctx: QueryCtx, authUserId: string): Promise<D
     .unique();
 }
 
-async function ensureUserByAuthUser(ctx: MutationCtx, authUser: { _id: string; name?: string | null; email?: string | null; image?: string | null }): Promise<Authed> {
+async function ensureUserByAuthUser(
+  ctx: MutationCtx,
+  authUser: { _id: string; name?: string | null; email?: string | null; image?: string | null },
+): Promise<Authed> {
   const now = Date.now();
   const authUserId = String(authUser._id);
   const adminUsers = await ctx.db

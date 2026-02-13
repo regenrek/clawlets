@@ -24,6 +24,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "~/components/ui/sidebar"
+import { canQueryWithAuth } from "~/lib/auth-mode"
 
 function getInitials(value: string) {
   const normalized = value.trim()
@@ -38,7 +39,12 @@ export function NavUser() {
   const { isMobile } = useSidebar()
   const { data: session, isPending } = authClient.useSession()
   const { isAuthenticated, isLoading } = useConvexAuth()
-  const canQuery = Boolean(session?.user?.id) && isAuthenticated && !isPending && !isLoading
+  const canQuery = canQueryWithAuth({
+    sessionUserId: session?.user?.id,
+    isAuthenticated,
+    isSessionPending: isPending,
+    isAuthLoading: isLoading,
+  })
 
   const viewer = useQuery({
     ...convexQuery(api.identity.users.getCurrent, {}),
