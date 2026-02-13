@@ -229,6 +229,9 @@ export class RunnerApiClient {
       sealedInputPubSpkiB64?: string;
       sealedInputKeyId?: string;
       supportsInfraApply?: boolean;
+      hasNix?: boolean;
+      nixBin?: string;
+      nixVersion?: string;
     };
     status?: RunnerStatus;
   }): Promise<{ ok: boolean; runnerId: string }> {
