@@ -47,6 +47,8 @@ Open:
     [Deploy credentials](/dashboard/deploy-credentials).
     <code>GITHUB_TOKEN</code> lets the runner verify/read the base flake repository
     during setup and bootstrap, and is required when that repo is private.
+    The repo is read from <code>fleet/clawlets.json</code> field <code>baseFlake</code>
+    when present, otherwise from the project git origin.
   </Step>
   <Step>
     <strong>Server Passwords</strong>
