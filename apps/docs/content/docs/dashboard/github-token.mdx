@@ -3,15 +3,25 @@ title: GitHub token
 description: Create and validate GITHUB_TOKEN for Clawlets setup.
 ---
 
-Clawlets uses <code>GITHUB_TOKEN</code> during setup/deploy to read your base flake repository.
-If that repository is private, the Setup <code>Provider Tokens</code> step stays blocked
-without a valid token.
+Clawlets uses <code>GITHUB_TOKEN</code> during setup to prove access to your fleet's base
+flake and to fetch GitHub-hosted flake inputs for bootstrap and update runs.
+If <code>fleet/clawlets.json</code> points to a private base flake repository, the Setup
+<code>Provider Tokens</code> step stays blocked until the token can authenticate.
+
+That token lets the runner:
+
+- verify GitHub API visibility for your base flake repo, and
+- pass a GitHub access token to Nix when it evaluates/pulls `github:` flake inputs.
+
+Even on a public repo this token is used by setup to keep a single credential model and avoid
+run-time surprises. For private repos, it is required.
 
 Use this page as the canonical operator flow for creating the token and saving it in the dashboard.
 
 ## Prereqs
 
 - GitHub account with read access to your base flake repository.
+- Base flake source from <code>fleet/clawlets.json</code> (or CLI override) is what this token gates.
 - Project setup route open in dashboard: <code>/$projectSlug/hosts/$host/setup?step=creds</code>.
 - Preferred: a fine-grained personal access token (PAT).
 
@@ -91,5 +101,5 @@ clawlets env show --json
 
 ### Setup still says token missing
 
-- Reopen `/$projectSlug/security/api-keys` and verify `GITHUB_TOKEN` is marked as set.
+- Reopen <code>/$projectSlug/security/api-keys</code> and verify <code>GITHUB_TOKEN</code> is marked as set.
 - Save again, then refresh Setup.
