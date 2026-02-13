@@ -44,26 +44,25 @@ export function SetupStepConnection(props: {
     ? (props.config?.fleet?.sshAuthorizedKeys as string[])
     : []
 
-  if (!hostCfg) {
-    return (
-      <div className="text-sm text-muted-foreground">
-        Host config not loaded yet. Ensure runner is online, then retry.
-      </div>
-    )
-  }
-
   return (
-    <SetupStepConnectionForm
-      key={props.host}
-      host={props.host}
-      hostCfg={hostCfg}
-      fleetSshKeys={fleetSshKeys}
-      setupDraft={props.setupDraft}
-      stepStatus={props.stepStatus}
-      onDraftChange={props.onDraftChange}
-      adminPassword={props.adminPassword}
-      onAdminPasswordChange={props.onAdminPasswordChange}
-    />
+    <>
+      {!props.config ? (
+        <div className="mb-2 text-xs text-muted-foreground">
+          Repo config not loaded yet. Runner must be online to probe config. Using draft values only.
+        </div>
+      ) : null}
+      <SetupStepConnectionForm
+        key={props.host}
+        host={props.host}
+        hostCfg={hostCfg ?? {}}
+        fleetSshKeys={fleetSshKeys}
+        setupDraft={props.setupDraft}
+        stepStatus={props.stepStatus}
+        onDraftChange={props.onDraftChange}
+        adminPassword={props.adminPassword}
+        onAdminPasswordChange={props.onAdminPasswordChange}
+      />
+    </>
   )
 }
 

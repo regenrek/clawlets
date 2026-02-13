@@ -142,6 +142,35 @@ async function loadRunnerStartLoopHarness(params?: {
 }
 
 describe("runner start loop", () => {
+  it("starts leasing immediately even when startup metadata sync is slow", async () => {
+    const harness = await loadRunnerStartLoopHarness({
+      leaseQueue: [null],
+    });
+    harness.syncMetadata.mockImplementation(() => new Promise(() => {}));
+    try {
+      await harness.runStart({
+        project: "p1",
+        token: "runner-token",
+        controlPlaneUrl: "https://cp.example.com",
+        once: true,
+      });
+      expect(harness.heartbeat).toHaveBeenCalledWith(
+        expect.objectContaining({ status: "online", projectId: "p1" }),
+      );
+      expect(harness.leaseNext).toHaveBeenCalledTimes(1);
+      expect(harness.leaseNext).toHaveBeenCalledWith(
+        expect.objectContaining({
+          projectId: "p1",
+          waitMs: 0,
+          waitPollMs: 8_000,
+        }),
+      );
+    } finally {
+      harness.errorSpy.mockRestore();
+      harness.logSpy.mockRestore();
+    }
+  });
+
   it("stops on auth lease errors and redacts secret-like error content", async () => {
     const harness = await loadRunnerStartLoopHarness({
       leaseQueue: [new Error("placeholder")],
@@ -164,6 +193,13 @@ describe("runner start loop", () => {
       );
       expect(harness.heartbeat).toHaveBeenLastCalledWith(expect.objectContaining({ status: "offline" }));
       expect(harness.completeJob).not.toHaveBeenCalled();
+      expect(harness.leaseNext).toHaveBeenCalledWith(
+        expect.objectContaining({
+          projectId: "p1",
+          waitMs: 0,
+          waitPollMs: 8_000,
+        }),
+      );
       expect(harness.errorSpy).toHaveBeenCalledWith(
         expect.stringContaining("Authorization: Bearer <redacted>"),
       );
