@@ -3,63 +3,22 @@ title: GitHub token
 description: Create and validate GITHUB_TOKEN for Clawlets setup.
 ---
 
-Clawlets uses <code>GITHUB_TOKEN</code> during setup to verify access to the repository
-where Nix evaluates your project, and to fetch GitHub-hosted flake inputs during
-bootstrap/update runs.
+Clawlets uses <code>GITHUB_TOKEN</code> in Setup and during deploy/bootstrap whenever it
+needs to access your project repository on GitHub.
 
-You can think in two roles:
+If your GitHub repository is public, setup usually works without a token.
+If your repository is private, token setup is required before Setup <code>Provider Tokens</code> can
+complete.
 
-- **Project repo**: created by <code>clawlets project init</code> or by importing an existing
-  GitHub repo. It contains <code>fleet/clawlets.json</code>, <code>flake.nix</code>, and
-  <code>secrets/</code>.
-- **Evaluation repo**: the repo Nix uses as the flake evaluation source. Usually this is the
-  project repo <code>origin</code> remote, unless you set <code>baseFlake</code> to a different
-  GitHub repo.
-
-Dashboard project creation only creates the local project folder and git repo. It does not
-create a remote GitHub repo for you. If you want remote/CI flow, create a private GitHub repo,
-add it as <code>origin</code>, and push manually.
-
-If the evaluation repo is private, Setup <code>Provider Tokens</code> stays blocked until the
-token can authenticate.
-
-That token lets the runner:
-
-- verify GitHub API visibility for your evaluation repo, and
-- pass a GitHub access token to Nix when it evaluates/pulls <code>github:</code> flake inputs.
-
-Even on a public repo this token is used to keep one credential model across setup and
-avoids runtime surprises. For private repos, it is required.
-
-Which repository is it checking?
-
-`GITHUB_TOKEN` is checked against the evaluation repo in this order:
-
-- `fleet/clawlets.json` field <code>baseFlake</code> when set (for example <code>github:owner/repo</code>)
-- the project repo's <code>origin</code> remote when <code>baseFlake</code> is empty
-
-Does Clawlets ever change <code>baseFlake</code>?
-
-No. The runner only reads `baseFlake`; it does not rewrite it during setup or bootstrap.
-You change it only by editing <code>fleet/clawlets.json</code> or with
-`clawlets config set baseFlake ...`.
-
-For projects created by <code>clawlets project init</code>, this is usually the same repository
-that keeps <code>fleet/clawlets.json</code> and <code>secrets/</code>.
-
-Quick checks:
-
-```bash
-cat fleet/clawlets.json | sed -n '1,120p'  # check baseFlake
-git remote get-url origin                  # check origin
-```
+Project creation in the dashboard creates the local project folder + local git repo only.
+It does not create a GitHub repository. For remote/CI use, create a private GitHub repo,
+add it as <code>origin</code>, and push your local project manually.
 
 Use this page as the canonical operator flow for creating the token and saving it in the dashboard.
 
 ## Prereqs
 
-- GitHub account with read access to your evaluation repo.
-- Evaluation source is in <code>fleet/clawlets.json</code> field <code>baseFlake</code>; fallback is project repo <code>origin</code>.
+- GitHub account with read access to the repository you use as your project remote (`origin`).
 - Project setup route open in dashboard: <code>/$projectSlug/hosts/$host/setup?step=creds</code>.
 - Preferred: a fine-grained personal access token (PAT).
 
@@ -75,12 +34,12 @@ Use this page as the canonical operator flow for creating the token and saving i
     Set a clear token name (example: <code>clawlets-setup</code>) and a reasonable expiration.
   </Step>
   <Step>
-    Under <strong>Resource owner</strong>, select the owner that contains your evaluation repo.
+    Under <strong>Resource owner</strong>, select the owner that contains your project repo.
     If the repo is in an org, pick that org (not your personal account).
   </Step>
   <Step>
     Under <strong>Repository access</strong>, select <strong>Only select repositories</strong>.
-    Then under <strong>Selected repositories</strong>, select exactly the evaluation repo Clawlets reads.
+    Then under <strong>Selected repositories</strong>, select exactly the project repo Clawlets reads.
   </Step>
   <Step>
     Under <strong>Permissions</strong>, set exactly:
@@ -127,9 +86,9 @@ clawlets env show --json
 
 ## Troubleshooting
 
-### `Evaluation repo appears private (404). Set GITHUB_TOKEN in your environment and retry.`
+### `Repository appears private (404). Set GITHUB_TOKEN in your environment and retry.`
 
-- Token is missing, expired, or lacks access to the evaluation repo.
+- Token is missing, expired, or lacks access to your project repo.
 - Reissue token and confirm repository access includes that repo.
 
 ### `GITHUB_TOKEN rejected by GitHub (401).`
