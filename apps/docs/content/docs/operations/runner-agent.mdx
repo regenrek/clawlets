@@ -126,7 +126,7 @@ Control plane should not mount or require repo-root paths.
 ## Troubleshooting
 
 - **Runner offline:** verify process is running and token is not revoked.
-- **No runner logs:** default file is `<repoRoot>/.clawlets/logs/runner/<projectId>-<runnerName>.jsonl` (JSONL; owner-only perms).
+- **No runner logs:** default file is `~/.clawlets/runtime/runner/<projectId>/<runnerName>/logs/runner/<projectId>-<runnerName>.jsonl` (JSONL; owner-only perms).
 - **Jobs stuck queued:** check runner project id, token scope, and lease endpoints reachability.
 - **Lease expired mid-run:** ensure heartbeat interval is below lease TTL.
 - **Runner flips offline in setup:** check heartbeat cadence and runner process health (freshness window is ~30s).

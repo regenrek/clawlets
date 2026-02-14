@@ -6,6 +6,7 @@ import {
   useRouter,
 } from '@tanstack/react-router'
 import type { ErrorComponentProps } from '@tanstack/react-router'
+import { useEffect, useRef } from "react"
 import type { MouseEvent } from "react"
 
 function readErrorCode(error: unknown): string {
@@ -22,6 +23,10 @@ function readErrorCode(error: unknown): string {
   return ""
 }
 
+function isDisconnectErrorCode(code: string): boolean {
+  return code === "5" || code === "1005"
+}
+
 export function DefaultCatchBoundary({ error }: ErrorComponentProps) {
   const router = useRouter()
   const isRoot = useMatch({
@@ -29,16 +34,50 @@ export function DefaultCatchBoundary({ error }: ErrorComponentProps) {
     select: (state) => state.id === rootRouteId,
   })
   const errorCode = readErrorCode(error)
-  const showDisconnectHint = errorCode === "5" || errorCode === "1005"
+  const showDisconnectHint = isDisconnectErrorCode(errorCode)
+  const invalidateInFlightRef = useRef<Promise<void> | null>(null)
+  const lastRecoverConnectionCountRef = useRef<number | null>(null)
 
   console.error(error)
+
+  useEffect(() => {
+    if (!showDisconnectHint) return
+    const convexClient = router.options.context?.convexQueryClient?.convexClient
+    if (!convexClient) return
+
+    const attemptInvalidate = (snapshot?: { isWebSocketConnected: boolean; connectionCount: number }) => {
+      if (invalidateInFlightRef.current) return
+      let state: { isWebSocketConnected: boolean; connectionCount: number } | null = snapshot ?? null
+      try {
+        state ||= convexClient.connectionState()
+      } catch {
+        state = null
+      }
+      if (!state?.isWebSocketConnected) return
+
+      if (lastRecoverConnectionCountRef.current === state.connectionCount) return
+      lastRecoverConnectionCountRef.current = state.connectionCount
+
+      const promise = router.invalidate().catch(() => null).then(() => undefined)
+      invalidateInFlightRef.current = promise
+      void promise.finally(() => {
+        if (invalidateInFlightRef.current === promise) invalidateInFlightRef.current = null
+      })
+    }
+
+    attemptInvalidate()
+    const unsubscribe = convexClient.subscribeToConnectionState((next) =>
+      attemptInvalidate({ isWebSocketConnected: next.isWebSocketConnected, connectionCount: next.connectionCount }),
+    )
+    return () => unsubscribe()
+  }, [router, showDisconnectHint])
 
   return (
     <div className="min-w-0 flex-1 p-4 flex flex-col items-center justify-center gap-6">
       <ErrorComponent error={error} />
       {showDisconnectHint ? (
         <div className="max-w-xl rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
-          Connection dropped (error code {errorCode}). Check runner process logs for heartbeat/control-plane failures, then retry.
+          Connection dropped (error code {errorCode}). Reconnecting automatically. If this persists, check runner process logs for heartbeat/control-plane failures, then retry.
         </div>
       ) : null}
       <div className="flex gap-2 items-center flex-wrap">

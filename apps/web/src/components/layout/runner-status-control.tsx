@@ -8,6 +8,7 @@ import { Badge } from "~/components/ui/badge"
 import { Button } from "~/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "~/components/ui/dialog"
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "~/components/ui/input-group"
+import { NativeSelect, NativeSelectOption } from "~/components/ui/native-select"
 import { Spinner } from "~/components/ui/spinner"
 import {
   deriveRunnerConnectionToastKind,
@@ -17,7 +18,12 @@ import {
 import { deriveRunnerDialogView } from "~/lib/setup/runner-dialog-view"
 import { deriveRepoHealth, deriveRunnerHeaderState } from "~/lib/setup/repo-health"
 import { OPEN_RUNNER_STATUS_DIALOG_EVENT } from "~/lib/setup/runner-dialog-events"
-import { buildRunnerStartCommand } from "~/lib/setup/runner-start-command"
+import {
+  buildRunnerStartCommand,
+  parseRunnerStartLogging,
+  RUNNER_START_LOGGING_OPTIONS,
+  type RunnerStartLogging,
+} from "~/lib/setup/runner-start-command"
 import { isProjectRunnerOnline, isRunnerFreshOnline, pickRunnerName } from "~/lib/setup/runner-status"
 import { createRunnerToken } from "~/sdk/runtime"
 
@@ -64,6 +70,7 @@ function runnerStateDotClass(state: "offline" | "connecting" | "ready"): string 
 export function RunnerStatusControl(props: RunnerStatusControlProps) {
   const [open, setOpen] = useState(false)
   const [fallbackRunnerName] = useState(() => generateRunnerName())
+  const [runnerLogging, setRunnerLogging] = useState<RunnerStartLogging>("info")
   const [tokenNonce, setTokenNonce] = useState(0)
   const previousStateRef = useRef<"offline" | "connecting" | "ready" | null>(null)
   const connectingToastTimerRef = useRef<number | null>(null)
@@ -85,6 +92,7 @@ export function RunnerStatusControl(props: RunnerStatusControlProps) {
   })
   const repoHealth = deriveRepoHealth({
     runnerOnline,
+    projectStatus: props.projectStatus,
     configs: projectConfigsQuery.data ?? [],
   })
   const repoProbeState = repoHealth.state
@@ -154,6 +162,7 @@ export function RunnerStatusControl(props: RunnerStatusControlProps) {
   }, [])
 
   const runnerName = pickRunnerName(runners, fallbackRunnerName)
+  const selectedLoggingOption = RUNNER_START_LOGGING_OPTIONS.find((option) => option.value === runnerLogging) ?? RUNNER_START_LOGGING_OPTIONS[0]
   const controlPlaneUrl = String(import.meta.env.VITE_CONVEX_SITE_URL || "").trim()
   const tokenQuery = useQuery({
     queryKey: ["header", "runner-token", props.projectId, runnerName, tokenNonce],
@@ -182,6 +191,7 @@ export function RunnerStatusControl(props: RunnerStatusControlProps) {
     token,
     repoRoot: props.projectRunnerRepoPath,
     controlPlaneUrl,
+    logging: runnerLogging,
   })
 
   const setupHref = `/${props.projectSlug}/runner`
@@ -329,6 +339,22 @@ export function RunnerStatusControl(props: RunnerStatusControlProps) {
                   >
                     Copy command
                   </Button>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs text-muted-foreground" htmlFor="header-runner-logging">Logging</label>
+                  <NativeSelect
+                    id="header-runner-logging"
+                    value={runnerLogging}
+                    onChange={(event) => setRunnerLogging(parseRunnerStartLogging(event.target.value))}
+                    className="w-full sm:max-w-xs"
+                  >
+                    {RUNNER_START_LOGGING_OPTIONS.map((option) => (
+                      <NativeSelectOption key={option.value} value={option.value}>
+                        {option.label}
+                      </NativeSelectOption>
+                    ))}
+                  </NativeSelect>
+                  <div className="text-xs text-muted-foreground">{selectedLoggingOption?.description}</div>
                 </div>
                 <pre className="rounded-md border bg-background p-2 text-xs whitespace-pre-wrap break-words">{startCommand}</pre>
               </div>

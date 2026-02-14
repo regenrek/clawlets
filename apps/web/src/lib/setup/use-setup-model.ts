@@ -90,6 +90,7 @@ export function useSetupModel(params: {
 
   const repoHealth = deriveRepoHealth({
     runnerOnline,
+    projectStatus,
     configs: projectConfigsQuery.data ?? [],
   })
   const repoProbeState = repoHealth.state

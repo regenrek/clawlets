@@ -18,7 +18,7 @@ import {
 } from "@clawlets/core/lib/runtime/runner-command-policy-args";
 import { resolveRunnerJobCommand } from "@clawlets/core/lib/runtime/runner-command-policy-resolve";
 import { coerceTrimmedString } from "@clawlets/shared/lib/strings";
-import { createRunnerLogger, parseLogLevel, resolveRunnerLogFile } from "../../lib/logging/logger.js";
+import { createRunnerLogger, parseLogLevel, resolveRunnerLogFile, safeFileSegment } from "../../lib/logging/logger.js";
 import {
   classifyRunnerHttpError,
   RunnerApiClient,
@@ -36,6 +36,25 @@ import { execCaptureStdout, execCaptureTail } from "./exec.js";
 function envName(): string {
   const raw = String(process.env["USER"] || process.env["USERNAME"] || "runner").trim();
   return raw || "runner";
+}
+
+function resolveRunnerRuntimeDir(params: {
+  runtimeDirArg: unknown;
+  projectId: string;
+  runnerName: string;
+  homeDir?: string;
+}): string {
+  const explicit = coerceTrimmedString(params.runtimeDirArg);
+  if (explicit) return explicit;
+  const homeDir = coerceTrimmedString(params.homeDir) || os.homedir();
+  return path.join(
+    homeDir,
+    ".clawlets",
+    "runtime",
+    "runner",
+    safeFileSegment(params.projectId, "project"),
+    safeFileSegment(params.runnerName, "runner"),
+  );
 }
 
 function toInt(value: unknown, fallback: number, min: number, max: number): number {
@@ -1027,6 +1046,20 @@ export async function __test_executeJob(params: Parameters<typeof executeJob>[0]
   return await executeJob(params);
 }
 
+export function __test_resolveRunnerRuntimeDir(params: {
+  runtimeDirArg?: unknown;
+  projectId: string;
+  runnerName: string;
+  homeDir?: string;
+}): string {
+  return resolveRunnerRuntimeDir({
+    runtimeDirArg: params.runtimeDirArg,
+    projectId: params.projectId,
+    runnerName: params.runnerName,
+    homeDir: params.homeDir,
+  });
+}
+
 type RunnerAppendRunEventsArgs = Parameters<RunnerApiClient["appendRunEvents"]>[0];
 type RunnerAppendEventsClient = Pick<RunnerApiClient, "appendRunEvents">;
 
@@ -1237,7 +1270,7 @@ export const runnerStart = defineCommand({
     token: { type: "string", required: true, description: "Runner bearer token." },
     name: { type: "string", description: "Runner name." },
     repoRoot: { type: "string", description: "Repo root path (defaults to detected root)." },
-    runtimeDir: { type: "string", description: "Runtime dir passthrough." },
+    runtimeDir: { type: "string", description: "Runtime dir (default: ~/.clawlets/runtime/runner/<projectId>/<runnerName>)." },
     controlPlaneUrl: { type: "string", description: "Control plane base URL." },
     logLevel: { type: "string", description: "Log level (fatal|error|warn|info|debug|trace)." },
     logFile: { type: "string", description: "Log file path (default: <runtimeDir>/logs/runner/<projectId>-<runnerName>.jsonl)." },
@@ -1270,9 +1303,13 @@ export const runnerStart = defineCommand({
 	    const heartbeatMs = toInt((args as any).heartbeatMs, 30_000, 2_000, 120_000);
 	    const maxAttempts = toInt((args as any).maxAttempts, 3, 1, 25);
 	    const repoRoot = String((args as any).repoRoot || "").trim() || findRepoRoot(process.cwd());
-	    const runtimeDir = coerceTrimmedString((args as any).runtimeDir);
+	    const runtimeDir = resolveRunnerRuntimeDir({
+	      runtimeDirArg: (args as any).runtimeDir,
+	      projectId,
+	      runnerName,
+	    });
 
-	    const layout = getRepoLayout(repoRoot, runtimeDir || undefined);
+	    const layout = getRepoLayout(repoRoot, runtimeDir);
 	    const logLevel = parseLogLevel((args as any).logLevel ?? process.env["CLAWLETS_LOG_LEVEL"], "info");
 	    const logToFile = !Boolean((args as any).noLogFile);
 	    const resolvedLogFilePath = logToFile
@@ -1296,7 +1333,7 @@ export const runnerStart = defineCommand({
 	      logger.warn({ error: message }, "runner temp-file cleanup failed");
 	    }
 	    const sealedKeyPath = await resolveRunnerSealedInputKeyPath({
-	      runtimeDir: runtimeDir || undefined,
+	      runtimeDir,
 	      projectId,
 	      runnerName,
 	    });

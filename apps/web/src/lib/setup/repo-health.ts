@@ -30,8 +30,20 @@ function sanitizeRepoHealthError(value: unknown): string {
   return redactKnownSecretsText(trimmed).trim()
 }
 
+function isMissingFleetConfigError(error: string): boolean {
+  const normalized = error.toLowerCase().replace(/\\/g, "/")
+  const pointsToFleetConfig = normalized.includes("fleet/clawlets.json")
+  if (!pointsToFleetConfig) return false
+  return (
+    normalized.includes("missing clawlets config") ||
+    normalized.includes("enoent") ||
+    normalized.includes("no such file or directory")
+  )
+}
+
 export function deriveRepoHealth(params: {
   runnerOnline: boolean
+  projectStatus?: string | null | undefined
   configs: ProjectConfigSummary[] | null | undefined
   now?: number
   freshMs?: number
@@ -43,7 +55,13 @@ export function deriveRepoHealth(params: {
   if (!fleetConfig) return { state: "checking" }
 
   const error = sanitizeRepoHealthError(fleetConfig.lastError)
-  if (error) return { state: "error", error }
+  if (error) {
+    const projectStatus = trimOrEmpty(params.projectStatus).toLowerCase()
+    if (projectStatus === "creating" && isMissingFleetConfigError(error)) {
+      return { state: "checking" }
+    }
+    return { state: "error", error }
+  }
 
   const now = asFiniteNumber(params.now) ?? Date.now()
   const freshMs = Math.max(1, Math.trunc(asFiniteNumber(params.freshMs) ?? REPO_HEALTH_FRESH_MS))

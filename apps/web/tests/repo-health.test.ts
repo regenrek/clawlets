@@ -26,6 +26,35 @@ describe("repo health", () => {
     expect(health).toEqual({ state: "error", error: "config parse failed" })
   })
 
+  it("keeps checking during project creation when fleet config is still missing", () => {
+    const health = deriveRepoHealth({
+      runnerOnline: true,
+      projectStatus: "creating",
+      configs: [{
+        type: "fleet",
+        lastSyncAt: Date.now(),
+        lastError: "metadata parse failed: missing clawlets config: /tmp/repo/fleet/clawlets.json",
+      }],
+    })
+    expect(health).toEqual({ state: "checking" })
+  })
+
+  it("shows missing fleet config as error after project creation", () => {
+    const health = deriveRepoHealth({
+      runnerOnline: true,
+      projectStatus: "ready",
+      configs: [{
+        type: "fleet",
+        lastSyncAt: Date.now(),
+        lastError: "metadata parse failed: missing clawlets config: /tmp/repo/fleet/clawlets.json",
+      }],
+    })
+    expect(health).toEqual({
+      state: "error",
+      error: "metadata parse failed: missing clawlets config: /tmp/repo/fleet/clawlets.json",
+    })
+  })
+
   it("redacts secret-like values in metadata error text", () => {
     const health = deriveRepoHealth({
       runnerOnline: true,

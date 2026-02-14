@@ -81,6 +81,7 @@ function ProjectRunnerOnboarding() {
   })
   const repoHealth = deriveRepoHealth({
     runnerOnline,
+    projectStatus,
     configs: projectConfigsQuery.data ?? [],
   })
   const repoProbeState = repoHealth.state

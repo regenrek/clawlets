@@ -7,6 +7,7 @@ import {
   __test_metadataSnapshotFingerprint,
   __test_parseStructuredJsonObject,
   __test_parseSealedInputStringMap,
+  __test_resolveRunnerRuntimeDir,
   __test_shouldSyncMetadata,
   __test_shouldStopOnCompletionError,
   __test_validateSealedInputKeysForJob,
@@ -19,6 +20,34 @@ describe("runner job arg mapping", () => {
     expect(args.pollMs?.default).toBe("4000");
     expect(args.pollMaxMs?.default).toBe("8000");
     expect(args.leaseWaitMs?.default).toBe("0");
+  });
+
+  it("defaults runner runtime dir outside repo root", () => {
+    const runtimeDir = __test_resolveRunnerRuntimeDir({
+      projectId: "proj_1",
+      runnerName: "setup-alpha",
+      homeDir: "/Users/tester",
+    });
+    expect(runtimeDir).toBe("/Users/tester/.clawlets/runtime/runner/proj_1/setup-alpha");
+  });
+
+  it("sanitizes runtime dir path segments", () => {
+    const runtimeDir = __test_resolveRunnerRuntimeDir({
+      projectId: "proj / 1",
+      runnerName: "setup alpha/beta",
+      homeDir: "/Users/tester",
+    });
+    expect(runtimeDir).toBe("/Users/tester/.clawlets/runtime/runner/proj_1/setup_alpha_beta");
+  });
+
+  it("keeps explicit runtime dir when provided", () => {
+    const runtimeDir = __test_resolveRunnerRuntimeDir({
+      runtimeDirArg: "/tmp/my-runner-runtime",
+      projectId: "proj_1",
+      runnerName: "setup-alpha",
+      homeDir: "/Users/tester",
+    });
+    expect(runtimeDir).toBe("/tmp/my-runner-runtime");
   });
 
   it("maps standard kinds to CLI args", () => {
