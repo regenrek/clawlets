@@ -140,6 +140,8 @@ export function SetupStepInfrastructure(props: {
           </>
         )}
         headerBadge={<SetupStepStatusBadge status={props.stepStatus} />}
+        showRunnerStatusBanner={false}
+        showRunnerStatusDetails={false}
       />
 
       <SettingsSection

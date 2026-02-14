@@ -54,6 +54,8 @@ export function SetupStepTailscaleLockdown(props: {
             title="Tailscale API keys"
             description="Project-wide keys. Add multiple keys and select the one used for setup/deploy."
             onActiveValueChange={props.onTailscaleAuthKeyChange}
+            showRunnerStatusBanner={false}
+            showRunnerStatusDetails={false}
           />
         ) : null}
       </div>

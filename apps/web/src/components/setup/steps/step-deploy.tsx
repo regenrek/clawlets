@@ -36,6 +36,7 @@ export function SetupStepDeploy(props: {
       pendingBootstrapSecrets={props.pendingBootstrapSecrets}
       hasActiveTailscaleAuthKey={props.hasActiveTailscaleAuthKey}
       activeTailscaleAuthKey={props.activeTailscaleAuthKey}
+      showRunnerStatusBanner={false}
     />
   )
 }

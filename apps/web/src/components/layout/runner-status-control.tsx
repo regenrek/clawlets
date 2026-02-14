@@ -16,6 +16,7 @@ import {
 } from "~/lib/setup/runner-connection-toast"
 import { deriveRunnerDialogView } from "~/lib/setup/runner-dialog-view"
 import { deriveRepoHealth, deriveRunnerHeaderState } from "~/lib/setup/repo-health"
+import { OPEN_RUNNER_STATUS_DIALOG_EVENT } from "~/lib/setup/runner-dialog-events"
 import { buildRunnerStartCommand } from "~/lib/setup/runner-start-command"
 import { isProjectRunnerOnline, isRunnerFreshOnline, pickRunnerName } from "~/lib/setup/runner-status"
 import { createRunnerToken } from "~/sdk/runtime"
@@ -138,6 +139,18 @@ export function RunnerStatusControl(props: RunnerStatusControlProps) {
         connectingToastTimerRef.current = null
       }
     }
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+
+    const onOpenRunnerDialog = (event: Event) => {
+      event.preventDefault()
+      setOpen(true)
+    }
+
+    window.addEventListener(OPEN_RUNNER_STATUS_DIALOG_EVENT, onOpenRunnerDialog)
+    return () => window.removeEventListener(OPEN_RUNNER_STATUS_DIALOG_EVENT, onOpenRunnerDialog)
   }, [])
 
   const runnerName = pickRunnerName(runners, fallbackRunnerName)

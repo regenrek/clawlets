@@ -53,6 +53,7 @@ type DeployInitialInstallProps = {
   pendingBootstrapSecrets?: SetupPendingBootstrapSecrets
   hasActiveTailscaleAuthKey?: boolean
   activeTailscaleAuthKey?: string
+  showRunnerStatusBanner?: boolean
 }
 
 export function DeployInitialInstall({
@@ -72,6 +73,7 @@ export function DeployInitialInstall({
   },
   hasActiveTailscaleAuthKey = false,
   activeTailscaleAuthKey = "",
+  showRunnerStatusBanner = true,
 }: DeployInitialInstallProps) {
   if (variant === "setup") {
     return (
@@ -87,6 +89,7 @@ export function DeployInitialInstall({
         pendingBootstrapSecrets={pendingBootstrapSecrets}
         hasActiveTailscaleAuthKey={hasActiveTailscaleAuthKey}
         activeTailscaleAuthKey={activeTailscaleAuthKey}
+        showRunnerStatusBanner={showRunnerStatusBanner}
       />
     )
   }

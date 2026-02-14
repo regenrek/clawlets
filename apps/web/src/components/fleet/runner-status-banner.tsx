@@ -4,6 +4,7 @@ import type { Id } from "../../../convex/_generated/dataModel"
 import { api } from "../../../convex/_generated/api"
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "~/components/ui/alert"
 import { Button } from "~/components/ui/button"
+import { requestOpenRunnerStatusDialog } from "~/lib/setup/runner-dialog-events"
 import { isProjectRunnerOnline } from "~/lib/setup/runner-status"
 import { cn } from "~/lib/utils"
 
@@ -39,8 +40,7 @@ export function RunnerStatusBanner(props: {
             type="button"
             size="sm"
             variant="outline"
-            nativeButton={false}
-            render={<a href={props.setupHref}>Open setup</a>}
+            onClick={() => requestOpenRunnerStatusDialog({ fallbackHref: props.setupHref })}
           >
             Open setup
           </Button>

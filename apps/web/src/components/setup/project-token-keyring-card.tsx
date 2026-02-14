@@ -93,8 +93,12 @@ export function ProjectTokenKeyringCard(props: {
   description?: ReactNode
   headerBadge?: ReactNode
   onActiveValueChange?: (value: string) => void
+  showRunnerStatusBanner?: boolean
+  showRunnerStatusDetails?: boolean
 }) {
   const cfg = KEYRING_KIND_CONFIG[props.kind]
+  const showRunnerStatusBanner = props.showRunnerStatusBanner !== false
+  const showRunnerStatusDetails = props.showRunnerStatusDetails !== false
   const queryClient = useQueryClient()
 
   const runnersQuery = useQuery({
@@ -274,18 +278,20 @@ export function ProjectTokenKeyringCard(props: {
 
   return (
     <SettingsSection title={props.title} description={props.description} headerBadge={props.headerBadge}>
-      <RunnerStatusBanner
-        projectId={props.projectId}
-        setupHref={props.setupHref}
-        runnerOnline={runnerOnline}
-        isChecking={runnersQuery.isPending}
-      />
+      {showRunnerStatusBanner ? (
+        <RunnerStatusBanner
+          projectId={props.projectId}
+          setupHref={props.setupHref}
+          runnerOnline={runnerOnline}
+          isChecking={runnersQuery.isPending}
+        />
+      ) : null}
 
-      {!runnerOnline && !runnersQuery.isPending ? (
+      {showRunnerStatusDetails && !runnerOnline && !runnersQuery.isPending ? (
         <div className="text-sm text-muted-foreground">Connect your runner to manage project keys.</div>
       ) : null}
 
-      {runnerOnline && sealedRunners.length === 0 ? (
+      {showRunnerStatusDetails && runnerOnline && sealedRunners.length === 0 ? (
         <div className="text-sm text-destructive">No online runner advertises sealed input. Upgrade runner and retry.</div>
       ) : null}
 
@@ -378,7 +384,6 @@ export function ProjectTokenKeyringCard(props: {
           </div>
         </div>
       )}
-
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>

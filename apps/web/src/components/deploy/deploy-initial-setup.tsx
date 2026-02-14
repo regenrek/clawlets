@@ -69,6 +69,7 @@ export function DeployInitialInstallSetup(props: {
   pendingBootstrapSecrets: SetupPendingBootstrapSecrets
   hasActiveTailscaleAuthKey: boolean
   activeTailscaleAuthKey: string
+  showRunnerStatusBanner?: boolean
 }) {
   const projectQuery = useProjectBySlug(props.projectSlug)
   const projectId = projectQuery.projectId
@@ -591,12 +592,14 @@ export function DeployInitialInstallSetup(props: {
       )}
     >
       <div className="space-y-4">
-        <RunnerStatusBanner
-          projectId={projectId as Id<"projects">}
-          setupHref={`/${props.projectSlug}/hosts/${props.host}/setup`}
-          runnerOnline={runnerOnline}
-          isChecking={runnersQuery.isPending}
-        />
+        {props.showRunnerStatusBanner !== false ? (
+          <RunnerStatusBanner
+            projectId={projectId as Id<"projects">}
+            setupHref={`/${props.projectSlug}/hosts/${props.host}/setup`}
+            runnerOnline={runnerOnline}
+            isChecking={runnersQuery.isPending}
+          />
+        ) : null}
 
         <div className="rounded-md border bg-muted/30 p-3 text-sm">
           Host: <code>{props.host}</code>
