@@ -3,15 +3,22 @@ title: GitHub token
 description: Create and validate GITHUB_TOKEN for Clawlets setup.
 ---
 
-Clawlets uses <code>GITHUB_TOKEN</code> during setup/deploy to read your base flake repository.
-If that repository is private, the Setup <code>Provider Tokens</code> step stays blocked
-without a valid token.
+Clawlets uses <code>GITHUB_TOKEN</code> in Setup and during deploy/bootstrap whenever it
+needs to access your project repository on GitHub.
+
+If your GitHub repository is public, setup usually works without a token.
+If your repository is private, token setup is required before Setup <code>Provider Tokens</code> can
+complete.
+
+Project creation in the dashboard creates the local project folder + local git repo only.
+It does not create a GitHub repository. For remote/CI use, create a private GitHub repo,
+add it as <code>origin</code>, and push your local project manually.
 
 Use this page as the canonical operator flow for creating the token and saving it in the dashboard.
 
 ## Prereqs
 
-- GitHub account with read access to your base flake repository.
+- GitHub account with read access to the repository you use as your project remote (`origin`).
 - Project setup route open in dashboard: <code>/$projectSlug/hosts/$host/setup?step=creds</code>.
 - Preferred: a fine-grained personal access token (PAT).
 
@@ -27,12 +34,12 @@ Use this page as the canonical operator flow for creating the token and saving i
     Set a clear token name (example: <code>clawlets-setup</code>) and a reasonable expiration.
   </Step>
   <Step>
-    Under <strong>Resource owner</strong>, select the owner that contains your base flake repository.
+    Under <strong>Resource owner</strong>, select the owner that contains your project repo.
     If the repo is in an org, pick that org (not your personal account).
   </Step>
   <Step>
     Under <strong>Repository access</strong>, select <strong>Only select repositories</strong>.
-    Then under <strong>Selected repositories</strong>, select exactly the base flake repo Clawlets reads.
+    Then under <strong>Selected repositories</strong>, select exactly the project repo Clawlets reads.
   </Step>
   <Step>
     Under <strong>Permissions</strong>, set exactly:
@@ -79,10 +86,10 @@ clawlets env show --json
 
 ## Troubleshooting
 
-### `base flake repo appears private (404). Set GITHUB_TOKEN in your environment and retry.`
+### `Repository appears private (404). Set GITHUB_TOKEN in your environment and retry.`
 
-- Token is missing, expired, or lacks access to the target repo.
-- Reissue token and confirm repository access includes the base flake repo.
+- Token is missing, expired, or lacks access to your project repo.
+- Reissue token and confirm repository access includes that repo.
 
 ### `GITHUB_TOKEN rejected by GitHub (401).`
 
@@ -91,5 +98,5 @@ clawlets env show --json
 
 ### Setup still says token missing
 
-- Reopen `/$projectSlug/security/api-keys` and verify `GITHUB_TOKEN` is marked as set.
+- Reopen <code>/$projectSlug/security/api-keys</code> and verify <code>GITHUB_TOKEN</code> is marked as set.
 - Save again, then refresh Setup.
