@@ -7,7 +7,6 @@ const findRepoRootMock = vi.hoisted(() => vi.fn());
 const loadFullConfigMock = vi.hoisted(() => vi.fn());
 const writeClawletsConfigMock = vi.hoisted(() => vi.fn());
 const updateDeployCredsEnvFileMock = vi.hoisted(() => vi.fn());
-const loadDeployCredsMock = vi.hoisted(() => vi.fn());
 const runMock = vi.hoisted(() => vi.fn());
 const captureMock = vi.hoisted(() => vi.fn());
 
@@ -28,7 +27,6 @@ vi.mock("@clawlets/core/lib/infra/deploy-creds", async (importOriginal) => {
   return {
     ...actual,
     updateDeployCredsEnvFile: updateDeployCredsEnvFileMock,
-    loadDeployCreds: loadDeployCredsMock,
   };
 });
 
@@ -40,12 +38,6 @@ vi.mock("@clawlets/core/lib/runtime/run", () => ({
 describe("setup apply command", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    loadDeployCredsMock.mockReturnValue({
-      values: {
-        TAILSCALE_AUTH_KEY_KEYRING: "",
-        TAILSCALE_AUTH_KEY_KEYRING_ACTIVE: "",
-      },
-    });
   });
 
   it("applies config + deploy creds + secrets in order and prints redacted summary", async () => {
@@ -173,7 +165,7 @@ describe("setup apply command", () => {
     }
   });
 
-  it("fills tailscaleAuthKey from active project keyring when missing from payload", async () => {
+  it("does not inject tailscaleAuthKey when missing from payload", async () => {
     const repoRoot = fs.mkdtempSync(path.join(tmpdir(), "clawlets-setup-apply-keyring-"));
     const configPath = path.join(repoRoot, "clawlets.config.json");
     const inputPath = path.join(repoRoot, "setup-input.json");
@@ -186,12 +178,6 @@ describe("setup apply command", () => {
       });
       updateDeployCredsEnvFileMock.mockResolvedValue({
         updatedKeys: ["SOPS_AGE_KEY_FILE"],
-      });
-      loadDeployCredsMock.mockReturnValue({
-        values: {
-          TAILSCALE_AUTH_KEY_KEYRING: '{"items":[{"id":"default","value":"tskey-auth-fallback"}]}',
-          TAILSCALE_AUTH_KEY_KEYRING_ACTIVE: "default",
-        },
       });
       runMock.mockImplementation(async (_cmd, args: string[]) => {
         const fromJsonIndex = args.indexOf("--from-json");
@@ -229,7 +215,7 @@ describe("setup apply command", () => {
       const { setup } = await import("../src/commands/setup/index.js");
       const apply = (setup as any).subCommands?.apply;
       await apply.run({ args: { fromJson: inputPath, json: true } } as any);
-      expect(submittedSecretsBody?.tailscaleAuthKey).toBe("tskey-auth-fallback");
+      expect(submittedSecretsBody?.tailscaleAuthKey).toBeUndefined();
     } finally {
       fs.rmSync(repoRoot, { recursive: true, force: true });
     }

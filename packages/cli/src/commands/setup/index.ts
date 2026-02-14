@@ -7,8 +7,6 @@ import { defineCommand } from "citty";
 import { ClawletsConfigSchema, loadFullConfig, writeClawletsConfig } from "@clawlets/core/lib/config/clawlets-config";
 import {
   DEPLOY_CREDS_KEYS,
-  loadDeployCreds,
-  resolveActiveDeployCredsProjectToken,
   updateDeployCredsEnvFile,
 } from "@clawlets/core/lib/infra/deploy-creds";
 import { findRepoRoot } from "@clawlets/core/lib/project/repo";
@@ -180,23 +178,6 @@ function buildSecretsInitBody(bootstrapSecrets: Record<string, string>): {
   };
 }
 
-function withProjectTailscaleKeyFallback(params: {
-  bootstrapSecrets: Record<string, string>;
-  deployCredsValues: Record<string, string | undefined>;
-}): Record<string, string> {
-  const existing = String(params.bootstrapSecrets["tailscaleAuthKey"] || "").trim();
-  if (existing) return params.bootstrapSecrets;
-  const fallback = resolveActiveDeployCredsProjectToken({
-    keyringRaw: params.deployCredsValues["TAILSCALE_AUTH_KEY_KEYRING"],
-    activeIdRaw: params.deployCredsValues["TAILSCALE_AUTH_KEY_KEYRING_ACTIVE"],
-  });
-  if (!fallback) return params.bootstrapSecrets;
-  return {
-    ...params.bootstrapSecrets,
-    tailscaleAuthKey: fallback,
-  };
-}
-
 function summarizeVerifyResults(rawJson: string): { ok: number; missing: number; warn: number; total: number } {
   let parsed: unknown;
   try {
@@ -268,15 +249,7 @@ const setupApply = defineCommand({
         envFile,
         updates: deployCredsUpdates,
       });
-      const loadedDeployCreds = loadDeployCreds({
-        cwd: repoRoot,
-        runtimeDir,
-        envFile,
-      });
-      const bootstrapSecrets = withProjectTailscaleKeyFallback({
-        bootstrapSecrets: payload.bootstrapSecrets,
-        deployCredsValues: loadedDeployCreds.values,
-      });
+      const bootstrapSecrets = payload.bootstrapSecrets;
       const secretsInitBody = buildSecretsInitBody(bootstrapSecrets);
       await fs.writeFile(secretsInitPath, `${JSON.stringify(secretsInitBody, null, 2)}\n`, {
         encoding: "utf8",

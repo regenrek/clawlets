@@ -13,6 +13,9 @@ import {
   generateProjectTokenKeyId,
   maskProjectToken,
   parseProjectTokenKeyring,
+  PROJECT_TOKEN_KEYRING_MAX_ITEMS,
+  PROJECT_TOKEN_KEY_LABEL_MAX_CHARS,
+  PROJECT_TOKEN_VALUE_MAX_CHARS,
   resolveActiveProjectTokenEntry,
   serializeProjectTokenKeyring,
 } from "~/lib/project-token-keyring"
@@ -458,10 +461,16 @@ export const mutateProjectTokenKeyring = createServerFn({ method: "POST" })
     if (!targetRunnerIdRaw) throw new Error("targetRunnerId required")
 
     const keyId = coerceTrimmedString(d.keyId)
-    const label = coerceString(d.label)
-    const value = coerceString(d.value)
+    const label = coerceString(d.label).trim()
+    const value = coerceString(d.value).trim()
 
-    if (action === "add" && !value.trim()) throw new Error("value required")
+    if (action === "add" && !value) throw new Error("value required")
+    if (action === "add" && value.length > PROJECT_TOKEN_VALUE_MAX_CHARS) {
+      throw new Error(`value too long (max ${PROJECT_TOKEN_VALUE_MAX_CHARS} chars)`)
+    }
+    if (action === "add" && label.length > PROJECT_TOKEN_KEY_LABEL_MAX_CHARS) {
+      throw new Error(`label too long (max ${PROJECT_TOKEN_KEY_LABEL_MAX_CHARS} chars)`)
+    }
     if ((action === "remove" || action === "select") && !keyId) throw new Error("keyId required")
 
     return {
@@ -494,6 +503,9 @@ export const mutateProjectTokenKeyring = createServerFn({ method: "POST" })
     let updatedKeys: string[]
 
     if (data.action === "add") {
+      if (currentKeyring.items.length >= PROJECT_TOKEN_KEYRING_MAX_ITEMS) {
+        throw new Error(`keyring full (max ${PROJECT_TOKEN_KEYRING_MAX_ITEMS} items)`)
+      }
       const existingIds = new Set(currentKeyring.items.map((entry) => entry.id))
       let id = generateProjectTokenKeyId(data.label)
       for (let attempt = 0; attempt < 10 && existingIds.has(id); attempt += 1) {

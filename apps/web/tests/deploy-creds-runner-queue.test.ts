@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks"
 import { createHash, generateKeyPairSync } from "node:crypto"
 import { describe, expect, it, vi } from "vitest"
+import { PROJECT_TOKEN_VALUE_MAX_CHARS } from "~/lib/project-token-keyring"
 
 const GLOBAL_STORAGE_KEY = Symbol.for("tanstack-start:start-storage-context")
 const globalObj = globalThis as { [GLOBAL_STORAGE_KEY]?: AsyncLocalStorage<unknown> }
@@ -390,5 +391,31 @@ describe("deploy creds runner queue", () => {
       .map((call) => call?.[1])
       .find((payload) => Array.isArray(payload?.payloadMeta?.updatedKeys))
     expect(reservePayload?.payloadMeta?.updatedKeys).toEqual(["HCLOUD_TOKEN_KEYRING_ACTIVE"])
+  })
+
+  it("rejects oversized key values before enqueue", async () => {
+    const { mod, mutation } = await loadSdk({
+      runnerJson: {
+        keys: [],
+      },
+    })
+    const ctx = {
+      request: new Request("http://localhost"),
+      contextAfterGlobalMiddlewares: {},
+      executedRequestMiddlewares: new Set(),
+    }
+    await expect(runWithStartContext(ctx, async () =>
+      mod.mutateProjectTokenKeyring({
+        data: {
+          projectId: "p1" as any,
+          kind: "hcloud",
+          action: "add",
+          label: "too-long",
+          value: "x".repeat(PROJECT_TOKEN_VALUE_MAX_CHARS + 1),
+          targetRunnerId: "r1",
+        },
+      }),
+    )).rejects.toThrow(/value too long/i)
+    expect(mutation).not.toHaveBeenCalled()
   })
 })
