@@ -8,7 +8,6 @@ import { isProjectRunnerOnline } from "~/lib/setup/runner-status"
 import { deriveSetupModel, type SetupModel, type SetupStepId } from "~/lib/setup/setup-model"
 import { deriveRepoHealth } from "~/lib/setup/repo-health"
 import { setupConfigProbeQueryOptions, type SetupConfig } from "~/lib/setup/repo-probe"
-import { parseProjectTokenKeyring, resolveActiveProjectTokenEntry } from "~/lib/project-token-keyring"
 import { getDeployCredsStatus } from "~/sdk/infra"
 import { setupDraftGet } from "~/sdk/setup"
 import { SECRETS_VERIFY_BOOTSTRAP_RUN_KIND } from "~/sdk/secrets/run-kind"
@@ -140,23 +139,13 @@ export function useSetupModel(params: {
     return out
   }, [deployCredsQuery.data?.keys])
 
-  const hasActiveHcloudToken = React.useMemo(() => {
-    const keyring = parseProjectTokenKeyring(deployCredsByKey["HCLOUD_TOKEN_KEYRING"]?.value)
-    const activeId = String(deployCredsByKey["HCLOUD_TOKEN_KEYRING_ACTIVE"]?.value || "").trim()
-    const activeEntry = resolveActiveProjectTokenEntry({ keyring, activeId })
-    return Boolean(activeEntry?.value?.trim())
-  }, [deployCredsByKey])
-
-  const activeTailscaleAuthKey = React.useMemo(() => {
-    const keyring = parseProjectTokenKeyring(deployCredsByKey["TAILSCALE_AUTH_KEY_KEYRING"]?.value)
-    const activeId = String(deployCredsByKey["TAILSCALE_AUTH_KEY_KEYRING_ACTIVE"]?.value || "").trim()
-    const activeEntry = resolveActiveProjectTokenEntry({ keyring, activeId })
-    return activeEntry?.value || ""
-  }, [deployCredsByKey])
-
+  const hasActiveHcloudToken = React.useMemo(
+    () => deployCredsQuery.data?.projectTokenKeyrings?.hcloud?.hasActive === true,
+    [deployCredsQuery.data?.projectTokenKeyrings?.hcloud?.hasActive],
+  )
   const hasActiveTailscaleAuthKey = React.useMemo(
-    () => activeTailscaleAuthKey.trim().length > 0,
-    [activeTailscaleAuthKey],
+    () => deployCredsQuery.data?.projectTokenKeyrings?.tailscale?.hasActive === true,
+    [deployCredsQuery.data?.projectTokenKeyrings?.tailscale?.hasActive],
   )
   const hasProjectGithubToken = React.useMemo(
     () => deployCredsByKey["GITHUB_TOKEN"]?.status === "set",
@@ -267,7 +256,6 @@ export function useSetupModel(params: {
     hasProjectSopsAgeKeyPath,
     projectSopsAgeKeyPath,
     hasActiveTailscaleAuthKey,
-    activeTailscaleAuthKey,
     setStep,
     advance,
   }

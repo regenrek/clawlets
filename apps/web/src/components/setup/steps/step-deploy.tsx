@@ -22,7 +22,6 @@ export function SetupStepDeploy(props: {
   hasProjectGithubToken: boolean
   projectSopsAgeKeyPath: string
   hasActiveTailscaleAuthKey: boolean
-  activeTailscaleAuthKey: string
 }) {
   return (
     <DeployInitialInstall
@@ -39,7 +38,6 @@ export function SetupStepDeploy(props: {
       hasProjectGithubToken={props.hasProjectGithubToken}
       projectSopsAgeKeyPath={props.projectSopsAgeKeyPath}
       hasActiveTailscaleAuthKey={props.hasActiveTailscaleAuthKey}
-      activeTailscaleAuthKey={props.activeTailscaleAuthKey}
       showRunnerStatusBanner={false}
     />
   )

@@ -64,7 +64,6 @@ export function DeployInitialInstallSetup(props: {
   hasProjectGithubToken: boolean
   projectSopsAgeKeyPath: string
   hasActiveTailscaleAuthKey: boolean
-  activeTailscaleAuthKey: string
   showRunnerStatusBanner?: boolean
 }) {
   const projectQuery = useProjectBySlug(props.projectSlug)
@@ -500,7 +499,7 @@ export function DeployInitialInstallSetup(props: {
       const bootstrapSecretsPayload: Record<string, string> = {}
       const adminPassword = props.pendingBootstrapSecrets.adminPassword.trim()
       const tailscaleAuthKey = props.pendingBootstrapSecrets.useTailscaleLockdown
-        ? (props.pendingBootstrapSecrets.tailscaleAuthKey.trim() || props.activeTailscaleAuthKey.trim())
+        ? props.pendingBootstrapSecrets.tailscaleAuthKey.trim()
         : ""
       if (adminPassword) bootstrapSecretsPayload.adminPasswordHash = adminPassword
       if (tailscaleAuthKey) bootstrapSecretsPayload.tailscaleAuthKey = tailscaleAuthKey

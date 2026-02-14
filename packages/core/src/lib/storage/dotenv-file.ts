@@ -18,14 +18,10 @@ export function formatDotenvValue(value: string): string {
   }
 
   // Safer default: quote when characters could confuse dotenv parsing.
-  // NOTE: dotenv does NOT unescape `\"` inside double-quoted values. That means
-  // JSON.stringify() corrupts values that contain `"`, including JSON payloads.
-  // Use single quotes in that case.
+  // NOTE: dotenv does not unescape `\"` inside double-quoted values.
+  // Use single quotes when the value contains double quotes.
   if (/[\s#'`$]/.test(trimmed)) {
-    if (trimmed.includes('\"')) {
-      if (trimmed.includes("'")) {
-        throw new Error("dotenv values cannot contain both single and double quotes");
-      }
+    if (trimmed.includes("\"")) {
       return `'${trimmed}'`;
     }
     return JSON.stringify(trimmed);

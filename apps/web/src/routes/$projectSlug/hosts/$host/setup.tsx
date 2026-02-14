@@ -163,18 +163,6 @@ function HostSetupPage() {
     });
   }, [host]);
 
-  React.useEffect(() => {
-    const activeProjectKey = setup.activeTailscaleAuthKey?.trim() || "";
-    if (!activeProjectKey) return;
-    setPendingBootstrapSecrets((prev) => {
-      if (prev.tailscaleAuthKey.trim()) return prev;
-      return {
-        ...prev,
-        tailscaleAuthKey: activeProjectKey,
-      };
-    });
-  }, [setup.activeTailscaleAuthKey]);
-
   if (setup.projectQuery.isPending) {
     return <div className="text-muted-foreground">Loading…</div>;
   }
@@ -374,7 +362,6 @@ function HostSetupPage() {
                   hasActiveTailscaleAuthKey={setup.hasActiveTailscaleAuthKey}
                   hasProjectSopsAgeKeyPath={setup.hasProjectSopsAgeKeyPath}
                   projectSopsAgeKeyPath={setup.projectSopsAgeKeyPath}
-                  activeTailscaleAuthKey={setup.activeTailscaleAuthKey}
                   onPendingInfrastructureDraftChange={(next) => {
                     setPendingInfrastructureDraft((prev) => ({
                       ...(prev ?? {}),
@@ -414,7 +401,6 @@ function StepContent(props: {
   hasActiveTailscaleAuthKey: boolean;
   hasProjectSopsAgeKeyPath: boolean;
   projectSopsAgeKeyPath: string;
-  activeTailscaleAuthKey: string;
   onPendingInfrastructureDraftChange: (next: SetupDraftInfrastructure) => void;
   onPendingConnectionDraftChange: (next: SetupDraftConnection) => void;
   onPendingBootstrapSecretsChange: (
@@ -437,7 +423,6 @@ function StepContent(props: {
     hasActiveTailscaleAuthKey,
     hasProjectSopsAgeKeyPath,
     projectSopsAgeKeyPath,
-    activeTailscaleAuthKey,
   } = props;
   const desired = React.useMemo(
     () =>
@@ -497,13 +482,9 @@ function StepContent(props: {
       <SetupStepTailscaleLockdown
         projectId={projectId}
         stepStatus={step.status}
-        tailscaleAuthKey={pendingBootstrapSecrets.tailscaleAuthKey}
         hasTailscaleAuthKey={hasActiveTailscaleAuthKey}
         allowTailscaleUdpIngress={desired.infrastructure.allowTailscaleUdpIngress}
         useTailscaleLockdown={pendingBootstrapSecrets.useTailscaleLockdown}
-        onTailscaleAuthKeyChange={(value) =>
-          props.onPendingBootstrapSecretsChange({ tailscaleAuthKey: value })
-        }
         onAllowTailscaleUdpIngressChange={(value) =>
           props.onPendingInfrastructureDraftChange({
             allowTailscaleUdpIngress: value,
@@ -536,7 +517,6 @@ function StepContent(props: {
         hasProjectGithubToken={hasProjectGithubToken}
         projectSopsAgeKeyPath={projectSopsAgeKeyPath}
         hasActiveTailscaleAuthKey={hasActiveTailscaleAuthKey}
-        activeTailscaleAuthKey={activeTailscaleAuthKey}
       />
     );
   }

@@ -5,7 +5,12 @@ import process from "node:process";
 import { randomUUID } from "node:crypto";
 import { defineCommand } from "citty";
 import { ClawletsConfigSchema, loadFullConfig, writeClawletsConfig } from "@clawlets/core/lib/config/clawlets-config";
-import { DEPLOY_CREDS_KEYS, updateDeployCredsEnvFile } from "@clawlets/core/lib/infra/deploy-creds";
+import {
+  DEPLOY_CREDS_KEYS,
+  loadDeployCreds,
+  resolveActiveDeployCredsProjectToken,
+  updateDeployCredsEnvFile,
+} from "@clawlets/core/lib/infra/deploy-creds";
 import { findRepoRoot } from "@clawlets/core/lib/project/repo";
 import { capture, run } from "@clawlets/core/lib/runtime/run";
 import { splitDotPath } from "@clawlets/core/lib/storage/dot-path";
@@ -175,6 +180,23 @@ function buildSecretsInitBody(bootstrapSecrets: Record<string, string>): {
   };
 }
 
+function withProjectTailscaleKeyFallback(params: {
+  bootstrapSecrets: Record<string, string>;
+  deployCredsValues: Record<string, string | undefined>;
+}): Record<string, string> {
+  const existing = String(params.bootstrapSecrets["tailscaleAuthKey"] || "").trim();
+  if (existing) return params.bootstrapSecrets;
+  const fallback = resolveActiveDeployCredsProjectToken({
+    keyringRaw: params.deployCredsValues["TAILSCALE_AUTH_KEY_KEYRING"],
+    activeIdRaw: params.deployCredsValues["TAILSCALE_AUTH_KEY_KEYRING_ACTIVE"],
+  });
+  if (!fallback) return params.bootstrapSecrets;
+  return {
+    ...params.bootstrapSecrets,
+    tailscaleAuthKey: fallback,
+  };
+}
+
 function summarizeVerifyResults(rawJson: string): { ok: number; missing: number; warn: number; total: number } {
   let parsed: unknown;
   try {
@@ -229,16 +251,10 @@ const setupApply = defineCommand({
 
     const cliEntry = process.argv[1];
     if (!cliEntry) throw new Error("unable to resolve CLI entry path");
-    const secretsInitBody = buildSecretsInitBody(payload.bootstrapSecrets);
     const secretsInitPath = path.join(
       os.tmpdir(),
       `clawlets-setup-apply.${payload.hostName}.${process.pid}.${randomUUID()}.json`,
     );
-    await fs.writeFile(secretsInitPath, `${JSON.stringify(secretsInitBody, null, 2)}\n`, {
-      encoding: "utf8",
-      mode: 0o600,
-      flag: "wx",
-    });
 
     try {
       const updatedConfigPaths = await applyConfigOps({
@@ -251,6 +267,21 @@ const setupApply = defineCommand({
         runtimeDir,
         envFile,
         updates: deployCredsUpdates,
+      });
+      const loadedDeployCreds = loadDeployCreds({
+        cwd: repoRoot,
+        runtimeDir,
+        envFile,
+      });
+      const bootstrapSecrets = withProjectTailscaleKeyFallback({
+        bootstrapSecrets: payload.bootstrapSecrets,
+        deployCredsValues: loadedDeployCreds.values,
+      });
+      const secretsInitBody = buildSecretsInitBody(bootstrapSecrets);
+      await fs.writeFile(secretsInitPath, `${JSON.stringify(secretsInitBody, null, 2)}\n`, {
+        encoding: "utf8",
+        mode: 0o600,
+        flag: "wx",
       });
       await run(
         process.execPath,
@@ -303,7 +334,7 @@ const setupApply = defineCommand({
           updatedKeys: deployCredsResult.updatedKeys,
         },
         bootstrapSecrets: {
-          submittedCount: Object.keys(payload.bootstrapSecrets).length,
+          submittedCount: Object.keys(bootstrapSecrets).length,
           verify: verifySummary,
         },
       };
@@ -330,4 +361,3 @@ export const setup = defineCommand({
     apply: setupApply,
   },
 });
-

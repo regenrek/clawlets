@@ -35,6 +35,8 @@ describe("dotenv-file", () => {
     expect(dotenv.parse(`K=${formatDotenvValue(jsonWithSpace)}\n`).K).toBe(jsonWithSpace);
     const jsonWithHash = '{"label":"a#b"}';
     expect(dotenv.parse(`K=${formatDotenvValue(jsonWithHash)}\n`).K).toBe(jsonWithHash);
+    const jsonWithBothQuotes = '{"label":"Kevin\'s \\"prod\\" key"}';
+    expect(dotenv.parse(`K=${formatDotenvValue(jsonWithBothQuotes)}\n`).K).toBe(jsonWithBothQuotes);
   });
 
   it("redacts selected keys", () => {

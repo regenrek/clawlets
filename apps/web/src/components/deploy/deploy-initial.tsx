@@ -54,7 +54,6 @@ type DeployInitialInstallProps = {
   hasProjectGithubToken?: boolean
   projectSopsAgeKeyPath?: string
   hasActiveTailscaleAuthKey?: boolean
-  activeTailscaleAuthKey?: string
   showRunnerStatusBanner?: boolean
 }
 
@@ -76,7 +75,6 @@ export function DeployInitialInstall({
   hasProjectGithubToken = false,
   projectSopsAgeKeyPath = "",
   hasActiveTailscaleAuthKey = false,
-  activeTailscaleAuthKey = "",
   showRunnerStatusBanner = true,
 }: DeployInitialInstallProps) {
   if (variant === "setup") {
@@ -94,7 +92,6 @@ export function DeployInitialInstall({
         hasProjectGithubToken={hasProjectGithubToken}
         projectSopsAgeKeyPath={projectSopsAgeKeyPath}
         hasActiveTailscaleAuthKey={hasActiveTailscaleAuthKey}
-        activeTailscaleAuthKey={activeTailscaleAuthKey}
         showRunnerStatusBanner={showRunnerStatusBanner}
       />
     )

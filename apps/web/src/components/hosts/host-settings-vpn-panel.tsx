@@ -12,7 +12,6 @@ import { NativeSelect, NativeSelectOption } from "~/components/ui/native-select"
 import { SettingsSection } from "~/components/ui/settings-section"
 import { ProjectTokenKeyringCard } from "~/components/setup/project-token-keyring-card"
 import { setupFieldHelp } from "~/lib/setup-field-help"
-import { parseProjectTokenKeyring, resolveActiveProjectTokenEntry } from "~/lib/project-token-keyring"
 import { configDotSet } from "~/sdk/config"
 import { getHostPublicIpv4, probeHostTailscaleIpv4 } from "~/sdk/host"
 import { getDeployCredsStatus, lockdownExecute, lockdownStart } from "~/sdk/infra"
@@ -78,14 +77,7 @@ export function HostSettingsVpnPanel(props: {
     refetchOnReconnect: false,
   })
 
-  const hasTailscaleProjectKey = (() => {
-    const byKey: Record<string, { status?: "set" | "unset"; value?: string }> = {}
-    for (const row of deployCredsQuery.data?.keys || []) byKey[row.key] = row
-    const keyring = parseProjectTokenKeyring(byKey["TAILSCALE_AUTH_KEY_KEYRING"]?.value)
-    const activeId = String(byKey["TAILSCALE_AUTH_KEY_KEYRING_ACTIVE"]?.value || "").trim()
-    const activeEntry = resolveActiveProjectTokenEntry({ keyring, activeId })
-    return Boolean(activeEntry?.value?.trim())
-  })()
+  const hasTailscaleProjectKey = deployCredsQuery.data?.projectTokenKeyrings?.tailscale?.hasActive === true
 
   async function requireConfigSet(params: { path: string; value?: string; valueJson?: string }): Promise<void> {
     const result = await configDotSet({

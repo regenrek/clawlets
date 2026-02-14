@@ -7,6 +7,7 @@ const findRepoRootMock = vi.hoisted(() => vi.fn());
 const loadFullConfigMock = vi.hoisted(() => vi.fn());
 const writeClawletsConfigMock = vi.hoisted(() => vi.fn());
 const updateDeployCredsEnvFileMock = vi.hoisted(() => vi.fn());
+const loadDeployCredsMock = vi.hoisted(() => vi.fn());
 const runMock = vi.hoisted(() => vi.fn());
 const captureMock = vi.hoisted(() => vi.fn());
 
@@ -27,6 +28,7 @@ vi.mock("@clawlets/core/lib/infra/deploy-creds", async (importOriginal) => {
   return {
     ...actual,
     updateDeployCredsEnvFile: updateDeployCredsEnvFileMock,
+    loadDeployCreds: loadDeployCredsMock,
   };
 });
 
@@ -38,6 +40,12 @@ vi.mock("@clawlets/core/lib/runtime/run", () => ({
 describe("setup apply command", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    loadDeployCredsMock.mockReturnValue({
+      values: {
+        TAILSCALE_AUTH_KEY_KEYRING: "",
+        TAILSCALE_AUTH_KEY_KEYRING_ACTIVE: "",
+      },
+    });
   });
 
   it("applies config + deploy creds + secrets in order and prints redacted summary", async () => {
@@ -160,6 +168,68 @@ describe("setup apply command", () => {
       expect(updateDeployCredsEnvFileMock).not.toHaveBeenCalled();
       expect(runMock).not.toHaveBeenCalled();
       expect(captureMock).not.toHaveBeenCalled();
+    } finally {
+      fs.rmSync(repoRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("fills tailscaleAuthKey from active project keyring when missing from payload", async () => {
+    const repoRoot = fs.mkdtempSync(path.join(tmpdir(), "clawlets-setup-apply-keyring-"));
+    const configPath = path.join(repoRoot, "clawlets.config.json");
+    const inputPath = path.join(repoRoot, "setup-input.json");
+    let submittedSecretsBody: Record<string, unknown> | null = null;
+    try {
+      findRepoRootMock.mockReturnValue(repoRoot);
+      loadFullConfigMock.mockReturnValue({
+        config: { hosts: { alpha: {} }, fleet: {} },
+        infraConfigPath: configPath,
+      });
+      updateDeployCredsEnvFileMock.mockResolvedValue({
+        updatedKeys: ["SOPS_AGE_KEY_FILE"],
+      });
+      loadDeployCredsMock.mockReturnValue({
+        values: {
+          TAILSCALE_AUTH_KEY_KEYRING: '{"items":[{"id":"default","value":"tskey-auth-fallback"}]}',
+          TAILSCALE_AUTH_KEY_KEYRING_ACTIVE: "default",
+        },
+      });
+      runMock.mockImplementation(async (_cmd, args: string[]) => {
+        const fromJsonIndex = args.indexOf("--from-json");
+        if (fromJsonIndex < 0) return;
+        const secretsPath = String(args[fromJsonIndex + 1] || "");
+        submittedSecretsBody = JSON.parse(fs.readFileSync(secretsPath, "utf8")) as Record<string, unknown>;
+      });
+      captureMock.mockResolvedValue(
+        JSON.stringify({
+          results: [{ status: "ok" }],
+        }),
+      );
+
+      fs.writeFileSync(
+        inputPath,
+        JSON.stringify(
+          {
+            hostName: "alpha",
+            configOps: [
+              { path: "hosts.alpha.provisioning.provider", value: "hetzner", del: false },
+            ],
+            deployCreds: {
+              SOPS_AGE_KEY_FILE: ".clawlets/keys/operators/alice.agekey",
+            },
+            bootstrapSecrets: {
+              adminPasswordHash: "$6$hash",
+            },
+          },
+          null,
+          2,
+        ),
+        "utf8",
+      );
+
+      const { setup } = await import("../src/commands/setup/index.js");
+      const apply = (setup as any).subCommands?.apply;
+      await apply.run({ args: { fromJson: inputPath, json: true } } as any);
+      expect(submittedSecretsBody?.tailscaleAuthKey).toBe("tskey-auth-fallback");
     } finally {
       fs.rmSync(repoRoot, { recursive: true, force: true });
     }

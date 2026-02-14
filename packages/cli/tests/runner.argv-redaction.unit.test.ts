@@ -16,6 +16,9 @@ describe("runner argv redaction", () => {
         "Authorization: Bearer abc",
         "--token",
         "abc",
+        "--api-key=abc123",
+        "--auth=secret-auth",
+        "--client-secret=secret-client",
         "--other",
         "x",
       ],
@@ -28,8 +31,13 @@ describe("runner argv redaction", () => {
     expect(joined).not.toContain("user:pass");
     expect(joined).not.toContain("access_token=abc");
     expect(joined).not.toContain("Bearer abc");
+    expect(joined).not.toContain("--api-key=abc123");
+    expect(joined).not.toContain("--auth=secret-auth");
+    expect(joined).not.toContain("--client-secret=secret-client");
+    expect(joined).toContain("--api-key=<redacted>");
+    expect(joined).toContain("--auth=<redacted>");
+    expect(joined).toContain("--client-secret=<redacted>");
     expect(joined).toContain("--token");
     expect(argv).toContain("<redacted>");
   });
 });
-

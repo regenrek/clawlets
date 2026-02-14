@@ -158,7 +158,7 @@ function parseDeployCredsProjectTokenKeyring(raw: string | undefined): DeployCre
   return out;
 }
 
-function resolveActiveDeployCredsProjectToken(params: {
+export function resolveActiveDeployCredsProjectToken(params: {
   keyringRaw: string | undefined;
   activeIdRaw: string | undefined;
 }): string | undefined {

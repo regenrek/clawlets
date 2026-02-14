@@ -725,10 +725,14 @@ type RunnerJobExec = "clawlets" | "git";
 const RUNNER_SENSITIVE_ARG_FLAGS = new Set<string>([
   "--token",
   "--access-token",
+  "--auth-token",
   "--auth",
   "--authorization",
+  "--bearer-token",
   "--password",
   "--secret",
+  "--client-secret",
+  "--client-token",
   "--api-key",
   "--apikey",
   "--apiKey",
@@ -753,8 +757,14 @@ function sanitizeArgvForLogs(params: { exec: RunnerJobExec; args: string[]; temp
       out.push("<runner_temp_secret_file>");
       continue;
     }
-    const normalizedFlag = rawArg.trim().toLowerCase();
+    const assignmentIdx = rawArg.indexOf("=");
+    const flagToken = (assignmentIdx > 0 ? rawArg.slice(0, assignmentIdx) : rawArg).trim();
+    const normalizedFlag = flagToken.toLowerCase();
     if (RUNNER_SENSITIVE_ARG_FLAGS.has(normalizedFlag)) {
+      if (assignmentIdx > 0) {
+        out.push(`${flagToken}=<redacted>`);
+        continue;
+      }
       out.push(rawArg);
       const next = params.args[i + 1];
       if (typeof next === "string" && next.trim() && !next.startsWith("-")) {

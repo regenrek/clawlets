@@ -12,17 +12,15 @@ import type { SetupStepStatus } from "~/lib/setup/setup-model"
 export function SetupStepTailscaleLockdown(props: {
   projectId: Id<"projects">
   stepStatus: SetupStepStatus
-  tailscaleAuthKey: string
   hasTailscaleAuthKey: boolean
   allowTailscaleUdpIngress: boolean
   useTailscaleLockdown: boolean
-  onTailscaleAuthKeyChange: (value: string) => void
   onAllowTailscaleUdpIngressChange: (value: boolean) => void
   onUseTailscaleLockdownChange: (value: boolean) => void
 }) {
   const hasTailscaleKey = useMemo(
-    () => props.hasTailscaleAuthKey || props.tailscaleAuthKey.trim().length > 0,
-    [props.hasTailscaleAuthKey, props.tailscaleAuthKey],
+    () => props.hasTailscaleAuthKey,
+    [props.hasTailscaleAuthKey],
   )
 
   const statusText = !props.useTailscaleLockdown
@@ -64,7 +62,6 @@ export function SetupStepTailscaleLockdown(props: {
                 projectId={props.projectId}
                 kind="tailscale"
                 title="Tailscale API keys"
-                onActiveValueChange={props.onTailscaleAuthKeyChange}
                 wrapInSection={false}
                 showRunnerStatusBanner={false}
                 showRunnerStatusDetails={false}
