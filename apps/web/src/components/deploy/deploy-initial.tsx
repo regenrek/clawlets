@@ -51,6 +51,10 @@ type DeployInitialInstallProps = {
   pendingInfrastructureDraft?: SetupDraftInfrastructure | null
   pendingConnectionDraft?: SetupDraftConnection | null
   pendingBootstrapSecrets?: SetupPendingBootstrapSecrets
+  hasProjectGithubToken?: boolean
+  projectSopsAgeKeyPath?: string
+  hasActiveTailscaleAuthKey?: boolean
+  showRunnerStatusBanner?: boolean
 }
 
 export function DeployInitialInstall({
@@ -68,6 +72,10 @@ export function DeployInitialInstall({
     tailscaleAuthKey: "",
     useTailscaleLockdown: true,
   },
+  hasProjectGithubToken = false,
+  projectSopsAgeKeyPath = "",
+  hasActiveTailscaleAuthKey = false,
+  showRunnerStatusBanner = true,
 }: DeployInitialInstallProps) {
   if (variant === "setup") {
     return (
@@ -81,6 +89,10 @@ export function DeployInitialInstall({
         pendingInfrastructureDraft={pendingInfrastructureDraft}
         pendingConnectionDraft={pendingConnectionDraft}
         pendingBootstrapSecrets={pendingBootstrapSecrets}
+        hasProjectGithubToken={hasProjectGithubToken}
+        projectSopsAgeKeyPath={projectSopsAgeKeyPath}
+        hasActiveTailscaleAuthKey={hasActiveTailscaleAuthKey}
+        showRunnerStatusBanner={showRunnerStatusBanner}
       />
     )
   }

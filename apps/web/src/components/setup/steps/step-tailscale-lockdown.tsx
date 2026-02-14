@@ -1,29 +1,33 @@
 import { useMemo } from "react"
+import type { Id } from "../../../../convex/_generated/dataModel"
+import { ProjectTokenKeyringCard } from "~/components/setup/project-token-keyring-card"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "~/components/ui/accordion"
 import { LabelWithHelp } from "~/components/ui/label-help"
-import { SecretInput } from "~/components/ui/secret-input"
 import { SettingsSection } from "~/components/ui/settings-section"
 import { SetupStepStatusBadge } from "~/components/setup/steps/step-status-badge"
 import { Switch } from "~/components/ui/switch"
+import { setupFieldHelp } from "~/lib/setup-field-help"
 import type { SetupStepStatus } from "~/lib/setup/setup-model"
 
 export function SetupStepTailscaleLockdown(props: {
+  projectId: Id<"projects">
   stepStatus: SetupStepStatus
-  tailscaleAuthKey: string
   hasTailscaleAuthKey: boolean
+  allowTailscaleUdpIngress: boolean
   useTailscaleLockdown: boolean
-  onTailscaleAuthKeyChange: (value: string) => void
+  onAllowTailscaleUdpIngressChange: (value: boolean) => void
   onUseTailscaleLockdownChange: (value: boolean) => void
 }) {
   const hasTailscaleKey = useMemo(
-    () => props.hasTailscaleAuthKey || props.tailscaleAuthKey.trim().length > 0,
-    [props.hasTailscaleAuthKey, props.tailscaleAuthKey],
+    () => props.hasTailscaleAuthKey,
+    [props.hasTailscaleAuthKey],
   )
 
   const statusText = !props.useTailscaleLockdown
     ? "Tailscale lockdown disabled."
     : hasTailscaleKey
       ? "Tailscale key ready for deploy."
-      : "Enable tailscale lockdown requires a tailscale auth key."
+      : "Enable tailscale lockdown requires an active Tailscale key."
 
   return (
     <SettingsSection
@@ -37,7 +41,7 @@ export function SetupStepTailscaleLockdown(props: {
           <div className="min-w-0">
             <div className="text-sm font-medium">Use tailscale + lockdown (recommended)</div>
             <div className="text-xs text-muted-foreground">
-              Deploy enables safer SSH path when a tailscale auth key is configured.
+              Deploy enables safer SSH path when an active project Tailscale key is configured.
             </div>
           </div>
           <Switch
@@ -45,20 +49,54 @@ export function SetupStepTailscaleLockdown(props: {
             onCheckedChange={props.onUseTailscaleLockdownChange}
           />
         </div>
-
         {props.useTailscaleLockdown ? (
           <div className="space-y-2">
-            <LabelWithHelp htmlFor="setup-tailscale-key" help="Auth key used for bootstrap tailscale enrollment.">
-              Tailscale auth key
+            <LabelWithHelp htmlFor="setup-tailscale-keyring" help={setupFieldHelp.secrets.tailscaleAuthKey}>
+              Tailscale API keys
             </LabelWithHelp>
-            <SecretInput
-              id="setup-tailscale-key"
-              value={props.tailscaleAuthKey}
-              onValueChange={props.onTailscaleAuthKeyChange}
-              placeholder={hasTailscaleKey ? "Configured" : "tskey-auth-..."}
-            />
+            <div className="text-xs text-muted-foreground">
+              Project-wide keys. Add multiple keys and select the one used for setup/deploy.
+            </div>
+            <div id="setup-tailscale-keyring">
+              <ProjectTokenKeyringCard
+                projectId={props.projectId}
+                kind="tailscale"
+                title="Tailscale API keys"
+                wrapInSection={false}
+                showRunnerStatusBanner={false}
+                showRunnerStatusDetails={false}
+              />
+            </div>
           </div>
         ) : null}
+
+        <Accordion className="rounded-lg border bg-muted/20">
+          <AccordionItem value="advanced" className="px-4">
+            <AccordionTrigger className="rounded-none border-0 px-0 py-2.5 hover:no-underline">
+              Advanced options
+            </AccordionTrigger>
+            <AccordionContent className="pb-4">
+              <div className="space-y-2 rounded-md border bg-muted/10 p-3">
+                <LabelWithHelp
+                  htmlFor="setup-tailscale-udp-ingress"
+                  help={setupFieldHelp.hosts.hetznerAllowTailscaleUdpIngress}
+                >
+                  Allow Tailscale UDP ingress
+                </LabelWithHelp>
+                <div className="mt-1 flex items-center gap-3">
+                  <Switch
+                    id="setup-tailscale-udp-ingress"
+                    checked={props.allowTailscaleUdpIngress}
+                    onCheckedChange={props.onAllowTailscaleUdpIngressChange}
+                  />
+                  <span className="text-sm text-muted-foreground">
+                    Default: enabled. Disable for relay-only mode.
+                  </span>
+                </div>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
       </div>
     </SettingsSection>
   )

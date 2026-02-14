@@ -14,6 +14,7 @@ describe("ssh redaction usage", () => {
     expect(source).toContain("maskSshPublicKey")
     expect(source).toContain("{maskSshPublicKey(key)}")
     expect(source).not.toContain("{key}</code>")
+    expect(source).not.toContain("normalized.slice(0, 22)")
   })
 
   it("uses masked display in security ssh settings lists", () => {

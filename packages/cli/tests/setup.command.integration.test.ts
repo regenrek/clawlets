@@ -164,4 +164,60 @@ describe("setup apply command", () => {
       fs.rmSync(repoRoot, { recursive: true, force: true });
     }
   });
+
+  it("does not inject tailscaleAuthKey when missing from payload", async () => {
+    const repoRoot = fs.mkdtempSync(path.join(tmpdir(), "clawlets-setup-apply-keyring-"));
+    const configPath = path.join(repoRoot, "clawlets.config.json");
+    const inputPath = path.join(repoRoot, "setup-input.json");
+    let submittedSecretsBody: Record<string, unknown> | null = null;
+    try {
+      findRepoRootMock.mockReturnValue(repoRoot);
+      loadFullConfigMock.mockReturnValue({
+        config: { hosts: { alpha: {} }, fleet: {} },
+        infraConfigPath: configPath,
+      });
+      updateDeployCredsEnvFileMock.mockResolvedValue({
+        updatedKeys: ["SOPS_AGE_KEY_FILE"],
+      });
+      runMock.mockImplementation(async (_cmd, args: string[]) => {
+        const fromJsonIndex = args.indexOf("--from-json");
+        if (fromJsonIndex < 0) return;
+        const secretsPath = String(args[fromJsonIndex + 1] || "");
+        submittedSecretsBody = JSON.parse(fs.readFileSync(secretsPath, "utf8")) as Record<string, unknown>;
+      });
+      captureMock.mockResolvedValue(
+        JSON.stringify({
+          results: [{ status: "ok" }],
+        }),
+      );
+
+      fs.writeFileSync(
+        inputPath,
+        JSON.stringify(
+          {
+            hostName: "alpha",
+            configOps: [
+              { path: "hosts.alpha.provisioning.provider", value: "hetzner", del: false },
+            ],
+            deployCreds: {
+              SOPS_AGE_KEY_FILE: ".clawlets/keys/operators/alice.agekey",
+            },
+            bootstrapSecrets: {
+              adminPasswordHash: "$6$hash",
+            },
+          },
+          null,
+          2,
+        ),
+        "utf8",
+      );
+
+      const { setup } = await import("../src/commands/setup/index.js");
+      const apply = (setup as any).subCommands?.apply;
+      await apply.run({ args: { fromJson: inputPath, json: true } } as any);
+      expect(submittedSecretsBody?.tailscaleAuthKey).toBeUndefined();
+    } finally {
+      fs.rmSync(repoRoot, { recursive: true, force: true });
+    }
+  });
 });

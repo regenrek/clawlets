@@ -44,6 +44,11 @@ vi.mock("../src/lib/vcs/github.js", () => ({
 describe("doctor", () => {
   let repoRoot = "";
   const originalEnv = { ...process.env };
+  const setHcloudTokenForTest = (value: string) => {
+    process.env.HCLOUD_TOKEN_KEYRING = JSON.stringify({ items: [{ id: "default", label: "default", value }] });
+    process.env.HCLOUD_TOKEN_KEYRING_ACTIVE = "default";
+    delete process.env.HCLOUD_TOKEN;
+  };
 
   beforeAll(async () => {
     repoRoot = await mkdtemp(path.join(tmpdir(), "clawlets-doctor-"));
@@ -211,7 +216,7 @@ describe("doctor", () => {
   });
 
   it("passes with a fully seeded repo", async () => {
-    process.env.HCLOUD_TOKEN = "abc";
+    setHcloudTokenForTest("abc");
     delete process.env.SOPS_AGE_KEY_FILE;
     const { collectDoctorChecks } = await import("../src/doctor.js");
     const checks = await collectDoctorChecks({ cwd: repoRoot, host: "openclaw-fleet-host" });
@@ -221,7 +226,7 @@ describe("doctor", () => {
   }, 15_000);
 
   it("flags missing bundled OpenTofu assets for bootstrap provider", async () => {
-    process.env.HCLOUD_TOKEN = "abc";
+    setHcloudTokenForTest("abc");
     const existsSync = fs.existsSync;
     const spy = vi.spyOn(fs, "existsSync").mockImplementation((p: fs.PathLike) => {
       const candidate = String(p);
@@ -346,7 +351,7 @@ describe("doctor", () => {
   });
 
   it("does not fail repo checks when gateways are empty and openclaw is disabled", async () => {
-    process.env.HCLOUD_TOKEN = "abc";
+    setHcloudTokenForTest("abc");
     mockFleetMain = { gateways: [], gatewayProfiles: {} };
     mockFleetTemplate = structuredClone(mockFleetMain);
     const { collectDoctorChecks } = await import("../src/doctor.js");
@@ -570,7 +575,7 @@ describe("doctor", () => {
     raw.hosts["openclaw-fleet-host"].diskDevice = "/dev/sda-CHANGE_ME";
     await writeFile(configPath, `${JSON.stringify(raw, null, 2)}\n`, "utf8");
 
-    process.env.HCLOUD_TOKEN = "abc";
+    setHcloudTokenForTest("abc");
     const { collectDoctorChecks } = await import("../src/doctor.js");
     const checks = await collectDoctorChecks({ cwd: repoRoot, host: "openclaw-fleet-host" });
     expect(checks.some((c) => c.label === "diskDevice" && c.status === "missing")).toBe(true);
@@ -588,7 +593,7 @@ describe("doctor", () => {
     };
     await writeFile(configPath, `${JSON.stringify(raw, null, 2)}\n`, "utf8");
 
-    process.env.HCLOUD_TOKEN = "abc";
+    setHcloudTokenForTest("abc");
     const { collectDoctorChecks } = await import("../src/doctor.js");
     const checks = await collectDoctorChecks({ cwd: repoRoot, host: "openclaw-fleet-host" });
     expect(checks.some((c) => c.label === "secret: garnix_netrc" && c.status === "missing")).toBe(true);

@@ -10,6 +10,7 @@ describe("ssh redaction helpers", () => {
     expect(masked).toContain("fp:")
     expect(masked).toContain("…")
     expect(masked).not.toContain("AAAAC3NzaC1lZDI1NTE5AAAAIFakePayloadExample123456")
+    expect(masked).not.toContain("user@workstation")
   })
 
   it("masks known_hosts payload and keeps host + algo context", () => {

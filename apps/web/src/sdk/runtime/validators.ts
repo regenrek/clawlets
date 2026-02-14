@@ -1,3 +1,4 @@
+import { SEALED_INPUT_B64_MAX_CHARS } from "@clawlets/core/lib/runtime/control-plane-constants"
 import { GatewayIdSchema, HostNameSchema } from "@clawlets/shared/lib/identifiers"
 
 import type { SystemTableNames } from "convex/server"
@@ -561,7 +562,7 @@ function parseSealedInputFields(input: Record<string, unknown>): {
   sealedInputAlg: string
   sealedInputKeyId: string
 } {
-  const sealedInputB64 = parseOptionalString(input["sealedInputB64"], 2 * 1024 * 1024)
+  const sealedInputB64 = parseOptionalString(input["sealedInputB64"], SEALED_INPUT_B64_MAX_CHARS)
   const sealedInputAlg = parseOptionalString(input["sealedInputAlg"], 128)
   const sealedInputKeyId = parseOptionalString(input["sealedInputKeyId"], 128)
   if (!sealedInputB64) throw new Error("sealedInputB64 required")

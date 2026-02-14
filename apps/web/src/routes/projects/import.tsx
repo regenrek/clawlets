@@ -9,23 +9,9 @@ import { Input } from "~/components/ui/input"
 import { Label } from "~/components/ui/label"
 import { dashboardOverviewQueryOptions } from "~/lib/query-options"
 import { slugifyProjectName } from "~/lib/project-routing"
+import { buildRunnerStartCommand } from "~/lib/setup/runner-start-command"
 import { projectImport } from "~/sdk/project"
 import { toast } from "sonner"
-
-function shellQuote(value: string): string {
-  if (!value) return "''"
-  return `'${value.replace(/'/g, `'"'"'`)}'`
-}
-
-function shellQuotePath(value: string): string {
-  const trimmed = String(value || "").trim()
-  if (!trimmed) return "''"
-  if (trimmed === "~") return "\"$HOME\""
-  if (trimmed.startsWith("~/")) {
-    return `"${"$HOME"}"${shellQuote(trimmed.slice(1))}`
-  }
-  return shellQuote(trimmed)
-}
 
 async function copyText(label: string, value: string): Promise<void> {
   if (!value.trim()) {
@@ -72,19 +58,13 @@ function ImportProject() {
   const dashboardOverviewQueryKey = dashboardOverviewQueryOptions().queryKey
   const controlPlaneUrl = String(import.meta.env.VITE_CONVEX_SITE_URL || "").trim()
   const runnerStartCommand = useMemo(() => {
-    const repoRoot = runnerRepoPathResolved || effectiveRunnerRepoPath
-    const runnerName = runnerNameResolved || effectiveRunnerName
-    const token = runnerToken || "<runner-token>"
-    const repoRootArg = repoRoot ? shellQuotePath(repoRoot) : shellQuote("<runner-repo-root>")
-    const lines: string[] = []
-    lines.push(`mkdir -p ${repoRootArg}`)
-    lines.push("clawlets runner start \\")
-    lines.push(`  --project ${projectId || "<project-id>"} \\`)
-    lines.push(`  --name ${shellQuote(runnerName)} \\`)
-    lines.push(`  --token ${shellQuote(token)} \\`)
-    lines.push(`  --repoRoot ${repoRootArg} \\`)
-    lines.push(`  --control-plane-url ${shellQuote(controlPlaneUrl || "<convex-site-url>")}`)
-    return lines.join("\n")
+    return buildRunnerStartCommand({
+      projectId: projectId ? String(projectId) : "<project-id>",
+      runnerName: runnerNameResolved || effectiveRunnerName,
+      token: runnerToken || "<runner-token>",
+      repoRoot: runnerRepoPathResolved || effectiveRunnerRepoPath,
+      controlPlaneUrl,
+    })
   }, [controlPlaneUrl, effectiveRunnerName, effectiveRunnerRepoPath, projectId, runnerNameResolved, runnerRepoPathResolved, runnerToken])
 
   const importMutation = useMutation({

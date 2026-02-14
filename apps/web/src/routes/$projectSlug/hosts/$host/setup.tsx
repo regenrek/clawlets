@@ -14,7 +14,6 @@ import { SetupHeader } from "~/components/setup/setup-header";
 import { SetupStepConnection } from "~/components/setup/steps/step-connection";
 import { SetupStepDeploy } from "~/components/setup/steps/step-deploy";
 import { SetupStepInfrastructure } from "~/components/setup/steps/step-infrastructure";
-import { SetupStepPredeploy } from "~/components/setup/steps/step-predeploy";
 import { SetupStepTailscaleLockdown } from "~/components/setup/steps/step-tailscale-lockdown";
 import { SetupStepVerify } from "~/components/setup/steps/step-verify";
 import {
@@ -30,6 +29,7 @@ import {
 } from "~/components/ui/stepper";
 import { projectsListQueryOptions } from "~/lib/query-options";
 import { buildHostPath, slugifyProjectName } from "~/lib/project-routing";
+import { deriveEffectiveSetupDesiredState } from "~/lib/setup/desired-state";
 import type { SetupStepId, SetupStepStatus } from "~/lib/setup/setup-model";
 import {
   SETUP_STEP_IDS,
@@ -98,7 +98,6 @@ const STEP_META: Record<string, { title: string; description: string }> = {
     title: "Tailscale lockdown",
     description: "Enable safer SSH access path",
   },
-  predeploy: { title: "Pre-Deploy", description: "GitHub, SOPS, first push" },
   deploy: { title: "Install Server", description: "Final check and bootstrap" },
   verify: {
     title: "Secure and Verify",
@@ -348,34 +347,36 @@ function HostSetupPage() {
                 }}
                 className="scroll-mt-20"
               >
-                {step.status === "locked" ? (
-                  <div className="rounded-md border border-dashed px-3 py-2 text-sm text-muted-foreground">
-                    Complete the previous setup section to unlock this part.
-                  </div>
-                ) : (
-                  <StepContent
-                    stepId={step.id as SetupStepId}
-                    step={step}
-                    projectId={projectId as Id<"projects">}
-                    projectSlug={projectSlug}
-                    host={activeHost}
-                    setup={setup}
-                    pendingInfrastructureDraft={pendingInfrastructureDraft}
-                    pendingConnectionDraft={pendingConnectionDraft}
-                    pendingBootstrapSecrets={pendingBootstrapSecrets}
-                    onPendingInfrastructureDraftChange={
-                      setPendingInfrastructureDraft
-                    }
-                    onPendingConnectionDraftChange={setPendingConnectionDraft}
-                    onPendingBootstrapSecretsChange={(next) => {
-                      setPendingBootstrapSecrets((prev) => ({
-                        ...prev,
-                        ...next,
-                      }));
-                    }}
-                    onContinueFromStep={continueFromStep}
-                  />
-                )}
+                <StepContent
+                  stepId={step.id as SetupStepId}
+                  step={step}
+                  projectId={projectId as Id<"projects">}
+                  projectSlug={projectSlug}
+                  host={activeHost}
+                  setup={setup}
+                  pendingInfrastructureDraft={pendingInfrastructureDraft}
+                  pendingConnectionDraft={pendingConnectionDraft}
+                  pendingBootstrapSecrets={pendingBootstrapSecrets}
+                  hasActiveHcloudToken={setup.hasActiveHcloudToken}
+                  hasProjectGithubToken={setup.hasProjectGithubToken}
+                  hasActiveTailscaleAuthKey={setup.hasActiveTailscaleAuthKey}
+                  hasProjectSopsAgeKeyPath={setup.hasProjectSopsAgeKeyPath}
+                  projectSopsAgeKeyPath={setup.projectSopsAgeKeyPath}
+                  onPendingInfrastructureDraftChange={(next) => {
+                    setPendingInfrastructureDraft((prev) => ({
+                      ...(prev ?? {}),
+                      ...next,
+                    }));
+                  }}
+                  onPendingConnectionDraftChange={setPendingConnectionDraft}
+                  onPendingBootstrapSecretsChange={(next) => {
+                    setPendingBootstrapSecrets((prev) => ({
+                      ...prev,
+                      ...next,
+                    }));
+                  }}
+                  onContinueFromStep={continueFromStep}
+                />
               </section>
             </StepperContent>
           ))}
@@ -395,6 +396,11 @@ function StepContent(props: {
   pendingInfrastructureDraft: SetupDraftInfrastructure | null;
   pendingConnectionDraft: SetupDraftConnection | null;
   pendingBootstrapSecrets: SetupPendingBootstrapSecrets;
+  hasActiveHcloudToken: boolean;
+  hasProjectGithubToken: boolean;
+  hasActiveTailscaleAuthKey: boolean;
+  hasProjectSopsAgeKeyPath: boolean;
+  projectSopsAgeKeyPath: string;
   onPendingInfrastructureDraftChange: (next: SetupDraftInfrastructure) => void;
   onPendingConnectionDraftChange: (next: SetupDraftConnection) => void;
   onPendingBootstrapSecretsChange: (
@@ -412,7 +418,31 @@ function StepContent(props: {
     pendingInfrastructureDraft,
     pendingConnectionDraft,
     pendingBootstrapSecrets,
+    hasActiveHcloudToken,
+    hasProjectGithubToken,
+    hasActiveTailscaleAuthKey,
+    hasProjectSopsAgeKeyPath,
+    projectSopsAgeKeyPath,
   } = props;
+  const desired = React.useMemo(
+    () =>
+      deriveEffectiveSetupDesiredState({
+        config: setup.config,
+        host,
+        setupDraft: setup.setupDraft,
+        pendingNonSecretDraft: {
+          infrastructure: pendingInfrastructureDraft ?? undefined,
+          connection: pendingConnectionDraft ?? undefined,
+        },
+      }),
+    [
+      host,
+      pendingConnectionDraft,
+      pendingInfrastructureDraft,
+      setup.config,
+      setup.setupDraft,
+    ],
+  );
 
   if (stepId === "infrastructure") {
     return (
@@ -422,6 +452,7 @@ function StepContent(props: {
         config={setup.config}
         setupDraft={setup.setupDraft}
         host={host}
+        hasActiveHcloudToken={hasActiveHcloudToken}
         stepStatus={step.status}
         onDraftChange={props.onPendingInfrastructureDraftChange}
       />
@@ -431,10 +462,12 @@ function StepContent(props: {
   if (stepId === "connection") {
     return (
       <SetupStepConnection
+        projectId={projectId}
         config={setup.config}
         setupDraft={setup.setupDraft}
         host={host}
         stepStatus={step.status}
+        sopsAgeKeyPathReady={hasProjectSopsAgeKeyPath}
         onDraftChange={props.onPendingConnectionDraftChange}
         adminPassword={pendingBootstrapSecrets.adminPassword}
         onAdminPasswordChange={(value) =>
@@ -447,27 +480,24 @@ function StepContent(props: {
   if (stepId === "tailscale-lockdown") {
     return (
       <SetupStepTailscaleLockdown
-        stepStatus={step.status}
-        tailscaleAuthKey={pendingBootstrapSecrets.tailscaleAuthKey}
-        hasTailscaleAuthKey={setup.hasTailscaleAuthKeyConfigured}
-        useTailscaleLockdown={pendingBootstrapSecrets.useTailscaleLockdown}
-        onTailscaleAuthKeyChange={(value) =>
-          props.onPendingBootstrapSecretsChange({ tailscaleAuthKey: value })
-        }
-        onUseTailscaleLockdownChange={(value) =>
-          props.onPendingBootstrapSecretsChange({ useTailscaleLockdown: value })
-        }
-      />
-    );
-  }
-
-  if (stepId === "predeploy") {
-    return (
-      <SetupStepPredeploy
         projectId={projectId}
-        host={host}
-        setupDraft={setup.setupDraft}
         stepStatus={step.status}
+        hasTailscaleAuthKey={hasActiveTailscaleAuthKey}
+        allowTailscaleUdpIngress={desired.infrastructure.allowTailscaleUdpIngress}
+        useTailscaleLockdown={pendingBootstrapSecrets.useTailscaleLockdown}
+        onAllowTailscaleUdpIngressChange={(value) =>
+          props.onPendingInfrastructureDraftChange({
+            allowTailscaleUdpIngress: value,
+          })
+        }
+        onUseTailscaleLockdownChange={(value) => {
+          props.onPendingBootstrapSecretsChange({ useTailscaleLockdown: value });
+          if (value) {
+            props.onPendingInfrastructureDraftChange({
+              allowTailscaleUdpIngress: true,
+            });
+          }
+        }}
       />
     );
   }
@@ -484,6 +514,9 @@ function StepContent(props: {
         pendingInfrastructureDraft={pendingInfrastructureDraft}
         pendingConnectionDraft={pendingConnectionDraft}
         pendingBootstrapSecrets={pendingBootstrapSecrets}
+        hasProjectGithubToken={hasProjectGithubToken}
+        projectSopsAgeKeyPath={projectSopsAgeKeyPath}
+        hasActiveTailscaleAuthKey={hasActiveTailscaleAuthKey}
       />
     );
   }

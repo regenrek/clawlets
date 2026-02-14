@@ -1,4 +1,7 @@
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useEffect, useMemo, useState } from "react"
+import { toast } from "sonner"
+import type { Id } from "../../../../convex/_generated/dataModel"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "~/components/ui/accordion"
 import { AdminCidrField } from "~/components/hosts/admin-cidr-field"
 import { Checkbox } from "~/components/ui/checkbox"
@@ -12,8 +15,11 @@ import { Textarea } from "~/components/ui/textarea"
 import { setupFieldHelp } from "~/lib/setup-field-help"
 import { maskSshPublicKey } from "~/lib/ssh-redaction"
 import { deriveConnectionLateHydration } from "~/lib/setup/connection-hydration"
+import { setupConfigProbeQueryKey } from "~/lib/setup/repo-probe"
+import { addProjectSshKeys } from "~/sdk/config/hosts"
 import type { SetupDraftConnection, SetupDraftView } from "~/sdk/setup"
 import { SetupStepStatusBadge } from "~/components/setup/steps/step-status-badge"
+import { SetupSopsAgeKeyField } from "~/components/setup/setup-sops-age-key-field"
 import type { SetupStepStatus } from "~/lib/setup/setup-model"
 
 function isSshPublicKey(text: string): boolean {
@@ -24,18 +30,20 @@ function toUniqueKeys(values: string[]): string[] {
   return Array.from(new Set(values.map((row) => row.trim()).filter(Boolean)))
 }
 
-function deriveSshLabel(key: string): string {
+function deriveSshLabel(key: string, index: number): string {
   const normalized = key.trim()
   const parts = normalized.split(/\s+/)
-  if (parts.length >= 3) return parts.slice(2).join(" ")
-  return `${parts[0] || "ssh-key"} • ${normalized.slice(0, 22)}...`
+  const keyType = parts[0] || "ssh-key"
+  return `${keyType} key #${index + 1}`
 }
 
 export function SetupStepConnection(props: {
+  projectId: Id<"projects">
   config: any | null
   setupDraft: SetupDraftView | null
   host: string
   stepStatus: SetupStepStatus
+  sopsAgeKeyPathReady: boolean
   onDraftChange: (next: SetupDraftConnection) => void
   adminPassword: string
   onAdminPasswordChange: (value: string) => void
@@ -54,12 +62,14 @@ export function SetupStepConnection(props: {
       ) : null}
       <SetupStepConnectionForm
         key={props.host}
+        projectId={props.projectId}
         host={props.host}
         configLoaded={Boolean(props.config)}
         hostCfg={hostCfg ?? {}}
         fleetSshKeys={fleetSshKeys}
         setupDraft={props.setupDraft}
         stepStatus={props.stepStatus}
+        sopsAgeKeyPathReady={props.sopsAgeKeyPathReady}
         onDraftChange={props.onDraftChange}
         adminPassword={props.adminPassword}
         onAdminPasswordChange={props.onAdminPasswordChange}
@@ -69,16 +79,19 @@ export function SetupStepConnection(props: {
 }
 
 function SetupStepConnectionForm(props: {
+  projectId: Id<"projects">
   host: string
   configLoaded: boolean
   hostCfg: any
   fleetSshKeys: string[]
   setupDraft: SetupDraftView | null
   stepStatus: SetupStepStatus
+  sopsAgeKeyPathReady: boolean
   onDraftChange: (next: SetupDraftConnection) => void
   adminPassword: string
   onAdminPasswordChange: (value: string) => void
 }) {
+  const queryClient = useQueryClient()
   const draftConnection = props.setupDraft?.nonSecretDraft?.connection
 
   const [adminCidr, setAdminCidr] = useState(() => String(draftConnection?.adminCidr || props.hostCfg?.provisioning?.adminCidr || ""))
@@ -103,6 +116,16 @@ function SetupStepConnectionForm(props: {
   const [newKeyText, setNewKeyText] = useState("")
   const [newKeyLabel, setNewKeyLabel] = useState("")
   const [manualLabels, setManualLabels] = useState<Record<string, string>>({})
+  const addProjectSshKey = useMutation({
+    mutationFn: async (key: string) =>
+      await addProjectSshKeys({
+        data: {
+          projectId: props.projectId,
+          keyText: key,
+          knownHostsText: "",
+        },
+      }),
+  })
 
   const existingMode = (String(
     draftConnection?.sshExposureMode
@@ -150,8 +173,9 @@ function SetupStepConnectionForm(props: {
     if (!props.host.trim()) missing.push("host")
     if (!adminCidr.trim()) missing.push("admin IP (CIDR)")
     if (selectedKeys.length === 0) missing.push("SSH public key")
+    if (!props.sopsAgeKeyPathReady) missing.push("SOPS age key path")
     return missing
-  }, [adminCidr, props.host, selectedKeys.length])
+  }, [adminCidr, props.host, props.sopsAgeKeyPathReady, selectedKeys.length])
 
   const toggleSelectedKey = (key: string, checked: boolean) => {
     setSelectedKeys((prev) => {
@@ -160,7 +184,7 @@ function SetupStepConnectionForm(props: {
     })
   }
 
-  const addKeyFromDialog = () => {
+  const addKeyFromDialog = async () => {
     const key = newKeyText.trim()
     const label = newKeyLabel.trim()
     if (!isSshPublicKey(key)) return
@@ -172,6 +196,15 @@ function SetupStepConnectionForm(props: {
     setNewKeyText("")
     setNewKeyLabel("")
     setAddKeyOpen(false)
+
+    try {
+      await addProjectSshKey.mutateAsync(key)
+      await queryClient.invalidateQueries({ queryKey: setupConfigProbeQueryKey(props.projectId) })
+      toast.success("SSH key added to project")
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      toast.error(`Project SSH key save failed: ${message}`)
+    }
   }
 
   return (
@@ -197,7 +230,7 @@ function SetupStepConnectionForm(props: {
                 <FieldGroup data-slot="checkbox-group" className="gap-4">
                   {knownKeys.map((key, idx) => {
                     const checked = selectedKeys.includes(key)
-                    const label = manualLabels[key] || deriveSshLabel(key)
+                    const label = manualLabels[key] || deriveSshLabel(key, idx)
                     const checkboxId = `setup-ssh-key-${idx}`
                     return (
                       <FieldLabel key={key} htmlFor={checkboxId}>
@@ -230,6 +263,17 @@ function SetupStepConnectionForm(props: {
               ) : null}
             </div>
           </div>
+          <AdminCidrField
+            id="setup-admin-cidr"
+            label="Allowed admin IP (CIDR)"
+            help={setupFieldHelp.hosts.adminCidr}
+            value={adminCidr}
+            onValueChange={setAdminCidr}
+            autoDetectIfEmpty
+            description="Who can SSH during bootstrap/provisioning (usually your current IP with /32)."
+          />
+
+          <SetupSopsAgeKeyField projectId={props.projectId} />
 
           <Accordion className="rounded-lg border bg-muted/20">
             <AccordionItem value="advanced" className="px-4">
@@ -238,16 +282,6 @@ function SetupStepConnectionForm(props: {
               </AccordionTrigger>
               <AccordionContent className="pb-4">
                 <div className="space-y-4">
-                  <AdminCidrField
-                    id="setup-admin-cidr"
-                    label="Allowed admin IP (CIDR)"
-                    help={setupFieldHelp.hosts.adminCidr}
-                    value={adminCidr}
-                    onValueChange={setAdminCidr}
-                    autoDetectIfEmpty
-                    description="Who can SSH during bootstrap/provisioning (usually your current IP with /32)."
-                  />
-
                   <div className="space-y-2">
                     <LabelWithHelp htmlFor="setup-admin-password" help={setupFieldHelp.secrets.adminPassword}>
                       Admin password
@@ -331,10 +365,10 @@ function SetupStepConnectionForm(props: {
             <InputGroupButton
               type="button"
               variant="default"
-              disabled={!newKeyText.trim()}
-              onClick={addKeyFromDialog}
+              disabled={!newKeyText.trim() || addProjectSshKey.isPending}
+              onClick={() => void addKeyFromDialog()}
             >
-              Add key
+              {addProjectSshKey.isPending ? "Adding..." : "Add key"}
             </InputGroupButton>
           </DialogFooter>
         </DialogContent>

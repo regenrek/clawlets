@@ -1,11 +1,9 @@
-import { WEB_SETUP_REQUIRED_KEYS } from "../deploy-creds-ui"
 import { deriveEffectiveSetupDesiredState } from "~/lib/setup/desired-state"
 
 export const SETUP_STEP_IDS = [
   "infrastructure",
   "connection",
   "tailscale-lockdown",
-  "predeploy",
   "deploy",
   "verify",
 ] as const
@@ -89,7 +87,10 @@ export type DeriveSetupModelInput = {
   latestBootstrapSecretsVerifyRun: MinimalRun | null
   useTailscaleLockdown?: boolean
   pendingTailscaleAuthKey?: string
-  hasTailscaleAuthKey?: boolean
+  hasActiveTailscaleAuthKey?: boolean
+  hasActiveHcloudToken?: boolean
+  hasProjectGithubToken?: boolean
+  hasProjectSopsAgeKeyPath?: boolean
 }
 
 function asTrimmedString(value: unknown): string {
@@ -103,12 +104,6 @@ function asTrimmedString(value: unknown): string {
 export function coerceSetupStepId(value: unknown): SetupStepId | null {
   if (typeof value !== "string") return null
   return (SETUP_STEP_IDS as readonly string[]).includes(value) ? (value as SetupStepId) : null
-}
-
-function resolveSetupCredsOk(params: {
-  credsByKey: Map<string, "set" | "unset">
-}): boolean {
-  return WEB_SETUP_REQUIRED_KEYS.every((key) => params.credsByKey.get(key) === "set")
 }
 
 export function deriveSetupModel(input: DeriveSetupModelInput): SetupModel {
@@ -133,17 +128,15 @@ export function deriveSetupModel(input: DeriveSetupModelInput): SetupModel {
 
   const latestBootstrapOk = input.latestBootstrapRun?.status === "succeeded"
 
-  const hcloudOk = draftDeployCredsSet
-  const providerCredsOk = resolveSetupCredsOk({
-    credsByKey: new Map([
-      ["HCLOUD_TOKEN", draftDeployCredsSet ? "set" : "unset"],
-      ["GITHUB_TOKEN", draftDeployCredsSet ? "set" : "unset"],
-      ["SOPS_AGE_KEY_FILE", draftDeployCredsSet ? "set" : "unset"],
-    ]),
-  })
-  const infrastructureOk = Boolean(selectedHost) && infrastructureHostOk && hcloudOk
+  const hcloudOk = Boolean(input.hasActiveHcloudToken)
+  const githubCredsOk = draftDeployCredsSet || Boolean(input.hasProjectGithubToken)
+  const sopsCredsOk = Boolean(input.hasProjectSopsAgeKeyPath)
+  const providerCredsOk = githubCredsOk && sopsCredsOk
+  const infrastructureProvisioningOk = Boolean(selectedHost) && infrastructureHostOk && hcloudOk
+  const infrastructureStepDone = infrastructureProvisioningOk && githubCredsOk
+  const connectionStepDone = connectionOk && sopsCredsOk
   const useTailscaleLockdown = input.useTailscaleLockdown === true
-  const hasTailscaleAuthKey = Boolean(input.hasTailscaleAuthKey)
+  const hasTailscaleAuthKey = Boolean(input.hasActiveTailscaleAuthKey)
   const hasPendingTailscaleAuthKey = asTrimmedString(input.pendingTailscaleAuthKey).length > 0
   const tailscaleLockdownOk = !useTailscaleLockdown || hasTailscaleAuthKey || hasPendingTailscaleAuthKey
 
@@ -151,28 +144,23 @@ export function deriveSetupModel(input: DeriveSetupModelInput): SetupModel {
     {
       id: "infrastructure",
       title: "Hetzner setup",
-      status: infrastructureOk ? "done" : "active",
+      status: infrastructureStepDone ? "done" : "active",
     },
     {
       id: "connection",
       title: "Server Access",
-      status: !infrastructureOk ? "locked" : connectionOk ? "done" : "active",
+      status: !infrastructureProvisioningOk ? "locked" : connectionStepDone ? "done" : "active",
     },
     {
       id: "tailscale-lockdown",
       title: "Tailscale lockdown",
       optional: true,
-      status: !connectionOk ? "locked" : tailscaleLockdownOk ? "done" : "active",
-    },
-    {
-      id: "predeploy",
-      title: "Pre-deploy",
-      status: !connectionOk ? "locked" : providerCredsOk ? "done" : "active",
+      status: !connectionStepDone ? "locked" : tailscaleLockdownOk ? "done" : "active",
     },
     {
       id: "deploy",
       title: "Install server",
-      status: !providerCredsOk ? "locked" : latestBootstrapOk ? "done" : "active",
+      status: !connectionStepDone || !providerCredsOk || !hcloudOk ? "locked" : latestBootstrapOk ? "done" : "active",
     },
     {
       id: "verify",

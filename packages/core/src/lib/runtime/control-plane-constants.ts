@@ -5,6 +5,9 @@ export const SECRET_WIRING_SCOPES = ["bootstrap", "updates", "openclaw"] as cons
 export const SECRET_WIRING_STATUSES = ["configured", "missing", "placeholder", "warn"] as const;
 export const JOB_STATUSES = ["sealed_pending", "queued", "leased", "running", "succeeded", "failed", "canceled"] as const;
 
+// Convex field size limits are 1 MiB; keep sealed payload values below that hard cap.
+export const SEALED_INPUT_B64_MAX_CHARS = 900 * 1024;
+
 export const CONTROL_PLANE_TEXT_LIMITS = {
   hostName: 128,
   gatewayId: 128,

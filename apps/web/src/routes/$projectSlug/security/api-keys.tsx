@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router"
 import type { Id } from "../../../../convex/_generated/dataModel"
 import { DeployCredsCard } from "~/components/fleet/deploy-creds-card"
+import { ProjectTokenKeyringCard } from "~/components/setup/project-token-keyring-card"
 import { useProjectBySlug } from "~/lib/project-data"
 
 export const Route = createFileRoute("/$projectSlug/security/api-keys")({
@@ -30,9 +31,26 @@ function SecurityApiKeys() {
         </p>
       </div>
 
+      <ProjectTokenKeyringCard
+        projectId={projectQuery.projectId as Id<"projects">}
+        kind="hcloud"
+        setupHref={`/${projectSlug}/runner`}
+        title="Hetzner API keys"
+        description="Project-wide keyring. Add multiple tokens and select the active one."
+      />
+
+      <ProjectTokenKeyringCard
+        projectId={projectQuery.projectId as Id<"projects">}
+        kind="tailscale"
+        setupHref={`/${projectSlug}/runner`}
+        title="Tailscale API keys"
+        description="Project-wide keyring used by setup and tailnet bootstrap."
+      />
+
       <DeployCredsCard
         projectId={projectQuery.projectId as Id<"projects">}
         setupHref={`/${projectSlug}/runner`}
+        visibleKeys={["GITHUB_TOKEN", "SOPS_AGE_KEY_FILE"]}
       />
     </div>
   )

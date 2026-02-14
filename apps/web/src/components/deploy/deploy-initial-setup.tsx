@@ -15,7 +15,7 @@ import { SettingsSection } from "~/components/ui/settings-section"
 import { Spinner } from "~/components/ui/spinner"
 import { configDotSet } from "~/sdk/config"
 import { getHostPublicIpv4, probeHostTailscaleIpv4 } from "~/sdk/host"
-import { bootstrapExecute, bootstrapStart, runDoctor } from "~/sdk/infra"
+import { bootstrapExecute, bootstrapStart, lockdownExecute, lockdownStart, runDoctor } from "~/sdk/infra"
 import { useProjectBySlug } from "~/lib/project-data"
 import { deriveProjectRunnerNixReadiness, isProjectRunnerOnline } from "~/lib/setup/runner-status"
 import { deriveEffectiveSetupDesiredState } from "~/lib/setup/desired-state"
@@ -23,7 +23,6 @@ import { setupConfigProbeQueryKey, setupConfigProbeQueryOptions } from "~/lib/se
 import { deriveSshKeyGateUi } from "~/lib/setup/ssh-key-gate"
 import { sealForRunner } from "~/lib/security/sealed-input"
 import { gitRepoStatus } from "~/sdk/vcs"
-import { lockdownExecute, lockdownStart } from "~/sdk/infra"
 import { serverUpdateApplyExecute, serverUpdateApplyStart } from "~/sdk/server"
 import {
   buildSetupDraftSectionAad,
@@ -52,11 +51,6 @@ type SetupPendingBootstrapSecrets = {
   useTailscaleLockdown: boolean
 }
 
-function formatShortSha(sha?: string | null): string {
-  const value = String(sha || "").trim()
-  return value ? value.slice(0, 7) : "none"
-}
-
 export function DeployInitialInstallSetup(props: {
   projectSlug: string
   host: string
@@ -67,6 +61,10 @@ export function DeployInitialInstallSetup(props: {
   pendingInfrastructureDraft: SetupDraftInfrastructure | null
   pendingConnectionDraft: SetupDraftConnection | null
   pendingBootstrapSecrets: SetupPendingBootstrapSecrets
+  hasProjectGithubToken: boolean
+  projectSopsAgeKeyPath: string
+  hasActiveTailscaleAuthKey: boolean
+  showRunnerStatusBanner?: boolean
 }) {
   const projectQuery = useProjectBySlug(props.projectSlug)
   const projectId = projectQuery.projectId
@@ -78,17 +76,6 @@ export function DeployInitialInstallSetup(props: {
   })
   const hostsQuery = useQuery({
     ...convexQuery(api.controlPlane.hosts.listByProject, projectId ? { projectId } : "skip"),
-  })
-  const wiringQuery = useQuery({
-    ...convexQuery(
-      api.controlPlane.secretWiring.listByProjectHost,
-      projectId && props.host
-        ? {
-            projectId,
-            hostName: props.host,
-          }
-        : "skip",
-    ),
   })
   const runnerOnline = useMemo(() => isProjectRunnerOnline(runnersQuery.data ?? []), [runnersQuery.data])
   const runnerNixReadiness = useMemo(
@@ -120,14 +107,7 @@ export function DeployInitialInstallSetup(props: {
   const tailnetMode = String(hostSummary?.desired?.tailnetMode || "none")
   const isTailnet = tailnetMode === "tailscale"
   const desiredSshExposureMode = String(hostSummary?.desired?.sshExposureMode || "").trim()
-  const configuredSecrets = useMemo(() => {
-    const names = new Set<string>()
-    for (const row of wiringQuery.data ?? []) {
-      if (row?.status === "configured") names.add(String(row.secretName || ""))
-    }
-    return names
-  }, [wiringQuery.data])
-  const hasTailscaleSecret = configuredSecrets.has("tailscale_auth_key")
+  const hasProjectTailscaleAuthKey = props.hasActiveTailscaleAuthKey
 
   const repoStatus = useQuery({
     queryKey: ["gitRepoStatus", projectId],
@@ -160,7 +140,11 @@ export function DeployInitialInstallSetup(props: {
       props.setupDraft,
     ],
   )
+
   const deployCredsDraftSet = props.setupDraft?.sealedSecretDrafts?.deployCreds?.status === "set"
+  const projectGithubTokenSet = props.hasProjectGithubToken
+  const projectSopsAgeKeyPath = props.projectSopsAgeKeyPath.trim()
+  const effectiveDeployCredsReady = (deployCredsDraftSet || projectGithubTokenSet) && projectSopsAgeKeyPath.length > 0
 
   const selectedRev = repoStatus.data?.originHead
   const missingRev = !selectedRev
@@ -193,12 +177,12 @@ export function DeployInitialInstallSetup(props: {
   const sshKeyGateBlocked = sshKeyGateUi.blocked
   const sshKeyGateMessage = sshKeyGateUi.message
 
-  const credsGateBlocked = runnerOnline && !deployCredsDraftSet
+  const credsGateBlocked = runnerOnline && !effectiveDeployCredsReady
   const credsGateMessage = !runnerOnline
     ? null
-    : !deployCredsDraftSet
-      ? "Missing provider credentials draft. Open Pre-Deploy and save credentials. Setup applies them during setup apply."
-      : null
+    : !effectiveDeployCredsReady
+      ? "Missing credentials. Add GitHub token in Hetzner setup and SOPS path in Server access."
+    : null
 
   const deployGateBlocked = repoGateBlocked || nixGateBlocked || sshKeyGateBlocked || credsGateBlocked
   const deployStatusReason = repoGateBlocked
@@ -207,7 +191,7 @@ export function DeployInitialInstallSetup(props: {
 
   const wantsTailscaleLockdown = props.pendingBootstrapSecrets.useTailscaleLockdown
   const hasPendingTailscaleKey = props.pendingBootstrapSecrets.tailscaleAuthKey.trim().length > 0
-  const canAutoLockdown = isTailnet && wantsTailscaleLockdown && (hasTailscaleSecret || hasPendingTailscaleKey)
+  const canAutoLockdown = isTailnet && wantsTailscaleLockdown && (hasProjectTailscaleAuthKey || hasPendingTailscaleKey)
 
   const [bootstrapRunId, setBootstrapRunId] = useState<Id<"runs"> | null>(null)
   const [setupApplyRunId, setSetupApplyRunId] = useState<Id<"runs"> | null>(null)
@@ -298,7 +282,7 @@ export function DeployInitialInstallSetup(props: {
         setStepStatus("switchTailnetTarget", "skipped", "Tailnet mode disabled")
         setStepStatus("switchSshExposure", "skipped", "Tailnet mode disabled")
         setStepStatus("lockdown", "skipped", "Tailnet mode disabled")
-      } else if (!hasTailscaleSecret && !hasPendingTailscaleKey) {
+      } else if (!hasProjectTailscaleAuthKey && !hasPendingTailscaleKey) {
         setStepStatus("switchTailnetTarget", "skipped", "Tailscale auth key missing")
         setStepStatus("switchSshExposure", "skipped", "Tailscale auth key missing")
         setStepStatus("lockdown", "skipped", "Tailscale auth key missing")
@@ -415,8 +399,8 @@ export function DeployInitialInstallSetup(props: {
       if (!props.host.trim()) throw new Error("Host is required")
       if (!runnerOnline) throw new Error("Runner offline. Start runner first.")
       if (!selectedRev) throw new Error("No pushed revision found.")
-      if (!deployCredsDraftSet) {
-        throw new Error("Missing provider credentials draft. Open Pre-Deploy and save credentials.")
+      if (!effectiveDeployCredsReady) {
+        throw new Error("Missing credentials. Set GitHub token in Hetzner setup and SOPS path in Server access.")
       }
 
       const infrastructurePatch: SetupDraftInfrastructure = {
@@ -461,11 +445,9 @@ export function DeployInitialInstallSetup(props: {
         || props.setupDraft?.sealedSecretDrafts?.deployCreds?.targetRunnerId
       const targetRunner = preferredRunnerId
         ? sealedRunners.find((runner) => String(runner._id) === String(preferredRunnerId))
-        : sealedRunners.length === 1
-          ? sealedRunners[0]
-          : null
+        : sealedRunners[0] ?? null
       if (!targetRunner) {
-        throw new Error("Token runner missing. Save deploy credentials first with an online sealed-capable runner.")
+        throw new Error("No sealed-capable runner online. Start runner and retry.")
       }
 
       const targetRunnerId = String(targetRunner._id) as Id<"runners">
@@ -473,6 +455,46 @@ export function DeployInitialInstallSetup(props: {
       const keyId = String(targetRunner.capabilities?.sealedInputKeyId || "").trim()
       const alg = String(targetRunner.capabilities?.sealedInputAlg || "").trim()
       if (!runnerPub || !keyId || !alg) throw new Error("Runner sealed-input capabilities incomplete")
+
+      const deployCredsDraftAlreadySet = savedNonSecretDraft?.sealedSecretDrafts?.deployCreds?.status === "set"
+        || props.setupDraft?.sealedSecretDrafts?.deployCreds?.status === "set"
+      let currentDraftVersion = savedNonSecretDraft?.version
+      if (!deployCredsDraftAlreadySet) {
+        const deployCredsPayload: Record<string, string> = {}
+        if (projectSopsAgeKeyPath) deployCredsPayload.SOPS_AGE_KEY_FILE = projectSopsAgeKeyPath
+
+        if (Object.keys(deployCredsPayload).length === 0) {
+          throw new Error("Could not auto-seal deploy credentials for setup. Open Hetzner setup and save credentials.")
+        }
+
+        const deployCredsAad = buildSetupDraftSectionAad({
+          projectId: projectId as Id<"projects">,
+          host: props.host,
+          section: "deployCreds",
+          targetRunnerId,
+        })
+        const deployCredsSealedInputB64 = await sealForRunner({
+          runnerPubSpkiB64: runnerPub,
+          keyId,
+          alg,
+          aad: deployCredsAad,
+          plaintextJson: JSON.stringify(deployCredsPayload),
+        })
+        const savedDeployCredsDraft = await setupDraftSaveSealedSection({
+          data: {
+            projectId: projectId as Id<"projects">,
+            host: props.host,
+            section: "deployCreds",
+            targetRunnerId,
+            sealedInputB64: deployCredsSealedInputB64,
+            sealedInputAlg: alg,
+            sealedInputKeyId: keyId,
+            aad: deployCredsAad,
+            expectedVersion: currentDraftVersion,
+          },
+        })
+        currentDraftVersion = savedDeployCredsDraft.version
+      }
 
       const bootstrapSecretsPayload: Record<string, string> = {}
       const adminPassword = props.pendingBootstrapSecrets.adminPassword.trim()
@@ -505,7 +527,7 @@ export function DeployInitialInstallSetup(props: {
           sealedInputAlg: alg,
           sealedInputKeyId: keyId,
           aad,
-          expectedVersion: savedNonSecretDraft?.version,
+          expectedVersion: currentDraftVersion,
         },
       })
 
@@ -607,12 +629,14 @@ export function DeployInitialInstallSetup(props: {
       )}
     >
       <div className="space-y-4">
-        <RunnerStatusBanner
-          projectId={projectId as Id<"projects">}
-          setupHref={`/${props.projectSlug}/hosts/${props.host}/setup`}
-          runnerOnline={runnerOnline}
-          isChecking={runnersQuery.isPending}
-        />
+        {props.showRunnerStatusBanner !== false ? (
+          <RunnerStatusBanner
+            projectId={projectId as Id<"projects">}
+            setupHref={`/${props.projectSlug}/hosts/${props.host}/setup`}
+            runnerOnline={runnerOnline}
+            isChecking={runnersQuery.isPending}
+          />
+        ) : null}
 
         <div className="rounded-md border bg-muted/30 p-3 text-sm">
           Host: <code>{props.host}</code>
@@ -634,60 +658,12 @@ export function DeployInitialInstallSetup(props: {
             <AlertTitle>Auto-lockdown disabled</AlertTitle>
             <AlertDescription>
               <div>Deploy can leave SSH (22) open until tailnet mode is enabled and a Tailscale auth key is configured.</div>
-              <div className="pt-1">Tailnet mode: <code>{tailnetMode || "unknown"}</code>. Tailscale auth key: <code>{(hasTailscaleSecret || hasPendingTailscaleKey) ? "configured" : "missing"}</code>.</div>
+              <div className="pt-1">Tailnet mode: <code>{tailnetMode || "unknown"}</code>. Tailscale auth key: <code>{(hasProjectTailscaleAuthKey || hasPendingTailscaleKey) ? "configured" : "missing"}</code>.</div>
             </AlertDescription>
           </Alert>
         ) : null}
 
         <div className="space-y-2">
-          <div className="text-sm font-medium">Git readiness</div>
-          <div className="rounded-md border bg-muted/30 p-3 text-xs space-y-2">
-            <div className="flex items-center justify-between gap-2">
-              <div className="font-medium">Remote deploy (default branch)</div>
-              <AsyncButton
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={!runnerOnline || repoStatus.isFetching}
-                pending={repoStatus.isFetching}
-                pendingText="Refreshing..."
-                onClick={() => {
-                  if (!runnerOnline) return
-                  void repoStatus.refetch()
-                }}
-              >
-                Refresh
-              </AsyncButton>
-            </div>
-            {repoStatus.isPending ? (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Spinner className="size-3" />
-                Checking repo state...
-              </div>
-              ) : (
-              <>
-                <div className="space-y-1 text-muted-foreground">
-                  <div className="flex items-center justify-between gap-3">
-                    <span>Revision to deploy</span>
-                    <code>{formatShortSha(selectedRev)}</code>
-                  </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <span>Branch</span>
-                    <span>{repoStatus.data?.branch || "unknown"}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <span>Upstream</span>
-                    <span>{repoStatus.data?.upstream || "unset"}</span>
-                  </div>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="outline">ahead {repoStatus.data?.ahead ?? 0}</Badge>
-                  <Badge variant="outline">behind {repoStatus.data?.behind ?? 0}</Badge>
-                </div>
-              </>
-            )}
-          </div>
-
           {!isBootstrapped && nixGateMessage && !repoGateBlocked ? (
             <Alert variant="destructive">
               <AlertTitle>Nix missing on runner</AlertTitle>

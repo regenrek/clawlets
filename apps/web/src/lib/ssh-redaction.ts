@@ -17,7 +17,7 @@ function compactPreview(value: string, maxChars: number): string {
 function maskKeyPayload(payload: string): string {
   const normalized = payload.trim()
   if (!normalized) return "…"
-  return `…${normalized.slice(-4)}`
+  return `…len:${normalized.length}`
 }
 
 function maskHostToken(hostsToken: string): string {
@@ -39,11 +39,9 @@ export function maskSshPublicKey(input: string): string {
   const parts = normalized.split(" ")
   const type = parts[0] || "ssh-key"
   const payload = parts[1] || ""
-  const comment = parts.slice(2).join(" ")
   const fp = stableShortHash(normalized)
-  const commentPreview = compactPreview(comment, 12)
 
-  return `${type} ${maskKeyPayload(payload)} fp:${fp}${commentPreview ? ` ${commentPreview}` : ""}`
+  return `${type} ${maskKeyPayload(payload)} fp:${fp}`
 }
 
 export function maskKnownHostEntry(input: string): string {

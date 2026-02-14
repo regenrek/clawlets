@@ -8,6 +8,7 @@ import { isProjectRunnerOnline } from "~/lib/setup/runner-status"
 import { deriveSetupModel, type SetupModel, type SetupStepId } from "~/lib/setup/setup-model"
 import { deriveRepoHealth } from "~/lib/setup/repo-health"
 import { setupConfigProbeQueryOptions, type SetupConfig } from "~/lib/setup/repo-probe"
+import { getDeployCredsStatus } from "~/sdk/infra"
 import { setupDraftGet } from "~/sdk/setup"
 import { SECRETS_VERIFY_BOOTSTRAP_RUN_KIND } from "~/sdk/secrets/run-kind"
 
@@ -88,6 +89,7 @@ export function useSetupModel(params: {
 
   const repoHealth = deriveRepoHealth({
     runnerOnline,
+    projectStatus,
     configs: projectConfigsQuery.data ?? [],
   })
   const repoProbeState = repoHealth.state
@@ -120,23 +122,43 @@ export function useSetupModel(params: {
     ),
   })
 
-  const tailscaleSecretWiringQuery = useQuery({
-    ...convexQuery(
-      api.controlPlane.secretWiring.listByProjectHost,
-      projectId && params.host
-        ? {
-            projectId,
-            hostName: params.host,
-          }
-        : "skip",
-    ),
+  const deployCredsQuery = useQuery({
+    queryKey: ["deployCreds", projectId],
+    queryFn: async () => {
+      if (!projectId) throw new Error("missing project id")
+      return await getDeployCredsStatus({ data: { projectId } })
+    },
+    enabled: Boolean(projectId && isReady && runnerOnline),
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   })
-  const hasTailscaleAuthKeyConfigured = React.useMemo(() => {
-    for (const row of tailscaleSecretWiringQuery.data ?? []) {
-      if (row?.status === "configured" && String(row.secretName || "").trim() === "tailscale_auth_key") return true
-    }
-    return false
-  }, [tailscaleSecretWiringQuery.data])
+
+  const deployCredsByKey = React.useMemo(() => {
+    const out: Record<string, { status?: "set" | "unset"; value?: string }> = {}
+    for (const row of deployCredsQuery.data?.keys || []) out[row.key] = row
+    return out
+  }, [deployCredsQuery.data?.keys])
+
+  const hasActiveHcloudToken = React.useMemo(
+    () => deployCredsQuery.data?.projectTokenKeyrings?.hcloud?.hasActive === true,
+    [deployCredsQuery.data?.projectTokenKeyrings?.hcloud?.hasActive],
+  )
+  const hasActiveTailscaleAuthKey = React.useMemo(
+    () => deployCredsQuery.data?.projectTokenKeyrings?.tailscale?.hasActive === true,
+    [deployCredsQuery.data?.projectTokenKeyrings?.tailscale?.hasActive],
+  )
+  const hasProjectGithubToken = React.useMemo(
+    () => deployCredsByKey["GITHUB_TOKEN"]?.status === "set",
+    [deployCredsByKey],
+  )
+  const projectSopsAgeKeyPath = React.useMemo(
+    () => String(deployCredsByKey["SOPS_AGE_KEY_FILE"]?.value || "").trim(),
+    [deployCredsByKey],
+  )
+  const hasProjectSopsAgeKeyPath = React.useMemo(
+    () => projectSopsAgeKeyPath.length > 0,
+    [projectSopsAgeKeyPath],
+  )
 
   const projectInitRunsPageQuery = useQuery({
     ...convexQuery(
@@ -158,7 +180,10 @@ export function useSetupModel(params: {
         stepFromSearch: params.search.step,
         setupDraft,
         pendingNonSecretDraft: params.pendingNonSecretDraft ?? null,
-        hasTailscaleAuthKey: hasTailscaleAuthKeyConfigured,
+        hasActiveHcloudToken,
+        hasProjectGithubToken,
+        hasProjectSopsAgeKeyPath,
+        hasActiveTailscaleAuthKey,
         pendingTailscaleAuthKey: params.pendingBootstrapSecrets?.tailscaleAuthKey,
         useTailscaleLockdown: params.pendingBootstrapSecrets?.useTailscaleLockdown,
         latestBootstrapRun: latestBootstrapRunQuery.data ?? null,
@@ -168,7 +193,10 @@ export function useSetupModel(params: {
       config,
       setupDraft,
       params.pendingNonSecretDraft,
-      hasTailscaleAuthKeyConfigured,
+      hasActiveHcloudToken,
+      hasProjectGithubToken,
+      hasProjectSopsAgeKeyPath,
+      hasActiveTailscaleAuthKey,
       params.pendingBootstrapSecrets?.tailscaleAuthKey,
       params.pendingBootstrapSecrets?.useTailscaleLockdown,
       latestBootstrapRunQuery.data,
@@ -223,7 +251,11 @@ export function useSetupModel(params: {
     projectInitRunsPageQuery,
     model,
     selectedHost: model.selectedHost,
-    hasTailscaleAuthKeyConfigured,
+    hasActiveHcloudToken,
+    hasProjectGithubToken,
+    hasProjectSopsAgeKeyPath,
+    projectSopsAgeKeyPath,
+    hasActiveTailscaleAuthKey,
     setStep,
     advance,
   }

@@ -1,5 +1,5 @@
 import { sanitizeErrorMessage } from "@clawlets/core/lib/runtime/safe-error";
-import { CONTROL_PLANE_TEXT_LIMITS } from "@clawlets/core/lib/runtime/control-plane-constants";
+import { CONTROL_PLANE_TEXT_LIMITS, SEALED_INPUT_B64_MAX_CHARS } from "@clawlets/core/lib/runtime/control-plane-constants";
 import { v } from "convex/values";
 
 import { internalMutation, mutation, query } from "../_generated/server";
@@ -17,7 +17,6 @@ import {
 
 const SETUP_DRAFT_NON_SECRET_TTL_MS = 7 * 24 * 60 * 60_000;
 const SETUP_DRAFT_SECRET_TTL_MS = 24 * 60 * 60_000;
-const SETUP_DRAFT_MAX_SEALED_INPUT_CHARS = 2 * 1024 * 1024;
 const SEALED_INPUT_ALG = "rsa-oaep-3072/aes-256-gcm";
 
 const SetupDraftSection = v.union(v.literal("deployCreds"), v.literal("bootstrapSecrets"));
@@ -85,7 +84,7 @@ function asSetupDraftSectionAad(params: {
 function validateSealedInputB64(raw: string): string {
   const value = String(raw || "").trim();
   if (!value) fail("conflict", "sealedInputB64 required");
-  if (value.length > SETUP_DRAFT_MAX_SEALED_INPUT_CHARS) fail("conflict", "sealedInputB64 too large");
+  if (value.length > SEALED_INPUT_B64_MAX_CHARS) fail("conflict", "sealedInputB64 too large");
   if (value.includes("\n") || value.includes("\r") || value.includes("\0")) {
     fail("conflict", "sealedInputB64 contains forbidden characters");
   }
