@@ -15,7 +15,7 @@ import { SettingsSection } from "~/components/ui/settings-section"
 import { Spinner } from "~/components/ui/spinner"
 import { configDotSet } from "~/sdk/config"
 import { getHostPublicIpv4, probeHostTailscaleIpv4 } from "~/sdk/host"
-import { bootstrapExecute, bootstrapStart, getDeployCredsStatus, lockdownExecute, lockdownStart, runDoctor } from "~/sdk/infra"
+import { bootstrapExecute, bootstrapStart, lockdownExecute, lockdownStart, runDoctor } from "~/sdk/infra"
 import { useProjectBySlug } from "~/lib/project-data"
 import { deriveProjectRunnerNixReadiness, isProjectRunnerOnline } from "~/lib/setup/runner-status"
 import { deriveEffectiveSetupDesiredState } from "~/lib/setup/desired-state"
@@ -61,6 +61,8 @@ export function DeployInitialInstallSetup(props: {
   pendingInfrastructureDraft: SetupDraftInfrastructure | null
   pendingConnectionDraft: SetupDraftConnection | null
   pendingBootstrapSecrets: SetupPendingBootstrapSecrets
+  hasProjectGithubToken: boolean
+  projectSopsAgeKeyPath: string
   hasActiveTailscaleAuthKey: boolean
   activeTailscaleAuthKey: string
   showRunnerStatusBanner?: boolean
@@ -140,23 +142,9 @@ export function DeployInitialInstallSetup(props: {
     ],
   )
 
-  const deployCredsStatusQuery = useQuery({
-    queryKey: ["deployCreds", projectId],
-    queryFn: async () =>
-      await getDeployCredsStatus({ data: { projectId: projectId as Id<"projects"> } }),
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-    enabled: Boolean(projectId && runnerOnline),
-  })
-  const projectDeployCredsByKey = useMemo(() => {
-    const out: Record<string, { status?: "set" | "unset"; value?: string }> = {}
-    for (const row of deployCredsStatusQuery.data?.keys || []) out[row.key] = row
-    return out
-  }, [deployCredsStatusQuery.data?.keys])
-
   const deployCredsDraftSet = props.setupDraft?.sealedSecretDrafts?.deployCreds?.status === "set"
-  const projectGithubTokenSet = projectDeployCredsByKey["GITHUB_TOKEN"]?.status === "set"
-  const projectSopsAgeKeyPath = String(projectDeployCredsByKey["SOPS_AGE_KEY_FILE"]?.value || "").trim()
+  const projectGithubTokenSet = props.hasProjectGithubToken
+  const projectSopsAgeKeyPath = props.projectSopsAgeKeyPath.trim()
   const effectiveDeployCredsReady = (deployCredsDraftSet || projectGithubTokenSet) && projectSopsAgeKeyPath.length > 0
 
   const selectedRev = repoStatus.data?.originHead
@@ -190,15 +178,12 @@ export function DeployInitialInstallSetup(props: {
   const sshKeyGateBlocked = sshKeyGateUi.blocked
   const sshKeyGateMessage = sshKeyGateUi.message
 
-  const deployCredsStatusError = runnerOnline ? deployCredsStatusQuery.error : null
-  const credsGateBlocked = runnerOnline && (Boolean(deployCredsStatusError) || !effectiveDeployCredsReady)
+  const credsGateBlocked = runnerOnline && !effectiveDeployCredsReady
   const credsGateMessage = !runnerOnline
     ? null
-    : deployCredsStatusError
-      ? `Could not read deploy credentials: ${String(deployCredsStatusError)}`
-      : !effectiveDeployCredsReady
-        ? "Missing credentials. Add GitHub token in Hetzner setup and SOPS path in Server access."
-      : null
+    : !effectiveDeployCredsReady
+      ? "Missing credentials. Add GitHub token in Hetzner setup and SOPS path in Server access."
+    : null
 
   const deployGateBlocked = repoGateBlocked || nixGateBlocked || sshKeyGateBlocked || credsGateBlocked
   const deployStatusReason = repoGateBlocked

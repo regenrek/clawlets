@@ -370,8 +370,10 @@ function HostSetupPage() {
                   pendingConnectionDraft={pendingConnectionDraft}
                   pendingBootstrapSecrets={pendingBootstrapSecrets}
                   hasActiveHcloudToken={setup.hasActiveHcloudToken}
+                  hasProjectGithubToken={setup.hasProjectGithubToken}
                   hasActiveTailscaleAuthKey={setup.hasActiveTailscaleAuthKey}
                   hasProjectSopsAgeKeyPath={setup.hasProjectSopsAgeKeyPath}
+                  projectSopsAgeKeyPath={setup.projectSopsAgeKeyPath}
                   activeTailscaleAuthKey={setup.activeTailscaleAuthKey}
                   onPendingInfrastructureDraftChange={(next) => {
                     setPendingInfrastructureDraft((prev) => ({
@@ -408,8 +410,10 @@ function StepContent(props: {
   pendingConnectionDraft: SetupDraftConnection | null;
   pendingBootstrapSecrets: SetupPendingBootstrapSecrets;
   hasActiveHcloudToken: boolean;
+  hasProjectGithubToken: boolean;
   hasActiveTailscaleAuthKey: boolean;
   hasProjectSopsAgeKeyPath: boolean;
+  projectSopsAgeKeyPath: string;
   activeTailscaleAuthKey: string;
   onPendingInfrastructureDraftChange: (next: SetupDraftInfrastructure) => void;
   onPendingConnectionDraftChange: (next: SetupDraftConnection) => void;
@@ -429,8 +433,10 @@ function StepContent(props: {
     pendingConnectionDraft,
     pendingBootstrapSecrets,
     hasActiveHcloudToken,
+    hasProjectGithubToken,
     hasActiveTailscaleAuthKey,
     hasProjectSopsAgeKeyPath,
+    projectSopsAgeKeyPath,
     activeTailscaleAuthKey,
   } = props;
   const desired = React.useMemo(
@@ -527,6 +533,8 @@ function StepContent(props: {
         pendingInfrastructureDraft={pendingInfrastructureDraft}
         pendingConnectionDraft={pendingConnectionDraft}
         pendingBootstrapSecrets={pendingBootstrapSecrets}
+        hasProjectGithubToken={hasProjectGithubToken}
+        projectSopsAgeKeyPath={projectSopsAgeKeyPath}
         hasActiveTailscaleAuthKey={hasActiveTailscaleAuthKey}
         activeTailscaleAuthKey={activeTailscaleAuthKey}
       />

@@ -162,9 +162,13 @@ export function useSetupModel(params: {
     () => deployCredsByKey["GITHUB_TOKEN"]?.status === "set",
     [deployCredsByKey],
   )
-  const hasProjectSopsAgeKeyPath = React.useMemo(
-    () => String(deployCredsByKey["SOPS_AGE_KEY_FILE"]?.value || "").trim().length > 0,
+  const projectSopsAgeKeyPath = React.useMemo(
+    () => String(deployCredsByKey["SOPS_AGE_KEY_FILE"]?.value || "").trim(),
     [deployCredsByKey],
+  )
+  const hasProjectSopsAgeKeyPath = React.useMemo(
+    () => projectSopsAgeKeyPath.length > 0,
+    [projectSopsAgeKeyPath],
   )
 
   const projectInitRunsPageQuery = useQuery({
@@ -261,6 +265,7 @@ export function useSetupModel(params: {
     hasActiveHcloudToken,
     hasProjectGithubToken,
     hasProjectSopsAgeKeyPath,
+    projectSopsAgeKeyPath,
     hasActiveTailscaleAuthKey,
     activeTailscaleAuthKey,
     setStep,

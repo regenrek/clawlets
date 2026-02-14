@@ -19,6 +19,8 @@ export function SetupStepDeploy(props: {
   pendingInfrastructureDraft: SetupDraftInfrastructure | null
   pendingConnectionDraft: SetupDraftConnection | null
   pendingBootstrapSecrets: SetupPendingBootstrapSecrets
+  hasProjectGithubToken: boolean
+  projectSopsAgeKeyPath: string
   hasActiveTailscaleAuthKey: boolean
   activeTailscaleAuthKey: string
 }) {
@@ -34,6 +36,8 @@ export function SetupStepDeploy(props: {
       pendingInfrastructureDraft={props.pendingInfrastructureDraft}
       pendingConnectionDraft={props.pendingConnectionDraft}
       pendingBootstrapSecrets={props.pendingBootstrapSecrets}
+      hasProjectGithubToken={props.hasProjectGithubToken}
+      projectSopsAgeKeyPath={props.projectSopsAgeKeyPath}
       hasActiveTailscaleAuthKey={props.hasActiveTailscaleAuthKey}
       activeTailscaleAuthKey={props.activeTailscaleAuthKey}
       showRunnerStatusBanner={false}
