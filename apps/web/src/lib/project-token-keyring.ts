@@ -8,6 +8,12 @@ export type ProjectTokenKeyring = {
   items: ProjectTokenKeyringEntry[]
 }
 
+export const PROJECT_TOKEN_KEYRING_MAX_ITEMS = 64
+export const PROJECT_TOKEN_KEY_ID_MAX_CHARS = 64
+export const PROJECT_TOKEN_KEY_LABEL_MAX_CHARS = 80
+export const PROJECT_TOKEN_VALUE_MAX_CHARS = 4096
+export const PROJECT_TOKEN_KEYRING_MAX_SERIALIZED_CHARS = 256 * 1024
+
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null
   return value as Record<string, unknown>
@@ -15,6 +21,12 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 
 function trim(value: unknown): string {
   return typeof value === "string" ? value.trim() : ""
+}
+
+function trimBounded(value: unknown, maxChars: number): string {
+  const normalized = trim(value)
+  if (!normalized) return ""
+  return normalized.slice(0, maxChars)
 }
 
 function normalizeLabel(rawLabel: string, value: string): string {
@@ -26,9 +38,23 @@ function normalizeLabel(rawLabel: string, value: string): string {
   return "Key"
 }
 
+function normalizeEntry(raw: unknown): ProjectTokenKeyringEntry | null {
+  const obj = asRecord(raw)
+  if (!obj) return null
+
+  const id = trimBounded(obj.id, PROJECT_TOKEN_KEY_ID_MAX_CHARS)
+  const value = trim(obj.value)
+  if (!id || !value) return null
+  if (value.length > PROJECT_TOKEN_VALUE_MAX_CHARS) return null
+
+  const label = normalizeLabel(trimBounded(obj.label, PROJECT_TOKEN_KEY_LABEL_MAX_CHARS), value)
+  return { id, label, value }
+}
+
 export function parseProjectTokenKeyring(raw: unknown): ProjectTokenKeyring {
   const json = trim(raw)
   if (!json) return { items: [] }
+  if (json.length > PROJECT_TOKEN_KEYRING_MAX_SERIALIZED_CHARS) return { items: [] }
 
   let parsed: unknown
   try {
@@ -44,34 +70,35 @@ export function parseProjectTokenKeyring(raw: unknown): ProjectTokenKeyring {
   const seen = new Set<string>()
   const out: ProjectTokenKeyringEntry[] = []
   for (const row of rows) {
-    const obj = asRecord(row)
-    if (!obj) continue
-    const id = trim(obj.id)
-    const value = trim(obj.value)
-    if (!id || !value) continue
-    if (seen.has(id)) continue
-    seen.add(id)
-    out.push({
-      id,
-      label: normalizeLabel(trim(obj.label), value),
-      value,
-    })
+    if (out.length >= PROJECT_TOKEN_KEYRING_MAX_ITEMS) break
+    const normalized = normalizeEntry(row)
+    if (!normalized) continue
+    if (seen.has(normalized.id)) continue
+    seen.add(normalized.id)
+    out.push(normalized)
   }
 
   return { items: out }
 }
 
 export function serializeProjectTokenKeyring(keyring: ProjectTokenKeyring): string {
-  const normalized = {
-    items: keyring.items
-      .map((entry) => ({
-        id: trim(entry.id),
-        label: normalizeLabel(trim(entry.label), trim(entry.value)),
-        value: trim(entry.value),
-      }))
-      .filter((entry) => entry.id.length > 0 && entry.value.length > 0),
+  const seen = new Set<string>()
+  const normalizedItems: ProjectTokenKeyringEntry[] = []
+
+  for (const entry of keyring.items) {
+    if (normalizedItems.length >= PROJECT_TOKEN_KEYRING_MAX_ITEMS) break
+    const normalized = normalizeEntry(entry)
+    if (!normalized) continue
+    if (seen.has(normalized.id)) continue
+    seen.add(normalized.id)
+    normalizedItems.push(normalized)
   }
-  return JSON.stringify(normalized)
+
+  const json = JSON.stringify({ items: normalizedItems })
+  if (json.length > PROJECT_TOKEN_KEYRING_MAX_SERIALIZED_CHARS) {
+    throw new Error("project token keyring exceeds size limit")
+  }
+  return json
 }
 
 export function resolveActiveProjectTokenEntry(params: {

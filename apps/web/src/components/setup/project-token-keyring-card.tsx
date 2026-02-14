@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { convexQuery } from "@convex-dev/react-query"
 import { toast } from "sonner"
+import { SEALED_INPUT_B64_MAX_CHARS } from "@clawlets/core/lib/runtime/control-plane-constants"
 import type { Id } from "../../../convex/_generated/dataModel"
 import { api } from "../../../convex/_generated/api"
 import { RunnerStatusBanner } from "~/components/fleet/runner-status-banner"
@@ -19,6 +20,7 @@ import { isProjectRunnerOnline } from "~/lib/setup/runner-status"
 import {
   generateProjectTokenKeyId,
   maskProjectToken,
+  PROJECT_TOKEN_VALUE_MAX_CHARS,
   parseProjectTokenKeyring,
   resolveActiveProjectTokenEntry,
   serializeProjectTokenKeyring,
@@ -210,6 +212,10 @@ export function ProjectTokenKeyringCard(props: {
         aad,
         plaintextJson: JSON.stringify(updates),
       })
+      if (sealedInputB64.length > SEALED_INPUT_B64_MAX_CHARS) {
+        const kib = Math.ceil(sealedInputB64.length / 1024)
+        throw new Error(`credential payload too large (${kib} KiB). Remove oversized keys and retry.`)
+      }
 
       await finalizeDeployCreds({
         data: {
@@ -254,6 +260,10 @@ export function ProjectTokenKeyringCard(props: {
   const onAdd = () => {
     const value = newValue.trim()
     if (!value) return
+    if (value.length > PROJECT_TOKEN_VALUE_MAX_CHARS) {
+      toast.error(`Token too long (max ${PROJECT_TOKEN_VALUE_MAX_CHARS} characters)`)
+      return
+    }
 
     const id = generateProjectTokenKeyId(newLabel)
     const label = newLabel.trim()

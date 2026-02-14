@@ -1,4 +1,4 @@
-import { JOB_STATUSES } from "@clawlets/core/lib/runtime/control-plane-constants";
+import { JOB_STATUSES, SEALED_INPUT_B64_MAX_CHARS } from "@clawlets/core/lib/runtime/control-plane-constants";
 import { validateRunnerJobPayload } from "@clawlets/core/lib/runtime/runner-command-policy";
 import { sanitizeErrorMessage } from "@clawlets/core/lib/runtime/safe-error";
 import { v } from "convex/values";
@@ -41,7 +41,6 @@ const ListLimit = 200;
 const MAX_JOB_ATTEMPTS = 25;
 const SEALED_PENDING_TTL_MS = 5 * 60_000;
 const SEALED_INPUT_ALG = "rsa-oaep-3072/aes-256-gcm";
-const SEALED_INPUT_MAX_CHARS = 2 * 1024 * 1024;
 const LEASE_WINDOW_SIZE = 100;
 const JOB_KIND_RE = /^[A-Za-z0-9._-]+$/;
 
@@ -54,7 +53,7 @@ const JobStatusArg = v.union(...literals(JOB_STATUSES));
 function validateSealedInputB64(raw: string): string {
   const value = String(raw || "").trim();
   if (!value) fail("conflict", "sealedInputB64 required");
-  if (value.length > SEALED_INPUT_MAX_CHARS) fail("conflict", "sealedInputB64 too large");
+  if (value.length > SEALED_INPUT_B64_MAX_CHARS) fail("conflict", "sealedInputB64 too large");
   if (value.includes("\n") || value.includes("\r") || value.includes("\0")) {
     fail("conflict", "sealedInputB64 contains forbidden characters");
   }

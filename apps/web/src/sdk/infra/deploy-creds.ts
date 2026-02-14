@@ -4,6 +4,7 @@ import {
   DEPLOY_CREDS_SECRET_KEYS,
 } from "@clawlets/core/lib/infra/deploy-creds"
 import { sanitizeErrorMessage } from "@clawlets/core/lib/runtime/safe-error"
+import { SEALED_INPUT_B64_MAX_CHARS } from "@clawlets/core/lib/runtime/control-plane-constants"
 
 import { api } from "../../../convex/_generated/api"
 import type { Id } from "../../../convex/_generated/dataModel"
@@ -208,6 +209,7 @@ export const finalizeDeployCreds = createServerFn({ method: "POST" })
     if (!kindRaw) throw new Error("kind required")
     const sealedInputB64Raw = typeof d["sealedInputB64"] === "string" ? d["sealedInputB64"].trim() : ""
     if (!sealedInputB64Raw) throw new Error("sealedInputB64 required")
+    if (sealedInputB64Raw.length > SEALED_INPUT_B64_MAX_CHARS) throw new Error("sealedInputB64 too large")
     const sealedInputAlgRaw = typeof d["sealedInputAlg"] === "string" ? d["sealedInputAlg"].trim() : ""
     if (!sealedInputAlgRaw) throw new Error("sealedInputAlg required")
     const sealedInputKeyIdRaw = typeof d["sealedInputKeyId"] === "string" ? d["sealedInputKeyId"].trim() : ""
