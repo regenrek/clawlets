@@ -135,8 +135,8 @@ export function ProjectTokenKeyringCard(props: {
         },
       })
     },
-    onSuccess: async (input) => {
-      if (input.action === "add") {
+    onSuccess: async (_data, variables) => {
+      if (variables.action === "add") {
         setAddOpen(false)
         setNewLabel("")
         setNewValue("")
