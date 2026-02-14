@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import type { Id } from "../../../../convex/_generated/dataModel"
-import { DeployCredsCard } from "~/components/fleet/deploy-creds-card"
+import { ProjectTokenKeyringCard } from "~/components/setup/project-token-keyring-card"
 import {
   HETZNER_LOCATION_OPTIONS,
   HETZNER_SERVER_TYPE_OPTIONS,
@@ -79,16 +79,12 @@ function resolveHostDefaults(config: SetupConfig | null, host: string, setupDraf
   }
 }
 
-function readHcloudTokenState(setupDraft: SetupDraftView | null): "set" | "unset" {
-  if (setupDraft?.sealedSecretDrafts?.deployCreds?.status === "set") return "set"
-  return "unset"
-}
-
 export function SetupStepInfrastructure(props: {
   projectId: Id<"projects">
   config: SetupConfig | null
   setupDraft: SetupDraftView | null
   host: string
+  hasActiveHcloudToken: boolean
   stepStatus: SetupStepStatus
   onDraftChange: (next: SetupDraftInfrastructure) => void
 }) {
@@ -101,8 +97,7 @@ export function SetupStepInfrastructure(props: {
   const [volumeSizeGbText, setVolumeSizeGbText] = useState(() => String(defaults.volumeSizeGb))
   const parsedVolumeSizeGb = parsePositiveInt(volumeSizeGbText)
   const volumeSettingsReady = !volumeEnabled || parsedVolumeSizeGb !== null
-  const hcloudTokenState = readHcloudTokenState(props.setupDraft)
-  const hcloudTokenReady = hcloudTokenState === "set"
+  const hcloudTokenReady = props.hasActiveHcloudToken
   const serverTypeTrimmed = serverType.trim()
   const locationTrimmed = location.trim()
   const resolvedServerType = resolveServerTypePreset(serverTypeTrimmed)
@@ -135,28 +130,15 @@ export function SetupStepInfrastructure(props: {
 
   return (
     <div className="space-y-4">
-      <DeployCredsCard
+      <ProjectTokenKeyringCard
         projectId={props.projectId}
-        setupDraftFlow={{
-          host: props.host,
-          setupDraft: props.setupDraft,
-        }}
-        title="Hetzner token"
+        kind="hcloud"
+        title="Hetzner API keys"
         description={(
           <>
-            Clawlets provisions this host via Hetzner. Create a dedicated token per project when possible.{" "}
-            <a
-              className="underline underline-offset-3 hover:text-foreground"
-              href="https://docs.clawlets.com/dashboard/hetzner-token"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Why and how to create one
-            </a>
-            .
+            Project-wide Hetzner tokens. Add multiple keys, then select the active key used for provisioning.
           </>
         )}
-        visibleKeys={["HCLOUD_TOKEN"]}
         headerBadge={<SetupStepStatusBadge status={props.stepStatus} />}
       />
 

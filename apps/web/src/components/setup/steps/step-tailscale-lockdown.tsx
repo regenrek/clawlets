@@ -1,12 +1,13 @@
 import { useMemo } from "react"
-import { LabelWithHelp } from "~/components/ui/label-help"
-import { SecretInput } from "~/components/ui/secret-input"
+import type { Id } from "../../../../convex/_generated/dataModel"
+import { ProjectTokenKeyringCard } from "~/components/setup/project-token-keyring-card"
 import { SettingsSection } from "~/components/ui/settings-section"
 import { SetupStepStatusBadge } from "~/components/setup/steps/step-status-badge"
 import { Switch } from "~/components/ui/switch"
 import type { SetupStepStatus } from "~/lib/setup/setup-model"
 
 export function SetupStepTailscaleLockdown(props: {
+  projectId: Id<"projects">
   stepStatus: SetupStepStatus
   tailscaleAuthKey: string
   hasTailscaleAuthKey: boolean
@@ -23,7 +24,7 @@ export function SetupStepTailscaleLockdown(props: {
     ? "Tailscale lockdown disabled."
     : hasTailscaleKey
       ? "Tailscale key ready for deploy."
-      : "Enable tailscale lockdown requires a tailscale auth key."
+      : "Enable tailscale lockdown requires an active Tailscale key."
 
   return (
     <SettingsSection
@@ -37,7 +38,7 @@ export function SetupStepTailscaleLockdown(props: {
           <div className="min-w-0">
             <div className="text-sm font-medium">Use tailscale + lockdown (recommended)</div>
             <div className="text-xs text-muted-foreground">
-              Deploy enables safer SSH path when a tailscale auth key is configured.
+              Deploy enables safer SSH path when an active project Tailscale key is configured.
             </div>
           </div>
           <Switch
@@ -47,17 +48,13 @@ export function SetupStepTailscaleLockdown(props: {
         </div>
 
         {props.useTailscaleLockdown ? (
-          <div className="space-y-2">
-            <LabelWithHelp htmlFor="setup-tailscale-key" help="Auth key used for bootstrap tailscale enrollment.">
-              Tailscale auth key
-            </LabelWithHelp>
-            <SecretInput
-              id="setup-tailscale-key"
-              value={props.tailscaleAuthKey}
-              onValueChange={props.onTailscaleAuthKeyChange}
-              placeholder={hasTailscaleKey ? "Configured" : "tskey-auth-..."}
-            />
-          </div>
+          <ProjectTokenKeyringCard
+            projectId={props.projectId}
+            kind="tailscale"
+            title="Tailscale API keys"
+            description="Project-wide keys. Add multiple keys and select the one used for setup/deploy."
+            onActiveValueChange={props.onTailscaleAuthKeyChange}
+          />
         ) : null}
       </div>
     </SettingsSection>

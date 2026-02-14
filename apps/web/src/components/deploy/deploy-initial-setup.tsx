@@ -67,6 +67,8 @@ export function DeployInitialInstallSetup(props: {
   pendingInfrastructureDraft: SetupDraftInfrastructure | null
   pendingConnectionDraft: SetupDraftConnection | null
   pendingBootstrapSecrets: SetupPendingBootstrapSecrets
+  hasActiveTailscaleAuthKey: boolean
+  activeTailscaleAuthKey: string
 }) {
   const projectQuery = useProjectBySlug(props.projectSlug)
   const projectId = projectQuery.projectId
@@ -78,17 +80,6 @@ export function DeployInitialInstallSetup(props: {
   })
   const hostsQuery = useQuery({
     ...convexQuery(api.controlPlane.hosts.listByProject, projectId ? { projectId } : "skip"),
-  })
-  const wiringQuery = useQuery({
-    ...convexQuery(
-      api.controlPlane.secretWiring.listByProjectHost,
-      projectId && props.host
-        ? {
-            projectId,
-            hostName: props.host,
-          }
-        : "skip",
-    ),
   })
   const runnerOnline = useMemo(() => isProjectRunnerOnline(runnersQuery.data ?? []), [runnersQuery.data])
   const runnerNixReadiness = useMemo(
@@ -120,14 +111,7 @@ export function DeployInitialInstallSetup(props: {
   const tailnetMode = String(hostSummary?.desired?.tailnetMode || "none")
   const isTailnet = tailnetMode === "tailscale"
   const desiredSshExposureMode = String(hostSummary?.desired?.sshExposureMode || "").trim()
-  const configuredSecrets = useMemo(() => {
-    const names = new Set<string>()
-    for (const row of wiringQuery.data ?? []) {
-      if (row?.status === "configured") names.add(String(row.secretName || ""))
-    }
-    return names
-  }, [wiringQuery.data])
-  const hasTailscaleSecret = configuredSecrets.has("tailscale_auth_key")
+  const hasProjectTailscaleAuthKey = props.hasActiveTailscaleAuthKey
 
   const repoStatus = useQuery({
     queryKey: ["gitRepoStatus", projectId],
@@ -207,7 +191,7 @@ export function DeployInitialInstallSetup(props: {
 
   const wantsTailscaleLockdown = props.pendingBootstrapSecrets.useTailscaleLockdown
   const hasPendingTailscaleKey = props.pendingBootstrapSecrets.tailscaleAuthKey.trim().length > 0
-  const canAutoLockdown = isTailnet && wantsTailscaleLockdown && (hasTailscaleSecret || hasPendingTailscaleKey)
+  const canAutoLockdown = isTailnet && wantsTailscaleLockdown && (hasProjectTailscaleAuthKey || hasPendingTailscaleKey)
 
   const [bootstrapRunId, setBootstrapRunId] = useState<Id<"runs"> | null>(null)
   const [setupApplyRunId, setSetupApplyRunId] = useState<Id<"runs"> | null>(null)
@@ -298,7 +282,7 @@ export function DeployInitialInstallSetup(props: {
         setStepStatus("switchTailnetTarget", "skipped", "Tailnet mode disabled")
         setStepStatus("switchSshExposure", "skipped", "Tailnet mode disabled")
         setStepStatus("lockdown", "skipped", "Tailnet mode disabled")
-      } else if (!hasTailscaleSecret && !hasPendingTailscaleKey) {
+      } else if (!hasProjectTailscaleAuthKey && !hasPendingTailscaleKey) {
         setStepStatus("switchTailnetTarget", "skipped", "Tailscale auth key missing")
         setStepStatus("switchSshExposure", "skipped", "Tailscale auth key missing")
         setStepStatus("lockdown", "skipped", "Tailscale auth key missing")
@@ -477,7 +461,7 @@ export function DeployInitialInstallSetup(props: {
       const bootstrapSecretsPayload: Record<string, string> = {}
       const adminPassword = props.pendingBootstrapSecrets.adminPassword.trim()
       const tailscaleAuthKey = props.pendingBootstrapSecrets.useTailscaleLockdown
-        ? props.pendingBootstrapSecrets.tailscaleAuthKey.trim()
+        ? (props.pendingBootstrapSecrets.tailscaleAuthKey.trim() || props.activeTailscaleAuthKey.trim())
         : ""
       if (adminPassword) bootstrapSecretsPayload.adminPasswordHash = adminPassword
       if (tailscaleAuthKey) bootstrapSecretsPayload.tailscaleAuthKey = tailscaleAuthKey
@@ -634,7 +618,7 @@ export function DeployInitialInstallSetup(props: {
             <AlertTitle>Auto-lockdown disabled</AlertTitle>
             <AlertDescription>
               <div>Deploy can leave SSH (22) open until tailnet mode is enabled and a Tailscale auth key is configured.</div>
-              <div className="pt-1">Tailnet mode: <code>{tailnetMode || "unknown"}</code>. Tailscale auth key: <code>{(hasTailscaleSecret || hasPendingTailscaleKey) ? "configured" : "missing"}</code>.</div>
+              <div className="pt-1">Tailnet mode: <code>{tailnetMode || "unknown"}</code>. Tailscale auth key: <code>{(hasProjectTailscaleAuthKey || hasPendingTailscaleKey) ? "configured" : "missing"}</code>.</div>
             </AlertDescription>
           </Alert>
         ) : null}

@@ -164,6 +164,18 @@ function HostSetupPage() {
     });
   }, [host]);
 
+  React.useEffect(() => {
+    const activeProjectKey = setup.activeTailscaleAuthKey?.trim() || "";
+    if (!activeProjectKey) return;
+    setPendingBootstrapSecrets((prev) => {
+      if (prev.tailscaleAuthKey.trim()) return prev;
+      return {
+        ...prev,
+        tailscaleAuthKey: activeProjectKey,
+      };
+    });
+  }, [setup.activeTailscaleAuthKey]);
+
   if (setup.projectQuery.isPending) {
     return <div className="text-muted-foreground">Loading…</div>;
   }
@@ -348,34 +360,29 @@ function HostSetupPage() {
                 }}
                 className="scroll-mt-20"
               >
-                {step.status === "locked" ? (
-                  <div className="rounded-md border border-dashed px-3 py-2 text-sm text-muted-foreground">
-                    Complete the previous setup section to unlock this part.
-                  </div>
-                ) : (
-                  <StepContent
-                    stepId={step.id as SetupStepId}
-                    step={step}
-                    projectId={projectId as Id<"projects">}
-                    projectSlug={projectSlug}
-                    host={activeHost}
-                    setup={setup}
-                    pendingInfrastructureDraft={pendingInfrastructureDraft}
-                    pendingConnectionDraft={pendingConnectionDraft}
-                    pendingBootstrapSecrets={pendingBootstrapSecrets}
-                    onPendingInfrastructureDraftChange={
-                      setPendingInfrastructureDraft
-                    }
-                    onPendingConnectionDraftChange={setPendingConnectionDraft}
-                    onPendingBootstrapSecretsChange={(next) => {
-                      setPendingBootstrapSecrets((prev) => ({
-                        ...prev,
-                        ...next,
-                      }));
-                    }}
-                    onContinueFromStep={continueFromStep}
-                  />
-                )}
+                <StepContent
+                  stepId={step.id as SetupStepId}
+                  step={step}
+                  projectId={projectId as Id<"projects">}
+                  projectSlug={projectSlug}
+                  host={activeHost}
+                  setup={setup}
+                  pendingInfrastructureDraft={pendingInfrastructureDraft}
+                  pendingConnectionDraft={pendingConnectionDraft}
+                  pendingBootstrapSecrets={pendingBootstrapSecrets}
+                  hasActiveHcloudToken={setup.hasActiveHcloudToken}
+                  hasActiveTailscaleAuthKey={setup.hasActiveTailscaleAuthKey}
+                  activeTailscaleAuthKey={setup.activeTailscaleAuthKey}
+                  onPendingInfrastructureDraftChange={setPendingInfrastructureDraft}
+                  onPendingConnectionDraftChange={setPendingConnectionDraft}
+                  onPendingBootstrapSecretsChange={(next) => {
+                    setPendingBootstrapSecrets((prev) => ({
+                      ...prev,
+                      ...next,
+                    }));
+                  }}
+                  onContinueFromStep={continueFromStep}
+                />
               </section>
             </StepperContent>
           ))}
@@ -395,6 +402,9 @@ function StepContent(props: {
   pendingInfrastructureDraft: SetupDraftInfrastructure | null;
   pendingConnectionDraft: SetupDraftConnection | null;
   pendingBootstrapSecrets: SetupPendingBootstrapSecrets;
+  hasActiveHcloudToken: boolean;
+  hasActiveTailscaleAuthKey: boolean;
+  activeTailscaleAuthKey: string;
   onPendingInfrastructureDraftChange: (next: SetupDraftInfrastructure) => void;
   onPendingConnectionDraftChange: (next: SetupDraftConnection) => void;
   onPendingBootstrapSecretsChange: (
@@ -412,6 +422,9 @@ function StepContent(props: {
     pendingInfrastructureDraft,
     pendingConnectionDraft,
     pendingBootstrapSecrets,
+    hasActiveHcloudToken,
+    hasActiveTailscaleAuthKey,
+    activeTailscaleAuthKey,
   } = props;
 
   if (stepId === "infrastructure") {
@@ -422,6 +435,7 @@ function StepContent(props: {
         config={setup.config}
         setupDraft={setup.setupDraft}
         host={host}
+        hasActiveHcloudToken={hasActiveHcloudToken}
         stepStatus={step.status}
         onDraftChange={props.onPendingInfrastructureDraftChange}
       />
@@ -447,9 +461,10 @@ function StepContent(props: {
   if (stepId === "tailscale-lockdown") {
     return (
       <SetupStepTailscaleLockdown
+        projectId={projectId}
         stepStatus={step.status}
         tailscaleAuthKey={pendingBootstrapSecrets.tailscaleAuthKey}
-        hasTailscaleAuthKey={setup.hasTailscaleAuthKeyConfigured}
+        hasTailscaleAuthKey={hasActiveTailscaleAuthKey}
         useTailscaleLockdown={pendingBootstrapSecrets.useTailscaleLockdown}
         onTailscaleAuthKeyChange={(value) =>
           props.onPendingBootstrapSecretsChange({ tailscaleAuthKey: value })
@@ -484,6 +499,8 @@ function StepContent(props: {
         pendingInfrastructureDraft={pendingInfrastructureDraft}
         pendingConnectionDraft={pendingConnectionDraft}
         pendingBootstrapSecrets={pendingBootstrapSecrets}
+        hasActiveTailscaleAuthKey={hasActiveTailscaleAuthKey}
+        activeTailscaleAuthKey={activeTailscaleAuthKey}
       />
     );
   }

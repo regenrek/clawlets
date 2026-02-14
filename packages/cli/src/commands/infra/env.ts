@@ -73,6 +73,11 @@ type KeyCandidate = {
   reason?: string;
 };
 
+const DEPLOY_CREDS_JSON_EXPOSE_SECRET_VALUES = new Set<string>([
+  "HCLOUD_TOKEN_KEYRING",
+  "TAILSCALE_AUTH_KEY_KEYRING",
+]);
+
 function buildDeployCredsStatus(params: { cwd: string; runtimeDir?: string; envFile?: string }): DeployCredsStatusJson {
   const repoRoot = findRepoRoot(params.cwd);
   const layout = getRepoLayout(repoRoot, params.runtimeDir);
@@ -83,7 +88,8 @@ function buildDeployCredsStatus(params: { cwd: string; runtimeDir?: string; envF
     const source = loaded.sources[key];
     const value = loaded.values[key];
     const status = value ? "set" : "unset";
-    if (isDeployCredsSecretKey(key)) return { key, source, status };
+    const exposeSecretValue = isDeployCredsSecretKey(key) && DEPLOY_CREDS_JSON_EXPOSE_SECRET_VALUES.has(key);
+    if (isDeployCredsSecretKey(key) && !exposeSecretValue) return { key, source, status };
     return { key, source, status, value: value ? String(value) : undefined };
   });
   return {
@@ -121,11 +127,15 @@ export const envInit = defineCommand({
     }
 
     const existing = readEnvFileOrEmpty(resolved.path).parsed;
-    const keys: DeployCredsEnvFileKeys = {
+    const keys = {
       HCLOUD_TOKEN: String(existing.HCLOUD_TOKEN || "").trim(),
       GITHUB_TOKEN: String(existing.GITHUB_TOKEN || "").trim(),
       NIX_BIN: String(existing.NIX_BIN || "nix").trim() || "nix",
       SOPS_AGE_KEY_FILE: String(existing.SOPS_AGE_KEY_FILE || "").trim(),
+      HCLOUD_TOKEN_KEYRING: String(existing.HCLOUD_TOKEN_KEYRING || "").trim(),
+      HCLOUD_TOKEN_KEYRING_ACTIVE: String(existing.HCLOUD_TOKEN_KEYRING_ACTIVE || "").trim(),
+      TAILSCALE_AUTH_KEY_KEYRING: String(existing.TAILSCALE_AUTH_KEY_KEYRING || "").trim(),
+      TAILSCALE_AUTH_KEY_KEYRING_ACTIVE: String(existing.TAILSCALE_AUTH_KEY_KEYRING_ACTIVE || "").trim(),
       AWS_ACCESS_KEY_ID: String(existing.AWS_ACCESS_KEY_ID || "").trim(),
       AWS_SECRET_ACCESS_KEY: String(existing.AWS_SECRET_ACCESS_KEY || "").trim(),
       AWS_SESSION_TOKEN: String(existing.AWS_SESSION_TOKEN || "").trim(),

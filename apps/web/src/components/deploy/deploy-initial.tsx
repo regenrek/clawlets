@@ -51,6 +51,8 @@ type DeployInitialInstallProps = {
   pendingInfrastructureDraft?: SetupDraftInfrastructure | null
   pendingConnectionDraft?: SetupDraftConnection | null
   pendingBootstrapSecrets?: SetupPendingBootstrapSecrets
+  hasActiveTailscaleAuthKey?: boolean
+  activeTailscaleAuthKey?: string
 }
 
 export function DeployInitialInstall({
@@ -68,6 +70,8 @@ export function DeployInitialInstall({
     tailscaleAuthKey: "",
     useTailscaleLockdown: true,
   },
+  hasActiveTailscaleAuthKey = false,
+  activeTailscaleAuthKey = "",
 }: DeployInitialInstallProps) {
   if (variant === "setup") {
     return (
@@ -81,6 +85,8 @@ export function DeployInitialInstall({
         pendingInfrastructureDraft={pendingInfrastructureDraft}
         pendingConnectionDraft={pendingConnectionDraft}
         pendingBootstrapSecrets={pendingBootstrapSecrets}
+        hasActiveTailscaleAuthKey={hasActiveTailscaleAuthKey}
+        activeTailscaleAuthKey={activeTailscaleAuthKey}
       />
     )
   }

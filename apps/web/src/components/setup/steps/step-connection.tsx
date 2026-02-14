@@ -24,11 +24,11 @@ function toUniqueKeys(values: string[]): string[] {
   return Array.from(new Set(values.map((row) => row.trim()).filter(Boolean)))
 }
 
-function deriveSshLabel(key: string): string {
+function deriveSshLabel(key: string, index: number): string {
   const normalized = key.trim()
   const parts = normalized.split(/\s+/)
-  if (parts.length >= 3) return parts.slice(2).join(" ")
-  return `${parts[0] || "ssh-key"} • ${normalized.slice(0, 22)}...`
+  const keyType = parts[0] || "ssh-key"
+  return `${keyType} key #${index + 1}`
 }
 
 export function SetupStepConnection(props: {
@@ -197,7 +197,7 @@ function SetupStepConnectionForm(props: {
                 <FieldGroup data-slot="checkbox-group" className="gap-4">
                   {knownKeys.map((key, idx) => {
                     const checked = selectedKeys.includes(key)
-                    const label = manualLabels[key] || deriveSshLabel(key)
+                    const label = manualLabels[key] || deriveSshLabel(key, idx)
                     const checkboxId = `setup-ssh-key-${idx}`
                     return (
                       <FieldLabel key={key} htmlFor={checkboxId}>
@@ -230,6 +230,15 @@ function SetupStepConnectionForm(props: {
               ) : null}
             </div>
           </div>
+          <AdminCidrField
+            id="setup-admin-cidr"
+            label="Allowed admin IP (CIDR)"
+            help={setupFieldHelp.hosts.adminCidr}
+            value={adminCidr}
+            onValueChange={setAdminCidr}
+            autoDetectIfEmpty
+            description="Who can SSH during bootstrap/provisioning (usually your current IP with /32)."
+          />
 
           <Accordion className="rounded-lg border bg-muted/20">
             <AccordionItem value="advanced" className="px-4">
@@ -238,16 +247,6 @@ function SetupStepConnectionForm(props: {
               </AccordionTrigger>
               <AccordionContent className="pb-4">
                 <div className="space-y-4">
-                  <AdminCidrField
-                    id="setup-admin-cidr"
-                    label="Allowed admin IP (CIDR)"
-                    help={setupFieldHelp.hosts.adminCidr}
-                    value={adminCidr}
-                    onValueChange={setAdminCidr}
-                    autoDetectIfEmpty
-                    description="Who can SSH during bootstrap/provisioning (usually your current IP with /32)."
-                  />
-
                   <div className="space-y-2">
                     <LabelWithHelp htmlFor="setup-admin-password" help={setupFieldHelp.secrets.adminPassword}>
                       Admin password

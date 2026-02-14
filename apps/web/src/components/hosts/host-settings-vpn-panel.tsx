@@ -1,10 +1,8 @@
-import { convexQuery } from "@convex-dev/react-query"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { useState } from "react"
 import { toast } from "sonner"
 import type { Id } from "../../../convex/_generated/dataModel"
-import { api } from "../../../convex/_generated/api"
 import { RunLogTail } from "~/components/run-log-tail"
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert"
 import { AsyncButton } from "~/components/ui/async-button"
@@ -12,11 +10,12 @@ import { Input } from "~/components/ui/input"
 import { LabelWithHelp } from "~/components/ui/label-help"
 import { NativeSelect, NativeSelectOption } from "~/components/ui/native-select"
 import { SettingsSection } from "~/components/ui/settings-section"
-import { TailscaleAuthKeyCard } from "~/components/hosts/tailscale-auth-key-card"
+import { ProjectTokenKeyringCard } from "~/components/setup/project-token-keyring-card"
 import { setupFieldHelp } from "~/lib/setup-field-help"
+import { parseProjectTokenKeyring, resolveActiveProjectTokenEntry } from "~/lib/project-token-keyring"
 import { configDotSet } from "~/sdk/config"
 import { getHostPublicIpv4, probeHostTailscaleIpv4 } from "~/sdk/host"
-import { lockdownExecute, lockdownStart } from "~/sdk/infra"
+import { getDeployCredsStatus, lockdownExecute, lockdownStart } from "~/sdk/infra"
 import { serverUpdateApplyExecute, serverUpdateApplyStart } from "~/sdk/server"
 
 type SshExposureMode = "tailnet" | "bootstrap" | "public"
@@ -71,16 +70,22 @@ export function HostSettingsVpnPanel(props: {
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   })
-  const wiringQuery = useQuery({
-    ...convexQuery(api.controlPlane.secretWiring.listByProjectHost, {
-      projectId: props.projectId,
-      hostName: props.host,
-    }),
-    enabled: Boolean(props.projectId && props.host),
+  const deployCredsQuery = useQuery({
+    queryKey: ["deployCreds", props.projectId],
+    queryFn: async () => await getDeployCredsStatus({ data: { projectId: props.projectId } }),
+    enabled: Boolean(props.projectId),
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   })
-  const hasTailscaleSecret = (wiringQuery.data ?? []).some(
-    (row) => row.secretName === "tailscale_auth_key" && row.status === "configured",
-  )
+
+  const hasTailscaleProjectKey = (() => {
+    const byKey: Record<string, { status?: "set" | "unset"; value?: string }> = {}
+    for (const row of deployCredsQuery.data?.keys || []) byKey[row.key] = row
+    const keyring = parseProjectTokenKeyring(byKey["TAILSCALE_AUTH_KEY_KEYRING"]?.value)
+    const activeId = String(byKey["TAILSCALE_AUTH_KEY_KEYRING_ACTIVE"]?.value || "").trim()
+    const activeEntry = resolveActiveProjectTokenEntry({ keyring, activeId })
+    return Boolean(activeEntry?.value?.trim())
+  })()
 
   async function requireConfigSet(params: { path: string; value?: string; valueJson?: string }): Promise<void> {
     const result = await configDotSet({
@@ -126,8 +131,8 @@ export function HostSettingsVpnPanel(props: {
   const activateTailnet = useMutation({
     mutationFn: async () => {
       if (!props.host.trim()) throw new Error("Host is required")
-      if (!hasTailscaleSecret) {
-        throw new Error("tailscale_auth_key missing. Configure it in Host Secrets first.")
+      if (!hasTailscaleProjectKey) {
+        throw new Error("Tailscale key missing. Configure one in Project credentials first.")
       }
       setActivateError(null)
 
@@ -290,18 +295,18 @@ export function HostSettingsVpnPanel(props: {
           )}
         </div>
 
-        {tailnetMode === "tailscale" && !hasTailscaleSecret ? (
+        {tailnetMode === "tailscale" && !hasTailscaleProjectKey ? (
           <Alert variant="destructive">
             <AlertTitle>Tailscale auth key missing</AlertTitle>
             <AlertDescription>
-              Configure <code>tailscale_auth_key</code> in host secrets before activation.
+              Configure a project-wide Tailscale key before activation.
               {" "}
               <Link
                 className="underline underline-offset-4 hover:text-foreground"
-                to="/$projectSlug/hosts/$host/secrets"
-                params={{ projectSlug: props.projectSlug, host: props.host }}
+                to="/$projectSlug/security/api-keys"
+                params={{ projectSlug: props.projectSlug }}
               >
-                Open host secrets
+                Open project credentials
               </Link>
               .
             </AlertDescription>
@@ -338,16 +343,12 @@ export function HostSettingsVpnPanel(props: {
       </SettingsSection>
 
       {tailnetMode === "tailscale" ? (
-        <SettingsSection
+        <ProjectTokenKeyringCard
+          projectId={props.projectId}
+          kind="tailscale"
           title="Tailnet auth"
-          description="Set or rotate the Tailscale auth key used by this host."
-        >
-          <TailscaleAuthKeyCard
-            projectId={props.projectId}
-            projectSlug={props.projectSlug}
-            host={props.host}
-          />
-        </SettingsSection>
+          description="Project-wide Tailscale keyring used during setup and activation."
+        />
       ) : null}
 
       <SettingsSection

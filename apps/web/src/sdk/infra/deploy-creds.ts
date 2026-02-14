@@ -51,6 +51,10 @@ type KeyCandidate = {
 }
 
 const DEPLOY_CREDS_SECRET_KEY_SET = new Set<string>(DEPLOY_CREDS_SECRET_KEYS)
+const DEPLOY_CREDS_SECRET_VALUE_ALLOWLIST = new Set<string>([
+  "HCLOUD_TOKEN_KEYRING",
+  "TAILSCALE_AUTH_KEY_KEYRING",
+])
 
 async function runRunnerJsonCommand(params: {
   projectId: Id<"projects">
@@ -110,7 +114,8 @@ export const getDeployCredsStatus = createServerFn({ method: "POST" })
               const source = (coerceTrimmedString(entry.source) || "unset") as DeployCredsStatusKey["source"]
               const status = (coerceTrimmedString(entry.status) || "unset") as DeployCredsStatusKey["status"]
               const value =
-                typeof entry.value === "string" && !DEPLOY_CREDS_SECRET_KEY_SET.has(key)
+                typeof entry.value === "string"
+                  && (!DEPLOY_CREDS_SECRET_KEY_SET.has(key) || DEPLOY_CREDS_SECRET_VALUE_ALLOWLIST.has(key))
                   ? entry.value
                   : undefined
               return { key, source, status, ...(value ? { value } : {}) }

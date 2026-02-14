@@ -19,6 +19,8 @@ export function SetupStepDeploy(props: {
   pendingInfrastructureDraft: SetupDraftInfrastructure | null
   pendingConnectionDraft: SetupDraftConnection | null
   pendingBootstrapSecrets: SetupPendingBootstrapSecrets
+  hasActiveTailscaleAuthKey: boolean
+  activeTailscaleAuthKey: string
 }) {
   return (
     <DeployInitialInstall
@@ -32,6 +34,8 @@ export function SetupStepDeploy(props: {
       pendingInfrastructureDraft={props.pendingInfrastructureDraft}
       pendingConnectionDraft={props.pendingConnectionDraft}
       pendingBootstrapSecrets={props.pendingBootstrapSecrets}
+      hasActiveTailscaleAuthKey={props.hasActiveTailscaleAuthKey}
+      activeTailscaleAuthKey={props.activeTailscaleAuthKey}
     />
   )
 }

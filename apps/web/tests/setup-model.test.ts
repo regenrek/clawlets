@@ -62,6 +62,7 @@ describe("deriveSetupModel", () => {
       config: baseConfig,
       hostFromRoute: "h1",
       setupDraft: withDeployCredsDraftSet(),
+      hasActiveHcloudToken: true,
       useTailscaleLockdown: true,
       latestBootstrapRun: null,
       latestBootstrapSecretsVerifyRun: null,
@@ -76,8 +77,9 @@ describe("deriveSetupModel", () => {
       config: baseConfig,
       hostFromRoute: "h1",
       setupDraft: withDeployCredsDraftSet(),
+      hasActiveHcloudToken: true,
       useTailscaleLockdown: true,
-      hasTailscaleAuthKey: true,
+      hasActiveTailscaleAuthKey: true,
       latestBootstrapRun: null,
       latestBootstrapSecretsVerifyRun: null,
     })
@@ -103,11 +105,12 @@ describe("deriveSetupModel", () => {
     expect(model.activeStepId).toBe("infrastructure")
   })
 
-  it("marks infrastructure done when deploy credentials draft is set", () => {
+  it("marks infrastructure done when active Hetzner key is selected", () => {
     const model = deriveSetupModel({
       config: baseConfig,
       hostFromRoute: "h1",
       setupDraft: withDeployCredsDraftSet(),
+      hasActiveHcloudToken: true,
       latestBootstrapRun: null,
       latestBootstrapSecretsVerifyRun: null,
     })
@@ -129,6 +132,7 @@ describe("deriveSetupModel", () => {
       },
       hostFromRoute: "h1",
       setupDraft: withDeployCredsDraftSet(),
+      hasActiveHcloudToken: true,
       pendingNonSecretDraft: {
         infrastructure: {
           serverType: "cpx22",
@@ -179,6 +183,7 @@ describe("deriveSetupModel", () => {
           deployCreds: { status: "set" },
         },
       },
+      hasActiveHcloudToken: true,
       latestBootstrapRun: null,
       latestBootstrapSecretsVerifyRun: null,
     })
@@ -214,6 +219,7 @@ describe("deriveSetupModel", () => {
           deployCreds: { status: "set" },
         },
       },
+      hasActiveHcloudToken: true,
       latestBootstrapRun: null,
       latestBootstrapSecretsVerifyRun: null,
     })
@@ -230,6 +236,7 @@ describe("deriveHostSetupStepper", () => {
       config: baseConfig,
       hostFromRoute: "h1",
       setupDraft: withDeployCredsDraftSet(),
+      hasActiveHcloudToken: true,
       latestBootstrapRun: null,
       latestBootstrapSecretsVerifyRun: null,
     })
