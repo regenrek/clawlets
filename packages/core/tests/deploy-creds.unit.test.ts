@@ -255,6 +255,10 @@ describe("deploy-creds", () => {
       const st = await lstat(updated.envPath);
       expect(st.isFile()).toBe(true);
       expect(st.mode & 0o777).toBe(0o600);
+      if (process.platform !== "win32") {
+        const runtimeDirMode = (await lstat(layout.runtimeDir)).mode & 0o777;
+        expect(runtimeDirMode & 0o077).toBe(0);
+      }
 
       const text = await readFile(updated.envPath, "utf8");
       for (const key of ENV_KEYS) expect(text).toContain(`${key}=`);

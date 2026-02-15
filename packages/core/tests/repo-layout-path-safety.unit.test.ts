@@ -28,10 +28,32 @@ describe("repo-layout path safety", () => {
     expect(layout.envFilePath).toBe(path.join(expectedRuntimeDir, "env"));
   });
 
+  it("resolves default runtime dir without creating CLAWLETS_HOME", async () => {
+    const { getRepoLayout } = await import("../src/repo-layout.js");
+    const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "clawlets-repo-layout-pure-repo-"));
+    const homeParent = fs.mkdtempSync(path.join(os.tmpdir(), "clawlets-repo-layout-pure-home-parent-"));
+    const clawletsHome = path.join(homeParent, "clawlets-home-not-created");
+    process.env.CLAWLETS_HOME = clawletsHome;
+
+    expect(fs.existsSync(clawletsHome)).toBe(false);
+    getRepoLayout(repoRoot);
+    expect(fs.existsSync(clawletsHome)).toBe(false);
+  });
+
   it("rejects default runtime when CLAWLETS_HOME is inside repoRoot", async () => {
     const { getRepoLayout } = await import("../src/repo-layout.js");
     const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "clawlets-repo-layout-home-inside-"));
     process.env.CLAWLETS_HOME = path.join(repoRoot, ".runtime-home");
+    expect(() => getRepoLayout(repoRoot)).toThrow(/runtime contains secrets\/state; must be outside repoRoot/i);
+  });
+
+  it("rejects default runtime when CLAWLETS_HOME symlink parent resolves into repoRoot", async () => {
+    const { getRepoLayout } = await import("../src/repo-layout.js");
+    const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "clawlets-repo-layout-home-link-repo-"));
+    const outside = fs.mkdtempSync(path.join(os.tmpdir(), "clawlets-repo-layout-home-link-outside-"));
+    const symlinkHome = path.join(outside, "home-link");
+    fs.symlinkSync(repoRoot, symlinkHome);
+    process.env.CLAWLETS_HOME = symlinkHome;
     expect(() => getRepoLayout(repoRoot)).toThrow(/runtime contains secrets\/state; must be outside repoRoot/i);
   });
 
@@ -53,6 +75,42 @@ describe("repo-layout path safety", () => {
     const escapedRuntimeDir = path.join(symlinkRoot, "runtime-real");
 
     expect(() => getRepoLayout(repoRoot, escapedRuntimeDir)).toThrow(/runtime contains secrets\/state; must be outside repoRoot/i);
+  });
+
+  it("rejects explicit runtimeDir when symlink parent resolves into repoRoot and leaf does not exist", async () => {
+    const { getRepoLayout } = await import("../src/repo-layout.js");
+    const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "clawlets-repo-layout-realpath-missing-repo-"));
+    const outside = fs.mkdtempSync(path.join(os.tmpdir(), "clawlets-repo-layout-realpath-missing-outside-"));
+    const symlinkRoot = path.join(outside, "link-to-repo");
+    fs.symlinkSync(repoRoot, symlinkRoot);
+    const escapedRuntimeDir = path.join(symlinkRoot, "runtime-not-yet-created");
+
+    expect(() => getRepoLayout(repoRoot, escapedRuntimeDir)).toThrow(/runtime contains secrets\/state; must be outside repoRoot/i);
+  });
+
+  it("enforces private runtime dir permissions on POSIX", async () => {
+    const { ensurePrivateRuntimeDir } = await import("../src/repo-layout.js");
+    const runtimeDir = fs.mkdtempSync(path.join(os.tmpdir(), "clawlets-private-runtime-"));
+    fs.chmodSync(runtimeDir, 0o755);
+    ensurePrivateRuntimeDir(runtimeDir);
+    if (process.platform === "win32") return;
+    const mode = fs.statSync(runtimeDir).mode & 0o777;
+    expect(mode & 0o077).toBe(0);
+  });
+
+  it("rejects symlink runtime dir without changing target mode", async () => {
+    if (process.platform === "win32") return;
+    const { ensurePrivateRuntimeDir } = await import("../src/repo-layout.js");
+    const parentDir = fs.mkdtempSync(path.join(os.tmpdir(), "clawlets-private-runtime-symlink-"));
+    const targetDir = path.join(parentDir, "runtime-target");
+    fs.mkdirSync(targetDir, { recursive: true });
+    fs.chmodSync(targetDir, 0o755);
+    const runtimeLink = path.join(parentDir, "runtime-link");
+    fs.symlinkSync(targetDir, runtimeLink);
+
+    expect(() => ensurePrivateRuntimeDir(runtimeLink)).toThrow(/must not be a symlink/i);
+    const mode = fs.statSync(targetDir).mode & 0o777;
+    expect(mode).toBe(0o755);
   });
 
   it("rejects unsafe host segments in host path helpers", async () => {

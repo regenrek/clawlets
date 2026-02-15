@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import dotenv from "dotenv";
-import { getRepoLayout } from "../../repo-layout.js";
+import { ensurePrivateRuntimeDir, getRepoLayout } from "../../repo-layout.js";
 import {
   AWS_DEPLOY_CREDS_KEY_SPECS,
   GITHUB_DEPLOY_CREDS_KEY_SPECS,
@@ -262,12 +262,7 @@ export async function updateDeployCredsEnvFile(params: {
   });
 
   if (resolved.origin === "default") {
-    try {
-      fs.mkdirSync(layout.runtimeDir, { recursive: true });
-      fs.chmodSync(layout.runtimeDir, 0o700);
-    } catch {
-      // best-effort on platforms without POSIX perms
-    }
+    ensurePrivateRuntimeDir(layout.runtimeDir);
   }
 
   const existing = toDeployCredsEnvFileKeys(readDeployCredsEnvFile(resolved.filePath));

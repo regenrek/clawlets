@@ -15,7 +15,7 @@ import {
   updateDeployCredsEnvFile,
   type DeployCredsEnvFileKeys,
 } from "@clawlets/core/lib/infra/deploy-creds";
-import { getLocalOperatorAgeKeyPath, getRepoLayout } from "@clawlets/core/repo-layout";
+import { ensurePrivateRuntimeDir, getLocalOperatorAgeKeyPath, getRepoLayout } from "@clawlets/core/repo-layout";
 import { parseAgeKeyFile } from "@clawlets/core/lib/security/age";
 import { ageKeygen } from "@clawlets/core/lib/security/age-keygen";
 import { sanitizeOperatorId } from "@clawlets/shared/lib/identifiers";
@@ -118,12 +118,7 @@ export const envInit = defineCommand({
     const resolved = resolveEnvFilePath({ cwd, runtimeDir: (args as any).runtimeDir, envFileArg: (args as any).envFile });
 
     if (resolved.origin === "default") {
-      try {
-        fs.mkdirSync(layout.runtimeDir, { recursive: true });
-        fs.chmodSync(layout.runtimeDir, 0o700);
-      } catch {
-        // best-effort on platforms without POSIX perms
-      }
+      ensurePrivateRuntimeDir(layout.runtimeDir);
     }
 
     const existing = readEnvFileOrEmpty(resolved.path).parsed;

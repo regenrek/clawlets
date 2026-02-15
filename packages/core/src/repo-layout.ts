@@ -100,6 +100,7 @@ export function getRepoLayout(repoRoot: string, runtimeDir?: string): RepoLayout
 }
 
 export {
+  ensurePrivateRuntimeDir,
   resolveClawletsHomeDir,
   resolveWorkspaceRuntimeDir,
   assertRuntimeDirOutsideRepoRoot,
