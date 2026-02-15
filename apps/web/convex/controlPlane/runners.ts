@@ -1,6 +1,7 @@
 import { RUNNER_STATUSES } from "@clawlets/core/lib/runtime/control-plane-constants";
 import { v } from "convex/values";
 
+import { internal } from "../_generated/api";
 import { internalMutation, mutation, query } from "../_generated/server";
 import type { MutationCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
@@ -118,6 +119,10 @@ export const patchDeployCredsSummaryInternal = internalMutation({
     const runner = await ctx.db.get(runnerId);
     if (!runner || runner.projectId !== projectId) return null;
     await ctx.db.patch(runnerId, { deployCredsSummary });
+    await ctx.runMutation(internal.controlPlane.projectCredentials.syncFromDeployCredsSummaryInternal, {
+      projectId,
+      summary: deployCredsSummary,
+    });
     return null;
   },
 });

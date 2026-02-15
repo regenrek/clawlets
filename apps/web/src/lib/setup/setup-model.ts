@@ -4,6 +4,7 @@ export const SETUP_STEP_IDS = [
   "infrastructure",
   "connection",
   "tailscale-lockdown",
+  "creds",
   "deploy",
   "verify",
 ] as const
@@ -49,8 +50,8 @@ type MinimalSetupDraft = {
     }
   }
   sealedSecretDrafts?: {
-    deployCreds?: { status?: "set" | "missing" }
-    bootstrapSecrets?: { status?: "set" | "missing" }
+    hostBootstrapCreds?: { status?: "set" | "missing" }
+    hostBootstrapSecrets?: { status?: "set" | "missing" }
   }
 }
 
@@ -86,7 +87,6 @@ export type DeriveSetupModelInput = {
   latestBootstrapRun: MinimalRun | null
   latestBootstrapSecretsVerifyRun: MinimalRun | null
   useTailscaleLockdown?: boolean
-  pendingTailscaleAuthKey?: string
   hasActiveTailscaleAuthKey?: boolean
   hasActiveHcloudToken?: boolean
   hasProjectGithubToken?: boolean
@@ -127,14 +127,13 @@ export function deriveSetupModel(input: DeriveSetupModelInput): SetupModel {
 
   const hcloudOk = Boolean(input.hasActiveHcloudToken)
   const githubCredsOk = Boolean(input.hasProjectGithubToken)
-  const providerCredsOk = githubCredsOk
   const infrastructureProvisioningOk = Boolean(selectedHost) && infrastructureHostOk && hcloudOk
-  const infrastructureStepDone = infrastructureProvisioningOk && githubCredsOk
+  const infrastructureStepDone = infrastructureProvisioningOk
+  const credsStepDone = githubCredsOk
   const connectionStepDone = connectionOk
   const useTailscaleLockdown = input.useTailscaleLockdown === true
   const hasTailscaleAuthKey = Boolean(input.hasActiveTailscaleAuthKey)
-  const hasPendingTailscaleAuthKey = asTrimmedString(input.pendingTailscaleAuthKey).length > 0
-  const tailscaleLockdownOk = !useTailscaleLockdown || hasTailscaleAuthKey || hasPendingTailscaleAuthKey
+  const tailscaleLockdownOk = !useTailscaleLockdown || hasTailscaleAuthKey
 
   const steps: SetupStep[] = [
     {
@@ -145,24 +144,29 @@ export function deriveSetupModel(input: DeriveSetupModelInput): SetupModel {
     {
       id: "connection",
       title: "Server Access",
-      status: !infrastructureProvisioningOk ? "locked" : connectionStepDone ? "done" : "active",
+      status: connectionStepDone ? "done" : "active",
     },
     {
       id: "tailscale-lockdown",
       title: "Tailscale lockdown",
       optional: true,
-      status: !connectionStepDone ? "locked" : tailscaleLockdownOk ? "done" : "active",
+      status: tailscaleLockdownOk ? "done" : "active",
+    },
+    {
+      id: "creds",
+      title: "GitHub token",
+      status: credsStepDone ? "done" : "active",
     },
     {
       id: "deploy",
       title: "Install server",
-      status: !connectionStepDone || !providerCredsOk || !hcloudOk ? "locked" : latestBootstrapOk ? "done" : "active",
+      status: latestBootstrapOk ? "done" : "active",
     },
     {
       id: "verify",
       title: "Secure and Verify",
       optional: true,
-      status: !latestBootstrapOk ? "locked" : "pending",
+      status: "pending",
     },
   ]
 

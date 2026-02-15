@@ -84,7 +84,6 @@ describe("setup apply command", () => {
             },
             bootstrapSecrets: {
               adminPasswordHash: "$6$hash",
-              tailscaleAuthKey: "tskey-auth",
               discord_token: "discord-raw",
             },
           },
@@ -165,7 +164,77 @@ describe("setup apply command", () => {
     }
   });
 
-  it("does not inject tailscaleAuthKey when missing from payload", async () => {
+  it("treats delete ops for missing config paths as no-op", async () => {
+    const repoRoot = fs.mkdtempSync(path.join(tmpdir(), "clawlets-setup-apply-delete-noop-"));
+    const configPath = path.join(repoRoot, "clawlets.config.json");
+    const inputPath = path.join(repoRoot, "setup-input.json");
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      findRepoRootMock.mockReturnValue(repoRoot);
+      loadFullConfigMock.mockReturnValue({
+        config: {
+          hosts: {
+            alpha: {
+              hetzner: {
+                volumeSizeGb: 0,
+              },
+            },
+          },
+          fleet: {},
+        },
+        infraConfigPath: configPath,
+      });
+      updateDeployCredsEnvFileMock.mockResolvedValue({
+        updatedKeys: ["HCLOUD_TOKEN"],
+      });
+      runMock.mockResolvedValue(undefined);
+      captureMock.mockResolvedValue(
+        JSON.stringify({
+          results: [{ status: "ok" }],
+        }),
+      );
+
+      fs.writeFileSync(
+        inputPath,
+        JSON.stringify(
+          {
+            hostName: "alpha",
+            configOps: [
+              { path: "hosts.alpha.hetzner.volumeLinuxDevice", del: true },
+              { path: "hosts.alpha.provisioning.provider", value: "hetzner", del: false },
+            ],
+            deployCreds: {
+              HCLOUD_TOKEN: "token-123",
+            },
+            bootstrapSecrets: {},
+          },
+          null,
+          2,
+        ),
+        "utf8",
+      );
+
+      const { setup } = await import("../src/commands/setup/index.js");
+      const apply = (setup as any).subCommands?.apply;
+      await apply.run({ args: { fromJson: inputPath, json: true } } as any);
+
+      expect(writeClawletsConfigMock).toHaveBeenCalledTimes(1);
+      expect(updateDeployCredsEnvFileMock).toHaveBeenCalledTimes(1);
+      expect(runMock).toHaveBeenCalledTimes(1);
+      expect(captureMock).toHaveBeenCalledTimes(1);
+      const secretsInitArgs = runMock.mock.calls.at(0)?.[1] as string[] | undefined;
+      expect(Array.isArray(secretsInitArgs)).toBe(true);
+      expect(secretsInitArgs).toContain("--allowMissingAdminPasswordHash");
+      const summaryRaw = String(logSpy.mock.calls.at(-1)?.[0] || "");
+      const summary = JSON.parse(summaryRaw) as { config?: { updatedCount?: number } };
+      expect(summary.config?.updatedCount).toBe(1);
+    } finally {
+      logSpy.mockRestore();
+      fs.rmSync(repoRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("drops unsupported tailscaleAuthKey from bootstrap secrets payload", async () => {
     const repoRoot = fs.mkdtempSync(path.join(tmpdir(), "clawlets-setup-apply-keyring-"));
     const configPath = path.join(repoRoot, "clawlets.config.json");
     const inputPath = path.join(repoRoot, "setup-input.json");
@@ -184,6 +253,9 @@ describe("setup apply command", () => {
         if (fromJsonIndex < 0) return;
         const secretsPath = String(args[fromJsonIndex + 1] || "");
         submittedSecretsBody = JSON.parse(fs.readFileSync(secretsPath, "utf8")) as Record<string, unknown>;
+        const ageKeyIndex = args.indexOf("--ageKeyFile");
+        expect(ageKeyIndex).toBeGreaterThanOrEqual(0);
+        expect(String(args[ageKeyIndex + 1] || "")).toBe("/tmp/runtime/keys/operators/alice.agekey");
       });
       captureMock.mockResolvedValue(
         JSON.stringify({
@@ -204,6 +276,7 @@ describe("setup apply command", () => {
             },
             bootstrapSecrets: {
               adminPasswordHash: "$6$hash",
+              tailscaleAuthKey: "tskey-auth",
             },
           },
           null,

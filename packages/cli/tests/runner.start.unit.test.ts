@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   __test_appendRunEventsBestEffort,
   __test_computeIdleLeasePollDelayMs,
+  __test_computePostJobIdlePollDelayMs,
   __test_defaultArgsForJob,
   __test_executeLeasedJobWithRunEvents,
   __test_metadataSnapshotFingerprint,
@@ -17,8 +18,8 @@ import {
 describe("runner job arg mapping", () => {
   it("exposes reduced default idle polling cap", () => {
     const args = (runnerStart as any).args as Record<string, { default?: string }>;
-    expect(args.pollMs?.default).toBe("4000");
-    expect(args.pollMaxMs?.default).toBe("8000");
+    expect(args.pollMs?.default).toBe("100");
+    expect(args.pollMaxMs?.default).toBe("100");
     expect(args.leaseWaitMs?.default).toBe("0");
   });
 
@@ -330,6 +331,23 @@ describe("runner job arg mapping", () => {
     expect(low).toBeLessThanOrEqual(30_000);
     expect(high).toBeGreaterThan(low);
     expect(high).toBeLessThanOrEqual(30_000);
+  });
+
+  it("uses 0ms post-job delay when backlog path is active and 100ms after idle long-poll wakeup", () => {
+    expect(
+      __test_computePostJobIdlePollDelayMs({
+        requestedWaitMs: 0,
+        waitApplied: false,
+        pollMs: 100,
+      }),
+    ).toBe(0);
+    expect(
+      __test_computePostJobIdlePollDelayMs({
+        requestedWaitMs: 5_000,
+        waitApplied: true,
+        pollMs: 100,
+      }),
+    ).toBe(100);
   });
 
   it("metadata fingerprint ignores ephemeral run/sync timestamps", () => {

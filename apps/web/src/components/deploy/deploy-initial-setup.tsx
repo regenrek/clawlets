@@ -1,7 +1,7 @@
 import { convexQuery } from "@convex-dev/react-query"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { CheckCircleIcon, SparklesIcon } from "@heroicons/react/24/solid"
-import { useMemo, useRef, useState, type ReactNode } from "react"
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { toast } from "sonner"
 import type { Id } from "../../../convex/_generated/dataModel"
 import { api } from "../../../convex/_generated/api"
@@ -47,8 +47,38 @@ import {
 
 type SetupPendingBootstrapSecrets = {
   adminPassword: string
-  tailscaleAuthKey: string
   useTailscaleLockdown: boolean
+}
+
+type PredeployCheckId =
+  | "runner"
+  | "repo"
+  | "ssh"
+  | "adminPassword"
+  | "projectCreds"
+  | "sealedDrafts"
+  | "setupApply"
+
+type PredeployCheckState = "pending" | "passed" | "failed"
+type PredeployState = "idle" | "running" | "failed" | "ready"
+
+type PredeployCheck = {
+  id: PredeployCheckId
+  label: string
+  state: PredeployCheckState
+  detail?: string
+}
+
+function initialPredeployChecks(): PredeployCheck[] {
+  return [
+    { id: "runner", label: "Runner ready", state: "pending" },
+    { id: "repo", label: "Repo ready", state: "pending" },
+    { id: "ssh", label: "SSH setup ready", state: "pending" },
+    { id: "adminPassword", label: "Admin password ready", state: "pending" },
+    { id: "projectCreds", label: "Project creds ready", state: "pending" },
+    { id: "sealedDrafts", label: "Host secrets written", state: "pending" },
+    { id: "setupApply", label: "Setup apply queued", state: "pending" },
+  ]
 }
 
 export function DeployInitialInstallSetup(props: {
@@ -75,6 +105,13 @@ export function DeployInitialInstallSetup(props: {
   })
   const hostsQuery = useQuery({
     ...convexQuery(api.controlPlane.hosts.listByProject, projectId ? { projectId } : "skip"),
+  })
+  const secretWiringQuery = useQuery({
+    ...convexQuery(
+      api.controlPlane.secretWiring.listByProjectHost,
+      projectId ? { projectId, hostName: props.host } : "skip",
+    ),
+    enabled: Boolean(projectId && props.host),
   })
   const runnerOnline = useMemo(() => isProjectRunnerOnline(runnersQuery.data ?? []), [runnersQuery.data])
   const runnerNixReadiness = useMemo(
@@ -107,6 +144,19 @@ export function DeployInitialInstallSetup(props: {
   const isTailnet = tailnetMode === "tailscale"
   const desiredSshExposureMode = String(hostSummary?.desired?.sshExposureMode || "").trim()
   const hasProjectTailscaleAuthKey = props.hasActiveTailscaleAuthKey
+  const adminPasswordConfigured = useMemo(
+    () =>
+      (secretWiringQuery.data ?? []).some(
+        (row) => row.secretName === "admin_password_hash" && row.status === "configured",
+      ),
+    [secretWiringQuery.data],
+  )
+  const adminPasswordRequired = !adminPasswordConfigured
+  const adminPassword = props.pendingBootstrapSecrets.adminPassword.trim()
+  const adminPasswordGateBlocked = adminPasswordRequired && !adminPassword
+  const adminPasswordGateMessage = adminPasswordGateBlocked
+    ? "Server access incomplete. Set admin password."
+    : null
 
   const repoStatus = useQuery({
     queryKey: ["gitRepoStatus", projectId],
@@ -181,18 +231,26 @@ export function DeployInitialInstallSetup(props: {
       ? "Missing credentials. Add GitHub token in Hetzner setup."
       : null
 
-  const deployGateBlocked = repoGateBlocked || nixGateBlocked || sshKeyGateBlocked || credsGateBlocked
+  const deployGateBlocked =
+    repoGateBlocked || nixGateBlocked || sshKeyGateBlocked || adminPasswordGateBlocked || credsGateBlocked
   const deployStatusReason = repoGateBlocked
     ? statusReason
-    : nixGateMessage || sshKeyGateMessage || credsGateMessage || statusReason
+    : nixGateMessage || sshKeyGateMessage || adminPasswordGateMessage || credsGateMessage || statusReason
 
   const wantsTailscaleLockdown = props.pendingBootstrapSecrets.useTailscaleLockdown
-  const hasPendingTailscaleKey = props.pendingBootstrapSecrets.tailscaleAuthKey.trim().length > 0
-  const canAutoLockdown = isTailnet && wantsTailscaleLockdown && (hasProjectTailscaleAuthKey || hasPendingTailscaleKey)
+  const canAutoLockdown = wantsTailscaleLockdown && hasProjectTailscaleAuthKey
+  const adminCidr = String(desired.connection.adminCidr || "").trim()
+  const adminCidrWorldOpen = adminCidr === "0.0.0.0/0" || adminCidr === "::/0"
+  const autoLockdownMissingTailscaleKey = !hasProjectTailscaleAuthKey
 
   const [bootstrapRunId, setBootstrapRunId] = useState<Id<"runs"> | null>(null)
   const [setupApplyRunId, setSetupApplyRunId] = useState<Id<"runs"> | null>(null)
   const [bootstrapStatus, setBootstrapStatus] = useState<"idle" | "running" | "succeeded" | "failed">("idle")
+  const [predeployState, setPredeployState] = useState<PredeployState>("idle")
+  const [predeployChecks, setPredeployChecks] = useState<PredeployCheck[]>(() => initialPredeployChecks())
+  const [predeployError, setPredeployError] = useState<string | null>(null)
+  const [predeployReadyFingerprint, setPredeployReadyFingerprint] = useState<string | null>(null)
+  const [predeployUpdatedAt, setPredeployUpdatedAt] = useState<number | null>(null)
   const [finalizeState, setFinalizeState] = useState<FinalizeState>("idle")
   const [finalizeError, setFinalizeError] = useState<string | null>(null)
   const [finalizeSteps, setFinalizeSteps] = useState<FinalizeStep[]>(() => initialFinalizeSteps())
@@ -205,6 +263,54 @@ export function DeployInitialInstallSetup(props: {
       row.id === id ? { ...row, status, detail } : row
     )))
   }
+
+  function setPredeployCheck(id: PredeployCheckId, state: PredeployCheckState, detail?: string): void {
+    setPredeployChecks((prev) =>
+      prev.map((row) => (row.id === id ? { ...row, state, detail } : row)),
+    )
+  }
+
+  const predeployFingerprint = useMemo(
+    () =>
+      JSON.stringify({
+        host: props.host,
+        selectedRev: selectedRev ?? "",
+        runnerOnline,
+        runnerNixReady: runnerNixReadiness.ready,
+        setupDraftVersion: props.setupDraft?.version ?? null,
+        infra: desired.infrastructure,
+        connection: desired.connection,
+        hasProjectGithubToken: props.hasProjectGithubToken,
+        hasProjectTailscaleAuthKey,
+        useTailscaleLockdown: wantsTailscaleLockdown,
+        adminPasswordRequired,
+        adminPasswordSet: Boolean(props.pendingBootstrapSecrets.adminPassword.trim()),
+      }),
+    [
+      desired.connection,
+      desired.infrastructure,
+      props.hasProjectGithubToken,
+      hasProjectTailscaleAuthKey,
+      props.host,
+      props.pendingBootstrapSecrets.adminPassword,
+      props.setupDraft?.version,
+      adminPasswordRequired,
+      runnerNixReadiness.ready,
+      runnerOnline,
+      selectedRev,
+      wantsTailscaleLockdown,
+    ],
+  )
+
+  useEffect(() => {
+    if (predeployState !== "ready") return
+    if (predeployReadyFingerprint === predeployFingerprint) return
+    setPredeployState("idle")
+    setPredeployChecks(initialPredeployChecks())
+    setPredeployError("Predeploy summary is stale. Re-run checks.")
+    setPredeployReadyFingerprint(null)
+    setPredeployUpdatedAt(null)
+  }, [predeployFingerprint, predeployReadyFingerprint, predeployState])
 
   async function runFinalizeStep(params: {
     id: FinalizeStepId
@@ -275,11 +381,11 @@ export function DeployInitialInstallSetup(props: {
         })
       }
 
-      if (!isTailnet) {
-        setStepStatus("switchTailnetTarget", "skipped", "Tailnet mode disabled")
-        setStepStatus("switchSshExposure", "skipped", "Tailnet mode disabled")
-        setStepStatus("lockdown", "skipped", "Tailnet mode disabled")
-      } else if (!hasProjectTailscaleAuthKey && !hasPendingTailscaleKey) {
+      if (!wantsTailscaleLockdown) {
+        setStepStatus("switchTailnetTarget", "skipped", "Auto-lockdown disabled")
+        setStepStatus("switchSshExposure", "skipped", "Auto-lockdown disabled")
+        setStepStatus("lockdown", "skipped", "Auto-lockdown disabled")
+      } else if (!hasProjectTailscaleAuthKey) {
         setStepStatus("switchTailnetTarget", "skipped", "Tailscale auth key missing")
         setStepStatus("switchSshExposure", "skipped", "Tailscale auth key missing")
         setStepStatus("lockdown", "skipped", "Tailscale auth key missing")
@@ -313,14 +419,22 @@ export function DeployInitialInstallSetup(props: {
         await runFinalizeStep({
           id: "switchSshExposure",
           run: async () => {
-            const result = await configDotSet({
+            const setTailnetMode = await configDotSet({
+              data: {
+                projectId: projectId as Id<"projects">,
+                path: `hosts.${props.host}.tailnet.mode`,
+                value: "tailscale",
+              },
+            })
+            if (!setTailnetMode.ok) throw new Error(extractIssueMessage(setTailnetMode, "Could not set tailnet mode"))
+            const setSshExposure = await configDotSet({
               data: {
                 projectId: projectId as Id<"projects">,
                 path: `hosts.${props.host}.sshExposure.mode`,
                 value: "tailnet",
               },
             })
-            if (!result.ok) throw new Error(extractIssueMessage(result, "Could not switch SSH exposure"))
+            if (!setSshExposure.ok) throw new Error(extractIssueMessage(setSshExposure, "Could not switch SSH exposure"))
             return "tailnet"
           },
         })
@@ -390,166 +504,248 @@ export function DeployInitialInstallSetup(props: {
     },
   })
 
+  async function saveDraftAndQueuePredeploy(): Promise<void> {
+    if (!projectId) throw new Error("Project not ready")
+
+    const infrastructurePatch: SetupDraftInfrastructure = {
+      serverType: desired.infrastructure.serverType,
+      image: desired.infrastructure.image,
+      location: desired.infrastructure.location,
+      allowTailscaleUdpIngress: desired.infrastructure.allowTailscaleUdpIngress,
+    }
+    const connectionPatch: SetupDraftConnection = {
+      adminCidr: desired.connection.adminCidr,
+      sshExposureMode: desired.connection.sshExposureMode,
+      sshKeyCount: desired.connection.sshKeyCount,
+      sshAuthorizedKeys: desired.connection.sshAuthorizedKeys,
+    }
+
+    if (!infrastructurePatch.serverType?.trim() || !infrastructurePatch.location?.trim()) {
+      throw new Error("Host settings incomplete. Set server type and location.")
+    }
+    if (!connectionPatch.adminCidr?.trim()) {
+      throw new Error("Server access incomplete. Set admin CIDR.")
+    }
+    if (!connectionPatch.sshAuthorizedKeys?.length) {
+      throw new Error("Server access incomplete. Add at least one SSH key.")
+    }
+    if (adminPasswordRequired && !adminPassword) {
+      throw new Error("Server access incomplete. Set admin password.")
+    }
+
+    const savedNonSecretDraft = await setupDraftSaveNonSecret({
+      data: {
+        projectId: projectId as Id<"projects">,
+        host: props.host,
+        patch: {
+          infrastructure: infrastructurePatch,
+          connection: {
+            ...connectionPatch,
+            sshKeyCount: connectionPatch.sshAuthorizedKeys.length,
+          },
+        },
+      },
+    })
+
+    const preferredRunnerId = savedNonSecretDraft?.sealedSecretDrafts?.hostBootstrapCreds?.targetRunnerId
+      || props.setupDraft?.sealedSecretDrafts?.hostBootstrapCreds?.targetRunnerId
+    const targetRunner = preferredRunnerId
+      ? sealedRunners.find((runner) => String(runner._id) === String(preferredRunnerId))
+      : sealedRunners[0] ?? null
+    if (!targetRunner) throw new Error("No sealed-capable runner online. Start runner and retry.")
+
+    const targetRunnerId = String(targetRunner._id) as Id<"runners">
+    const runnerPub = String(targetRunner.capabilities?.sealedInputPubSpkiB64 || "").trim()
+    const keyId = String(targetRunner.capabilities?.sealedInputKeyId || "").trim()
+    const alg = String(targetRunner.capabilities?.sealedInputAlg || "").trim()
+    if (!runnerPub || !keyId || !alg) throw new Error("Runner sealed-input capabilities incomplete")
+
+    const ensuredHostSopsKey = await generateSopsAgeKey({
+      data: {
+        projectId: projectId as Id<"projects">,
+        host: props.host,
+      },
+    })
+    if (!ensuredHostSopsKey.ok) {
+      throw new Error(ensuredHostSopsKey.message || "Could not prepare host-scoped SOPS key for setup.")
+    }
+    const hostScopedSopsAgeKeyPath = String(ensuredHostSopsKey.keyPath || "").trim()
+    if (!hostScopedSopsAgeKeyPath) throw new Error("Could not prepare host-scoped SOPS key for setup.")
+
+    let currentDraftVersion = savedNonSecretDraft?.version
+    const deployCredsPayload: Record<string, string> = {
+      SOPS_AGE_KEY_FILE: hostScopedSopsAgeKeyPath,
+    }
+    const deployCredsAad = buildSetupDraftSectionAad({
+      projectId: projectId as Id<"projects">,
+      host: props.host,
+      section: "hostBootstrapCreds",
+      targetRunnerId,
+    })
+    const deployCredsSealedInputB64 = await sealForRunner({
+      runnerPubSpkiB64: runnerPub,
+      keyId,
+      alg,
+      aad: deployCredsAad,
+      plaintextJson: JSON.stringify(deployCredsPayload),
+    })
+    const savedDeployCredsDraft = await setupDraftSaveSealedSection({
+      data: {
+        projectId: projectId as Id<"projects">,
+        host: props.host,
+        section: "hostBootstrapCreds",
+        targetRunnerId,
+        sealedInputB64: deployCredsSealedInputB64,
+        sealedInputAlg: alg,
+        sealedInputKeyId: keyId,
+        aad: deployCredsAad,
+        expectedVersion: currentDraftVersion,
+      },
+    })
+    currentDraftVersion = savedDeployCredsDraft.version
+
+    const bootstrapSecretsPayload: Record<string, string> = {}
+    if (adminPassword) bootstrapSecretsPayload.adminPassword = adminPassword
+
+    const bootstrapSecretsAad = buildSetupDraftSectionAad({
+      projectId: projectId as Id<"projects">,
+      host: props.host,
+      section: "hostBootstrapSecrets",
+      targetRunnerId,
+    })
+    const bootstrapSecretsSealedInputB64 = await sealForRunner({
+      runnerPubSpkiB64: runnerPub,
+      keyId,
+      alg,
+      aad: bootstrapSecretsAad,
+      plaintextJson: JSON.stringify(bootstrapSecretsPayload),
+    })
+    await setupDraftSaveSealedSection({
+      data: {
+        projectId: projectId as Id<"projects">,
+        host: props.host,
+        section: "hostBootstrapSecrets",
+        targetRunnerId,
+        sealedInputB64: bootstrapSecretsSealedInputB64,
+        sealedInputAlg: alg,
+        sealedInputKeyId: keyId,
+        aad: bootstrapSecretsAad,
+        expectedVersion: currentDraftVersion,
+      },
+    })
+
+    await queryClient.invalidateQueries({ queryKey: ["setupDraft", projectId, props.host] })
+    setPredeployCheck("sealedDrafts", "passed", "Host bootstrap secrets queued")
+
+    const setupApply = await setupDraftCommit({
+      data: {
+        projectId: projectId as Id<"projects">,
+        host: props.host,
+      },
+    })
+    setSetupApplyRunId(setupApply.runId)
+
+    const doctor = await runDoctor({
+      data: {
+        projectId: projectId as Id<"projects">,
+        host: props.host,
+        scope: "bootstrap",
+      },
+    })
+    setPredeployCheck(
+      "setupApply",
+      "passed",
+      `setup_apply ${String(setupApply.runId)}; doctor ${String(doctor.runId)}`,
+    )
+  }
+
+  const runPredeploy = useMutation({
+    mutationFn: async () => {
+      if (!projectId) throw new Error("Project not ready")
+      if (!props.host.trim()) throw new Error("Host is required")
+      setPredeployState("running")
+      setPredeployError(null)
+      setPredeployChecks(initialPredeployChecks())
+      setPredeployReadyFingerprint(null)
+
+      if (!runnerOnline) {
+        setPredeployCheck("runner", "failed", "Runner offline")
+        throw new Error("Runner offline. Start runner first.")
+      }
+      if (!runnerNixReadiness.ready) {
+        setPredeployCheck("runner", "failed", nixGateMessage || "Runner missing Nix")
+        throw new Error(nixGateMessage || "Runner is online but Nix is missing.")
+      }
+      if (sealedRunners.length === 0) {
+        setPredeployCheck("runner", "failed", "No sealed-capable runner online")
+        throw new Error("No sealed-capable runner online. Start runner and retry.")
+      }
+      setPredeployCheck("runner", "passed", "Runner online and sealed-capable")
+
+      if (repoGateBlocked) {
+        setPredeployCheck("repo", "failed", deployStatusReason || "Repo not ready")
+        throw new Error(deployStatusReason || "Repo not ready for deploy.")
+      }
+      setPredeployCheck("repo", "passed", selectedRev ? `revision ${selectedRev.slice(0, 7)}` : "ready")
+
+      if (sshKeyGateBlocked) {
+        setPredeployCheck("ssh", "failed", sshKeyGateMessage || "SSH setup incomplete")
+        throw new Error(sshKeyGateMessage || "SSH setup incomplete.")
+      }
+      setPredeployCheck("ssh", "passed", `${desired.connection.sshAuthorizedKeys.length} key(s)`)
+
+      if (adminPasswordGateBlocked) {
+        setPredeployCheck("adminPassword", "failed", adminPasswordGateMessage || "Admin password missing")
+        throw new Error(adminPasswordGateMessage || "Server access incomplete. Set admin password.")
+      }
+      setPredeployCheck(
+        "adminPassword",
+        "passed",
+        adminPasswordRequired ? "provided for bootstrap" : "existing admin_password_hash configured",
+      )
+
+      if (credsGateBlocked) {
+        setPredeployCheck("projectCreds", "failed", credsGateMessage || "Project credentials missing")
+        throw new Error(credsGateMessage || "Project credentials missing.")
+      }
+      setPredeployCheck("projectCreds", "passed", "GitHub token configured")
+
+      await saveDraftAndQueuePredeploy()
+      setPredeployState("ready")
+      setPredeployReadyFingerprint(predeployFingerprint)
+      setPredeployUpdatedAt(Date.now())
+      return true
+    },
+    onSuccess: () => {
+      toast.success("Predeploy checks passed")
+    },
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : String(error)
+      setPredeployState("failed")
+      setPredeployError(message)
+      toast.error(message)
+    },
+  })
+
   const startDeploy = useMutation({
     mutationFn: async () => {
       if (!projectId) throw new Error("Project not ready")
       if (!props.host.trim()) throw new Error("Host is required")
       if (!runnerOnline) throw new Error("Runner offline. Start runner first.")
+      if (predeployState !== "ready" || predeployReadyFingerprint !== predeployFingerprint) {
+        throw new Error("Run predeploy checks first and confirm green summary.")
+      }
       if (!selectedRev) throw new Error("No pushed revision found.")
-      if (!effectiveDeployCredsReady) {
-        throw new Error("Missing credentials. Set GitHub token in Hetzner setup.")
-      }
-
-      const infrastructurePatch: SetupDraftInfrastructure = {
-        serverType: desired.infrastructure.serverType,
-        image: desired.infrastructure.image,
-        location: desired.infrastructure.location,
-        allowTailscaleUdpIngress: desired.infrastructure.allowTailscaleUdpIngress,
-      }
-      const connectionPatch: SetupDraftConnection = {
-        adminCidr: desired.connection.adminCidr,
-        sshExposureMode: desired.connection.sshExposureMode,
-        sshKeyCount: desired.connection.sshKeyCount,
-        sshAuthorizedKeys: desired.connection.sshAuthorizedKeys,
-      }
-
-      if (!infrastructurePatch.serverType?.trim() || !infrastructurePatch.location?.trim()) {
-        throw new Error("Host settings incomplete. Set server type and location.")
-      }
-      if (!connectionPatch.adminCidr?.trim()) {
-        throw new Error("Server access incomplete. Set admin CIDR.")
-      }
-      if (!connectionPatch.sshAuthorizedKeys?.length) {
-        throw new Error("Server access incomplete. Add at least one SSH key.")
-      }
-
-      const savedNonSecretDraft = await setupDraftSaveNonSecret({
-        data: {
-          projectId: projectId as Id<"projects">,
-          host: props.host,
-          expectedVersion: props.setupDraft?.version,
-          patch: {
-            infrastructure: infrastructurePatch,
-            connection: {
-              ...connectionPatch,
-              sshKeyCount: connectionPatch.sshAuthorizedKeys.length,
-            },
+      if (canAutoLockdown && !isTailnet) {
+        const setTailnetMode = await configDotSet({
+          data: {
+            projectId: projectId as Id<"projects">,
+            path: `hosts.${props.host}.tailnet.mode`,
+            value: "tailscale",
           },
-        },
-      })
-
-      const preferredRunnerId = savedNonSecretDraft?.sealedSecretDrafts?.deployCreds?.targetRunnerId
-        || props.setupDraft?.sealedSecretDrafts?.deployCreds?.targetRunnerId
-      const targetRunner = preferredRunnerId
-        ? sealedRunners.find((runner) => String(runner._id) === String(preferredRunnerId))
-        : sealedRunners[0] ?? null
-      if (!targetRunner) {
-        throw new Error("No sealed-capable runner online. Start runner and retry.")
+        })
+        if (!setTailnetMode.ok) throw new Error(extractIssueMessage(setTailnetMode, "Could not set tailnet mode"))
       }
-
-      const targetRunnerId = String(targetRunner._id) as Id<"runners">
-      const runnerPub = String(targetRunner.capabilities?.sealedInputPubSpkiB64 || "").trim()
-      const keyId = String(targetRunner.capabilities?.sealedInputKeyId || "").trim()
-      const alg = String(targetRunner.capabilities?.sealedInputAlg || "").trim()
-      if (!runnerPub || !keyId || !alg) throw new Error("Runner sealed-input capabilities incomplete")
-      const ensuredHostSopsKey = await generateSopsAgeKey({
-        data: {
-          projectId: projectId as Id<"projects">,
-          host: props.host,
-        },
-      })
-      if (!ensuredHostSopsKey.ok) {
-        throw new Error(ensuredHostSopsKey.message || "Could not prepare host-scoped SOPS key for setup.")
-      }
-      const hostScopedSopsAgeKeyPath = String(ensuredHostSopsKey.keyPath || "").trim()
-      if (!hostScopedSopsAgeKeyPath) {
-        throw new Error("Could not prepare host-scoped SOPS key for setup.")
-      }
-
-      let currentDraftVersion = savedNonSecretDraft?.version
-      const deployCredsPayload: Record<string, string> = {
-        SOPS_AGE_KEY_FILE: hostScopedSopsAgeKeyPath,
-      }
-      const deployCredsAad = buildSetupDraftSectionAad({
-        projectId: projectId as Id<"projects">,
-        host: props.host,
-        section: "deployCreds",
-        targetRunnerId,
-      })
-      const deployCredsSealedInputB64 = await sealForRunner({
-        runnerPubSpkiB64: runnerPub,
-        keyId,
-        alg,
-        aad: deployCredsAad,
-        plaintextJson: JSON.stringify(deployCredsPayload),
-      })
-      const savedDeployCredsDraft = await setupDraftSaveSealedSection({
-        data: {
-          projectId: projectId as Id<"projects">,
-          host: props.host,
-          section: "deployCreds",
-          targetRunnerId,
-          sealedInputB64: deployCredsSealedInputB64,
-          sealedInputAlg: alg,
-          sealedInputKeyId: keyId,
-          aad: deployCredsAad,
-          expectedVersion: currentDraftVersion,
-        },
-      })
-      currentDraftVersion = savedDeployCredsDraft.version
-
-      const bootstrapSecretsPayload: Record<string, string> = {}
-      const adminPassword = props.pendingBootstrapSecrets.adminPassword.trim()
-      const tailscaleAuthKey = props.pendingBootstrapSecrets.useTailscaleLockdown
-        ? props.pendingBootstrapSecrets.tailscaleAuthKey.trim()
-        : ""
-      if (adminPassword) bootstrapSecretsPayload.adminPasswordHash = adminPassword
-      if (tailscaleAuthKey) bootstrapSecretsPayload.tailscaleAuthKey = tailscaleAuthKey
-
-      const aad = buildSetupDraftSectionAad({
-        projectId: projectId as Id<"projects">,
-        host: props.host,
-        section: "bootstrapSecrets",
-        targetRunnerId,
-      })
-      const sealedInputB64 = await sealForRunner({
-        runnerPubSpkiB64: runnerPub,
-        keyId,
-        alg,
-        aad,
-        plaintextJson: JSON.stringify(bootstrapSecretsPayload),
-      })
-      await setupDraftSaveSealedSection({
-        data: {
-          projectId: projectId as Id<"projects">,
-          host: props.host,
-          section: "bootstrapSecrets",
-          targetRunnerId,
-          sealedInputB64,
-          sealedInputAlg: alg,
-          sealedInputKeyId: keyId,
-          aad,
-          expectedVersion: currentDraftVersion,
-        },
-      })
-
-      await queryClient.invalidateQueries({ queryKey: ["setupDraft", projectId, props.host] })
-
-      const setupApply = await setupDraftCommit({
-        data: {
-          projectId: projectId as Id<"projects">,
-          host: props.host,
-        },
-      })
-      setSetupApplyRunId(setupApply.runId)
-
-      await runDoctor({
-        data: {
-          projectId: projectId as Id<"projects">,
-          host: props.host,
-          scope: "bootstrap",
-        },
-      })
 
       const started = await bootstrapStart({
         data: {
@@ -584,13 +780,25 @@ export function DeployInitialInstallSetup(props: {
   })
 
   const isBootstrapped = props.hasBootstrapped || bootstrapStatus === "succeeded"
+  const predeployReady = predeployState === "ready" && predeployReadyFingerprint === predeployFingerprint
+  const canRunPredeploy = !isBootstrapped
+    && !runPredeploy.isPending
+    && !startDeploy.isPending
+    && runnerOnline
+    && Boolean(projectId)
   const canStartDeploy = !isBootstrapped
     && !startDeploy.isPending
-    && !deployGateBlocked
+    && predeployReady
     && runnerOnline
     && Boolean(projectId)
   const cardStatus = !isBootstrapped
-    ? deployStatusReason
+    ? predeployState === "running"
+      ? "Running predeploy checks..."
+      : predeployReady
+        ? "Predeploy checks are green. Review summary, then deploy."
+        : predeployState === "failed"
+          ? predeployError || "Predeploy checks failed."
+          : deployStatusReason
     : finalizeState === "running"
       ? "Auto-hardening running..."
       : finalizeState === "failed"
@@ -611,15 +819,27 @@ export function DeployInitialInstallSetup(props: {
       headerBadge={props.headerBadge}
       statusText={cardStatus}
       actions={!isBootstrapped ? (
-        <AsyncButton
-          type="button"
-          disabled={!canStartDeploy}
-          pending={startDeploy.isPending}
-          pendingText="Deploying..."
-          onClick={() => startDeploy.mutate()}
-        >
-          Deploy server
-        </AsyncButton>
+        predeployReady ? (
+          <AsyncButton
+            type="button"
+            disabled={!canStartDeploy}
+            pending={startDeploy.isPending}
+            pendingText="Deploying..."
+            onClick={() => startDeploy.mutate()}
+          >
+            Deploy now
+          </AsyncButton>
+        ) : (
+          <AsyncButton
+            type="button"
+            disabled={!canRunPredeploy}
+            pending={runPredeploy.isPending}
+            pendingText="Checking..."
+            onClick={() => runPredeploy.mutate()}
+          >
+            Run predeploy
+          </AsyncButton>
+        )
       ) : finalizeState === "running" ? (
         <AsyncButton type="button" disabled pending pendingText="Finishing...">
           Finalizing
@@ -654,13 +874,20 @@ export function DeployInitialInstallSetup(props: {
           </Alert>
         ) : !isBootstrapped && !canAutoLockdown && wantsTailscaleLockdown ? (
           <Alert
-            variant="default"
-            className="border-amber-300/50 bg-amber-50/50 text-amber-900 [&_[data-slot=alert-description]]:text-amber-900/90"
+            variant={adminCidrWorldOpen ? "destructive" : "default"}
+            className={adminCidrWorldOpen
+              ? undefined
+              : "border-amber-300/50 bg-amber-50/50 text-amber-900 [&_[data-slot=alert-description]]:text-amber-900/90"}
           >
-            <AlertTitle>Auto-lockdown disabled</AlertTitle>
+            <AlertTitle>{adminCidrWorldOpen ? "Auto-lockdown pending (SSH world-open)" : "Auto-lockdown pending"}</AlertTitle>
             <AlertDescription>
-              <div>Deploy can leave SSH (22) open until tailnet mode is enabled and a Tailscale auth key is configured.</div>
-              <div className="pt-1">Tailnet mode: <code>{tailnetMode || "unknown"}</code>. Tailscale auth key: <code>{(hasProjectTailscaleAuthKey || hasPendingTailscaleKey) ? "configured" : "missing"}</code>.</div>
+              <div>
+                Current SSH mode: <code>{desiredSshExposureMode || "bootstrap"}</code>.
+                Admin CIDR: <code>{adminCidr || "unset"}</code>.
+              </div>
+              {autoLockdownMissingTailscaleKey ? (
+                <div className="pt-1">Add an active project Tailscale auth key to enable automatic lockdown.</div>
+              ) : null}
             </AlertDescription>
           </Alert>
         ) : null}
@@ -695,8 +922,16 @@ export function DeployInitialInstallSetup(props: {
             </Alert>
           ) : null}
 
+          {!isBootstrapped && adminPasswordGateMessage && !repoGateBlocked && !nixGateBlocked && !sshKeyGateBlocked ? (
+            <Alert variant="destructive">
+              <AlertTitle>Admin password required</AlertTitle>
+              <AlertDescription>
+                <div>{adminPasswordGateMessage}</div>
+              </AlertDescription>
+            </Alert>
+          ) : null}
 
-          {!isBootstrapped && credsGateMessage && !repoGateBlocked && !nixGateBlocked && !sshKeyGateBlocked ? (
+          {!isBootstrapped && credsGateMessage && !repoGateBlocked && !nixGateBlocked && !sshKeyGateBlocked && !adminPasswordGateBlocked ? (
             <Alert variant="destructive">
               <AlertTitle>Provider token required</AlertTitle>
               <AlertDescription>
@@ -721,6 +956,52 @@ export function DeployInitialInstallSetup(props: {
             </Alert>
           ) : null}
         </div>
+
+        {!isBootstrapped && predeployState === "failed" && predeployError ? (
+          <Alert variant="destructive">
+            <AlertTitle>Predeploy failed</AlertTitle>
+            <AlertDescription>{predeployError}</AlertDescription>
+          </Alert>
+        ) : null}
+
+        {!isBootstrapped && predeployState !== "idle" ? (
+          <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-sm font-medium">Predeploy summary</div>
+              <Badge variant={predeployReady ? "secondary" : predeployState === "failed" ? "destructive" : "outline"}>
+                {predeployReady ? "Green" : predeployState === "failed" ? "Failed" : "Running"}
+              </Badge>
+            </div>
+            <div className="space-y-1.5">
+              {predeployChecks.map((check) => (
+                <div key={check.id} className="flex items-center justify-between gap-3 rounded-md border bg-background px-2 py-1.5">
+                  <div className="min-w-0 text-xs">
+                    <div className="font-medium">{check.label}</div>
+                    {check.detail ? <div className="truncate text-muted-foreground">{check.detail}</div> : null}
+                  </div>
+                  <Badge
+                    variant={
+                      check.state === "passed"
+                        ? "secondary"
+                        : check.state === "failed"
+                          ? "destructive"
+                          : "outline"
+                    }
+                    className="shrink-0"
+                  >
+                    {check.state === "pending" && predeployState === "running" ? <Spinner className="mr-1 size-3" /> : null}
+                    {check.state === "passed" ? "Passed" : check.state === "failed" ? "Failed" : "Pending"}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+            {predeployUpdatedAt ? (
+              <div className="text-xs text-muted-foreground">
+                Last update: {new Date(predeployUpdatedAt).toLocaleTimeString()}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
 
         {showSuccessBanner ? (
           <div className="relative overflow-hidden rounded-md border border-emerald-300/50 bg-emerald-50/60 p-3">

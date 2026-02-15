@@ -36,6 +36,21 @@ The top-level keys split global fleet settings and per-host settings:
 - `fleet.*`: global secrets + policy (shared across hosts)
 - `hosts.<host>`: host entries keyed by host name (includes the gateways that run on that host)
 
+## Scope table
+
+Canonical ownership for setup/config writes:
+
+| Path | Scope | Notes |
+| --- | --- | --- |
+| `schemaVersion` | Project | Shared schema for full fleet config |
+| `defaultHost` | Project | Default host selector for CLI/UI |
+| `baseFlake` | Project | Shared build source |
+| `fleet.*` | Project | Project-wide policy, secret wiring defaults, SSH policy |
+| `hosts.<host>.*` | Host | Host-specific infra/network/runtime settings |
+| `hosts.<host>.gateways.*` | Host | Gateway config bound to one host |
+| `hosts.<host>.provisioning.*` | Host | Bootstrap/provisioning controls for one host |
+| `hosts.<host>.hetzner.*` / `hosts.<host>.aws.*` | Host | Provider options for one host |
+
 Fleet (`fleet.*`):
 
 Fleet settings define secret wiring and global policy shared across hosts.
@@ -156,7 +171,7 @@ Config is stored split by domain:
 - Infra config: `fleet/clawlets.json` (`schemaVersion: 2`)
 - OpenClaw config: `fleet/openclaw.json` (`schemaVersion: 1`, optional)
 
-Clawlets does not auto-migrate config on read. `clawlets config migrate` is reserved for future shipped migrations and currently does not modify files.
+Clawlets does not auto-migrate config on read. Update config files directly through canonical `config` commands and schema validation.
 
 ## Example
 

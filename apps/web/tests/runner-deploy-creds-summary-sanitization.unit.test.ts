@@ -29,9 +29,11 @@ describe("runner deploy-creds summary sanitization", () => {
       hasGithubToken: true,
       sopsAgeKeyFileSet: false,
       projectTokenKeyrings: {
-        hcloud: { hasActive: true, itemCount: 10_000 },
-        tailscale: { hasActive: false, itemCount: 0 },
+        hcloud: { hasActive: true, itemCount: 10_000, items: [] },
+        tailscale: { hasActive: false, itemCount: 0, items: [] },
       },
+      fleetSshAuthorizedKeys: { count: 0, items: [] },
+      fleetSshKnownHosts: { count: 0, items: [] },
     });
   });
 
@@ -43,9 +45,11 @@ describe("runner deploy-creds summary sanitization", () => {
       hasGithubToken: true,
       sopsAgeKeyFileSet: true,
       projectTokenKeyrings: {
-        hcloud: { hasActive: true, itemCount: 2 },
-        tailscale: { hasActive: false, itemCount: 1 },
+        hcloud: { hasActive: true, itemCount: 2, items: [] },
+        tailscale: { hasActive: false, itemCount: 1, items: [] },
       },
+      fleetSshAuthorizedKeys: { count: 0, items: [] },
+      fleetSshKnownHosts: { count: 0, items: [] },
     };
     expect(sanitizeDeployCredsSummary(input)).toEqual(input);
   });

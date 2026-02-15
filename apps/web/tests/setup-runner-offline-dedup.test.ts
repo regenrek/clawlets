@@ -17,9 +17,10 @@ describe("setup runner offline dedup", () => {
     expect(infra).not.toContain("showRunnerStatusBanner")
     expect(infra).not.toContain("showRunnerStatusDetails")
 
-    expect(tailscale).not.toContain("RunnerStatusBanner")
-    expect(tailscale).not.toContain("showRunnerStatusBanner")
-    expect(tailscale).not.toContain("showRunnerStatusDetails")
+    expect(tailscale).not.toContain("import { RunnerStatusBanner")
+    expect(tailscale).not.toContain("<RunnerStatusBanner")
+    expect(tailscale).toContain("showRunnerStatusBanner={false}")
+    expect(tailscale).toContain("showRunnerStatusDetails={false}")
   })
 
   it("suppresses setup deploy section banner when top-level setup banner exists", () => {

@@ -5,7 +5,7 @@ import {
   notifyManager,
 } from '@tanstack/react-query'
 import { setupRouterSsrQueryIntegration } from '@tanstack/react-router-ssr-query'
-import hotToast from 'react-hot-toast'
+import { toast } from 'sonner'
 import { ConvexQueryClient } from '@convex-dev/react-query'
 import { routeTree } from './routeTree.gen'
 import { DefaultCatchBoundary } from './components/DefaultCatchBoundary'
@@ -38,7 +38,7 @@ export function getRouter() {
     },
     mutationCache: new MutationCache({
       onError: (error) => {
-        hotToast(error.message, { className: 'bg-red-500 text-white' })
+        toast.error(error.message)
       },
     }),
   })

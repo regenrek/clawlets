@@ -1,11 +1,9 @@
 import { DeployInitialInstall } from "~/components/deploy/deploy-initial"
-import { SetupStepStatusBadge } from "~/components/setup/steps/step-status-badge"
 import type { SetupStepStatus } from "~/lib/setup/setup-model"
 import type { SetupDraftConnection, SetupDraftInfrastructure, SetupDraftView } from "~/sdk/setup"
 
 type SetupPendingBootstrapSecrets = {
   adminPassword: string
-  tailscaleAuthKey: string
   useTailscaleLockdown: boolean
 }
 
@@ -21,15 +19,7 @@ export function SetupStepDeploy(props: {
   pendingBootstrapSecrets: SetupPendingBootstrapSecrets
   hasProjectGithubToken: boolean
   hasActiveTailscaleAuthKey: boolean
-  isVisible: boolean
 }) {
-  if (!props.isVisible) {
-    return (
-      <div className="text-xs text-muted-foreground">
-        Deploy checks load when this step is visible.
-      </div>
-    )
-  }
   return (
     <DeployInitialInstall
       projectSlug={props.projectSlug}
@@ -37,7 +27,6 @@ export function SetupStepDeploy(props: {
       variant="setup"
       hasBootstrapped={props.hasBootstrapped}
       onBootstrapped={props.onContinue}
-      headerBadge={<SetupStepStatusBadge status={props.stepStatus} />}
       setupDraft={props.setupDraft}
       pendingInfrastructureDraft={props.pendingInfrastructureDraft}
       pendingConnectionDraft={props.pendingConnectionDraft}

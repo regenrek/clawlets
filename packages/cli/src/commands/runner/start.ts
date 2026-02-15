@@ -167,11 +167,10 @@ const RUNNER_EMPTY_LEASE_MAX_STREAK = 8;
 const RUNNER_EMPTY_LEASE_JITTER_MIN = 0.85;
 const RUNNER_EMPTY_LEASE_JITTER_MAX = 1.15;
 const RUNNER_METADATA_SYNC_MAX_AGE_MS = 10 * 60_000;
-const RUNNER_POST_JOB_IDLE_POLL_MS = toInt(process.env["RUNNER_POST_JOB_IDLE_POLL_MS"], 100, 0, 5_000);
 const RUNNER_METADATA_SYNC_SHUTDOWN_FLUSH_TIMEOUT_MS = 2_000;
 const RUNNER_IDLE_LEASE_WAIT_MS_DEFAULT = 0;
-const RUNNER_IDLE_POLL_MS_DEFAULT = 4_000;
-const RUNNER_IDLE_POLL_MAX_MS_DEFAULT = 8_000;
+const RUNNER_IDLE_POLL_MS_DEFAULT = 100;
+const RUNNER_IDLE_POLL_MAX_MS_DEFAULT = 100;
 const TOKEN_KEYRING_MUTATE_ARGS = ["env", "token-keyring-mutate", "--from-json", "__RUNNER_INPUT_JSON__", "--json"] as const;
 const TOKEN_KEYRING_MUTATE_ALLOWED_INPUT_KEYS = new Set(["action", "kind", "keyId", "label", "value"]);
 
@@ -207,6 +206,16 @@ function computeIdleLeasePollDelayMs(params: {
   return Math.min(pollMaxMs, Math.max(pollMs, jitter(baseDelayMs, params.random ?? Math.random)));
 }
 
+function computePostJobIdlePollDelayMs(params: {
+  requestedWaitMs: number;
+  waitApplied: boolean | undefined;
+  pollMs: number;
+}): number {
+  const wasIdleWakeup = params.requestedWaitMs > 0 && params.waitApplied === true;
+  if (!wasIdleWakeup) return 0;
+  return Math.max(0, Math.trunc(params.pollMs));
+}
+
 function metadataSnapshotFingerprint(payload: RunnerMetadataSyncPayload): string {
   const normalized = {
     deployCredsSummary: payload.deployCredsSummary
@@ -216,6 +225,8 @@ function metadataSnapshotFingerprint(payload: RunnerMetadataSyncPayload): string
           hasGithubToken: payload.deployCredsSummary.hasGithubToken,
           sopsAgeKeyFileSet: payload.deployCredsSummary.sopsAgeKeyFileSet,
           projectTokenKeyrings: payload.deployCredsSummary.projectTokenKeyrings,
+          fleetSshAuthorizedKeys: payload.deployCredsSummary.fleetSshAuthorizedKeys,
+          fleetSshKnownHosts: payload.deployCredsSummary.fleetSshKnownHosts,
         }
       : null,
     projectConfigs: payload.projectConfigs
@@ -396,17 +407,15 @@ function placeholderIndex(args: string[], placeholder: "__RUNNER_SECRETS_JSON__"
 
 async function writeSecretsJsonTemp(jobId: string, values: Record<string, string>): Promise<string> {
   const adminPasswordHash = String(values["adminPasswordHash"] || "").trim();
-  const tailscaleAuthKey = String(values["tailscaleAuthKey"] || "").trim();
   const secrets: Record<string, string> = {};
   for (const [key, value] of Object.entries(values)) {
-    if (key === "adminPasswordHash" || key === "tailscaleAuthKey") continue;
+    if (key === "adminPasswordHash") continue;
     const name = key.trim();
     if (!name) continue;
     secrets[name] = value;
   }
   const body = {
     ...(adminPasswordHash ? { adminPasswordHash } : {}),
-    ...(tailscaleAuthKey ? { tailscaleAuthKey } : {}),
     secrets,
   };
   const filePath = path.join(os.tmpdir(), `clawlets-runner-secrets.${jobId}.${process.pid}.${randomUUID()}.json`);
@@ -476,6 +485,14 @@ export function __test_computeIdleLeasePollDelayMs(params: {
   return computeIdleLeasePollDelayMs(params);
 }
 
+export function __test_computePostJobIdlePollDelayMs(params: {
+  requestedWaitMs: number;
+  waitApplied: boolean | undefined;
+  pollMs: number;
+}): number {
+  return computePostJobIdlePollDelayMs(params);
+}
+
 export function __test_metadataSnapshotFingerprint(payload: RunnerMetadataSyncPayload): string {
   return metadataSnapshotFingerprint(payload);
 }
@@ -532,8 +549,8 @@ type SetupApplySealedDraftSection = {
 type SetupApplySealedPayload = {
   hostName: string;
   configOps: SetupApplyConfigOp[];
-  deployCredsDraft: SetupApplySealedDraftSection;
-  bootstrapSecretsDraft: SetupApplySealedDraftSection;
+  hostBootstrapCredsDraft: SetupApplySealedDraftSection;
+  hostBootstrapSecretsDraft: SetupApplySealedDraftSection;
 };
 
 function ensureObject(raw: unknown, field: string): Record<string, unknown> {
@@ -622,12 +639,12 @@ function parseSetupApplySealedPayload(rawJson: string): SetupApplySealedPayload 
     throw new Error("setup_apply payload is not valid JSON");
   }
   const root = ensureObject(parsed, "setup_apply");
-  ensureNoExtraKeys(root, "setup_apply", ["hostName", "configOps", "deployCredsDraft", "bootstrapSecretsDraft"]);
+  ensureNoExtraKeys(root, "setup_apply", ["hostName", "configOps", "hostBootstrapCredsDraft", "hostBootstrapSecretsDraft"]);
   return {
     hostName: ensureStringField(root, "hostName", "setup_apply"),
     configOps: parseSetupApplyConfigOps(root.configOps),
-    deployCredsDraft: parseSetupApplySealedSection(root.deployCredsDraft, "setup_apply.deployCredsDraft"),
-    bootstrapSecretsDraft: parseSetupApplySealedSection(root.bootstrapSecretsDraft, "setup_apply.bootstrapSecretsDraft"),
+    hostBootstrapCredsDraft: parseSetupApplySealedSection(root.hostBootstrapCredsDraft, "setup_apply.hostBootstrapCredsDraft"),
+    hostBootstrapSecretsDraft: parseSetupApplySealedSection(root.hostBootstrapSecretsDraft, "setup_apply.hostBootstrapSecretsDraft"),
   };
 }
 
@@ -650,7 +667,10 @@ function unsealSetupApplyInput(params: {
   bootstrapSecrets: Record<string, string>;
 } {
   const payload = parseSetupApplySealedPayload(params.outerPlaintextJson);
-  const parseSection = (section: SetupApplySealedDraftSection, sectionName: "deployCreds" | "bootstrapSecrets") => {
+  const parseSection = (
+    section: SetupApplySealedDraftSection,
+    sectionName: "hostBootstrapCreds" | "hostBootstrapSecrets",
+  ) => {
     if (section.targetRunnerId !== params.targetRunnerId) {
       throw new Error(`setup_apply ${sectionName} targetRunnerId mismatch`);
     }
@@ -667,9 +687,9 @@ function unsealSetupApplyInput(params: {
     });
     return parseSealedInputStringMap(sectionPlaintext);
   };
-  const deployCreds = parseSection(payload.deployCredsDraft, "deployCreds");
+  const deployCreds = parseSection(payload.hostBootstrapCredsDraft, "hostBootstrapCreds");
   validateDeployCredsValues(deployCreds);
-  const bootstrapSecrets = parseSection(payload.bootstrapSecretsDraft, "bootstrapSecrets");
+  const bootstrapSecrets = parseSection(payload.hostBootstrapSecretsDraft, "hostBootstrapSecrets");
   return {
     hostName: payload.hostName,
     configOps: payload.configOps,
@@ -747,7 +767,7 @@ function validateSealedInputKeysForJob(params: {
   const secretNames = Array.isArray(params.job.payloadMeta?.secretNames)
     ? params.job.payloadMeta?.secretNames?.map((row) => (typeof row === "string" ? row.trim() : "")).filter(Boolean)
     : [];
-  const allowed = new Set<string>(["adminPasswordHash", "tailscaleAuthKey", ...secretNames]);
+  const allowed = new Set<string>(["adminPasswordHash", ...secretNames]);
   for (const key of seen) {
     if (!allowed.has(key)) throw new Error(`sealed input secret not allowlisted: ${key}`);
   }
@@ -1352,8 +1372,8 @@ export const runnerStart = defineCommand({
 	    const controlPlaneUrl = resolveControlPlaneUrl((args as any).controlPlaneUrl);
 	    const runnerName = String((args as any).name || `${envName()}-${os.hostname()}`).trim() || `runner-${os.hostname()}`;
 	    const runOnce = Boolean((args as any).once);
-	    const pollMs = toInt((args as any).pollMs, RUNNER_IDLE_POLL_MS_DEFAULT, 250, 30_000);
-	    const pollMaxMs = Math.max(pollMs, toInt((args as any).pollMaxMs, RUNNER_IDLE_POLL_MAX_MS_DEFAULT, 1_000, 120_000));
+	    const pollMs = toInt((args as any).pollMs, RUNNER_IDLE_POLL_MS_DEFAULT, 50, 30_000);
+	    const pollMaxMs = Math.max(pollMs, toInt((args as any).pollMaxMs, RUNNER_IDLE_POLL_MAX_MS_DEFAULT, pollMs, 120_000));
 	    const leaseWaitMs = toInt((args as any).leaseWaitMs, RUNNER_IDLE_LEASE_WAIT_MS_DEFAULT, 0, 60_000);
 	    const leaseTtlMs = toInt((args as any).leaseTtlMs, 30_000, 5_000, 120_000);
 	    const heartbeatMs = toInt((args as any).heartbeatMs, 30_000, 2_000, 120_000);
@@ -1559,7 +1579,7 @@ export const runnerStart = defineCommand({
             projectId,
             leaseTtlMs,
             waitMs: requestedWaitMs,
-            waitPollMs: Math.max(1_000, pollMaxMs),
+            waitPollMs: Math.max(50, pollMs),
           });
           leaseErrorStreak = 0;
         } catch (err) {
@@ -1662,8 +1682,13 @@ export const runnerStart = defineCommand({
         });
         lastRunId = job.runId;
         lastRunStatus = terminal;
-        if (RUNNER_POST_JOB_IDLE_POLL_MS > 0) {
-          await sleep(RUNNER_POST_JOB_IDLE_POLL_MS);
+        const postJobIdlePollDelayMs = computePostJobIdlePollDelayMs({
+          requestedWaitMs,
+          waitApplied: lease.waitApplied,
+          pollMs,
+        });
+        if (postJobIdlePollDelayMs > 0) {
+          await sleep(postJobIdlePollDelayMs);
         }
 
         if (stopAfterCompletionError) {

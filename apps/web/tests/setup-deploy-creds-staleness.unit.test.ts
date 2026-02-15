@@ -1,32 +1,19 @@
+import fs from "node:fs"
+import path from "node:path"
 import { describe, expect, it } from "vitest"
-import { __test_isDeployCredsSummaryStale } from "../src/lib/setup/use-setup-model"
 
-describe("setup deploy creds summary staleness", () => {
-  it("treats missing timestamps as stale", () => {
-    expect(__test_isDeployCredsSummaryStale({ updatedAtMs: 0, nowMs: 1_000_000 })).toBe(true)
-    expect(__test_isDeployCredsSummaryStale({ updatedAtMs: "bad", nowMs: 1_000_000 })).toBe(true)
-  })
+const ROOT = path.resolve(process.cwd(), "src")
 
-  it("treats fresh timestamps as not stale", () => {
-    const nowMs = 1_000_000
-    expect(__test_isDeployCredsSummaryStale({
-      updatedAtMs: nowMs - 59_999,
-      nowMs,
-      staleMs: 60_000,
-    })).toBe(false)
-  })
+function readFile(relPath: string): string {
+  return fs.readFileSync(path.join(ROOT, relPath), "utf8")
+}
 
-  it("treats timestamps at or past threshold as stale", () => {
-    const nowMs = 1_000_000
-    expect(__test_isDeployCredsSummaryStale({
-      updatedAtMs: nowMs - 60_000,
-      nowMs,
-      staleMs: 60_000,
-    })).toBe(true)
-    expect(__test_isDeployCredsSummaryStale({
-      updatedAtMs: nowMs - 70_000,
-      nowMs,
-      staleMs: 60_000,
-    })).toBe(true)
+describe("setup deploy creds source", () => {
+  it("keeps setup reads on runner metadata summary and setup draft status", () => {
+    const source = readFile("lib/setup/use-setup-model.ts")
+    expect(source).toContain("setupDraftDeployCredsSet")
+    expect(source).toContain("deployCredsSummary")
+    expect(source).not.toContain("getDeployCredsStatus")
+    expect(source).not.toContain("deployCredsFallback")
   })
 })

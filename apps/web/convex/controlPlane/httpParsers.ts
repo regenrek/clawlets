@@ -179,9 +179,19 @@ export function sanitizeDeployCredsSummary(value: unknown): {
   hasGithubToken: boolean;
   sopsAgeKeyFileSet: boolean;
   projectTokenKeyrings: {
-    hcloud: { hasActive: boolean; itemCount: number };
-    tailscale: { hasActive: boolean; itemCount: number };
+    hcloud: {
+      hasActive: boolean;
+      itemCount: number;
+      items: Array<{ id: string; label: string; maskedValue: string; isActive: boolean }>;
+    };
+    tailscale: {
+      hasActive: boolean;
+      itemCount: number;
+      items: Array<{ id: string; label: string; maskedValue: string; isActive: boolean }>;
+    };
   };
+  fleetSshAuthorizedKeys: { count: number; items: string[] };
+  fleetSshKnownHosts: { count: number; items: string[] };
 } | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const row = value as Record<string, unknown>;
@@ -207,6 +217,62 @@ export function sanitizeDeployCredsSummary(value: unknown): {
 
   const hcloudItemCount = asNonNegativeInt(hcloud.itemCount, 10_000) ?? 0;
   const tailscaleItemCount = asNonNegativeInt(tailscale.itemCount, 10_000) ?? 0;
+  const toKeyringItems = (raw: unknown): Array<{ id: string; label: string; maskedValue: string; isActive: boolean }> => {
+    if (!Array.isArray(raw)) return [];
+    const items: Array<{ id: string; label: string; maskedValue: string; isActive: boolean }> = [];
+    const seen = new Set<string>();
+    for (const row of raw.slice(0, 128)) {
+      if (!row || typeof row !== "object" || Array.isArray(row)) continue;
+      const item = row as Record<string, unknown>;
+      const id = asBoundedOptional(item.id, "deployCredsSummary.projectTokenKeyrings.items.id", CONTROL_PLANE_LIMITS.hash);
+      const label = asBoundedOptional(
+        item.label,
+        "deployCredsSummary.projectTokenKeyrings.items.label",
+        CONTROL_PLANE_LIMITS.hostName,
+      );
+      const maskedValue = asBoundedOptional(
+        item.maskedValue,
+        "deployCredsSummary.projectTokenKeyrings.items.maskedValue",
+        CONTROL_PLANE_LIMITS.projectConfigPath,
+      );
+      if (!id || !label || !maskedValue || seen.has(id)) continue;
+      seen.add(id);
+      items.push({
+        id,
+        label,
+        maskedValue,
+        isActive: item.isActive === true,
+      });
+    }
+    return items;
+  };
+  const toSshListSummary = (raw: unknown, fieldPrefix: string): { count: number; items: string[] } => {
+    const row = raw && typeof raw === "object" && !Array.isArray(raw)
+      ? raw as Record<string, unknown>
+      : {};
+    const count = asNonNegativeInt(row.count, 10_000) ?? 0;
+    const itemsRaw = Array.isArray(row.items) ? row.items : [];
+    const items: string[] = [];
+    for (const entry of itemsRaw.slice(0, 500)) {
+      const value = asBoundedOptional(entry, `${fieldPrefix}.items`, CONTROL_PLANE_LIMITS.projectConfigPath);
+      if (!value) continue;
+      items.push(value);
+    }
+    return {
+      count: Math.max(count, items.length),
+      items,
+    };
+  };
+  const hcloudItems = toKeyringItems(hcloud.items);
+  const tailscaleItems = toKeyringItems(tailscale.items);
+  const fleetSshAuthorizedKeys = toSshListSummary(
+    row.fleetSshAuthorizedKeys,
+    "deployCredsSummary.fleetSshAuthorizedKeys",
+  );
+  const fleetSshKnownHosts = toSshListSummary(
+    row.fleetSshKnownHosts,
+    "deployCredsSummary.fleetSshKnownHosts",
+  );
 
   return {
     updatedAtMs,
@@ -216,9 +282,11 @@ export function sanitizeDeployCredsSummary(value: unknown): {
     hasGithubToken: Boolean(row.hasGithubToken),
     sopsAgeKeyFileSet: Boolean(row.sopsAgeKeyFileSet),
     projectTokenKeyrings: {
-      hcloud: { hasActive: Boolean(hcloud.hasActive), itemCount: hcloudItemCount },
-      tailscale: { hasActive: Boolean(tailscale.hasActive), itemCount: tailscaleItemCount },
+      hcloud: { hasActive: Boolean(hcloud.hasActive), itemCount: hcloudItemCount, items: hcloudItems },
+      tailscale: { hasActive: Boolean(tailscale.hasActive), itemCount: tailscaleItemCount, items: tailscaleItems },
     },
+    fleetSshAuthorizedKeys,
+    fleetSshKnownHosts,
   };
 }
 

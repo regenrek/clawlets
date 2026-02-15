@@ -38,6 +38,17 @@ export type RunnerLeaseJob = {
 export type RunnerProjectTokenKeyringSummary = {
   hasActive: boolean;
   itemCount: number;
+  items: Array<{
+    id: string;
+    label: string;
+    maskedValue: string;
+    isActive: boolean;
+  }>;
+};
+
+export type RunnerSshListSummary = {
+  count: number;
+  items: string[];
 };
 
 export type RunnerDeployCredsSummary = {
@@ -51,6 +62,8 @@ export type RunnerDeployCredsSummary = {
     hcloud: RunnerProjectTokenKeyringSummary;
     tailscale: RunnerProjectTokenKeyringSummary;
   };
+  fleetSshAuthorizedKeys: RunnerSshListSummary;
+  fleetSshKnownHosts: RunnerSshListSummary;
 };
 
 export type RunnerMetadataSyncPayload = {

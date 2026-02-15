@@ -1,20 +1,14 @@
 import { convexQuery } from "@convex-dev/react-query"
-import { useQuery } from "@tanstack/react-query"
-import { useRouter } from "@tanstack/react-router"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import * as React from "react"
 import { api } from "../../../convex/_generated/api"
 import { useProjectBySlug } from "~/lib/project-data"
 import { isProjectRunnerOnline } from "~/lib/setup/runner-status"
-import { deriveSetupModel, type SetupModel, type SetupStepId } from "~/lib/setup/setup-model"
+import { deriveSetupModel, type SetupModel } from "~/lib/setup/setup-model"
 import { deriveRepoHealth } from "~/lib/setup/repo-health"
 import { setupConfigProbeQueryOptions, type SetupConfig } from "~/lib/setup/repo-probe"
-import { getDeployCredsStatus } from "~/sdk/infra"
 import { setupDraftGet } from "~/sdk/setup"
 import { SECRETS_VERIFY_BOOTSTRAP_RUN_KIND } from "~/sdk/secrets/run-kind"
-
-export type SetupSearch = {
-  step?: string
-}
 
 type PendingNonSecretDraft = {
   infrastructure?: {
@@ -32,32 +26,18 @@ type PendingNonSecretDraft = {
 }
 
 type PendingBootstrapSecrets = {
-  tailscaleAuthKey?: string
   useTailscaleLockdown?: boolean
 }
 
-const DEPLOY_CREDS_SUMMARY_STALE_MS = 60_000
-
-export function __test_isDeployCredsSummaryStale(params: {
-  updatedAtMs: unknown
-  nowMs: number
-  staleMs?: number
-}): boolean {
-  const updatedAtMs = Number(params.updatedAtMs || 0)
-  if (!Number.isFinite(updatedAtMs) || updatedAtMs <= 0) return true
-  const staleMs = Number(params.staleMs ?? DEPLOY_CREDS_SUMMARY_STALE_MS)
-  if (!Number.isFinite(staleMs) || staleMs <= 0) return true
-  return params.nowMs - updatedAtMs >= staleMs
-}
+const DEPLOY_CREDS_RECONCILE_DELAYS_MS = [0, 800, 2_000, 5_000] as const
 
 export function useSetupModel(params: {
   projectSlug: string
   host: string
-  search: SetupSearch
   pendingNonSecretDraft?: PendingNonSecretDraft | null
   pendingBootstrapSecrets?: PendingBootstrapSecrets | null
 }) {
-  const router = useRouter()
+  const queryClient = useQueryClient()
   const projectQuery = useProjectBySlug(params.projectSlug)
   const projectId = projectQuery.projectId
   const projectStatus = projectQuery.project?.status
@@ -134,6 +114,7 @@ export function useSetupModel(params: {
     refetchOnReconnect: false,
   })
   const setupDraft = setupDraftQuery.data ?? null
+  const setupDraftDeployCredsSet = setupDraft?.sealedSecretDrafts?.hostBootstrapCreds?.status === "set"
 
   const repoHealth = deriveRepoHealth({
     runnerOnline,
@@ -172,53 +153,32 @@ export function useSetupModel(params: {
 
   const deployCredsSummary = targetRunner?.deployCredsSummary ?? null
   const targetRunnerId = targetRunner ? String(targetRunner._id) : ""
-  const [deployCredsSummaryStaleTick, setDeployCredsSummaryStaleTick] = React.useState(0)
-  React.useEffect(() => {
-    const updatedAtMs = Number(deployCredsSummary?.updatedAtMs || 0)
-    if (!Number.isFinite(updatedAtMs) || updatedAtMs <= 0) return
-    const staleAtMs = updatedAtMs + DEPLOY_CREDS_SUMMARY_STALE_MS
-    const delayMs = staleAtMs - Date.now()
-    if (!Number.isFinite(delayMs) || delayMs <= 0) return
-    const timeout = setTimeout(() => {
-      setDeployCredsSummaryStaleTick((value) => value + 1)
-    }, Math.max(1, Math.trunc(delayMs)))
-    return () => {
-      clearTimeout(timeout)
+  const deployCredsRefreshTimeoutsRef = React.useRef<Array<ReturnType<typeof setTimeout>>>([])
+  const clearDeployCredsRefreshTimeouts = React.useCallback(() => {
+    for (const timeout of deployCredsRefreshTimeoutsRef.current) clearTimeout(timeout)
+    deployCredsRefreshTimeoutsRef.current = []
+  }, [])
+  const refreshDeployCredsStatus = React.useCallback(() => {
+    clearDeployCredsRefreshTimeouts()
+    for (const delayMs of DEPLOY_CREDS_RECONCILE_DELAYS_MS) {
+      const timeout = setTimeout(() => {
+        void queryClient.invalidateQueries({
+          queryKey: ["setupDraft", projectId, params.host],
+        })
+        void runnersQuery.refetch()
+      }, delayMs)
+      deployCredsRefreshTimeoutsRef.current.push(timeout)
     }
-  }, [deployCredsSummary?.updatedAtMs])
-  const deployCredsSummaryStale = React.useMemo(() => {
-    return __test_isDeployCredsSummaryStale({
-      updatedAtMs: deployCredsSummary?.updatedAtMs,
-      nowMs: Date.now(),
-    })
-  }, [deployCredsSummary?.updatedAtMs, deployCredsSummaryStaleTick])
-
-  const deployCredsFallbackQuery = useQuery({
-    queryKey: ["deployCredsFallback", projectId, targetRunnerId],
-    queryFn: async () => {
-      if (!projectId) throw new Error("missing project id")
-      if (!targetRunnerId) throw new Error("missing target runner id")
-      return await getDeployCredsStatus({
-        data: {
-          projectId,
-          targetRunnerId,
-        },
-      })
-    },
-    enabled: Boolean(projectId && isReady && runnerOnline && targetRunnerId && deployCredsSummaryStale),
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-  })
-
-  const fallbackProjectTokenKeyrings = deployCredsFallbackQuery.data?.projectTokenKeyrings
-  const effectiveProjectTokenKeyrings = !deployCredsSummaryStale && deployCredsSummary?.projectTokenKeyrings
-    ? deployCredsSummary.projectTokenKeyrings
-    : fallbackProjectTokenKeyrings ?? deployCredsSummary?.projectTokenKeyrings
-
-  const fallbackHasGithubToken = React.useMemo(
-    () => deployCredsFallbackQuery.data?.keys?.some((row) => row.key === "GITHUB_TOKEN" && row.status === "set") === true,
-    [deployCredsFallbackQuery.data?.keys],
-  )
+  }, [clearDeployCredsRefreshTimeouts, params.host, projectId, queryClient, runnersQuery])
+  React.useEffect(() => {
+    return () => {
+      clearDeployCredsRefreshTimeouts()
+    }
+  }, [clearDeployCredsRefreshTimeouts])
+  React.useEffect(() => {
+    clearDeployCredsRefreshTimeouts()
+  }, [clearDeployCredsRefreshTimeouts, targetRunnerId])
+  const effectiveProjectTokenKeyrings = deployCredsSummary?.projectTokenKeyrings
 
   const hasActiveHcloudToken = React.useMemo(
     () => effectiveProjectTokenKeyrings?.hcloud?.hasActive === true,
@@ -230,10 +190,10 @@ export function useSetupModel(params: {
   )
   const hasProjectGithubToken = React.useMemo(
     () => {
-      if (!deployCredsSummaryStale) return deployCredsSummary?.hasGithubToken === true
-      return fallbackHasGithubToken || deployCredsSummary?.hasGithubToken === true
+      if (deployCredsSummary?.hasGithubToken === true) return true
+      return setupDraftDeployCredsSet
     },
-    [deployCredsSummary?.hasGithubToken, deployCredsSummaryStale, fallbackHasGithubToken],
+    [deployCredsSummary?.hasGithubToken, setupDraftDeployCredsSet],
   )
 
   const projectInitRunsPageQuery = useQuery({
@@ -253,13 +213,11 @@ export function useSetupModel(params: {
       deriveSetupModel({
         config,
         hostFromRoute: params.host,
-        stepFromSearch: params.search.step,
         setupDraft,
         pendingNonSecretDraft: params.pendingNonSecretDraft ?? null,
         hasActiveHcloudToken,
         hasProjectGithubToken,
         hasActiveTailscaleAuthKey,
-        pendingTailscaleAuthKey: params.pendingBootstrapSecrets?.tailscaleAuthKey,
         useTailscaleLockdown: params.pendingBootstrapSecrets?.useTailscaleLockdown,
         latestBootstrapRun: latestBootstrapRunQuery.data ?? null,
         latestBootstrapSecretsVerifyRun: latestBootstrapSecretsVerifyRunQuery.data ?? null,
@@ -271,40 +229,12 @@ export function useSetupModel(params: {
       hasActiveHcloudToken,
       hasProjectGithubToken,
       hasActiveTailscaleAuthKey,
-      params.pendingBootstrapSecrets?.tailscaleAuthKey,
       params.pendingBootstrapSecrets?.useTailscaleLockdown,
       latestBootstrapRunQuery.data,
       latestBootstrapSecretsVerifyRunQuery.data,
       params.host,
-      params.search.step,
     ],
   )
-
-  const setSearch = React.useCallback(
-    (next: Partial<SetupSearch>, opts?: { replace?: boolean }) => {
-      void router.navigate({
-        to: "/$projectSlug/hosts/$host/setup",
-        params: { projectSlug: params.projectSlug, host: params.host },
-        search: (prev: SetupSearch) => ({ ...prev, ...next }),
-        replace: opts?.replace,
-      })
-    },
-    [params.host, params.projectSlug, router],
-  )
-
-  const setStep = React.useCallback(
-    (stepId: SetupStepId) => {
-      setSearch({ step: stepId })
-    },
-    [setSearch],
-  )
-
-  const advance = React.useCallback(() => {
-    const visible = model.steps.filter((step) => step.status !== "locked")
-    const currentIndex = visible.findIndex((step) => step.id === model.activeStepId)
-    const next = visible.slice(currentIndex + 1).find((step) => step.status !== "locked")?.id
-    if (next) setStep(next)
-  }, [model.activeStepId, model.steps, setStep])
 
   return {
     projectQuery,
@@ -319,7 +249,6 @@ export function useSetupModel(params: {
     setSelectedRunnerId,
     targetRunner,
     deployCredsSummary,
-    deployCredsSummaryStale,
     config,
     repoProbeOk,
     repoProbeState,
@@ -334,7 +263,6 @@ export function useSetupModel(params: {
     hasActiveHcloudToken,
     hasProjectGithubToken,
     hasActiveTailscaleAuthKey,
-    setStep,
-    advance,
+    refreshDeployCredsStatus,
   }
 }
