@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { getRepoLayout } from "@clawlets/core/repo-layout";
 
 const findRepoRootMock = vi.fn();
 const loadDeployCredsMock = vi.fn();
@@ -52,7 +53,7 @@ describe("env commands", () => {
     const repoRoot = fs.mkdtempSync(path.join(tmpdir(), "clawlets-env-show-"));
     findRepoRootMock.mockReturnValue(repoRoot);
     loadDeployCredsMock.mockReturnValue({
-      envFile: { status: "ok", origin: "default", path: "/repo/.clawlets/env" },
+      envFile: { status: "ok", origin: "default", path: "/runtime/env" },
       values: {
         HCLOUD_TOKEN: "token",
         GITHUB_TOKEN: "gh",
@@ -82,7 +83,7 @@ describe("env commands", () => {
     const repoRoot = fs.mkdtempSync(path.join(tmpdir(), "clawlets-env-json-"));
     findRepoRootMock.mockReturnValue(repoRoot);
     loadDeployCredsMock.mockReturnValue({
-      envFile: { status: "ok", origin: "default", path: `${repoRoot}/.clawlets/env` },
+      envFile: { status: "ok", origin: "default", path: `${repoRoot}/runtime/env` },
       values: {
         HCLOUD_TOKEN: "token",
         GITHUB_TOKEN: "gh",
@@ -115,7 +116,7 @@ describe("env commands", () => {
     process.env.USER = "alice";
     try {
       const repoRoot = fs.mkdtempSync(path.join(tmpdir(), "clawlets-env-detect-"));
-      const runtimeDir = path.join(repoRoot, ".clawlets");
+      const runtimeDir = getRepoLayout(repoRoot).runtimeDir;
       fs.mkdirSync(path.join(runtimeDir, "keys", "operators"), { recursive: true });
       const keyPath = path.join(runtimeDir, "keys", "operators", "alice.agekey");
       fs.writeFileSync(keyPath, "AGE-SECRET-KEY-1TESTKEY\n", "utf8");
@@ -160,7 +161,7 @@ describe("env commands", () => {
     process.env.HOME = fakeHome;
     try {
       const repoRoot = fs.mkdtempSync(path.join(tmpdir(), "clawlets-env-detect-local-"));
-      const runtimeDir = path.join(repoRoot, ".clawlets");
+      const runtimeDir = getRepoLayout(repoRoot).runtimeDir;
       fs.mkdirSync(path.join(fakeHome, ".config", "sops", "age"), { recursive: true });
       const homeKeyPath = path.join(fakeHome, ".config", "sops", "age", "keys.txt");
       fs.writeFileSync(homeKeyPath, "AGE-SECRET-KEY-1HOMEKEY\n", "utf8");
@@ -236,7 +237,7 @@ describe("env commands", () => {
       const payload = JSON.parse(String(logSpy.mock.calls.at(-1)?.[0] || "{}"));
       expect(payload.ok).toBe(true);
       expect(payload.created).toBe(true);
-      expect(String(payload.keyPath || "")).toContain(".clawlets/keys/operators/alice.agekey");
+      expect(String(payload.keyPath || "")).toContain(`${path.sep}keys${path.sep}operators${path.sep}alice.agekey`);
       expect(fs.existsSync(payload.keyPath)).toBe(true);
       expect(fs.existsSync(`${payload.keyPath}.pub`)).toBe(true);
     } finally {
@@ -250,7 +251,7 @@ describe("env commands", () => {
     process.env.USER = "alice";
     try {
       const repoRoot = fs.mkdtempSync(path.join(tmpdir(), "clawlets-env-generate-existing-"));
-      const keyPath = path.join(repoRoot, ".clawlets", "keys", "operators", "alice.agekey");
+      const keyPath = path.join(getRepoLayout(repoRoot).runtimeDir, "keys", "operators", "alice.agekey");
       fs.mkdirSync(path.dirname(keyPath), { recursive: true });
       fs.writeFileSync(keyPath, "# public key: age1existing\nAGE-SECRET-KEY-1EXISTING\n", "utf8");
       findRepoRootMock.mockReturnValue(repoRoot);
@@ -282,7 +283,7 @@ describe("env commands", () => {
       expect(payload.created).toBe(false);
       expect(payload.keyPath).toBe(keyPath);
       expect(payload.publicKey).toBe("age1existing");
-      const envText = fs.readFileSync(path.join(repoRoot, ".clawlets", "env"), "utf8");
+      const envText = fs.readFileSync(getRepoLayout(repoRoot).envFilePath, "utf8");
       expect(envText).toContain(`SOPS_AGE_KEY_FILE=${keyPath}`);
     } finally {
       if (previousUser === undefined) delete process.env.USER;
@@ -295,7 +296,7 @@ describe("env commands", () => {
     process.env.USER = "alice";
     try {
       const repoRoot = fs.mkdtempSync(path.join(tmpdir(), "clawlets-env-generate-invalid-"));
-      const keyPath = path.join(repoRoot, ".clawlets", "keys", "operators", "alice.agekey");
+      const keyPath = path.join(getRepoLayout(repoRoot).runtimeDir, "keys", "operators", "alice.agekey");
       fs.mkdirSync(path.dirname(keyPath), { recursive: true });
       fs.writeFileSync(keyPath, "not-an-age-key\n", "utf8");
       findRepoRootMock.mockReturnValue(repoRoot);
@@ -350,7 +351,7 @@ describe("env commands", () => {
     expect(payload.ok).toBe(true);
     expect(payload.updatedKeys).toContain("HCLOUD_TOKEN");
     expect(payload.updatedKeys).toContain("GITHUB_TOKEN");
-    const envText = fs.readFileSync(path.join(repoRoot, ".clawlets", "env"), "utf8");
+    const envText = fs.readFileSync(getRepoLayout(repoRoot).envFilePath, "utf8");
     expect(envText).toContain("HCLOUD_TOKEN=token-1");
     expect(envText).toContain("GITHUB_TOKEN=token-2");
   });

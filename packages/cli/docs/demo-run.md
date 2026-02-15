@@ -16,7 +16,7 @@ cd demo-fleet
 
 # Deploy creds (edit OFF-SCREEN 🔒)
 clawlets env init
-# edit .clawlets/env:
+# edit <runtimeDir>/env:
 #   HCLOUD_TOKEN=... 🔒
 
 # Host config (Hetzner)
@@ -74,7 +74,7 @@ clawlets bootstrap --host clawlets-openclaw --lockdownAfter
 
 | What | Where visible | Redact? |
 |------|--------------|---------|
-| `HCLOUD_TOKEN` | `.clawlets/env` edit | YES |
+| `HCLOUD_TOKEN` | `<runtimeDir>/env` edit | YES |
 | Tailscale auth key | `secrets init` prompt | YES |
 | Admin password | `secrets init` prompt | YES |
 | Discord bot token | `secrets init` prompt | YES |

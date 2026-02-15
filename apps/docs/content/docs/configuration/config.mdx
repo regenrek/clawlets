@@ -20,11 +20,11 @@ state; the local runtime dir holds generated artifacts and operator keys.
 - `fleet/clawlets.json`: canonical config (validated)
 - `fleet/openclaw.json`: OpenClaw config (optional; gateways + OpenClaw enable)
 - `secrets/`: canonical encrypted secrets (sops + age; intended to be committed)
-- `.clawlets/`: local runtime dir (gitignored)
-  - operator age keys (`.clawlets/keys/operators/`)
-  - `nixos-anywhere --extra-files` payload (`.clawlets/extra-files/<host>/...`)
-  - image builds (`.clawlets/images/<host>/...`)
-  - provisioning state (gitignored): `.clawlets/infra/opentofu/<host>/providers/<provider>/...`
+- `<runtimeDir>/`: local runtime dir (gitignored)
+  - operator age keys (`<runtimeDir>/keys/operators/`)
+  - `nixos-anywhere --extra-files` payload (`<runtimeDir>/extra-files/<host>/...`)
+  - image builds (`<runtimeDir>/images/<host>/...`)
+  - provisioning state (gitignored): `<runtimeDir>/infra/opentofu/<host>/providers/<provider>/...`
 
 ## Schema overview
 

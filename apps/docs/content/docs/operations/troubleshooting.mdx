@@ -14,7 +14,7 @@ Install Nix on that machine with the checksum-verified flow in
 [Install Nix](/operations/install-nix).
 
 Then restart runner and retry. If shell PATH differs from service PATH, set `NIX_BIN`
-explicitly in `.clawlets/env`.
+explicitly in `<runtimeDir>/env`.
 
 ## `ssh-keygen` / “REMOTE HOST IDENTIFICATION HAS CHANGED”
 
@@ -33,7 +33,7 @@ If OpenTofu is failing inside the CLI, run it directly against the generated pla
 Run OpenTofu via nix directly (from your project repo, example plan):
 
 ```bash
-nix run --impure nixpkgs#opentofu -- -chdir=.clawlets/infra/opentofu/<host> plan
+nix run --impure nixpkgs#opentofu -- -chdir=<runtimeDir>/infra/opentofu/<host> plan
 ```
 
 ## GitHub flake fetch 404

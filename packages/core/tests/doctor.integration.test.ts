@@ -3,6 +3,7 @@ import { mkdtemp, rm, mkdir, writeFile, readFile } from "node:fs/promises";
 import fs from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { getRepoLayout } from "../src/repo-layout";
 import { sopsPathRegexForDirFiles, sopsPathRegexForPathSuffix } from "../src/lib/security/sops-config";
 import { makeEd25519PublicKey } from "./helpers/ssh-keys";
 
@@ -52,6 +53,7 @@ describe("doctor", () => {
 
   beforeAll(async () => {
     repoRoot = await mkdtemp(path.join(tmpdir(), "clawlets-doctor-"));
+    const layout = getRepoLayout(repoRoot);
     templateRoot = path.join(repoRoot, "__template__");
     process.env.CLAWLETS_TEMPLATE_DIR = templateRoot;
     await writeFile(path.join(repoRoot, "flake.nix"), "{ }", "utf8");
@@ -62,7 +64,7 @@ describe("doctor", () => {
     await mkdir(path.join(templateRoot, "fleet"), { recursive: true });
     await mkdir(path.join(templateRoot, "fleet", "workspaces", "common"), { recursive: true });
     await mkdir(path.join(repoRoot, "fleet"), { recursive: true });
-    await mkdir(path.join(repoRoot, ".clawlets", "extra-files", "openclaw-fleet-host", "var", "lib", "sops-nix"), { recursive: true });
+    await mkdir(path.join(layout.extraFilesDir, "openclaw-fleet-host", "var", "lib", "sops-nix"), { recursive: true });
 
     const bundledSkillsText = ["[", '  "github",', '  "brave-search",', '  "coding-agent"', "]", ""].join("\n");
     await writeFile(path.join(repoRoot, "fleet", "bundled-skills.json"), bundledSkillsText, "utf8");
@@ -94,7 +96,7 @@ describe("doctor", () => {
     const sshPub = path.join(repoRoot, "id_ed25519.pub");
     await writeFile(sshPub, "ssh-ed25519 AAAATEST test\n", "utf8");
 
-    const operatorKey = path.join(repoRoot, ".clawlets", "keys", "operators", "tester.agekey");
+    const operatorKey = path.join(layout.localOperatorKeysDir, "tester.agekey");
     await mkdir(path.dirname(operatorKey), { recursive: true });
     await writeFile(operatorKey, "AGE-SECRET-KEY-TEST\n", "utf8");
 
@@ -188,7 +190,7 @@ describe("doctor", () => {
     await writeFile(path.join(secretsDir, "z_ai_api_key.yaml"), `z_ai_api_key: ${enc}\nsops: {}\n`, "utf8");
 
     await writeFile(
-      path.join(repoRoot, ".clawlets", "extra-files", "openclaw-fleet-host", "var", "lib", "sops-nix", "key.txt"),
+      path.join(layout.extraFilesDir, "openclaw-fleet-host", "var", "lib", "sops-nix", "key.txt"),
       "AGE-SECRET-KEY-TEST\n",
       "utf8",
     );

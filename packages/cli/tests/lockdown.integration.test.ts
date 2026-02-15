@@ -118,7 +118,7 @@ describe("lockdown command", () => {
     repoRoot = "/repo";
     setConfig();
     loadDeployCredsMock.mockReturnValue({
-      envFile: { status: "ok", path: "/repo/.clawlets/env" },
+      envFile: { status: "ok", path: "/runtime/env" },
       values: { HCLOUD_TOKEN: "token", GITHUB_TOKEN: "", NIX_BIN: "nix" },
     });
   });
@@ -217,7 +217,7 @@ describe("lockdown command", () => {
     const spec = lockdownMock.mock.calls[0]?.[0]?.spec;
     expect(spec?.ssh?.publicKey).toContain("ssh-ed25519");
     expect(String(spec?.ssh?.publicKeyPath || "")).toContain(
-      `${path.sep}.clawlets${path.sep}keys${path.sep}provisioning${path.sep}${hostName}.pub`,
+      `${path.sep}keys${path.sep}provisioning${path.sep}${hostName}.pub`,
     );
   });
 });

@@ -3,6 +3,7 @@ import path from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
 import { buildHostProvisionSpec, getProvisionerDriver } from "../src/lib/infra/infra";
+import { getHostOpenTofuDir, getRepoLayout } from "../src/repo-layout";
 
 describe("infra driver contracts", () => {
   it("hetzner driver provision/destroy/lockdown satisfy contract in dry-run mode", async () => {
@@ -29,10 +30,11 @@ describe("infra driver contracts", () => {
 
       expect(spec.provider).toBe("hetzner");
       const driver = getProvisionerDriver(spec.provider);
+      const layout = getRepoLayout(repoRoot);
 
       const runtime = {
         repoRoot,
-        opentofuDir: path.join(repoRoot, ".clawlets", "infra", "opentofu", "alpha"),
+        opentofuDir: getHostOpenTofuDir(layout, "alpha"),
         nixBin: "nix",
         dryRun: true,
         redact: ["token"],
@@ -83,10 +85,11 @@ describe("infra driver contracts", () => {
 
       expect(spec.provider).toBe("aws");
       const driver = getProvisionerDriver(spec.provider);
+      const layout = getRepoLayout(repoRoot);
 
       const runtime = {
         repoRoot,
-        opentofuDir: path.join(repoRoot, ".clawlets", "infra", "opentofu", "beta"),
+        opentofuDir: getHostOpenTofuDir(layout, "beta"),
         nixBin: "nix",
         dryRun: true,
         redact: ["top-secret"],

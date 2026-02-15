@@ -206,7 +206,7 @@ const setupApply = defineCommand({
     description: "Apply setup draft payload from JSON in one non-interactive pass.",
   },
   args: {
-    runtimeDir: { type: "string", description: "Runtime directory (default: .clawlets)." },
+    runtimeDir: { type: "string", description: "Runtime directory (default: ~/.clawlets/workspaces/<repo>-<hash>; or $CLAWLETS_HOME/workspaces/<repo>-<hash>)." },
     envFile: { type: "string", description: "Deploy creds env file (default: <runtimeDir>/env)." },
     fromJson: { type: "string", required: true, description: "Path to setup payload JSON." },
     json: { type: "boolean", description: "Output JSON summary.", default: false },

@@ -17,7 +17,7 @@ const infraApply = defineCommand({
     description: "Apply provisioning for a host (driven by fleet/clawlets.json).",
   },
   args: {
-    runtimeDir: { type: "string", description: "Runtime directory (default: .clawlets)." },
+    runtimeDir: { type: "string", description: "Runtime directory (default: ~/.clawlets/workspaces/<repo>-<hash>; or $CLAWLETS_HOME/workspaces/<repo>-<hash>)." },
     envFile: { type: "string", description: "Env file for deploy creds (default: <runtimeDir>/env)." },
     host: { type: "string", description: "Host name (defaults to clawlets.json defaultHost / sole host)." },
     dryRun: { type: "boolean", description: "Print commands without executing.", default: false },
@@ -66,7 +66,7 @@ const infraDestroy = defineCommand({
     description: "Destroy provisioned resources for a host (DANGEROUS).",
   },
   args: {
-    runtimeDir: { type: "string", description: "Runtime directory (default: .clawlets)." },
+    runtimeDir: { type: "string", description: "Runtime directory (default: ~/.clawlets/workspaces/<repo>-<hash>; or $CLAWLETS_HOME/workspaces/<repo>-<hash>)." },
     envFile: { type: "string", description: "Env file for deploy creds (default: <runtimeDir>/env)." },
     host: { type: "string", description: "Host name (defaults to clawlets.json defaultHost / sole host)." },
     force: { type: "boolean", description: "Skip confirmation prompt (non-interactive).", default: false },

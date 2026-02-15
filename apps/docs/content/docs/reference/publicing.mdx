@@ -13,8 +13,8 @@ Goal: publish repo without leaking:
 
 ## Rules
 
-- `.clawlets/` must never be tracked.
-- Don’t commit plaintext tokens or private keys. Encrypted secrets live under `secrets/` (sops+age); local operator private keys stay in `.clawlets/`.
+- `<runtimeDir>/` must never be tracked.
+- Don’t commit plaintext tokens or private keys. Encrypted secrets live under `secrets/` (sops+age); local operator private keys stay in `<runtimeDir>/`.
 - Keep host-specific values out of `fleet/clawlets.json` before publishing (ship placeholders).
 
 ## Recommended process (no history)
@@ -36,10 +36,10 @@ git commit -m "chore: initial public import"
 - trivy (misconfig/secret checks)
 
 3) Add CI guardrails:
-- fail if `.clawlets/**` is tracked
+- fail if `<runtimeDir>/**` is tracked
 - fail if `infra/secrets/**` exists (legacy path; project repo should not use it)
 
 ## What users do in public repo
 
 Users can run `CLAWLETS_INTERACTIVE=1 clawlets secrets init` to generate local operator
-keys, create `secrets/` (encrypted), and generate `.clawlets/extra-files/<host>/...`.
+keys, create `secrets/` (encrypted), and generate `<runtimeDir>/extra-files/<host>/...`.

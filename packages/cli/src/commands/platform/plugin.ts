@@ -12,7 +12,7 @@ const list = defineCommand({
   meta: { name: "list", description: "List installed plugins." },
   args: {
     json: { type: "boolean", description: "Output JSON.", default: false },
-    runtimeDir: { type: "string", description: "Runtime directory (default: .clawlets)." },
+    runtimeDir: { type: "string", description: "Runtime directory (default: ~/.clawlets/workspaces/<repo>-<hash>; or $CLAWLETS_HOME/workspaces/<repo>-<hash>)." },
   },
   async run({ args }) {
     const errors: { slug: string; error: Error }[] = [];
@@ -40,13 +40,13 @@ const list = defineCommand({
 });
 
 const add = defineCommand({
-  meta: { name: "add", description: "Install a plugin into .clawlets/plugins." },
+  meta: { name: "add", description: "Install a plugin into <runtimeDir>/plugins." },
   args: {
     name: { type: "string", description: "Plugin name (e.g. my-plugin)." },
     package: { type: "string", description: "Package to install (default: @clawlets/plugin-<name>)." },
     version: { type: "string", description: "Package version/tag (default: latest)." },
     allowThirdParty: { type: "boolean", description: "Allow third-party plugins (unsafe).", default: false },
-    runtimeDir: { type: "string", description: "Runtime directory (default: .clawlets)." },
+    runtimeDir: { type: "string", description: "Runtime directory (default: ~/.clawlets/workspaces/<repo>-<hash>; or $CLAWLETS_HOME/workspaces/<repo>-<hash>)." },
   },
   async run({ args }) {
     const slug = resolveSlug(args);
@@ -70,7 +70,7 @@ const rm = defineCommand({
   meta: { name: "rm", description: "Remove an installed plugin." },
   args: {
     name: { type: "string", description: "Plugin name (e.g. my-plugin)." },
-    runtimeDir: { type: "string", description: "Runtime directory (default: .clawlets)." },
+    runtimeDir: { type: "string", description: "Runtime directory (default: ~/.clawlets/workspaces/<repo>-<hash>; or $CLAWLETS_HOME/workspaces/<repo>-<hash>)." },
   },
   async run({ args }) {
     const slug = resolveSlug(args);

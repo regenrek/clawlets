@@ -5,5 +5,5 @@
 - Preferences:
   - deterministic commands, minimal hand-waving
   - rebuild-only ops (no snowflakes)
-  - keep instance-specific data in `.clawlets/` (gitignored)
+  - keep instance-specific data in `<runtimeDir>/` (gitignored)
   - no external messaging (email/DM/etc.) without explicit confirmation

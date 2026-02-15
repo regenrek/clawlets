@@ -28,7 +28,7 @@ Useful flags:
 
 - `--install-nix auto|always|never`
 - `--skip-nix` (alias of `--install-nix=never`)
-- `--nix-bin /path/to/nix` (also persists to `.clawlets/env`)
+- `--nix-bin /path/to/nix` (also persists to `<runtimeDir>/env`)
 - `--setup-convex` / `--skip-convex`
 - `--convex-dir apps/web`
 - `--site-url http://localhost:3000`
@@ -41,7 +41,7 @@ Quickstart is working when:
 
 - The dashboard starts on your local URL (default `http://localhost:3000`)
 - `apps/web/.env.local` exists with Convex deployment values
-- `.clawlets/env` contains `NIX_BIN`
+- `<runtimeDir>/env` contains `NIX_BIN`
 
 Next step: open the dashboard setup flow and create/start a runner token.
 

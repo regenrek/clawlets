@@ -32,7 +32,7 @@ describe("security docs parity", () => {
   it("documents metadata-only boundary with explicit plaintext bans", () => {
     const doc = readDoc("security/control-plane-metadata.mdx");
     expect(doc).toContain("plaintext secret values");
-    expect(doc).toContain("deploy credentials from `.clawlets/env`");
+    expect(doc).toContain("deploy credentials from `<runtimeDir>/env`");
     expect(doc).toContain("operator private keys");
   });
 });

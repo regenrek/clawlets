@@ -28,7 +28,7 @@ clawlets image build --host <host>
 ```
 
 This builds `packages.x86_64-linux.<host>-image` (raw) and writes it to
-`.clawlets/images/<host>/...`.
+`<runtimeDir>/images/<host>/...`.
 
 2) **Publish** the raw image to a public URL (S3/Backblaze/etc). Large files upload
 faster if you compress them (`bz2`/`gz`/`xz`).
@@ -71,7 +71,7 @@ For AWS, the canonical path is S3 upload + AMI import:
 
 ```bash
 clawlets image build --host <host>
-clawlets image aws publish --host <host> --image-path .clawlets/images/<host>/<image>.raw --bucket <s3-bucket>
+clawlets image aws publish --host <host> --image-path <runtimeDir>/images/<host>/<image>.raw --bucket <s3-bucket>
 clawlets host set --host <host> --aws-ami-id <ami-id>
 clawlets bootstrap --host <host> --mode image
 ```

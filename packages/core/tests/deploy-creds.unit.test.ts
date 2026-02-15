@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mkdtemp, rm, writeFile, mkdir, chmod, lstat, readFile, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { getRepoLayout } from "../src/repo-layout";
 import {
   DEPLOY_CREDS_KEYS,
   DEPLOY_CREDS_SECRET_KEYS,
@@ -15,6 +16,7 @@ import {
 const ENV_KEYS = DEPLOY_CREDS_KEYS;
 
 let savedEnv: Record<string, string | undefined> = {};
+const savedClawletsHome = process.env.CLAWLETS_HOME;
 
 beforeEach(() => {
   savedEnv = {};
@@ -30,10 +32,14 @@ afterEach(() => {
     if (v === undefined) delete process.env[key];
     else process.env[key] = v;
   }
+  if (savedClawletsHome === undefined) delete process.env.CLAWLETS_HOME;
+  else process.env.CLAWLETS_HOME = savedClawletsHome;
 });
 
 async function setupRepo(): Promise<{ dir: string }> {
   const dir = await mkdtemp(path.join(tmpdir(), "clawlets-deploy-creds-"));
+  const home = await mkdtemp(path.join(tmpdir(), "clawlets-home-"));
+  process.env.CLAWLETS_HOME = home;
   await writeFile(path.join(dir, "flake.nix"), "{}\n", "utf8");
   await mkdir(path.join(dir, "scripts"), { recursive: true });
   return { dir };
@@ -59,9 +65,10 @@ describe("deploy-creds", () => {
   it("loads default <runtimeDir>/env file", async () => {
     const { dir } = await setupRepo();
     try {
-      await mkdir(path.join(dir, ".clawlets"), { recursive: true });
-      await writeFile(path.join(dir, ".clawlets", "env"), ['HCLOUD_TOKEN_KEYRING={"items":[{"id":"default","value":"token"}]}', 'HCLOUD_TOKEN_KEYRING_ACTIVE=default', ""].join("\n"), "utf8");
-      await chmod(path.join(dir, ".clawlets", "env"), 0o600);
+      const layout = getRepoLayout(dir);
+      await mkdir(layout.runtimeDir, { recursive: true });
+      await writeFile(layout.envFilePath, ['HCLOUD_TOKEN_KEYRING={"items":[{"id":"default","value":"token"}]}', 'HCLOUD_TOKEN_KEYRING_ACTIVE=default', ""].join("\n"), "utf8");
+      await chmod(layout.envFilePath, 0o600);
 
       const loaded = loadDeployCreds({ cwd: dir });
       expect(loaded.envFile?.status).toBe("ok");
@@ -76,9 +83,10 @@ describe("deploy-creds", () => {
   it("process.env keyring values win over env file", async () => {
     const { dir } = await setupRepo();
     try {
-      await mkdir(path.join(dir, ".clawlets"), { recursive: true });
-      await writeFile(path.join(dir, ".clawlets", "env"), ['HCLOUD_TOKEN_KEYRING={"items":[{"id":"default","value":"filetoken"}]}', 'HCLOUD_TOKEN_KEYRING_ACTIVE=default', ""].join("\n"), "utf8");
-      await chmod(path.join(dir, ".clawlets", "env"), 0o600);
+      const layout = getRepoLayout(dir);
+      await mkdir(layout.runtimeDir, { recursive: true });
+      await writeFile(layout.envFilePath, ['HCLOUD_TOKEN_KEYRING={"items":[{"id":"default","value":"filetoken"}]}', 'HCLOUD_TOKEN_KEYRING_ACTIVE=default', ""].join("\n"), "utf8");
+      await chmod(layout.envFilePath, 0o600);
 
       process.env.HCLOUD_TOKEN_KEYRING = "{\"items\":[{\"id\":\"default\",\"value\":\"envtoken\"}]}";
       process.env.HCLOUD_TOKEN_KEYRING_ACTIVE = "default";
@@ -94,9 +102,10 @@ describe("deploy-creds", () => {
   it("ignores direct HCLOUD_TOKEN without keyring", async () => {
     const { dir } = await setupRepo();
     try {
-      await mkdir(path.join(dir, ".clawlets"), { recursive: true });
-      await writeFile(path.join(dir, ".clawlets", "env"), "HCLOUD_TOKEN=legacy-token\n", "utf8");
-      await chmod(path.join(dir, ".clawlets", "env"), 0o600);
+      const layout = getRepoLayout(dir);
+      await mkdir(layout.runtimeDir, { recursive: true });
+      await writeFile(layout.envFilePath, "HCLOUD_TOKEN=legacy-token\n", "utf8");
+      await chmod(layout.envFilePath, 0o600);
 
       const loaded = loadDeployCreds({ cwd: dir });
       expect(loaded.values.HCLOUD_TOKEN).toBeUndefined();
@@ -109,9 +118,10 @@ describe("deploy-creds", () => {
   it("rejects insecure env file permissions", async () => {
     const { dir } = await setupRepo();
     try {
-      await mkdir(path.join(dir, ".clawlets"), { recursive: true });
-      await writeFile(path.join(dir, ".clawlets", "env"), ['HCLOUD_TOKEN_KEYRING={"items":[{"id":"default","value":"token"}]}', 'HCLOUD_TOKEN_KEYRING_ACTIVE=default', ""].join("\n"), "utf8");
-      await chmod(path.join(dir, ".clawlets", "env"), 0o644);
+      const layout = getRepoLayout(dir);
+      await mkdir(layout.runtimeDir, { recursive: true });
+      await writeFile(layout.envFilePath, ['HCLOUD_TOKEN_KEYRING={"items":[{"id":"default","value":"token"}]}', 'HCLOUD_TOKEN_KEYRING_ACTIVE=default', ""].join("\n"), "utf8");
+      await chmod(layout.envFilePath, 0o644);
 
       const loaded = loadDeployCreds({ cwd: dir });
       expect(loaded.envFile?.status).toBe("invalid");
@@ -125,11 +135,12 @@ describe("deploy-creds", () => {
   it("rejects symlink env file", async () => {
     const { dir } = await setupRepo();
     try {
-      await mkdir(path.join(dir, ".clawlets"), { recursive: true });
-      const targetPath = path.join(dir, ".clawlets", "env.real");
+      const layout = getRepoLayout(dir);
+      await mkdir(layout.runtimeDir, { recursive: true });
+      const targetPath = path.join(layout.runtimeDir, "env.real");
       await writeFile(targetPath, "HCLOUD_TOKEN=token\n", "utf8");
       await chmod(targetPath, 0o600);
-      await symlink(targetPath, path.join(dir, ".clawlets", "env"));
+      await symlink(targetPath, layout.envFilePath);
 
       const loaded = loadDeployCreds({ cwd: dir });
       expect(loaded.envFile?.status).toBe("invalid");
@@ -142,7 +153,7 @@ describe("deploy-creds", () => {
   it("security validator rejects non-file env path", async () => {
     const { dir } = await setupRepo();
     try {
-      const envPath = path.join(dir, ".clawlets", "env");
+      const envPath = getRepoLayout(dir).envFilePath;
       await mkdir(envPath, { recursive: true });
       const check = validateDeployCredsEnvFileSecurity(envPath);
       expect(check.ok).toBe(false);
@@ -155,7 +166,7 @@ describe("deploy-creds", () => {
   it("security validator rejects wrong owner", async () => {
     const { dir } = await setupRepo();
     try {
-      const envPath = path.join(dir, ".clawlets", "env");
+      const envPath = getRepoLayout(dir).envFilePath;
       await mkdir(path.dirname(envPath), { recursive: true });
       await writeFile(envPath, "HCLOUD_TOKEN=token\n", "utf8");
       await chmod(envPath, 0o600);
@@ -183,12 +194,13 @@ describe("deploy-creds", () => {
   it("resolves SOPS_AGE_KEY_FILE relative to repo root", async () => {
     const { dir } = await setupRepo();
     try {
-      await mkdir(path.join(dir, ".clawlets"), { recursive: true });
-      await writeFile(path.join(dir, ".clawlets", "env"), "SOPS_AGE_KEY_FILE=.clawlets/keys/operators/me.agekey\n", "utf8");
-      await chmod(path.join(dir, ".clawlets", "env"), 0o600);
+      const layout = getRepoLayout(dir);
+      await mkdir(layout.runtimeDir, { recursive: true });
+      await writeFile(layout.envFilePath, "SOPS_AGE_KEY_FILE=keys/operators/me.agekey\n", "utf8");
+      await chmod(layout.envFilePath, 0o600);
 
       const loaded = loadDeployCreds({ cwd: dir });
-      expect(loaded.values.SOPS_AGE_KEY_FILE).toBe(path.join(dir, ".clawlets", "keys", "operators", "me.agekey"));
+      expect(loaded.values.SOPS_AGE_KEY_FILE).toBe(path.join(dir, "keys", "operators", "me.agekey"));
       expect(loaded.sources.SOPS_AGE_KEY_FILE).toBe("file");
     } finally {
       await rm(dir, { recursive: true, force: true });
@@ -198,13 +210,14 @@ describe("deploy-creds", () => {
   it("loads AWS credentials from env file and lets process.env override", async () => {
     const { dir } = await setupRepo();
     try {
-      await mkdir(path.join(dir, ".clawlets"), { recursive: true });
+      const layout = getRepoLayout(dir);
+      await mkdir(layout.runtimeDir, { recursive: true });
       await writeFile(
-        path.join(dir, ".clawlets", "env"),
+        layout.envFilePath,
         ["AWS_ACCESS_KEY_ID=file-key", "AWS_SECRET_ACCESS_KEY=file-secret", ""].join("\n"),
         "utf8",
       );
-      await chmod(path.join(dir, ".clawlets", "env"), 0o600);
+      await chmod(layout.envFilePath, 0o600);
 
       let loaded = loadDeployCreds({ cwd: dir });
       expect(loaded.values.AWS_ACCESS_KEY_ID).toBe("file-key");
@@ -227,6 +240,7 @@ describe("deploy-creds", () => {
   it("atomic update writes secure env file and keeps canonical keys", async () => {
     const { dir } = await setupRepo();
     try {
+      const layout = getRepoLayout(dir);
       const updated = await updateDeployCredsEnvFile({
         repoRoot: dir,
         updates: {
@@ -235,12 +249,16 @@ describe("deploy-creds", () => {
           NIX_BIN: "",
         },
       });
-      expect(updated.envPath).toBe(path.join(dir, ".clawlets", "env"));
+      expect(updated.envPath).toBe(layout.envFilePath);
       expect(updated.updatedKeys).toEqual(["NIX_BIN", "HCLOUD_TOKEN_KEYRING", "HCLOUD_TOKEN_KEYRING_ACTIVE"]);
 
       const st = await lstat(updated.envPath);
       expect(st.isFile()).toBe(true);
       expect(st.mode & 0o777).toBe(0o600);
+      if (process.platform !== "win32") {
+        const runtimeDirMode = (await lstat(layout.runtimeDir)).mode & 0o777;
+        expect(runtimeDirMode & 0o077).toBe(0);
+      }
 
       const text = await readFile(updated.envPath, "utf8");
       for (const key of ENV_KEYS) expect(text).toContain(`${key}=`);
@@ -255,7 +273,7 @@ describe("deploy-creds", () => {
   it("template includes canonical key set", async () => {
     const { dir } = await setupRepo();
     try {
-      const defaultEnvPath = path.join(dir, ".clawlets", "env");
+      const defaultEnvPath = getRepoLayout(dir).envFilePath;
       const template = renderDeployCredsEnvTemplate({ defaultEnvPath, cwd: dir });
       const rel = path.relative(dir, defaultEnvPath) || defaultEnvPath;
       expect(template).toContain(`# Default path: ${rel}`);

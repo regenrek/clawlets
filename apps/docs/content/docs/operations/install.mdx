@@ -65,7 +65,7 @@ nix --version
 
 Dedicated install guide: [Install Nix](/operations/install-nix)
 
-If the dashboard/runner cannot find `nix`, set `NIX_BIN` in `.clawlets/env` to the full path (common on macOS: `/nix/var/nix/profiles/default/bin/nix`).
+If the dashboard/runner cannot find `nix`, set `NIX_BIN` in `<runtimeDir>/env` to the full path (common on macOS: `/nix/var/nix/profiles/default/bin/nix`).
 
 ## Project repo inputs
 
@@ -77,7 +77,7 @@ Created by `clawlets project init`:
 - `fleet/clawlets.json` (canonical config: fleet + hosts)
 - `flake.nix` / `flake.lock` (build graph)
 - `secrets/` (committed; sops‑encrypted secrets + rules)
-- `.clawlets/` (gitignored runtime: operator keys + extra‑files + infra state + images)
+- `<runtimeDir>/` (gitignored runtime: operator keys + extra‑files + infra state + images)
 - `fleet/workspaces/` (AGENTS/SOUL/TOOLS/IDENTITY/USER/HEARTBEAT)
 
 ## Provider selection (first decision)
@@ -167,7 +167,7 @@ Before you bootstrap, make sure the basics are set:
   - `secrets/hosts/<host>/admin_password_hash.yaml` (required)
   - `secrets/hosts/<host>/tailscale_auth_key.yaml` (required when tailnet.mode=tailscale)
   - per‑gateway channel tokens referenced via `hosts.<host>.gateways.<gatewayId>.profile.secretEnv`
-- `.clawlets/`
+- `<runtimeDir>/`
   - `env` (deploy creds; created by `clawlets env init`)
   - `keys/operators/<you>.agekey` (operator key; created by `clawlets secrets init`)
 
@@ -181,7 +181,7 @@ Set in `fleet/clawlets.json` or via CLI:
 clawlets host set --host <host> --disk-device /dev/sda
 ```
 
-## Deploy credentials (`.clawlets/env`)
+## Deploy credentials (`<runtimeDir>/env`)
 
 Deployment credentials are stored locally in a gitignored file:
 
@@ -191,7 +191,7 @@ Create the env file (gitignored):
 clawlets env init
 ```
 
-Edit `.clawlets/env`:
+Edit `<runtimeDir>/env`:
 
 - `HCLOUD_TOKEN` (required for `provisioning.provider=hetzner`)
 - `GITHUB_TOKEN` (only if your base flake repo is private)
@@ -203,7 +203,7 @@ https://docs.hetzner.com/cloud/api/getting-started/generating-api-token
 
 <Callout type="warning" title="AWS is experimental">
   If you use <code>provisioning.provider=aws</code>, set AWS credentials in
-  <code>.clawlets/env</code> and follow [AWS provider notes](/providers/aws).
+  <code>&lt;runtimeDir&gt;/env</code> and follow [AWS provider notes](/providers/aws).
 </Callout>
 
 <Callout type="info" title="Lifecycle split: Day 0 infra vs Day X OpenClaw">
@@ -230,7 +230,7 @@ nix shell nixpkgs#mkpasswd -c mkpasswd -m yescrypt
 Store in sops:
 
 ```bash
-SOPS_AGE_KEY_FILE=.clawlets/keys/operators/<you>.agekey \
+SOPS_AGE_KEY_FILE=<runtimeDir>/keys/operators/<you>.agekey \
   sops edit secrets/hosts/<host>/admin_password_hash.yaml
 ```
 

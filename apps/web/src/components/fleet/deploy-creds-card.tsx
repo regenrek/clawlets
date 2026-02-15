@@ -569,7 +569,7 @@ export function DeployCredsCard({
                     id="sopsAgeKeyFile"
                     value={sopsAgeKeyFile}
                     onChange={(e) => setSopsAgeKeyFileOverride(e.target.value)}
-                    placeholder=".clawlets/keys/operators/<user>.agekey"
+                    placeholder="<runtimeDir>/keys/operators/<user>.agekey"
                   />
                   <InputGroupAddon align="inline-end">
                     <InputGroupButton

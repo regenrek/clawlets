@@ -21,7 +21,7 @@ flowchart LR
   Browser["Dashboard UI"] --> CP["Control plane (web + Convex)"]
   CP --> Queue["Jobs queue"]
   Queue --> Runner["Runner agent"]
-  Runner --> Repo["Project repo + .clawlets"]
+  Runner --> Repo["Project repo + runtime dir"]
   Runner --> Host["Host bootstrap/update actions"]
   CI["CI publisher"] --> Release["Signed manifests + secrets bundle"]
   Host --> Release

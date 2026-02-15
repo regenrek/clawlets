@@ -212,7 +212,7 @@ const awsImageUpload = defineCommand({
     description: "Upload raw image to S3 for AWS AMI import.",
   },
   args: {
-    runtimeDir: { type: "string", description: "Runtime directory (default: .clawlets)." },
+    runtimeDir: { type: "string", description: "Runtime directory (default: ~/.clawlets/workspaces/<repo>-<hash>; or $CLAWLETS_HOME/workspaces/<repo>-<hash>)." },
     envFile: { type: "string", description: "Env file for deploy creds (default: <runtimeDir>/env)." },
     host: { type: "string", description: "Host name (defaults to clawlets.json defaultHost / sole host)." },
     "image-path": { type: "string", description: "Path to local raw image file." },
@@ -262,7 +262,7 @@ const awsImageImport = defineCommand({
     description: "Import a raw S3 image into AMI and print the AMI ID.",
   },
   args: {
-    runtimeDir: { type: "string", description: "Runtime directory (default: .clawlets)." },
+    runtimeDir: { type: "string", description: "Runtime directory (default: ~/.clawlets/workspaces/<repo>-<hash>; or $CLAWLETS_HOME/workspaces/<repo>-<hash>)." },
     envFile: { type: "string", description: "Env file for deploy creds (default: <runtimeDir>/env)." },
     host: { type: "string", description: "Host name (defaults to clawlets.json defaultHost / sole host)." },
     bucket: { type: "string", description: "S3 bucket containing the uploaded raw image." },
@@ -332,7 +332,7 @@ const awsImagePublish = defineCommand({
     description: "Upload raw image to S3 then import as AMI (AWS Phase 2 path).",
   },
   args: {
-    runtimeDir: { type: "string", description: "Runtime directory (default: .clawlets)." },
+    runtimeDir: { type: "string", description: "Runtime directory (default: ~/.clawlets/workspaces/<repo>-<hash>; or $CLAWLETS_HOME/workspaces/<repo>-<hash>)." },
     envFile: { type: "string", description: "Env file for deploy creds (default: <runtimeDir>/env)." },
     host: { type: "string", description: "Host name (defaults to clawlets.json defaultHost / sole host)." },
     "image-path": { type: "string", description: "Path to local raw image file." },

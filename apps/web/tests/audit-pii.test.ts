@@ -23,7 +23,7 @@ async function loadSdk() {
         runId: "run_1",
         resultJson: JSON.stringify({
           ok: true,
-          keyPath: "/tmp/repo/.clawlets/keys/operators/alice.agekey",
+          keyPath: "/tmp/clawlets-home/workspaces/repo-1234567890abcdef/keys/operators/alice.agekey",
           publicKey: "age1test",
         }),
       }
@@ -42,7 +42,7 @@ async function loadSdk() {
       listRunMessages: async () => [
         JSON.stringify({
           ok: true,
-          keyPath: "/tmp/repo/.clawlets/keys/operators/alice.agekey",
+          keyPath: "/tmp/clawlets-home/workspaces/repo-1234567890abcdef/keys/operators/alice.agekey",
           publicKey: "age1test",
         }),
       ],
@@ -76,8 +76,8 @@ async function loadSdk() {
           sources: {},
         }) as any,
       updateDeployCredsEnvFile: async () => ({
-        envPath: "/tmp/repo/.clawlets/env",
-        runtimeDir: "/tmp/repo/.clawlets",
+        envPath: "/tmp/clawlets-home/workspaces/repo-1234567890abcdef/env",
+        runtimeDir: "/tmp/clawlets-home/workspaces/repo-1234567890abcdef",
         updatedKeys: ["HCLOUD_TOKEN"],
       }),
     }
@@ -137,7 +137,7 @@ describe("audit pii minimization", () => {
       const operator = payloads.find((p: any) => p?.action === "sops.operatorKey.generate")
 
       expect(deploy).toBeTruthy()
-      expect(deploy.target).toEqual({ doc: ".clawlets/env" })
+      expect(deploy.target).toEqual({ doc: "<runtimeDir>/env" })
       expect(deploy.data).toEqual({
         runId: "run_1",
         jobId: "job_1",
@@ -148,7 +148,7 @@ describe("audit pii minimization", () => {
       expect(deploy.data?.runtimeDir).toBeUndefined()
 
       expect(operator).toBeTruthy()
-      expect(operator.target).toEqual({ doc: ".clawlets/keys/operators" })
+      expect(operator.target).toEqual({ doc: "<runtimeDir>/keys/operators" })
       expect(operator.data?.operatorId).toBeUndefined()
       expect(operator.data?.operatorIdHash).toBeUndefined()
       expect(operator.data).toEqual({

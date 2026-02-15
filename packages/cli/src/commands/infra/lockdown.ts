@@ -16,7 +16,7 @@ export const lockdown = defineCommand({
     description: "Remove public SSH exposure via provider-specific lockdown.",
   },
   args: {
-    runtimeDir: { type: "string", description: "Runtime directory (default: .clawlets)." },
+    runtimeDir: { type: "string", description: "Runtime directory (default: ~/.clawlets/workspaces/<repo>-<hash>; or $CLAWLETS_HOME/workspaces/<repo>-<hash>)." },
     envFile: { type: "string", description: "Env file for deploy creds (default: <runtimeDir>/env)." },
     host: { type: "string", description: "Host name (defaults to clawlets.json defaultHost / sole host)." },
     skipTofu: { type: "boolean", description: "Skip provisioning apply.", default: false },

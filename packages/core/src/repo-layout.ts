@@ -1,20 +1,26 @@
 import path from "node:path";
 import { assertSafeHostName, assertSafeOperatorId, assertSafeSecretName, GatewayIdSchema } from "@clawlets/shared/lib/identifiers";
+import {
+  assertRuntimeDirOutsideRepoRoot,
+  assertRuntimeDirOutsideRepoRootReal,
+  resolveWorkspaceRuntimeDir,
+  toExistingRealpathOrSelf,
+} from "./lib/runtime/runtime-paths.js";
 
 export type RepoLayout = {
   repoRoot: string;
 
-  // Local runtime dir (gitignored). Defaults to <repoRoot>/.clawlets.
+  // Runtime dir (local-only; never committed). Defaults to ~/.clawlets/workspaces/<repo>-<hash>.
   runtimeDir: string;
 
-  // Local deploy creds env file (gitignored). Defaults to <runtimeDir>/env.
+  // Local deploy creds env file (never committed). Defaults to <runtimeDir>/env.
   envFilePath: string;
 
-  // Local infra state (gitignored). Defaults to <runtimeDir>/infra.
+  // Local infra state (never committed). Defaults to <runtimeDir>/infra.
   runtimeInfraDir: string;
   opentofuDir: string;
 
-  // Local plugin installs (gitignored). Defaults to <runtimeDir>/plugins.
+  // Local plugin installs (never committed). Defaults to <runtimeDir>/plugins.
   pluginsDir: string;
 
   // Fleet (app layer): gateway roster, routing, skills, workspace docs.
@@ -40,19 +46,26 @@ export type RepoLayout = {
 };
 
 export function getRepoLayout(repoRoot: string, runtimeDir?: string): RepoLayout {
-  const resolvedRuntimeDir = runtimeDir ?? path.join(repoRoot, ".clawlets");
+  const repoRootAbs = path.resolve(repoRoot);
+  const repoRootReal = toExistingRealpathOrSelf(repoRootAbs);
+  const resolvedRuntimeDir = runtimeDir ? path.resolve(runtimeDir) : resolveWorkspaceRuntimeDir(repoRootAbs);
+  const runtimeDirReal = toExistingRealpathOrSelf(resolvedRuntimeDir);
+
+  assertRuntimeDirOutsideRepoRoot(repoRootAbs, resolvedRuntimeDir);
+  assertRuntimeDirOutsideRepoRootReal(repoRootReal, runtimeDirReal);
+
   const envFilePath = path.join(resolvedRuntimeDir, "env");
   const runtimeInfraDir = path.join(resolvedRuntimeDir, "infra");
   const opentofuDir = path.join(runtimeInfraDir, "opentofu");
   const pluginsDir = path.join(resolvedRuntimeDir, "plugins");
-  const fleetDir = path.join(repoRoot, "fleet");
+  const fleetDir = path.join(repoRootAbs, "fleet");
   const fleetWorkspacesDir = path.join(fleetDir, "workspaces");
   const fleetWorkspacesCommonDir = path.join(fleetWorkspacesDir, "common");
   const fleetWorkspacesGatewaysDir = path.join(fleetWorkspacesDir, "gateways");
   const clawletsConfigPath = path.join(fleetDir, "clawlets.json");
   const openclawConfigPath = path.join(fleetDir, "openclaw.json");
   const bundledSkillsPath = path.join(fleetDir, "bundled-skills.json");
-  const secretsDir = path.join(repoRoot, "secrets");
+  const secretsDir = path.join(repoRootAbs, "secrets");
   const secretsHostsDir = path.join(secretsDir, "hosts");
   const extraFilesDir = path.join(resolvedRuntimeDir, "extra-files");
   const secretsKeysDir = path.join(secretsDir, "keys");
@@ -62,7 +75,7 @@ export function getRepoLayout(repoRoot: string, runtimeDir?: string): RepoLayout
   const localOperatorKeysDir = path.join(localKeysDir, "operators");
 
   return {
-    repoRoot,
+    repoRoot: repoRootAbs,
     runtimeDir: resolvedRuntimeDir,
     envFilePath,
     runtimeInfraDir,
@@ -85,6 +98,16 @@ export function getRepoLayout(repoRoot: string, runtimeDir?: string): RepoLayout
     localOperatorKeysDir,
   };
 }
+
+export {
+  ensurePrivateRuntimeDir,
+  resolveClawletsHomeDir,
+  resolveWorkspaceRuntimeDir,
+  assertRuntimeDirOutsideRepoRoot,
+  assertRuntimeDirOutsideRepoRootReal,
+  safeFileSegment,
+  sha256Hex,
+} from "./lib/runtime/runtime-paths.js";
 
 export function getHostOpenTofuDir(layout: RepoLayout, host: string): string {
   assertSafeHostName(host);

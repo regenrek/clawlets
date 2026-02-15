@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { mkdtemp, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { getRepoLayout } from "../src/repo-layout";
 
 const runMock = vi.fn(async () => {});
 const ensureKeyMock = vi.fn(async () => "123");
@@ -25,7 +26,7 @@ describe("opentofu", () => {
   it("destroyHetznerOpenTofu runs init + destroy with vars", async () => {
     const repoRoot = await mkdtemp(path.join(tmpdir(), "clawlets-opentofu-"));
     try {
-      const opentofuDir = path.join(repoRoot, ".clawlets", "infra", "opentofu");
+      const opentofuDir = getRepoLayout(repoRoot).opentofuDir;
       const sshPubkeyFile = path.join(repoRoot, "id_ed25519.pub");
       await writeFile(sshPubkeyFile, "ssh-ed25519 AAAATEST test\n", "utf8");
 
@@ -96,7 +97,7 @@ describe("opentofu", () => {
   it("destroyAwsOpenTofu runs init + destroy with vars", async () => {
     const repoRoot = await mkdtemp(path.join(tmpdir(), "clawlets-opentofu-aws-"));
     try {
-      const opentofuDir = path.join(repoRoot, ".clawlets", "infra", "opentofu");
+      const opentofuDir = getRepoLayout(repoRoot).opentofuDir;
       const { destroyAwsOpenTofu } = await import("../src/lib/infra/providers/aws/opentofu.js");
       await destroyAwsOpenTofu({
         spec: {

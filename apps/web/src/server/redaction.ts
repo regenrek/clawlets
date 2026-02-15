@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
-import path from "node:path";
 import { redactKnownSecretsText } from "@clawlets/core/lib/runtime/redaction";
+import { getRepoLayout } from "@clawlets/core/repo-layout";
 
 function uniqNonEmpty(values: string[]): string[] {
   const out: string[] = [];
@@ -16,7 +16,7 @@ function uniqNonEmpty(values: string[]): string[] {
 }
 
 export async function readClawletsEnvTokens(repoRoot: string): Promise<string[]> {
-  const envPath = path.join(repoRoot, ".clawlets", "env");
+  const envPath = getRepoLayout(repoRoot).envFilePath;
   try {
     const raw = await fs.readFile(envPath, "utf8");
     const tokens: string[] = [];

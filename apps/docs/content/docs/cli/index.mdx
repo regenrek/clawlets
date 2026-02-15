@@ -57,7 +57,7 @@ Example command sequence:
 - wire secrets:
   - map env vars in `fleet.secretEnv` / per‑gateway overrides
   - or autowire: `clawlets config wire-secrets --write`
-- init deploy creds: `clawlets env init` (edit `.clawlets/env`; set provider credentials: `HCLOUD_TOKEN` for Hetzner or AWS keys for AWS)
+- init deploy creds: `clawlets env init` (edit `<runtimeDir>/env`; set provider credentials: `HCLOUD_TOKEN` for Hetzner or AWS keys for AWS)
 - init secrets: `clawlets secrets init` (TTY prompt) or `clawlets secrets init --from-json <file>`
 - preflight: `clawlets doctor --scope bootstrap`
 - bootstrap: `clawlets bootstrap` (or `--mode image`)

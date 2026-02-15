@@ -161,7 +161,7 @@ describe("secrets init", () => {
       adminPasswordHash: "hash",
       secrets: { discord_token_maren: "token" },
     };
-    const jsonPath = path.join(repoRoot, ".clawlets", "secrets.json");
+    const jsonPath = path.join(layout.runtimeDir, "secrets.json");
     fs.mkdirSync(path.dirname(jsonPath), { recursive: true });
     fs.writeFileSync(jsonPath, JSON.stringify(secretsJson), "utf8");
 
@@ -407,7 +407,7 @@ describe("secrets init", () => {
       fileText: "AGE-SECRET-KEY-1",
     });
     upsertSopsCreationRuleMock.mockReturnValue("sops");
-    const jsonPath = path.join(repoRoot, ".clawlets", "secrets.json");
+    const jsonPath = path.join(layout.runtimeDir, "secrets.json");
     fs.mkdirSync(path.dirname(jsonPath), { recursive: true });
     fs.writeFileSync(
       jsonPath,
@@ -524,7 +524,7 @@ describe("secrets init", () => {
       adminPasswordHash: "hash",
       secrets: { discord_token_maren: "token" },
     };
-    const jsonPath = path.join(repoRoot, ".clawlets", "secrets.json");
+    const jsonPath = path.join(layout.runtimeDir, "secrets.json");
     fs.mkdirSync(path.dirname(jsonPath), { recursive: true });
     fs.writeFileSync(jsonPath, JSON.stringify(secretsJson), "utf8");
 
@@ -589,7 +589,7 @@ describe("secrets init", () => {
       adminPasswordHash: "hash",
       secrets: { discord_token_maren: "token" },
     };
-    const jsonPath = path.join(repoRoot, ".clawlets", "secrets.json");
+    const jsonPath = path.join(layout.runtimeDir, "secrets.json");
     fs.mkdirSync(path.dirname(jsonPath), { recursive: true });
     fs.writeFileSync(jsonPath, JSON.stringify(secretsJson), "utf8");
 

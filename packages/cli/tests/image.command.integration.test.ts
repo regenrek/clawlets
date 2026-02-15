@@ -35,7 +35,7 @@ describe("image command", () => {
     const platformSpy = vi.spyOn(process, "platform", "get").mockReturnValue("darwin");
     loadHostContextMock.mockReturnValue({
       repoRoot: "/repo",
-      layout: { runtimeDir: "/repo/.clawlets" },
+      layout: { runtimeDir: "/runtime" },
       hostName: "alpha",
     });
     resolveGitRevMock.mockResolvedValue("deadbeef");

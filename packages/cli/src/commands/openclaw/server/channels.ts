@@ -33,7 +33,7 @@ function runRemoteOpenclawChannels(params: {
 const serverChannelsStatus = defineCommand({
   meta: { name: "status", description: "Run `openclaw channels status` on the host for a gateway." },
   args: {
-    runtimeDir: { type: "string", description: "Runtime directory (default: .clawlets)." },
+    runtimeDir: { type: "string", description: "Runtime directory (default: ~/.clawlets/workspaces/<repo>-<hash>; or $CLAWLETS_HOME/workspaces/<repo>-<hash>)." },
     host: { type: "string", description: "Host name (defaults to clawlets.json defaultHost / sole host)." },
     targetHost: { type: "string", description: "SSH target override (default: from clawlets.json)." },
     gateway: { type: "string", description: "Gateway id (maps to systemd unit openclaw-<gateway>.service)." },
@@ -69,7 +69,7 @@ const serverChannelsStatus = defineCommand({
 const serverChannelsCapabilities = defineCommand({
   meta: { name: "capabilities", description: "Run `openclaw channels capabilities` on the host for a gateway." },
   args: {
-    runtimeDir: { type: "string", description: "Runtime directory (default: .clawlets)." },
+    runtimeDir: { type: "string", description: "Runtime directory (default: ~/.clawlets/workspaces/<repo>-<hash>; or $CLAWLETS_HOME/workspaces/<repo>-<hash>)." },
     host: { type: "string", description: "Host name (defaults to clawlets.json defaultHost / sole host)." },
     targetHost: { type: "string", description: "SSH target override (default: from clawlets.json)." },
     gateway: { type: "string", description: "Gateway id (maps to systemd unit openclaw-<gateway>.service)." },
@@ -109,7 +109,7 @@ const serverChannelsCapabilities = defineCommand({
 const serverChannelsLogin = defineCommand({
   meta: { name: "login", description: "Run `openclaw channels login` on the host for a gateway." },
   args: {
-    runtimeDir: { type: "string", description: "Runtime directory (default: .clawlets)." },
+    runtimeDir: { type: "string", description: "Runtime directory (default: ~/.clawlets/workspaces/<repo>-<hash>; or $CLAWLETS_HOME/workspaces/<repo>-<hash>)." },
     host: { type: "string", description: "Host name (defaults to clawlets.json defaultHost / sole host)." },
     targetHost: { type: "string", description: "SSH target override (default: from clawlets.json)." },
     gateway: { type: "string", description: "Gateway id (maps to systemd unit openclaw-<gateway>.service)." },
@@ -145,7 +145,7 @@ const serverChannelsLogin = defineCommand({
 const serverChannelsLogout = defineCommand({
   meta: { name: "logout", description: "Run `openclaw channels logout` on the host for a gateway." },
   args: {
-    runtimeDir: { type: "string", description: "Runtime directory (default: .clawlets)." },
+    runtimeDir: { type: "string", description: "Runtime directory (default: ~/.clawlets/workspaces/<repo>-<hash>; or $CLAWLETS_HOME/workspaces/<repo>-<hash>)." },
     host: { type: "string", description: "Host name (defaults to clawlets.json defaultHost / sole host)." },
     targetHost: { type: "string", description: "SSH target override (default: from clawlets.json)." },
     gateway: { type: "string", description: "Gateway id (maps to systemd unit openclaw-<gateway>.service)." },

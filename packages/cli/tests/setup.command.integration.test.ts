@@ -200,7 +200,7 @@ describe("setup apply command", () => {
               { path: "hosts.alpha.provisioning.provider", value: "hetzner", del: false },
             ],
             deployCreds: {
-              SOPS_AGE_KEY_FILE: ".clawlets/keys/operators/alice.agekey",
+              SOPS_AGE_KEY_FILE: "/tmp/runtime/keys/operators/alice.agekey",
             },
             bootstrapSecrets: {
               adminPasswordHash: "$6$hash",

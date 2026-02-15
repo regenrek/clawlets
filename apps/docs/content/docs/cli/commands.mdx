@@ -14,7 +14,7 @@ clawlets <command> [subcommand] [--flags]
 
 Common flags (varies by command):
 
-- `--runtime-dir` (default: `.clawlets`)
+- `--runtime-dir` (default: `~/.clawlets/workspaces/<repo>-<hash>` or `$CLAWLETS_HOME/workspaces/<repo>-<hash>`)
 - `--host` (defaults to `config.defaultHost` or sole host)
 - `--env-file` (deploy creds file override)
 - `--target-host` (SSH override)
@@ -212,7 +212,7 @@ Utility commands help with credentials, repo scaffolding, and health checks.
 
 ### `clawlets env`
 
-Local deploy credentials in `.clawlets/env`.
+Local deploy credentials in `<runtimeDir>/env`.
 
 Subcommands:
 

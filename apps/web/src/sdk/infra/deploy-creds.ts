@@ -360,7 +360,7 @@ async function finalizeDeployCredsWrite(params: {
   await client.mutation(api.security.auditLogs.append, {
     projectId: params.projectId,
     action: "deployCreds.update",
-    target: { doc: ".clawlets/env" },
+    target: { doc: "<runtimeDir>/env" },
     data: {
       runId: queued.runId,
       jobId: queued.jobId,
@@ -724,7 +724,7 @@ export const generateSopsAgeKey = createServerFn({ method: "POST" })
         await client.mutation(api.security.auditLogs.append, {
           projectId: data.projectId,
           action: "sops.operatorKey.generate",
-          target: { doc: ".clawlets/keys/operators" },
+          target: { doc: "<runtimeDir>/keys/operators" },
           data: { runId: result.runId },
         })
       }
