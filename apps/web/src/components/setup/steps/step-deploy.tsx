@@ -1,11 +1,9 @@
 import { DeployInitialInstall } from "~/components/deploy/deploy-initial"
-import { SetupStepStatusBadge } from "~/components/setup/steps/step-status-badge"
 import type { SetupStepStatus } from "~/lib/setup/setup-model"
 import type { SetupDraftConnection, SetupDraftInfrastructure, SetupDraftView } from "~/sdk/setup"
 
 type SetupPendingBootstrapSecrets = {
   adminPassword: string
-  tailscaleAuthKey: string
   useTailscaleLockdown: boolean
 }
 
@@ -20,7 +18,6 @@ export function SetupStepDeploy(props: {
   pendingConnectionDraft: SetupDraftConnection | null
   pendingBootstrapSecrets: SetupPendingBootstrapSecrets
   hasProjectGithubToken: boolean
-  projectSopsAgeKeyPath: string
   hasActiveTailscaleAuthKey: boolean
 }) {
   return (
@@ -30,13 +27,11 @@ export function SetupStepDeploy(props: {
       variant="setup"
       hasBootstrapped={props.hasBootstrapped}
       onBootstrapped={props.onContinue}
-      headerBadge={<SetupStepStatusBadge status={props.stepStatus} />}
       setupDraft={props.setupDraft}
       pendingInfrastructureDraft={props.pendingInfrastructureDraft}
       pendingConnectionDraft={props.pendingConnectionDraft}
       pendingBootstrapSecrets={props.pendingBootstrapSecrets}
       hasProjectGithubToken={props.hasProjectGithubToken}
-      projectSopsAgeKeyPath={props.projectSopsAgeKeyPath}
       hasActiveTailscaleAuthKey={props.hasActiveTailscaleAuthKey}
       showRunnerStatusBanner={false}
     />

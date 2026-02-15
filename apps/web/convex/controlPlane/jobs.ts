@@ -3,6 +3,7 @@ import { validateRunnerJobPayload } from "@clawlets/core/lib/runtime/runner-comm
 import { sanitizeErrorMessage } from "@clawlets/core/lib/runtime/safe-error";
 import { v } from "convex/values";
 
+import { internal } from "../_generated/api";
 import { internalMutation, mutation, query } from "../_generated/server";
 import type { MutationCtx } from "../_generated/server";
 import type { Doc, Id } from "../_generated/dataModel";
@@ -921,6 +922,22 @@ export const completeInternal = internalMutation({
       await ctx.db.patch(job.projectId, {
         status: projectStatus,
         updatedAt: now,
+      });
+    }
+    const updatedKeys = Array.isArray(job.payload?.updatedKeys) ? job.payload.updatedKeys : [];
+    if (updatedKeys.length > 0) {
+      await ctx.runMutation(internal.controlPlane.projectCredentials.markSyncStatusForUpdatedKeysInternal, {
+        projectId: job.projectId,
+        updatedKeys,
+        syncStatus: status === "succeeded" ? "synced" : "failed",
+        ...(status === "succeeded"
+          ? {}
+          : {
+              lastSyncError:
+                status === "failed"
+                  ? sanitizeErrorMessage(errorMessage ?? "job failed", "job failed")
+                  : "runner canceled job",
+            }),
       });
     }
     return { ok: true, status };

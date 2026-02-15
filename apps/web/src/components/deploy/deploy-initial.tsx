@@ -36,7 +36,6 @@ import type { SetupDraftConnection, SetupDraftInfrastructure, SetupDraftView } f
 
 type SetupPendingBootstrapSecrets = {
   adminPassword: string
-  tailscaleAuthKey: string
   useTailscaleLockdown: boolean
 }
 
@@ -52,7 +51,6 @@ type DeployInitialInstallProps = {
   pendingConnectionDraft?: SetupDraftConnection | null
   pendingBootstrapSecrets?: SetupPendingBootstrapSecrets
   hasProjectGithubToken?: boolean
-  projectSopsAgeKeyPath?: string
   hasActiveTailscaleAuthKey?: boolean
   showRunnerStatusBanner?: boolean
 }
@@ -69,11 +67,9 @@ export function DeployInitialInstall({
   pendingConnectionDraft = null,
   pendingBootstrapSecrets = {
     adminPassword: "",
-    tailscaleAuthKey: "",
     useTailscaleLockdown: true,
   },
   hasProjectGithubToken = false,
-  projectSopsAgeKeyPath = "",
   hasActiveTailscaleAuthKey = false,
   showRunnerStatusBanner = true,
 }: DeployInitialInstallProps) {
@@ -90,7 +86,6 @@ export function DeployInitialInstall({
         pendingConnectionDraft={pendingConnectionDraft}
         pendingBootstrapSecrets={pendingBootstrapSecrets}
         hasProjectGithubToken={hasProjectGithubToken}
-        projectSopsAgeKeyPath={projectSopsAgeKeyPath}
         hasActiveTailscaleAuthKey={hasActiveTailscaleAuthKey}
         showRunnerStatusBanner={showRunnerStatusBanner}
       />

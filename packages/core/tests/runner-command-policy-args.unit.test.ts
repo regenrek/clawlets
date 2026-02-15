@@ -73,6 +73,28 @@ describe("runner command policy args parser", () => {
     expect(result).toEqual({ ok: true });
   });
 
+  it("accepts host-scoped env age-key commands", () => {
+    const detect = __test_validateArgsForKind({
+      kind: "custom",
+      args: ["env", "detect-age-key", "--host", "openclaw-fleet-host", "--json"],
+    });
+    expect(detect).toEqual({ ok: true });
+
+    const generate = __test_validateArgsForKind({
+      kind: "custom",
+      args: ["env", "generate-age-key", "--host", "openclaw-fleet-host", "--json"],
+    });
+    expect(generate).toEqual({ ok: true });
+  });
+
+  it("accepts env token-keyring-mutate args for custom jobs", () => {
+    const result = __test_validateArgsForKind({
+      kind: "custom",
+      args: ["env", "token-keyring-mutate", "--from-json", "__RUNNER_INPUT_JSON__", "--json"],
+    });
+    expect(result).toEqual({ ok: true });
+  });
+
   it("resolves json_small mode for setup_apply", () => {
     const resolved = resolveCommandSpecForKind("setup_apply", [
       "setup",
@@ -84,6 +106,21 @@ describe("runner command policy args parser", () => {
     expect(resolved.ok).toBe(true);
     if (!resolved.ok) return;
     expect(resolved.spec.id).toBe("setup_apply");
+    expect(resolved.spec.resultMode).toBe("json_small");
+    expect(resolved.spec.resultMaxBytes).toBe(512 * 1024);
+  });
+
+  it("resolves json_small mode for token keyring mutate", () => {
+    const resolved = resolveCommandSpecForKind("custom", [
+      "env",
+      "token-keyring-mutate",
+      "--from-json",
+      "__RUNNER_INPUT_JSON__",
+      "--json",
+    ]);
+    expect(resolved.ok).toBe(true);
+    if (!resolved.ok) return;
+    expect(resolved.spec.id).toBe("env_token_keyring_mutate");
     expect(resolved.spec.resultMode).toBe("json_small");
     expect(resolved.spec.resultMaxBytes).toBe(512 * 1024);
   });

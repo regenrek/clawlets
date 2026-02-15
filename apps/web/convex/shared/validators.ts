@@ -18,6 +18,10 @@ import {
   ProviderConfigSummary,
   ProviderType,
   RunnerCapabilities,
+  RunnerDeployCredsSummary,
+  ProjectCredentialSection,
+  ProjectCredentialSyncStatus,
+  ProjectCredentialMetadata,
   RunnerStatus,
   Role,
   SetupDraftNonSecret,
@@ -165,6 +169,22 @@ export const RunnerDoc = v.object({
   lastStatus: RunnerStatus,
   version: v.optional(v.string()),
   capabilities: v.optional(RunnerCapabilities),
+  deployCredsSummary: v.optional(RunnerDeployCredsSummary),
+});
+
+export const ProjectCredentialDoc = v.object({
+  _id: v.id("projectCredentials"),
+  _creationTime: v.number(),
+  projectId: v.id("projects"),
+  section: ProjectCredentialSection,
+  metadata: v.optional(ProjectCredentialMetadata),
+  sealedValueB64: v.optional(v.string()),
+  sealedForRunnerId: v.optional(v.id("runners")),
+  sealedInputAlg: v.optional(v.string()),
+  sealedInputKeyId: v.optional(v.string()),
+  syncStatus: ProjectCredentialSyncStatus,
+  lastSyncError: v.optional(v.string()),
+  updatedAt: v.number(),
 });
 
 export const RunnerTokenDoc = v.object({
