@@ -7,7 +7,7 @@ Clawlets stores provider OpenTofu assets under:
 
 Runtime state dir:
 
-- `.clawlets/infra/opentofu/<host>/providers/<provider>/**`
+- `<runtimeDir>/infra/opentofu/<host>/providers/<provider>/**`
 
 Notes:
 - State is provider-scoped to avoid cross-provider state collisions.
@@ -17,7 +17,7 @@ Notes:
 Manual runs (debugging):
 
 ```bash
-nix run --impure nixpkgs#opentofu -- -chdir=.clawlets/infra/opentofu/<host>/providers/<provider> init
-nix run --impure nixpkgs#opentofu -- -chdir=.clawlets/infra/opentofu/<host>/providers/<provider> plan
-nix run --impure nixpkgs#opentofu -- -chdir=.clawlets/infra/opentofu/<host>/providers/<provider> apply
+nix run --impure nixpkgs#opentofu -- -chdir=<runtimeDir>/infra/opentofu/<host>/providers/<provider> init
+nix run --impure nixpkgs#opentofu -- -chdir=<runtimeDir>/infra/opentofu/<host>/providers/<provider> plan
+nix run --impure nixpkgs#opentofu -- -chdir=<runtimeDir>/infra/opentofu/<host>/providers/<provider> apply
 ```

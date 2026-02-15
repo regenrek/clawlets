@@ -28,7 +28,7 @@ export const quickstart = defineCommand({
   args: {
     confirm: { type: "boolean", description: "Confirm before installing or writing files.", default: true },
     installNix: { type: "string", description: "Nix install policy: auto|always|never.", default: "auto" },
-    nixBin: { type: "string", description: "Override nix binary path and persist to .clawlets/env." },
+    nixBin: { type: "string", description: "Override nix binary path and persist to <runtimeDir>/env." },
     skipNix: { type: "boolean", description: "Alias for --install-nix=never.", default: false },
     setupConvex: { type: "boolean", description: "Run Convex bootstrap.", default: true },
     skipConvex: { type: "boolean", description: "Skip Convex bootstrap.", default: false },
@@ -78,7 +78,7 @@ export const quickstart = defineCommand({
       repoRoot,
       updates: { NIX_BIN: nix.nixBin },
     });
-    printHuman(jsonMode, "ok: persisted NIX_BIN to .clawlets/env");
+    printHuman(jsonMode, "ok: persisted NIX_BIN to <runtimeDir>/env");
 
     await ensurePnpmInstall({
       repoRoot,

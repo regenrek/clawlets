@@ -256,7 +256,7 @@ export function SetupSopsAgeKeyField(props: {
                 id="setup-sops-age-key-file"
                 value={sopsAgeKeyFile}
                 onChange={(event) => setSopsAgeKeyFileOverride(event.target.value)}
-                placeholder=".clawlets/keys/operators/<user>.agekey"
+                placeholder="<runtimeDir>/keys/operators/<user>.agekey"
               />
               <InputGroupAddon align="inline-end">
                 <InputGroupButton

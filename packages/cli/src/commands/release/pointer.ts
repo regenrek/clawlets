@@ -30,7 +30,7 @@ const pointerWrite = defineCommand({
     description: "Write latest.json pointer for a host+channel (signed separately).",
   },
   args: {
-    runtimeDir: { type: "string", description: "Runtime directory (default: .clawlets)." },
+    runtimeDir: { type: "string", description: "Runtime directory (default: ~/.clawlets/workspaces/<repo>-<hash>; or $CLAWLETS_HOME/workspaces/<repo>-<hash>)." },
     host: { type: "string", description: "Host name (defaults to clawlets.json defaultHost / sole host)." },
     channel: { type: "string", description: "Release channel (staging|prod|...)." },
     releaseId: { type: "string", description: "Monotonic issuance id for this host+channel (integer)." },

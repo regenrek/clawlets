@@ -7,7 +7,7 @@ describe("sops-rules doctor compatibility", () => {
     const { upsertSopsCreationRule } = await import("../src/lib/security/sops-config");
     const { getHostAgeKeySopsCreationRulePathRegex, getHostSecretsSopsCreationRulePathRegex } = await import("../src/lib/security/sops-rules");
 
-    const layout = getRepoLayout("/repo", "/repo/.clawlets");
+    const layout = getRepoLayout("/repo", "/tmp/clawlets-runtime");
     const host = "openclaw-fleet-host";
 
     const expectedHostSecrets = getHostSecretsSopsCreationRulePathRegex(layout, host);
@@ -31,4 +31,3 @@ describe("sops-rules doctor compatibility", () => {
     expect(regexes).toContain(expectedHostSecrets);
   });
 });
-

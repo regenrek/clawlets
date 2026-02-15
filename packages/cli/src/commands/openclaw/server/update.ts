@@ -24,7 +24,7 @@ const serverUpdateStatus = defineCommand({
     description: "Show updater status JSON (/var/lib/clawlets/updates/status.json).",
   },
   args: {
-    runtimeDir: { type: "string", description: "Runtime directory (default: .clawlets)." },
+    runtimeDir: { type: "string", description: "Runtime directory (default: ~/.clawlets/workspaces/<repo>-<hash>; or $CLAWLETS_HOME/workspaces/<repo>-<hash>)." },
     host: { type: "string", description: "Host name (defaults to clawlets.json defaultHost / sole host)." },
     targetHost: { type: "string", description: "SSH target override (default: from clawlets.json)." },
     sshTty: { type: "boolean", description: "Allocate TTY for sudo prompts.", default: true },
@@ -52,7 +52,7 @@ const serverUpdateLogs = defineCommand({
     description: "Show updater logs (journalctl -u clawlets-update-*).",
   },
   args: {
-    runtimeDir: { type: "string", description: "Runtime directory (default: .clawlets)." },
+    runtimeDir: { type: "string", description: "Runtime directory (default: ~/.clawlets/workspaces/<repo>-<hash>; or $CLAWLETS_HOME/workspaces/<repo>-<hash>)." },
     host: { type: "string", description: "Host name (defaults to clawlets.json defaultHost / sole host)." },
     targetHost: { type: "string", description: "SSH target override (default: from clawlets.json)." },
     lines: { type: "string", description: "Number of lines (default: 200).", default: "200" },
@@ -94,7 +94,7 @@ const serverUpdateApply = defineCommand({
     description: "Trigger updater fetch+apply now (systemctl start clawlets-update-fetch.service).",
   },
   args: {
-    runtimeDir: { type: "string", description: "Runtime directory (default: .clawlets)." },
+    runtimeDir: { type: "string", description: "Runtime directory (default: ~/.clawlets/workspaces/<repo>-<hash>; or $CLAWLETS_HOME/workspaces/<repo>-<hash>)." },
     host: { type: "string", description: "Host name (defaults to clawlets.json defaultHost / sole host)." },
     targetHost: { type: "string", description: "SSH target override (default: from clawlets.json)." },
     sshTty: { type: "boolean", description: "Allocate TTY for sudo prompts.", default: true },

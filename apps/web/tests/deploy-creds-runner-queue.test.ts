@@ -103,9 +103,9 @@ describe("deploy creds runner queue", () => {
     const { mod } = await loadSdk({
       runnerJson: {
         repoRoot: "/tmp/repo",
-        envFile: { origin: "default", status: "ok", path: "/tmp/repo/.clawlets/env" },
-        defaultEnvPath: "/tmp/repo/.clawlets/env",
-        defaultSopsAgeKeyPath: "/tmp/repo/.clawlets/keys/operators/alice.agekey",
+        envFile: { origin: "default", status: "ok", path: "/tmp/clawlets-home/workspaces/repo-1234567890abcdef/env" },
+        defaultEnvPath: "/tmp/clawlets-home/workspaces/repo-1234567890abcdef/env",
+        defaultSopsAgeKeyPath: "/tmp/clawlets-home/workspaces/repo-1234567890abcdef/keys/operators/alice.agekey",
         keys: [{ key: "HCLOUD_TOKEN", source: "file", status: "set" }],
         template: "template",
       },
@@ -120,7 +120,7 @@ describe("deploy creds runner queue", () => {
         data: { projectId: "p1" as any },
       }),
     )
-    expect(res.defaultEnvPath).toBe("/tmp/repo/.clawlets/env")
+    expect(res.defaultEnvPath).toBe("/tmp/clawlets-home/workspaces/repo-1234567890abcdef/env")
     expect(res.keys).toEqual([{ key: "HCLOUD_TOKEN", source: "file", status: "set" }])
   })
 
@@ -129,9 +129,9 @@ describe("deploy creds runner queue", () => {
       runnerJson: { ignored: true },
       commandResultJson: {
         repoRoot: "/tmp/repo",
-        envFile: { origin: "default", status: "ok", path: "/tmp/repo/.clawlets/env" },
-        defaultEnvPath: "/tmp/repo/.clawlets/env",
-        defaultSopsAgeKeyPath: "/tmp/repo/.clawlets/keys/operators/alice.agekey",
+        envFile: { origin: "default", status: "ok", path: "/tmp/clawlets-home/workspaces/repo-1234567890abcdef/env" },
+        defaultEnvPath: "/tmp/clawlets-home/workspaces/repo-1234567890abcdef/env",
+        defaultSopsAgeKeyPath: "/tmp/clawlets-home/workspaces/repo-1234567890abcdef/keys/operators/alice.agekey",
         keys: [{ key: "HCLOUD_TOKEN", source: "file", status: "set", value: "never-return" }],
         template: "template",
       },
@@ -146,7 +146,7 @@ describe("deploy creds runner queue", () => {
         data: { projectId: "p1" as any },
       }),
     )
-    expect(res.defaultEnvPath).toBe("/tmp/repo/.clawlets/env")
+    expect(res.defaultEnvPath).toBe("/tmp/clawlets-home/workspaces/repo-1234567890abcdef/env")
     expect(res.keys).toEqual([{ key: "HCLOUD_TOKEN", source: "file", status: "set" }])
   })
 
@@ -154,9 +154,9 @@ describe("deploy creds runner queue", () => {
     const { mod } = await loadSdk({
       runnerJson: {
         repoRoot: "/tmp/repo",
-        envFile: { origin: "default", status: "ok", path: "/tmp/repo/.clawlets/env" },
-        defaultEnvPath: "/tmp/repo/.clawlets/env",
-        defaultSopsAgeKeyPath: "/tmp/repo/.clawlets/keys/operators/alice.agekey",
+        envFile: { origin: "default", status: "ok", path: "/tmp/clawlets-home/workspaces/repo-1234567890abcdef/env" },
+        defaultEnvPath: "/tmp/clawlets-home/workspaces/repo-1234567890abcdef/env",
+        defaultSopsAgeKeyPath: "/tmp/clawlets-home/workspaces/repo-1234567890abcdef/keys/operators/alice.agekey",
         keys: [
           {
             key: "HCLOUD_TOKEN_KEYRING",
@@ -231,9 +231,9 @@ describe("deploy creds runner queue", () => {
     const { mod } = await loadSdk({
       runnerJson: {
         operatorId: "alice",
-        defaultOperatorPath: "/tmp/repo/.clawlets/keys/operators/alice.agekey",
-        candidates: [{ path: "/tmp/repo/.clawlets/keys/operators/alice.agekey", exists: true, valid: true }],
-        recommendedPath: "/tmp/repo/.clawlets/keys/operators/alice.agekey",
+        defaultOperatorPath: "/tmp/clawlets-home/workspaces/repo-1234567890abcdef/keys/operators/alice.agekey",
+        candidates: [{ path: "/tmp/clawlets-home/workspaces/repo-1234567890abcdef/keys/operators/alice.agekey", exists: true, valid: true }],
+        recommendedPath: "/tmp/clawlets-home/workspaces/repo-1234567890abcdef/keys/operators/alice.agekey",
       },
     })
     const ctx = {
@@ -246,7 +246,7 @@ describe("deploy creds runner queue", () => {
         data: { projectId: "p1" as any },
       }),
     )
-    expect(res.recommendedPath).toBe("/tmp/repo/.clawlets/keys/operators/alice.agekey")
+    expect(res.recommendedPath).toBe("/tmp/clawlets-home/workspaces/repo-1234567890abcdef/keys/operators/alice.agekey")
     expect(res.candidates[0]?.valid).toBe(true)
   })
 
@@ -254,7 +254,7 @@ describe("deploy creds runner queue", () => {
     const { mod, mutation } = await loadSdk({
       runnerJson: {
         ok: true,
-        keyPath: "/tmp/repo/.clawlets/keys/operators/alice.agekey",
+        keyPath: "/tmp/clawlets-home/workspaces/repo-1234567890abcdef/keys/operators/alice.agekey",
         publicKey: "age1test",
         created: false,
       },
@@ -275,7 +275,7 @@ describe("deploy creds runner queue", () => {
     expect(payload).toEqual({
       projectId: "p1",
       action: "sops.operatorKey.generate",
-      target: { doc: ".clawlets/keys/operators" },
+      target: { doc: "<runtimeDir>/keys/operators" },
       data: { runId: "run_1" },
     })
   })
@@ -345,7 +345,7 @@ describe("deploy creds runner queue", () => {
     expect(payload).toEqual({
       projectId: "p1",
       action: "deployCreds.update",
-      target: { doc: ".clawlets/env" },
+      target: { doc: "<runtimeDir>/env" },
       data: { runId: "run_1", jobId: "job_1", targetRunnerId: "r1", updatedKeys: ["HCLOUD_TOKEN"] },
     })
   })

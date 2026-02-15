@@ -38,10 +38,10 @@ const imageBuild = defineCommand({
     description: "Build a raw NixOS image for a host (nixos-generators).",
   },
   args: {
-    runtimeDir: { type: "string", description: "Runtime directory (default: .clawlets)." },
+    runtimeDir: { type: "string", description: "Runtime directory (default: ~/.clawlets/workspaces/<repo>-<hash>; or $CLAWLETS_HOME/workspaces/<repo>-<hash>)." },
     host: { type: "string", description: "Host name (defaults to clawlets.json defaultHost / sole host)." },
     rev: { type: "string", description: "Git rev to name the image (HEAD/sha/tag).", default: "HEAD" },
-    out: { type: "string", description: "Output path (default: .clawlets/images/<host>/clawlets-<host>-<rev>.raw)." },
+    out: { type: "string", description: "Output path (default: <runtimeDir>/images/<host>/clawlets-<host>-<rev>.raw)." },
     nixBin: { type: "string", description: "Override nix binary (default: nix)." },
   },
   async run({ args }) {

@@ -26,7 +26,7 @@ local repo access.
 
 Recommended deployment split:
 
-- `apps/web` on VPS (no repo mount, no `.clawlets`, no host keys)
+- `apps/web` on VPS (no repo mount, no runtime state dir, no host keys)
 - `clawlets runner start ...` on workstation or dedicated runner host with repo access
 
 If you operate deploy creds in the dashboard UI, see

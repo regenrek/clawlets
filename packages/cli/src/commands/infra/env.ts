@@ -108,7 +108,7 @@ export const envInit = defineCommand({
     description: "Create/update <runtimeDir>/env for deploy creds (gitignored).",
   },
   args: {
-    runtimeDir: { type: "string", description: "Runtime directory (default: .clawlets)." },
+    runtimeDir: { type: "string", description: "Runtime directory (default: ~/.clawlets/workspaces/<repo>-<hash>; or $CLAWLETS_HOME/workspaces/<repo>-<hash>)." },
     envFile: { type: "string", description: "Env file path override (advanced; default: <runtimeDir>/env)." },
   },
   async run({ args }) {
@@ -158,7 +158,7 @@ export const envShow = defineCommand({
     description: "Show resolved deploy creds (redacted) + their sources (env/file/default).",
   },
   args: {
-    runtimeDir: { type: "string", description: "Runtime directory (default: .clawlets)." },
+    runtimeDir: { type: "string", description: "Runtime directory (default: ~/.clawlets/workspaces/<repo>-<hash>; or $CLAWLETS_HOME/workspaces/<repo>-<hash>)." },
     envFile: { type: "string", description: "Env file for deploy creds (default: <runtimeDir>/env)." },
     json: { type: "boolean", description: "Output JSON.", default: false },
   },
@@ -215,7 +215,7 @@ export const envDetectAgeKey = defineCommand({
     description: "Detect candidate SOPS age key files and print recommendation.",
   },
   args: {
-    runtimeDir: { type: "string", description: "Runtime directory (default: .clawlets)." },
+    runtimeDir: { type: "string", description: "Runtime directory (default: ~/.clawlets/workspaces/<repo>-<hash>; or $CLAWLETS_HOME/workspaces/<repo>-<hash>)." },
     envFile: { type: "string", description: "Env file for deploy creds (default: <runtimeDir>/env)." },
     json: { type: "boolean", description: "Output JSON.", default: false },
   },
@@ -296,7 +296,7 @@ export const envGenerateAgeKey = defineCommand({
     description: "Generate local operator age key and set SOPS_AGE_KEY_FILE.",
   },
   args: {
-    runtimeDir: { type: "string", description: "Runtime directory (default: .clawlets)." },
+    runtimeDir: { type: "string", description: "Runtime directory (default: ~/.clawlets/workspaces/<repo>-<hash>; or $CLAWLETS_HOME/workspaces/<repo>-<hash>)." },
     envFile: { type: "string", description: "Env file for deploy creds (default: <runtimeDir>/env)." },
     json: { type: "boolean", description: "Output JSON.", default: false },
   },
@@ -383,7 +383,7 @@ export const envApplyJson = defineCommand({
     description: "Apply deploy creds updates from a JSON object file.",
   },
   args: {
-    runtimeDir: { type: "string", description: "Runtime directory (default: .clawlets)." },
+    runtimeDir: { type: "string", description: "Runtime directory (default: ~/.clawlets/workspaces/<repo>-<hash>; or $CLAWLETS_HOME/workspaces/<repo>-<hash>)." },
     envFile: { type: "string", description: "Env file for deploy creds (default: <runtimeDir>/env)." },
     fromJson: { type: "string", required: true, description: "Path to JSON object with deploy creds keys." },
     json: { type: "boolean", description: "Output JSON.", default: false },
@@ -433,7 +433,7 @@ export const envApplyJson = defineCommand({
 export const env = defineCommand({
   meta: {
     name: "env",
-    description: "Local deploy credentials (.clawlets/env).",
+    description: "Local deploy credentials (<runtimeDir>/env).",
   },
   subCommands: {
     init: envInit,

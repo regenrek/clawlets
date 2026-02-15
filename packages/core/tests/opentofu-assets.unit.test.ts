@@ -5,11 +5,13 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import type { ProvisionerRuntime } from "../src/lib/infra/types.js";
 import { resolveBundledOpenTofuAssetDir } from "../src/lib/infra/opentofu-assets.js";
+import { getRepoLayout } from "../src/repo-layout.js";
 
 function runtime(repoRoot: string): ProvisionerRuntime {
+  const layout = getRepoLayout(repoRoot);
   return {
     repoRoot,
-    opentofuDir: path.join(repoRoot, ".clawlets", "infra", "opentofu"),
+    opentofuDir: layout.opentofuDir,
     nixBin: "nix",
     dryRun: true,
     redact: [],

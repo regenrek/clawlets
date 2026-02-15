@@ -21,7 +21,7 @@ const getProvisionerDriverMock = vi.fn(() => ({
   lockdown: lockdownMock,
 }));
 const loadDeployCredsMock = vi.fn();
-const expandPathMock = vi.fn((v: string) => v);
+const expandPathMock = vi.hoisted(() => vi.fn((v: string) => v));
 let repoRoot = "/repo";
 const findRepoRootMock = vi.fn(() => repoRoot);
 const resolveHostNameOrExitMock = vi.fn(() => "alpha");
@@ -83,7 +83,7 @@ describe("infra command", () => {
     const layout = getRepoLayout("/repo");
     loadClawletsConfigMock.mockReturnValue({ layout, config });
     loadDeployCredsMock.mockReturnValue({
-      envFile: { status: "ok", path: "/repo/.clawlets/env" },
+      envFile: { status: "ok", path: "/runtime/env" },
       values: { HCLOUD_TOKEN: "token", NIX_BIN: "nix", GITHUB_TOKEN: "" },
     });
     const { infra } = await import("../src/commands/infra/index.js");
@@ -103,7 +103,7 @@ describe("infra command", () => {
     const layout = getRepoLayout("/repo");
     loadClawletsConfigMock.mockReturnValue({ layout, config });
     loadDeployCredsMock.mockReturnValue({
-      envFile: { status: "ok", path: "/repo/.clawlets/env" },
+      envFile: { status: "ok", path: "/runtime/env" },
       values: { HCLOUD_TOKEN: "token", NIX_BIN: "nix", GITHUB_TOKEN: "" },
     });
     const original = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
@@ -129,7 +129,7 @@ describe("infra command", () => {
     const layout = getRepoLayout(tmp);
     loadClawletsConfigMock.mockReturnValue({ layout, config });
     loadDeployCredsMock.mockReturnValue({
-      envFile: { status: "ok", path: "/repo/.clawlets/env" },
+      envFile: { status: "ok", path: "/runtime/env" },
       values: { HCLOUD_TOKEN: "token", NIX_BIN: "nix", GITHUB_TOKEN: "" },
     });
 
@@ -140,7 +140,7 @@ describe("infra command", () => {
     const spec = provisionMock.mock.calls[0]?.[0]?.spec;
     expect(spec?.ssh?.publicKey).toContain("ssh-ed25519");
     expect(String(spec?.ssh?.publicKeyPath || "")).toContain(
-      `${path.sep}.clawlets${path.sep}keys${path.sep}provisioning${path.sep}alpha.pub`,
+      `${path.sep}keys${path.sep}provisioning${path.sep}alpha.pub`,
     );
   });
 });

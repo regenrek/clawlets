@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { getRepoLayout } from "@clawlets/core/repo-layout";
 
 const TEST_TIMEOUT_MS = 15_000;
 import { plugin } from "../src/commands/platform/plugin.js";
@@ -63,7 +64,7 @@ describe("plugin command", () => {
     const repoRoot = makeRepoRoot();
     tempDirs.push(repoRoot);
     process.chdir(repoRoot);
-    const badDir = path.join(repoRoot, ".clawlets", "plugins", "broken");
+    const badDir = path.join(getRepoLayout(repoRoot).pluginsDir, "broken");
     fs.mkdirSync(badDir, { recursive: true });
     fs.writeFileSync(path.join(badDir, "clawlets-plugin.json"), "{\"bad\":");
     const errors: string[] = [];

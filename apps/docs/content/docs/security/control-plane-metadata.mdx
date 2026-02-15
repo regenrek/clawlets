@@ -71,7 +71,7 @@ Oversized payloads are rejected by the control plane with `400`.
 ## What the control plane must not store
 
 - plaintext secret values
-- deploy credentials from `.clawlets/env`
+- deploy credentials from `<runtimeDir>/env`
 - operator private keys
 - OpenTofu/Terraform state
 - full unbounded config blobs
@@ -126,7 +126,7 @@ are outside this erasure boundary.
 
 ## Verify the boundary
 
-- In setup/credentials UI, confirm provider tokens stay local (`.clawlets/env`) and are shown as status only.
+- In setup/credentials UI, confirm provider tokens stay local (`<runtimeDir>/env`) and are shown as status only.
 - In run history, verify events are redacted and do not include plaintext tokens/keys.
 - In troubleshooting, treat any secret-like appearance as an incident and rotate immediately.
 

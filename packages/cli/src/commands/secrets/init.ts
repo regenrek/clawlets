@@ -59,10 +59,10 @@ function readSecretsInitJson(fromJson: string, opts: { requireAdminPassword: boo
 export const secretsInit = defineCommand({
   meta: {
     name: "init",
-    description: "Create/update secrets in /secrets (sops+age) and generate .clawlets/extra-files/<host>/...",
+    description: "Create/update secrets in /secrets (sops+age) and generate <runtimeDir>/extra-files/<host>/...",
   },
   args: {
-    runtimeDir: { type: "string", description: "Runtime directory (default: .clawlets)." },
+    runtimeDir: { type: "string", description: "Runtime directory (default: ~/.clawlets/workspaces/<repo>-<hash>; or $CLAWLETS_HOME/workspaces/<repo>-<hash>)." },
     host: { type: "string", description: "Host name (defaults to clawlets.json defaultHost / sole host)." },
     scope: { type: "string", description: "Secrets scope (bootstrap|updates|openclaw|all).", default: "all" },
     interactive: { type: "boolean", description: "Prompt for secret values (requires TTY).", default: false },

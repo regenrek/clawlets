@@ -2,6 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
+import { getRepoLayout } from "@clawlets/core/repo-layout";
 import { baseCommandNames } from "../src/commands/registry.js";
 import {
   installPlugin,
@@ -20,7 +21,7 @@ describe("plugins reserved commands", () => {
 
   it("skips broken plugin manifests", () => {
     const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "clawlets-plugins-"));
-    const pluginsDir = path.join(repoRoot, ".clawlets", "plugins");
+    const pluginsDir = getRepoLayout(repoRoot).pluginsDir;
     const goodDir = path.join(pluginsDir, "sample");
     const badDir = path.join(pluginsDir, "broken");
     fs.mkdirSync(goodDir, { recursive: true });
@@ -48,7 +49,7 @@ describe("plugins reserved commands", () => {
 
   it("rejects path traversal in removePlugin", () => {
     const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "clawlets-plugins-"));
-    fs.mkdirSync(path.join(repoRoot, ".clawlets", "plugins"), { recursive: true });
+    fs.mkdirSync(getRepoLayout(repoRoot).pluginsDir, { recursive: true });
     const rmSpy = vi.spyOn(fs, "rmSync");
     expect(() => removePlugin({ cwd: repoRoot, slug: "../.." })).toThrow(/invalid plugin command|escapes/);
     expect(rmSpy).not.toHaveBeenCalled();
@@ -83,7 +84,7 @@ describe("plugins reserved commands", () => {
 
   it("skips invalid package names", () => {
     const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "clawlets-plugins-"));
-    const pluginsDir = path.join(repoRoot, ".clawlets", "plugins");
+    const pluginsDir = getRepoLayout(repoRoot).pluginsDir;
     const badDir = path.join(pluginsDir, "invalid");
     fs.mkdirSync(badDir, { recursive: true });
     fs.writeFileSync(

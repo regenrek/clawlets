@@ -136,8 +136,9 @@ installs.
 The project repo is the canonical source of truth and is intended to be committed:
 `fleet/clawlets.json` for config, `fleet/workspaces/**` for gateway docs, `secrets/**`
 for sops-encrypted secrets. The
-runtime directory `.clawlets/` is local-only and gitignored; it stores operator
-keys, extra-files payloads, provisioning state, and image build artifacts.
+runtime directory `<runtimeDir>/` is local-only and gitignored; it stores operator
+keys, extra-files payloads, provisioning state, and image build artifacts. Default:
+`~/.clawlets/workspaces/<repo>-<hash>/` (or `$CLAWLETS_HOME/workspaces/<repo>-<hash>/`).
 
 ## Start here
 

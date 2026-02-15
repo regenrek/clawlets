@@ -39,8 +39,8 @@ describe("quickstart command", () => {
     captureMock.mockResolvedValue("");
     captureWithInputMock.mockResolvedValue("");
     updateDeployCredsEnvFileMock.mockResolvedValue({
-      envPath: "/tmp/repo/.clawlets/env",
-      runtimeDir: "/tmp/repo/.clawlets",
+      envPath: "/tmp/clawlets-home/workspaces/repo-1234567890abcdef/env",
+      runtimeDir: "/tmp/clawlets-home/workspaces/repo-1234567890abcdef",
       updatedKeys: ["NIX_BIN"],
     });
   });

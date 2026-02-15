@@ -41,8 +41,9 @@ describe("plugin dispatch integration", () => {
     writeFile(path.join(repoRoot, "flake.nix"), "{ }\n");
     fs.mkdirSync(path.join(repoRoot, "scripts"), { recursive: true });
 
-    const runtimeDir = ".clawlets";
-    const pluginInstallDir = path.join(repoRoot, runtimeDir, "plugins", "sample");
+    const runtimeDir = fs.mkdtempSync(path.join(os.tmpdir(), "clawlets-plugin-runtime-"));
+    tempDirs.push(runtimeDir);
+    const pluginInstallDir = path.join(runtimeDir, "plugins", "sample");
     const pluginPackageDir = path.join(
       pluginInstallDir,
       "node_modules",

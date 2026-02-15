@@ -4,14 +4,14 @@ This repo is your fleet config (public-safe).
 
 - Config: `fleet/clawlets.json`
 - Secrets: `secrets/` (sops-encrypted; safe to commit)
-- Runtime: `.clawlets/` (gitignored; operator keys + nixos-anywhere extra-files)
+- Runtime: `<runtimeDir>/` (gitignored; operator keys + nixos-anywhere extra-files; default: `~/.clawlets/workspaces/<repo>-<hash>/` or `$CLAWLETS_HOME/workspaces/<repo>-<hash>/`)
 
 Quickstart
 1) install `clawlets` (global)
 2) set host basics: `clawlets host set --admin-cidr <your-ip>/32 --disk-device /dev/sda --add-ssh-key-file $HOME/.ssh/id_ed25519.pub --enable true`
-3) `clawlets env init` (set `HCLOUD_TOKEN` in `.clawlets/env`)
-4) `clawlets secrets init --host <host>` (fills `.clawlets/secrets.json`)
-5) `clawlets secrets init --host <host> --from-json .clawlets/secrets.json --yes`
+3) `clawlets env init` (set `HCLOUD_TOKEN` in `<runtimeDir>/env`)
+4) `clawlets secrets init --host <host>` (fills `<runtimeDir>/secrets.json`)
+5) `clawlets secrets init --host <host> --from-json <runtimeDir>/secrets.json --yes`
 6) `clawlets doctor --scope bootstrap`
 7) `clawlets bootstrap`
 8) join tailnet, then: `clawlets host set --target-host admin@<tailscale-ip>` then `clawlets server update apply --host <host>` and `clawlets lockdown`

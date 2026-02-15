@@ -31,12 +31,12 @@ If this key is missing, secrets workflows cannot safely continue.
 </Steps>
 
 Detection and generation only scan project-local runtime paths under
-<code>&lt;repo&gt;/.clawlets/keys/operators</code>.
+`<runtimeDir>/keys/operators/`.
 
 ## Manual key generation (CLI)
 
 ```bash
-mkdir -p .clawlets/keys/operators && age-keygen -o .clawlets/keys/operators/<operator>.agekey
+mkdir -p <runtimeDir>/keys/operators && age-keygen -o <runtimeDir>/keys/operators/<operator>.agekey
 ```
 
 Then set <code>SOPS_AGE_KEY_FILE</code> to that path in dashboard credentials.

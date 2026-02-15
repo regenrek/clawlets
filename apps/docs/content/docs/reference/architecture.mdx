@@ -13,11 +13,11 @@ must remain local.
 - **clf-cattle (plugin repo)**: experimental external plugin repo for CLF/cattle workflows.
 - **clawlets-template**: project scaffolding used by `clawlets project init`.
 - **Project repo**: `flake.nix`, `fleet/`, `secrets/` (public-safe).
-- **Runtime (`.clawlets/`)**: gitignored operator state + keys + provisioning artifacts.
+- **Runtime (`<runtimeDir>/`)**: gitignored operator state + keys + provisioning artifacts.
 
 Rules:
 - `fleet/clawlets.json` is canonical; no secrets.
-- Secrets live only in `secrets/` (sops-encrypted) and `.clawlets/` (operator keys/runtime).
+- Secrets live only in `secrets/` (sops-encrypted) and `<runtimeDir>/` (operator keys/runtime).
 
 ## Core components
 
@@ -63,4 +63,4 @@ Clawlets keeps the model simple: config and secrets in the repo, runtime state l
 
 - Config: `fleet/clawlets.json`
 - Secrets: `secrets/` (sops)
-- Runtime: `.clawlets/` (local operator state, gitignored)
+- Runtime: `<runtimeDir>/` (local operator state, gitignored)

@@ -40,7 +40,7 @@ function buildGatewaySchemaCommand(params: { gatewayId: string; port: number; su
 const schemaFetch = defineCommand({
   meta: { name: "fetch", description: "Fetch live OpenClaw config schema via gateway RPC." },
   args: {
-    runtimeDir: { type: "string", description: "Runtime directory (default: .clawlets)." },
+    runtimeDir: { type: "string", description: "Runtime directory (default: ~/.clawlets/workspaces/<repo>-<hash>; or $CLAWLETS_HOME/workspaces/<repo>-<hash>)." },
     host: { type: "string", description: "Host name (defaults to clawlets.json defaultHost / sole host)." },
     targetHost: { type: "string", description: "SSH target override (default: from clawlets.json)." },
     gateway: { type: "string", description: "Gateway id (maps to systemd unit openclaw-<gateway>.service)." },

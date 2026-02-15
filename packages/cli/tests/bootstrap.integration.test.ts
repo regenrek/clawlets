@@ -9,7 +9,7 @@ const hostName = "openclaw-beta-3";
 const provisionMock = vi.fn(async ({ runtime }: any) => {
   const token = String(runtime?.credentials?.hcloudToken || "").trim();
   if (!token) {
-    throw new Error("missing HCLOUD_TOKEN (set in .clawlets/env or env var; run: clawlets env init)");
+    throw new Error("missing HCLOUD_TOKEN (set in <runtimeDir>/env or env var; run: clawlets env init)");
   }
   return {
     hostName,
@@ -33,7 +33,7 @@ const resolveGitRevMock = vi.fn().mockResolvedValue("deadbeef");
 const checkGithubRepoVisibilityMock = vi.fn().mockResolvedValue({ ok: true, status: "public" });
 const tryParseGithubFlakeUriMock = vi.fn().mockReturnValue(null);
 const loadDeployCredsMock = vi.fn();
-const expandPathMock = vi.fn((value: string) => value);
+const expandPathMock = vi.hoisted(() => vi.fn((value: string) => value));
 let repoRoot = "/repo";
 const findRepoRootMock = vi.fn(() => repoRoot);
 const evalFleetConfigMock = vi.fn().mockResolvedValue({ gateways: [] });
@@ -182,7 +182,7 @@ describe("bootstrap command", () => {
     fs.writeFileSync(defaultPubkeyFile, "ssh-ed25519 AAAATEST bootstrap-test", "utf8");
     existsSpy = vi.spyOn(fs, "existsSync").mockReturnValue(true);
     loadDeployCredsMock.mockReturnValue({
-      envFile: { status: "ok", path: "/repo/.clawlets/env" },
+      envFile: { status: "ok", path: "/runtime/env" },
       values: { HCLOUD_TOKEN: "token", GITHUB_TOKEN: "", NIX_BIN: "nix" },
     });
   });
@@ -367,7 +367,7 @@ describe("bootstrap command", () => {
   it("rejects when HCLOUD_TOKEN is missing", async () => {
     setConfig({});
     loadDeployCredsMock.mockReturnValueOnce({
-      envFile: { status: "ok", path: "/repo/.clawlets/env" },
+      envFile: { status: "ok", path: "/runtime/env" },
       values: { HCLOUD_TOKEN: "", GITHUB_TOKEN: "", NIX_BIN: "nix" },
     });
     const { bootstrap } = await import("../src/commands/infra/bootstrap.ts");
@@ -464,7 +464,7 @@ describe("bootstrap command", () => {
     const spec = provisionMock.mock.calls[0]?.[0]?.spec;
     expect(spec?.ssh?.publicKey).toContain("ssh-ed25519");
     expect(String(spec?.ssh?.publicKeyPath || "")).toContain(
-      `${path.sep}.clawlets${path.sep}keys${path.sep}provisioning${path.sep}${hostName}.pub`,
+      `${path.sep}keys${path.sep}provisioning${path.sep}${hostName}.pub`,
     );
   });
 

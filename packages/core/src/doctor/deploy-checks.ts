@@ -78,7 +78,7 @@ export async function addDeployChecks(params: {
     push({
       status: params.hcloudToken ? "ok" : "missing",
       label: "HCLOUD_TOKEN",
-      detail: params.hcloudToken ? "(set)" : "(set in .clawlets/env or env var; run: clawlets env init)",
+      detail: params.hcloudToken ? "(set)" : "(set in <runtimeDir>/env or env var; run: clawlets env init)",
     });
   }
 

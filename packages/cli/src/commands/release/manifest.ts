@@ -47,7 +47,7 @@ const manifestBuild = defineCommand({
     description: "Build a signed desired-state release manifest (v1).",
   },
   args: {
-    runtimeDir: { type: "string", description: "Runtime directory (default: .clawlets)." },
+    runtimeDir: { type: "string", description: "Runtime directory (default: ~/.clawlets/workspaces/<repo>-<hash>; or $CLAWLETS_HOME/workspaces/<repo>-<hash>)." },
     host: { type: "string", description: "Host name (defaults to clawlets.json defaultHost / sole host)." },
     channel: { type: "string", description: "Release channel (staging|prod|...)." },
     system: { type: "string", description: "Nix system (x86_64-linux).", default: "x86_64-linux" },
@@ -202,7 +202,7 @@ const manifestVerify = defineCommand({
     description: "Verify a release manifest or pointer signature (minisign).",
   },
   args: {
-    runtimeDir: { type: "string", description: "Runtime directory (default: .clawlets)." },
+    runtimeDir: { type: "string", description: "Runtime directory (default: ~/.clawlets/workspaces/<repo>-<hash>; or $CLAWLETS_HOME/workspaces/<repo>-<hash>)." },
     host: { type: "string", description: "Host name (defaults to clawlets.json defaultHost / sole host)." },
     in: { type: "string", description: "Input file path (manifest/pointer JSON)." },
     signature: { type: "string", description: "Signature path override (default: <in>.minisig)." },
@@ -241,7 +241,7 @@ const manifestPromote = defineCommand({
     description: "Promote an existing release manifest to a different channel (no rebuild; new releaseId).",
   },
   args: {
-    runtimeDir: { type: "string", description: "Runtime directory (default: .clawlets)." },
+    runtimeDir: { type: "string", description: "Runtime directory (default: ~/.clawlets/workspaces/<repo>-<hash>; or $CLAWLETS_HOME/workspaces/<repo>-<hash>)." },
     host: { type: "string", description: "Host name (defaults to clawlets.json defaultHost / sole host)." },
     in: { type: "string", description: "Input release manifest path." },
     channel: { type: "string", description: "Target release channel (staging|prod|...)." },

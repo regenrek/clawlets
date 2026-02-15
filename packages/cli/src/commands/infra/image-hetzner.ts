@@ -10,7 +10,7 @@ export const imageHetznerUpload = defineCommand({
     description: "Upload a raw image to Hetzner using hcloud-upload-image.",
   },
   args: {
-    runtimeDir: { type: "string", description: "Runtime directory (default: .clawlets)." },
+    runtimeDir: { type: "string", description: "Runtime directory (default: ~/.clawlets/workspaces/<repo>-<hash>; or $CLAWLETS_HOME/workspaces/<repo>-<hash>)." },
     envFile: { type: "string", description: "Env file for deploy creds (default: <runtimeDir>/env)." },
     host: { type: "string", description: "Host name (defaults to clawlets.json defaultHost / sole host)." },
     "image-url": { type: "string", description: "Public URL for the raw image (Hetzner must reach it)." },
