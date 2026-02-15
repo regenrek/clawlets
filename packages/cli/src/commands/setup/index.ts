@@ -295,6 +295,7 @@ const setupApply = defineCommand({
           cwd: repoRoot,
           env: setupApplyEnv(),
           stdin: "ignore",
+          stdout: "ignore",
         },
       );
       const verifyRaw = await capture(

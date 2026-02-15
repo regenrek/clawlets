@@ -102,6 +102,8 @@ describe("setup apply command", () => {
       expect(updateDeployCredsEnvFileMock).toHaveBeenCalledTimes(1);
       expect(runMock).toHaveBeenCalledTimes(1);
       expect(captureMock).toHaveBeenCalledTimes(1);
+      const secretsInitRunOpts = runMock.mock.calls.at(0)?.[2] as Record<string, unknown> | undefined;
+      expect(secretsInitRunOpts?.stdout).toBe("ignore");
       const summaryRaw = String(logSpy.mock.calls.at(-1)?.[0] || "");
       const summary = JSON.parse(summaryRaw) as Record<string, unknown>;
       expect(summaryRaw).not.toContain("token-123");
@@ -225,6 +227,8 @@ describe("setup apply command", () => {
       const secretsInitArgs = runMock.mock.calls.at(0)?.[1] as string[] | undefined;
       expect(Array.isArray(secretsInitArgs)).toBe(true);
       expect(secretsInitArgs).toContain("--allowMissingAdminPasswordHash");
+      const secretsInitRunOpts = runMock.mock.calls.at(0)?.[2] as Record<string, unknown> | undefined;
+      expect(secretsInitRunOpts?.stdout).toBe("ignore");
       const summaryRaw = String(logSpy.mock.calls.at(-1)?.[0] || "");
       const summary = JSON.parse(summaryRaw) as { config?: { updatedCount?: number } };
       expect(summary.config?.updatedCount).toBe(1);
