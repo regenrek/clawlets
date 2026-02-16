@@ -11,7 +11,6 @@ export function SetupStepDeploy(props: {
   projectSlug: string
   host: string
   hasBootstrapped: boolean
-  onContinue: () => void
   stepStatus: SetupStepStatus
   setupDraft: SetupDraftView | null
   pendingInfrastructureDraft: SetupDraftInfrastructure | null
@@ -26,7 +25,6 @@ export function SetupStepDeploy(props: {
       host={props.host}
       variant="setup"
       hasBootstrapped={props.hasBootstrapped}
-      onBootstrapped={props.onContinue}
       setupDraft={props.setupDraft}
       pendingInfrastructureDraft={props.pendingInfrastructureDraft}
       pendingConnectionDraft={props.pendingConnectionDraft}

@@ -79,7 +79,6 @@ export function DeployInitialInstall({
         projectSlug={projectSlug}
         host={host}
         hasBootstrapped={hasBootstrapped}
-        onContinue={onBootstrapped}
         headerBadge={headerBadge}
         setupDraft={setupDraft}
         pendingInfrastructureDraft={pendingInfrastructureDraft}

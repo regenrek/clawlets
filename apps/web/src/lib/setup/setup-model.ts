@@ -6,7 +6,6 @@ export const SETUP_STEP_IDS = [
   "tailscale-lockdown",
   "creds",
   "deploy",
-  "verify",
 ] as const
 
 export type SetupStepId = (typeof SETUP_STEP_IDS)[number]
@@ -161,12 +160,6 @@ export function deriveSetupModel(input: DeriveSetupModelInput): SetupModel {
       id: "deploy",
       title: "Install server",
       status: latestBootstrapOk ? "done" : "active",
-    },
-    {
-      id: "verify",
-      title: "Secure and Verify",
-      optional: true,
-      status: "pending",
     },
   ]
 

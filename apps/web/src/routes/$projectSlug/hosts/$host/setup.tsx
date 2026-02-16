@@ -9,14 +9,12 @@ import type { HostTheme } from "@clawlets/core/lib/host/host-theme";
 import type { Id } from "../../../../../convex/_generated/dataModel";
 import { api } from "../../../../../convex/_generated/api";
 import { RunnerStatusBanner } from "~/components/fleet/runner-status-banner";
-import { SetupCelebration } from "~/components/setup/setup-celebration";
 import { SetupHeader } from "~/components/setup/setup-header";
 import { SetupStepConnection } from "~/components/setup/steps/step-connection";
 import { SetupStepCreds } from "~/components/setup/steps/step-creds";
 import { SetupStepDeploy } from "~/components/setup/steps/step-deploy";
 import { SetupStepInfrastructure } from "~/components/setup/steps/step-infrastructure";
 import { SetupStepTailscaleLockdown } from "~/components/setup/steps/step-tailscale-lockdown";
-import { SetupStepVerify } from "~/components/setup/steps/step-verify";
 import { LabelWithHelp } from "~/components/ui/label-help";
 import { NativeSelect, NativeSelectOption } from "~/components/ui/native-select";
 import {
@@ -32,11 +30,10 @@ import {
 } from "~/components/ui/stepper";
 import { singleHostCidrFromIp } from "~/lib/ip-utils";
 import { projectsListQueryOptions } from "~/lib/query-options";
-import { buildHostPath, slugifyProjectName } from "~/lib/project-routing";
+import { slugifyProjectName } from "~/lib/project-routing";
 import { deriveEffectiveSetupDesiredState } from "~/lib/setup/desired-state";
 import type { SetupStepId, SetupStepStatus } from "~/lib/setup/setup-model";
 import {
-  SETUP_STEP_IDS,
   coerceSetupStepId,
   deriveHostSetupStepper,
 } from "~/lib/setup/setup-model";
@@ -101,10 +98,6 @@ const STEP_META: Record<string, { title: string; description: string }> = {
     description: "Repo access and first push checks",
   },
   deploy: { title: "Install Server", description: "Final check and bootstrap" },
-  verify: {
-    title: "Secure and Verify",
-    description: "Lock down SSH and verify",
-  },
 };
 
 function stepMeta(id: string) {
@@ -573,20 +566,6 @@ function HostSetupPage() {
     return () => observer.disconnect();
   }, [stepSignature, stepperSteps]);
 
-  const continueFromStep = React.useCallback(
-    (from: SetupStepId) => {
-      const currentIndex = SETUP_STEP_IDS.findIndex(
-        (stepId) => stepId === from,
-      );
-      const next =
-        currentIndex === -1 ? null : SETUP_STEP_IDS[currentIndex + 1];
-      if (!next) return;
-      setVisibleStepId(next);
-      scrollToStep(next);
-    },
-    [scrollToStep],
-  );
-
   return (
     <div className="mx-auto w-full max-w-2xl space-y-6 xl:max-w-6xl">
       <RunnerStatusBanner
@@ -629,17 +608,6 @@ function HostSetupPage() {
         requiredDone={requiredDone}
         requiredTotal={requiredSteps.length}
       />
-
-      {setup.model.showCelebration ? (
-        <SetupCelebration
-          title="Server installed"
-          description="Bootstrap succeeded and setup queued post-bootstrap hardening. Next: install OpenClaw."
-          primaryLabel="Install OpenClaw"
-          primaryTo={`${buildHostPath(projectSlug, activeHost)}/openclaw-setup`}
-          secondaryLabel="Go to host overview"
-          secondaryTo={buildHostPath(projectSlug, activeHost)}
-        />
-      ) : null}
 
       <Stepper
         value={visibleStepId}
@@ -729,7 +697,6 @@ function HostSetupPage() {
                     }));
                   }}
                   onDetectProjectAdminCidr={detectProjectAdminCidr}
-                  onContinueFromStep={continueFromStep}
                 />
               </section>
             </StepperContent>
@@ -767,7 +734,6 @@ function StepContent(props: {
     next: Partial<SetupPendingBootstrapSecrets>,
   ) => void;
   onDetectProjectAdminCidr: () => Promise<void>;
-  onContinueFromStep: (stepId: SetupStepId) => void;
 }) {
   const {
     stepId,
@@ -900,7 +866,6 @@ function StepContent(props: {
         projectSlug={projectSlug}
         host={host}
         hasBootstrapped={setup.model.hasBootstrapped}
-        onContinue={() => props.onContinueFromStep(stepId)}
         stepStatus={step.status}
         setupDraft={setup.setupDraft}
         pendingInfrastructureDraft={pendingInfrastructureDraft}
@@ -909,12 +874,6 @@ function StepContent(props: {
         hasProjectGithubToken={hasProjectGithubToken}
         hasActiveTailscaleAuthKey={hasActiveTailscaleAuthKey}
       />
-    );
-  }
-
-  if (stepId === "verify") {
-    return (
-      <SetupStepVerify />
     );
   }
 

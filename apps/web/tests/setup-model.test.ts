@@ -42,7 +42,6 @@ describe("deriveSetupModel", () => {
     expect(model.steps.find((s) => s.id === "tailscale-lockdown")?.status).toBe("done")
     expect(model.steps.find((s) => s.id === "creds")?.status).toBe("active")
     expect(model.steps.find((s) => s.id === "deploy")?.status).toBe("active")
-    expect(model.steps.find((s) => s.id === "verify")?.status).toBe("pending")
   })
 
   it("keeps requested step selected", () => {
@@ -288,7 +287,6 @@ describe("deriveHostSetupStepper", () => {
       "tailscale-lockdown",
       "creds",
       "deploy",
-      "verify",
     ])
     expect(stepper.activeStepId).toBe("deploy")
   })

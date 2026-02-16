@@ -15,7 +15,6 @@ describe("setup saved state badges", () => {
     const tailscale = readFile("components/setup/steps/step-tailscale-lockdown.tsx")
     const creds = readFile("components/setup/steps/step-creds.tsx")
     const deploy = readFile("components/setup/steps/step-deploy.tsx")
-    const verify = readFile("components/setup/steps/step-verify.tsx")
     const badge = readFile("components/setup/steps/setup-save-state-badge.tsx")
 
     expect(infrastructure).toContain("SetupSaveStateBadge")
@@ -29,7 +28,6 @@ describe("setup saved state badges", () => {
     expect(creds).toContain("SetupSaveStateBadge")
     expect(creds).not.toContain("SetupStepStatusBadge")
     expect(deploy).not.toContain("SetupStepStatusBadge")
-    expect(verify).not.toContain("SetupStepStatusBadge")
     expect(badge).toContain('state === "saving"')
   })
 })

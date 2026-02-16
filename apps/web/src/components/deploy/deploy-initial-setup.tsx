@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { toast } from "sonner"
 import type { Id } from "../../../convex/_generated/dataModel"
 import { api } from "../../../convex/_generated/api"
+import { SetupCelebration } from "~/components/setup/setup-celebration"
 import { RunLogTail } from "~/components/run-log-tail"
 import { RunnerStatusBanner } from "~/components/fleet/runner-status-banner"
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert"
@@ -86,7 +87,6 @@ export function DeployInitialInstallSetup(props: {
   projectSlug: string
   host: string
   hasBootstrapped: boolean
-  onContinue?: () => void
   headerBadge?: ReactNode
   setupDraft: SetupDraftView | null
   pendingInfrastructureDraft: SetupDraftInfrastructure | null
@@ -115,6 +115,32 @@ export function DeployInitialInstallSetup(props: {
             projectId,
             host: props.host,
             kind: "bootstrap",
+          }
+        : "skip",
+    ),
+    enabled: Boolean(projectId && props.host),
+  })
+  const latestLockdownRunQuery = useQuery({
+    ...convexQuery(
+      api.controlPlane.runs.latestByProjectHostKind,
+      projectId && props.host
+        ? {
+            projectId,
+            host: props.host,
+            kind: "lockdown",
+          }
+        : "skip",
+    ),
+    enabled: Boolean(projectId && props.host),
+  })
+  const latestApplyRunQuery = useQuery({
+    ...convexQuery(
+      api.controlPlane.runs.latestByProjectHostKind,
+      projectId && props.host
+        ? {
+            projectId,
+            host: props.host,
+            kind: "server_update_apply",
           }
         : "skip",
     ),
@@ -275,11 +301,13 @@ export function DeployInitialInstallSetup(props: {
   const [finalizeState, setFinalizeState] = useState<FinalizeState>("idle")
   const [finalizeError, setFinalizeError] = useState<string | null>(null)
   const [finalizeSteps, setFinalizeSteps] = useState<FinalizeStep[]>(() => initialFinalizeSteps())
+  const [finalizeUpdatedAt, setFinalizeUpdatedAt] = useState<number | null>(null)
   const [lockdownRunId, setLockdownRunId] = useState<Id<"runs"> | null>(null)
   const [applyRunId, setApplyRunId] = useState<Id<"runs"> | null>(null)
-  const finalizeStartedRef = useRef(false)
+  const finalizeAttemptedBootstrapRunRef = useRef<string | null>(null)
 
   function setStepStatus(id: FinalizeStepId, status: FinalizeStepStatus, detail?: string): void {
+    setFinalizeUpdatedAt(Date.now())
     setFinalizeSteps((prev) => prev.map((row) => (
       row.id === id ? { ...row, status, detail } : row
     )))
@@ -368,6 +396,7 @@ export function DeployInitialInstallSetup(props: {
       setFinalizeState("running")
       setFinalizeError(null)
       setFinalizeSteps(initialFinalizeSteps())
+      setFinalizeUpdatedAt(null)
 
       let targetHost = String(hostSummary?.desired?.targetHost || "").trim()
       await runFinalizeStep({
@@ -519,7 +548,7 @@ export function DeployInitialInstallSetup(props: {
       return true
     },
     onSuccess: () => {
-      setFinalizeState("succeeded")
+      setFinalizeState("running")
       setBootstrapFinalizeArmed(false)
       toast.success("Server hardening queued")
       void queryClient.invalidateQueries({
@@ -528,6 +557,30 @@ export function DeployInitialInstallSetup(props: {
       void queryClient.invalidateQueries({
         queryKey: setupConfigProbeQueryKey(projectId),
       })
+      void queryClient.invalidateQueries(
+        convexQuery(
+          api.controlPlane.runs.latestByProjectHostKind,
+          projectId && props.host
+            ? {
+                projectId,
+                host: props.host,
+                kind: "lockdown",
+              }
+            : "skip",
+        ),
+      )
+      void queryClient.invalidateQueries(
+        convexQuery(
+          api.controlPlane.runs.latestByProjectHostKind,
+          projectId && props.host
+            ? {
+                projectId,
+                host: props.host,
+                kind: "server_update_apply",
+              }
+            : "skip",
+        ),
+      )
     },
     onError: (error) => {
       const message = error instanceof Error ? error.message : String(error)
@@ -770,7 +823,7 @@ export function DeployInitialInstallSetup(props: {
         throw new Error("Run predeploy checks first and confirm green summary.")
       }
       if (!selectedRev) throw new Error("No pushed revision found.")
-      finalizeStartedRef.current = false
+      finalizeAttemptedBootstrapRunRef.current = null
       setFinalizeState("idle")
       setFinalizeError(null)
       setFinalizeSteps(initialFinalizeSteps())
@@ -832,6 +885,48 @@ export function DeployInitialInstallSetup(props: {
         : "idle"
   const isBootstrapped = effectiveBootstrapStatus === "succeeded"
   const bootstrapInProgress = effectiveBootstrapStatus === "running"
+  const latestBootstrapStartedAt = Number(latestBootstrapRun?.startedAt || 0)
+  const latestLockdownRun = latestLockdownRunQuery.data ?? null
+  const latestApplyRun = latestApplyRunQuery.data ?? null
+  const latestLockdownStartedAt = Number(latestLockdownRun?.startedAt || 0)
+  const latestApplyStartedAt = Number(latestApplyRun?.startedAt || 0)
+  const latestLockdownForCurrentBootstrap = latestBootstrapStartedAt > 0 && latestLockdownStartedAt >= latestBootstrapStartedAt
+    ? latestLockdownRun
+    : null
+  const latestApplyForCurrentBootstrap = latestBootstrapStartedAt > 0 && latestApplyStartedAt >= latestBootstrapStartedAt
+    ? latestApplyRun
+    : null
+  const latestLockdownRunStatus = String(latestLockdownForCurrentBootstrap?.status || "").trim()
+  const latestApplyRunStatus = String(latestApplyForCurrentBootstrap?.status || "").trim()
+  const latestLockdownRunning = latestLockdownRunStatus === "queued" || latestLockdownRunStatus === "running"
+  const latestLockdownFailed = latestLockdownRunStatus === "failed" || latestLockdownRunStatus === "canceled"
+  const latestApplyRunning = latestApplyRunStatus === "queued" || latestApplyRunStatus === "running"
+  const latestApplySucceeded = latestApplyRunStatus === "succeeded"
+  const latestApplyFailed = latestApplyRunStatus === "failed" || latestApplyRunStatus === "canceled"
+  const persistedFinalizeState: FinalizeState = !isBootstrapped
+    ? "idle"
+    : latestApplyRunning
+      ? "running"
+      : latestApplySucceeded
+        ? "succeeded"
+        : latestApplyFailed || latestLockdownFailed
+          ? "failed"
+          : latestLockdownRunning
+            ? "running"
+            : "idle"
+  const effectiveFinalizeState: FinalizeState = finalizeState === "running"
+    ? "running"
+    : persistedFinalizeState !== "idle"
+      ? persistedFinalizeState
+      : finalizeState === "failed" || finalizeState === "succeeded"
+        ? finalizeState
+        : "idle"
+  const effectiveBootstrapRunId = bootstrapRunId ?? latestBootstrapRunId
+  const effectiveLockdownRunId = lockdownRunId ?? (latestLockdownForCurrentBootstrap?._id as Id<"runs"> | null)
+  const effectiveApplyRunId = applyRunId ?? (latestApplyForCurrentBootstrap?._id as Id<"runs"> | null)
+  const shouldAutoStartFinalize = isBootstrapped
+    && effectiveFinalizeState === "idle"
+    && !startFinalize.isPending
   const predeployReady = predeployState === "ready" && predeployReadyFingerprint === predeployFingerprint
   const canRunPredeploy = !isBootstrapped
     && !runPredeploy.isPending
@@ -848,7 +943,9 @@ export function DeployInitialInstallSetup(props: {
   const finalizeRecoveryMessage = wantsTailscaleLockdown
     ? "Automatic hardening failed. Open VPN settings and run Activate + Lockdown."
     : "Automatic hardening failed. Review run logs before continuing."
-  const showVpnRecoveryCta = isBootstrapped && finalizeState === "failed" && wantsTailscaleLockdown
+  const showVpnRecoveryCta = isBootstrapped && effectiveFinalizeState === "failed" && wantsTailscaleLockdown
+  const openClawSetupPath = `/${props.projectSlug}/hosts/${props.host}/openclaw-setup`
+  const hostOverviewPath = `/${props.projectSlug}/hosts/${props.host}`
   const cardStatus = !isBootstrapped
     ? bootstrapInProgress
       ? "Deploy in progress..."
@@ -859,30 +956,33 @@ export function DeployInitialInstallSetup(props: {
           : predeployState === "failed"
             ? predeployError || "Predeploy checks failed."
             : deployStatusReason
-    : finalizeState === "running"
+    : effectiveFinalizeState === "running"
       ? "Auto-hardening running..."
-      : finalizeState === "failed"
+      : effectiveFinalizeState === "failed"
         ? finalizeError || finalizeRecoveryMessage
-        : bootstrapFinalizeArmed
+      : shouldAutoStartFinalize || bootstrapFinalizeArmed
           ? "Preparing post-bootstrap hardening..."
-          : "Server deployed. Continue to verification."
+          : "Server installed. Ready for OpenClaw."
 
-  const showSuccessBanner = isBootstrapped
-  const successMessage = finalizeState === "running"
+  const showSuccessBanner = isBootstrapped && effectiveFinalizeState !== "succeeded"
+  const showInstalledCard = isBootstrapped && effectiveFinalizeState === "succeeded"
+  const successMessage = effectiveFinalizeState === "running" || shouldAutoStartFinalize
     ? "Initial install succeeded. Post-bootstrap hardening is running."
-    : finalizeState === "succeeded"
+    : effectiveFinalizeState === "succeeded"
       ? "Initial install succeeded and post-bootstrap hardening was queued automatically."
-      : finalizeState === "failed"
+      : effectiveFinalizeState === "failed"
         ? `Initial install succeeded, but post-bootstrap hardening failed. ${finalizeRecoveryMessage}`
-        : "Server deployed. Continue to verification."
+        : "Server deployed. Post-deploy summary is ready."
 
   useEffect(() => {
-    if (!bootstrapFinalizeArmed) return
-    if (!isBootstrapped) return
-    if (finalizeStartedRef.current) return
-    finalizeStartedRef.current = true
+    if (!shouldAutoStartFinalize) return
+    if (!latestBootstrapRunId) return
+    const runKey = String(latestBootstrapRunId)
+    if (finalizeAttemptedBootstrapRunRef.current === runKey) return
+    finalizeAttemptedBootstrapRunRef.current = runKey
+    setBootstrapFinalizeArmed(true)
     startFinalize.mutate()
-  }, [bootstrapFinalizeArmed, isBootstrapped, startFinalize])
+  }, [latestBootstrapRunId, shouldAutoStartFinalize, startFinalize])
 
   return (
     <SettingsSection
@@ -916,12 +1016,12 @@ export function DeployInitialInstallSetup(props: {
             Run predeploy
           </AsyncButton>
         )
-      ) : finalizeState === "running" || bootstrapFinalizeArmed ? (
+      ) : effectiveFinalizeState === "running" || shouldAutoStartFinalize || bootstrapFinalizeArmed ? (
         <AsyncButton
           type="button"
           disabled
           pending
-          pendingText={finalizeState === "running" ? "Finishing..." : "Starting hardening..."}
+          pendingText={effectiveFinalizeState === "running" ? "Finishing..." : "Starting hardening..."}
         >
           Finalizing
         </AsyncButton>
@@ -938,19 +1038,21 @@ export function DeployInitialInstallSetup(props: {
         >
           Activate VPN & lockdown
         </Button>
+      ) : showInstalledCard ? (
+        <Button
+          type="button"
+          nativeButton={false}
+          render={<Link to={openClawSetupPath} />}
+        >
+          Install OpenClaw
+        </Button>
       ) : (
         <Button
           type="button"
           nativeButton={false}
-          render={
-            <Link
-              to="/$projectSlug/hosts/$host/setup"
-              params={{ projectSlug: props.projectSlug, host: props.host }}
-              search={{ step: "verify" }}
-            />
-          }
+          render={<Link to={hostOverviewPath} />}
         >
-          Continue to verify
+          Open host overview
         </Button>
       )}
     >
@@ -1125,9 +1227,22 @@ export function DeployInitialInstallSetup(props: {
           </div>
         ) : null}
 
-        {finalizeState !== "idle" ? (
+        {effectiveFinalizeState !== "idle" || shouldAutoStartFinalize ? (
           <div className="rounded-md border bg-muted/30 p-3 space-y-2">
-            <div className="text-sm font-medium">Post-bootstrap automation</div>
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-sm font-medium">Lockdown summary</div>
+              <Badge
+                variant={
+                  effectiveFinalizeState === "succeeded"
+                    ? "secondary"
+                    : effectiveFinalizeState === "failed"
+                      ? "destructive"
+                      : "outline"
+                }
+              >
+                {effectiveFinalizeState === "succeeded" ? "Done" : effectiveFinalizeState === "failed" ? "Failed" : "Running"}
+              </Badge>
+            </div>
             <div className="space-y-1.5">
               {finalizeSteps.map((step) => (
                 <div key={step.id} className="flex items-center justify-between gap-3 rounded-md border bg-background px-2 py-1.5">
@@ -1142,12 +1257,30 @@ export function DeployInitialInstallSetup(props: {
                 </div>
               ))}
             </div>
+            {finalizeUpdatedAt ? (
+              <div className="text-xs text-muted-foreground">
+                Last update: {new Date(finalizeUpdatedAt).toLocaleTimeString()}
+              </div>
+            ) : null}
           </div>
         ) : null}
 
-        {bootstrapRunId ? (
+        {showInstalledCard ? (
+          <SetupCelebration
+            title="Server installed"
+            description={wantsTailscaleLockdown
+              ? "Post-deploy hardening completed. Next: install OpenClaw."
+              : "Server installed with SSH-only mode as configured. You can enable Tailscale lockdown later from VPN settings. Next: install OpenClaw."}
+            primaryLabel="Install OpenClaw"
+            primaryTo={openClawSetupPath}
+            secondaryLabel="Go to host overview"
+            secondaryTo={hostOverviewPath}
+          />
+        ) : null}
+
+        {effectiveBootstrapRunId ? (
           <RunLogTail
-            runId={bootstrapRunId}
+            runId={effectiveBootstrapRunId}
             onDone={(status) => {
               if (status === "succeeded") {
                 setBootstrapStatus("succeeded")
@@ -1160,8 +1293,31 @@ export function DeployInitialInstallSetup(props: {
         ) : null}
 
         {setupApplyRunId ? <RunLogTail runId={setupApplyRunId} /> : null}
-        {lockdownRunId ? <RunLogTail runId={lockdownRunId} /> : null}
-        {applyRunId ? <RunLogTail runId={applyRunId} /> : null}
+        {effectiveLockdownRunId ? (
+          <RunLogTail
+            runId={effectiveLockdownRunId}
+            onDone={(status) => {
+              if (status === "failed" || status === "canceled") {
+                setFinalizeState("failed")
+                setFinalizeError("Lockdown failed")
+              }
+            }}
+          />
+        ) : null}
+        {effectiveApplyRunId ? (
+          <RunLogTail
+            runId={effectiveApplyRunId}
+            onDone={(status) => {
+              if (status === "succeeded") {
+                setFinalizeState("succeeded")
+                setFinalizeError(null)
+              } else if (status === "failed" || status === "canceled") {
+                setFinalizeState("failed")
+                setFinalizeError("Apply updates failed")
+              }
+            }}
+          />
+        ) : null}
       </div>
     </SettingsSection>
   )

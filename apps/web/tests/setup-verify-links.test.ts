@@ -8,13 +8,14 @@ function readFile(relPath: string): string {
   return fs.readFileSync(path.join(ROOT, relPath), "utf8")
 }
 
-describe("setup verify step", () => {
-  it("does not render redundant navigation shortcut buttons", () => {
-    const verifyStep = readFile("components/setup/steps/step-verify.tsx")
+describe("setup flow removes verify step", () => {
+  it("keeps setup step order focused on install + lockdown", () => {
+    const setupModel = readFile("lib/setup/setup-model.ts")
+    const setupRoute = readFile("routes/$projectSlug/hosts/$host/setup.tsx")
 
-    expect(verifyStep).not.toContain("Open VPN settings")
-    expect(verifyStep).not.toContain("Back to Deploy")
-    expect(verifyStep).not.toContain('to="/$projectSlug/hosts/$host/settings/vpn"')
-    expect(verifyStep).not.toContain('to="/$projectSlug/hosts/$host/deploy"')
+    expect(setupModel).not.toContain('"verify"')
+    expect(setupRoute).not.toContain("SetupStepVerify")
+    expect(setupRoute).not.toContain('"Secure and Verify"')
+    expect(setupRoute).not.toContain("Continue to verify")
   })
 })
