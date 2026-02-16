@@ -43,6 +43,7 @@ const MAX_JOB_ATTEMPTS = 25;
 const SEALED_PENDING_TTL_MS = 5 * 60_000;
 const SEALED_INPUT_ALG = "rsa-oaep-3072/aes-256-gcm";
 const LEASE_WINDOW_SIZE = 100;
+const LEASE_EXPIRY_GRACE_MS = 20_000;
 const JOB_KIND_RE = /^[A-Za-z0-9._-]+$/;
 
 // Threat model: control-plane rows are for scheduling and audit only.
@@ -665,7 +666,10 @@ async function leaseNextInternalHandler(
     .withIndex("by_project_status", (q) => q.eq("projectId", projectId).eq("status", "leased"))
     .take(50);
   for (const row of staleLeased) {
-    if (typeof row.leaseExpiresAt === "number" && row.leaseExpiresAt <= now) {
+    if (
+      typeof row.leaseExpiresAt === "number"
+      && row.leaseExpiresAt + LEASE_EXPIRY_GRACE_MS <= now
+    ) {
       await ctx.db.patch(row._id, {
         status: "queued",
         leaseId: undefined,
@@ -680,7 +684,10 @@ async function leaseNextInternalHandler(
     .withIndex("by_project_status", (q) => q.eq("projectId", projectId).eq("status", "running"))
     .take(50);
   for (const row of staleRunning) {
-    if (typeof row.leaseExpiresAt === "number" && row.leaseExpiresAt <= now) {
+    if (
+      typeof row.leaseExpiresAt === "number"
+      && row.leaseExpiresAt + LEASE_EXPIRY_GRACE_MS <= now
+    ) {
       await ctx.db.patch(row._id, {
         status: "queued",
         leaseId: undefined,

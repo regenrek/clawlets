@@ -179,6 +179,7 @@ function DeployInitialInstallDefault({
   })
 
   const [runId, setRunId] = useState<Id<"runs"> | null>(null)
+  const [bootstrapStatus, setBootstrapStatus] = useState<"idle" | "running" | "succeeded" | "failed">("idle")
   const start = useMutation({
     mutationFn: async () => {
       if (!runnerOnline) throw new Error("Runner offline. Start runner first.")
@@ -186,21 +187,25 @@ function DeployInitialInstallDefault({
     },
     onSuccess: (res) => {
       setRunId(res.runId)
-      void bootstrapExecute({
-        data: {
-          projectId: projectId as Id<"projects">,
-          runId: res.runId,
-          host,
-          mode,
-          force,
-          dryRun,
-          lockdownAfter,
-          rev: mode === "nixos-anywhere" ? selectedRev : undefined,
-        },
-      })
-      toast.info("Initial install started")
+      setBootstrapStatus("running")
+      if (!res.reused) {
+        void bootstrapExecute({
+          data: {
+            projectId: projectId as Id<"projects">,
+            runId: res.runId,
+            host,
+            mode,
+            force,
+            dryRun,
+            lockdownAfter,
+            rev: mode === "nixos-anywhere" ? selectedRev : undefined,
+          },
+        })
+      }
+      toast.info(res.reused ? "Initial install already running" : "Initial install started")
     },
     onError: (err) => {
+      setBootstrapStatus("failed")
       toast.error(err instanceof Error ? err.message : String(err))
     },
   })
@@ -225,7 +230,7 @@ function DeployInitialInstallDefault({
 
   const doctorGateOk = canBootstrapFromDoctorGate({ host, force, doctor })
   const nixGateBlocked = runnerOnline && !runnerNixReadiness.ready
-  const canBootstrap = runnerOnline && doctorGateOk && !repoGateBlocked && !nixGateBlocked
+  const canBootstrap = runnerOnline && doctorGateOk && !repoGateBlocked && !nixGateBlocked && bootstrapStatus !== "running"
   const cliCmd = useMemo(() => {
     if (!host) return ""
     const parts = ["clawlets", "bootstrap", "--host", host, "--mode", mode]
@@ -389,7 +394,7 @@ function DeployInitialInstallDefault({
                     <AsyncButton
                       type="button"
                       disabled={start.isPending || !canBootstrap}
-                      pending={start.isPending}
+                      pending={start.isPending || bootstrapStatus === "running"}
                       pendingText="Deploying..."
                     >
                       Deploy (initial install)
@@ -438,7 +443,12 @@ function DeployInitialInstallDefault({
             <RunLogTail
               runId={runId}
               onDone={(status) => {
-                if (status === "succeeded") onBootstrapped?.()
+                if (status === "succeeded") {
+                  setBootstrapStatus("succeeded")
+                  onBootstrapped?.()
+                } else if (status === "failed" || status === "canceled") {
+                  setBootstrapStatus("failed")
+                }
               }}
             />
           ) : null}

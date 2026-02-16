@@ -7,6 +7,8 @@ import { defineCommand } from "citty";
 import { ClawletsConfigSchema, loadFullConfig, writeClawletsConfig } from "@clawlets/core/lib/config/clawlets-config";
 import {
   DEPLOY_CREDS_KEYS,
+  loadDeployCreds,
+  resolveActiveDeployCredsProjectToken,
   updateDeployCredsEnvFile,
 } from "@clawlets/core/lib/infra/deploy-creds";
 import { mkpasswdYescryptHash } from "@clawlets/core/lib/security/mkpasswd";
@@ -162,12 +164,21 @@ async function buildSecretsInitBody(params: {
   bootstrapSecrets: Record<string, string>;
   repoRoot: string;
   nixBin: string;
+  tailscaleAuthKeyFallback?: string;
 }): Promise<{
   adminPasswordHash?: string;
+  tailscaleAuthKey?: string;
   secrets: Record<string, string>;
 }> {
   const adminPasswordHashRaw = String(params.bootstrapSecrets["adminPasswordHash"] || "").trim();
   const adminPasswordRaw = String(params.bootstrapSecrets["adminPassword"] || "").trim();
+  const tailscaleAuthKey =
+    String(
+      params.bootstrapSecrets["tailscaleAuthKey"]
+        || params.bootstrapSecrets["tailscale_auth_key"]
+        || params.tailscaleAuthKeyFallback
+        || "",
+    ).trim();
   const adminPasswordHash = adminPasswordHashRaw
     || (adminPasswordRaw
       ? await mkpasswdYescryptHash(adminPasswordRaw, {
@@ -179,13 +190,19 @@ async function buildSecretsInitBody(params: {
       : "");
   const secrets: Record<string, string> = {};
   for (const [key, value] of Object.entries(params.bootstrapSecrets)) {
-    if (key === "adminPasswordHash" || key === "adminPassword") continue;
+    if (
+      key === "adminPasswordHash"
+      || key === "adminPassword"
+      || key === "tailscaleAuthKey"
+      || key === "tailscale_auth_key"
+    ) continue;
     const normalized = key.trim();
     if (!normalized) continue;
     secrets[normalized] = value;
   }
   return {
     ...(adminPasswordHash ? { adminPasswordHash } : {}),
+    ...(tailscaleAuthKey ? { tailscaleAuthKey } : {}),
     secrets,
   };
 }
@@ -261,12 +278,24 @@ const setupApply = defineCommand({
         envFile,
         updates: deployCredsUpdates,
       });
+      const resolvedDeployCreds = loadDeployCreds({
+        cwd: repoRoot,
+        runtimeDir,
+        envFile,
+      });
+      const tailscaleAuthKeyFromDeployCreds = String(
+        resolveActiveDeployCredsProjectToken({
+          keyringRaw: resolvedDeployCreds.values.TAILSCALE_AUTH_KEY_KEYRING,
+          activeIdRaw: resolvedDeployCreds.values.TAILSCALE_AUTH_KEY_KEYRING_ACTIVE,
+        }) || "",
+      ).trim();
       const bootstrapSecrets = payload.bootstrapSecrets;
       const nixBin = String(deployCredsUpdates.NIX_BIN || process.env.NIX_BIN || "nix").trim() || "nix";
       const secretsInitBody = await buildSecretsInitBody({
         bootstrapSecrets,
         repoRoot,
         nixBin,
+        tailscaleAuthKeyFallback: tailscaleAuthKeyFromDeployCreds,
       });
       await fs.writeFile(secretsInitPath, `${JSON.stringify(secretsInitBody, null, 2)}\n`, {
         encoding: "utf8",

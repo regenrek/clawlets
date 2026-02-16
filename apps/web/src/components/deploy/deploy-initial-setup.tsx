@@ -1,5 +1,6 @@
 import { convexQuery } from "@convex-dev/react-query"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { Link } from "@tanstack/react-router"
 import { CheckCircleIcon, SparklesIcon } from "@heroicons/react/24/solid"
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { toast } from "sonner"
@@ -105,6 +106,19 @@ export function DeployInitialInstallSetup(props: {
   })
   const hostsQuery = useQuery({
     ...convexQuery(api.controlPlane.hosts.listByProject, projectId ? { projectId } : "skip"),
+  })
+  const latestBootstrapRunQuery = useQuery({
+    ...convexQuery(
+      api.controlPlane.runs.latestByProjectHostKind,
+      projectId && props.host
+        ? {
+            projectId,
+            host: props.host,
+            kind: "bootstrap",
+          }
+        : "skip",
+    ),
+    enabled: Boolean(projectId && props.host),
   })
   const secretWiringQuery = useQuery({
     ...convexQuery(
@@ -242,10 +256,17 @@ export function DeployInitialInstallSetup(props: {
   const adminCidr = String(desired.connection.adminCidr || "").trim()
   const adminCidrWorldOpen = adminCidr === "0.0.0.0/0" || adminCidr === "::/0"
   const autoLockdownMissingTailscaleKey = !hasProjectTailscaleAuthKey
+  const latestBootstrapRun = latestBootstrapRunQuery.data ?? null
+  const latestBootstrapRunId = latestBootstrapRun?._id as Id<"runs"> | null
+  const latestBootstrapRunStatus = String(latestBootstrapRun?.status || "").trim()
+  const latestBootstrapRunning = latestBootstrapRunStatus === "queued" || latestBootstrapRunStatus === "running"
+  const latestBootstrapSucceeded = latestBootstrapRunStatus === "succeeded"
+  const latestBootstrapFailed = latestBootstrapRunStatus === "failed" || latestBootstrapRunStatus === "canceled"
 
   const [bootstrapRunId, setBootstrapRunId] = useState<Id<"runs"> | null>(null)
   const [setupApplyRunId, setSetupApplyRunId] = useState<Id<"runs"> | null>(null)
   const [bootstrapStatus, setBootstrapStatus] = useState<"idle" | "running" | "succeeded" | "failed">("idle")
+  const [bootstrapFinalizeArmed, setBootstrapFinalizeArmed] = useState(false)
   const [predeployState, setPredeployState] = useState<PredeployState>("idle")
   const [predeployChecks, setPredeployChecks] = useState<PredeployCheck[]>(() => initialPredeployChecks())
   const [predeployError, setPredeployError] = useState<string | null>(null)
@@ -314,6 +335,14 @@ export function DeployInitialInstallSetup(props: {
     setPredeployReadyFingerprint(null)
     setPredeployUpdatedAt(null)
   }, [predeployFingerprint, predeployReadyFingerprint, predeployState])
+
+  useEffect(() => {
+    if (!latestBootstrapRunId) return
+    if (!latestBootstrapRunning) return
+    setBootstrapRunId((prev) => prev ?? latestBootstrapRunId)
+    setBootstrapStatus("running")
+    setBootstrapFinalizeArmed(true)
+  }, [latestBootstrapRunning, latestBootstrapRunId])
 
   async function runFinalizeStep(params: {
     id: FinalizeStepId
@@ -491,6 +520,7 @@ export function DeployInitialInstallSetup(props: {
     },
     onSuccess: () => {
       setFinalizeState("succeeded")
+      setBootstrapFinalizeArmed(false)
       toast.success("Server hardening queued")
       void queryClient.invalidateQueries({
         queryKey: ["gitRepoStatus", projectId],
@@ -502,6 +532,7 @@ export function DeployInitialInstallSetup(props: {
     onError: (error) => {
       const message = error instanceof Error ? error.message : String(error)
       setFinalizeState("failed")
+      setBootstrapFinalizeArmed(false)
       setFinalizeError(message)
       toast.error(message)
     },
@@ -739,6 +770,12 @@ export function DeployInitialInstallSetup(props: {
         throw new Error("Run predeploy checks first and confirm green summary.")
       }
       if (!selectedRev) throw new Error("No pushed revision found.")
+      finalizeStartedRef.current = false
+      setFinalizeState("idle")
+      setFinalizeError(null)
+      setFinalizeSteps(initialFinalizeSteps())
+      setLockdownRunId(null)
+      setApplyRunId(null)
       if (canAutoLockdown && !isTailnet) {
         const setTailnetMode = await configDotSet({
           data: {
@@ -759,61 +796,93 @@ export function DeployInitialInstallSetup(props: {
       })
       setBootstrapRunId(started.runId)
       setBootstrapStatus("running")
-      await bootstrapExecute({
-        data: {
-          projectId: projectId as Id<"projects">,
-          runId: started.runId,
-          host: props.host,
-          mode: "nixos-anywhere",
-          force: false,
-          dryRun: false,
-          lockdownAfter: canAutoLockdown,
-          rev: selectedRev,
-        },
-      })
+      setBootstrapFinalizeArmed(true)
+      if (!started.reused) {
+        await bootstrapExecute({
+          data: {
+            projectId: projectId as Id<"projects">,
+            runId: started.runId,
+            host: props.host,
+            mode: "nixos-anywhere",
+            force: false,
+            dryRun: false,
+            lockdownAfter: canAutoLockdown,
+            rev: selectedRev,
+          },
+        })
+      }
       return started
     },
-    onSuccess: () => {
-      toast.info("Deploy started")
+    onSuccess: (res) => {
+      toast.info(res.reused ? "Deploy already running" : "Deploy started")
     },
     onError: (error) => {
       setBootstrapStatus("failed")
+      setBootstrapFinalizeArmed(false)
       toast.error(error instanceof Error ? error.message : String(error))
     },
   })
 
-  const isBootstrapped = props.hasBootstrapped || bootstrapStatus === "succeeded"
+  const effectiveBootstrapStatus: "idle" | "running" | "succeeded" | "failed" = latestBootstrapRunning
+    ? "running"
+    : latestBootstrapSucceeded || props.hasBootstrapped || bootstrapStatus === "succeeded"
+      ? "succeeded"
+      : latestBootstrapFailed || bootstrapStatus === "failed"
+        ? "failed"
+        : "idle"
+  const isBootstrapped = effectiveBootstrapStatus === "succeeded"
+  const bootstrapInProgress = effectiveBootstrapStatus === "running"
   const predeployReady = predeployState === "ready" && predeployReadyFingerprint === predeployFingerprint
   const canRunPredeploy = !isBootstrapped
     && !runPredeploy.isPending
     && !startDeploy.isPending
+    && !bootstrapInProgress
     && runnerOnline
     && Boolean(projectId)
   const canStartDeploy = !isBootstrapped
     && !startDeploy.isPending
+    && !bootstrapInProgress
     && predeployReady
     && runnerOnline
     && Boolean(projectId)
+  const finalizeRecoveryMessage = wantsTailscaleLockdown
+    ? "Automatic hardening failed. Open VPN settings and run Activate + Lockdown."
+    : "Automatic hardening failed. Review run logs before continuing."
+  const showVpnRecoveryCta = isBootstrapped && finalizeState === "failed" && wantsTailscaleLockdown
   const cardStatus = !isBootstrapped
-    ? predeployState === "running"
-      ? "Running predeploy checks..."
-      : predeployReady
-        ? "Predeploy checks are green. Review summary, then deploy."
-        : predeployState === "failed"
-          ? predeployError || "Predeploy checks failed."
-          : deployStatusReason
+    ? bootstrapInProgress
+      ? "Deploy in progress..."
+      : predeployState === "running"
+        ? "Running predeploy checks..."
+        : predeployReady
+          ? "Predeploy checks are green. Review summary, then deploy."
+          : predeployState === "failed"
+            ? predeployError || "Predeploy checks failed."
+            : deployStatusReason
     : finalizeState === "running"
       ? "Auto-hardening running..."
       : finalizeState === "failed"
-        ? finalizeError || "Automatic hardening failed."
-        : "Server deployed. Continue setup."
+        ? finalizeError || finalizeRecoveryMessage
+        : bootstrapFinalizeArmed
+          ? "Preparing post-bootstrap hardening..."
+          : "Server deployed. Continue to verification."
 
-  const showSuccessBanner = isBootstrapped && (finalizeState === "succeeded" || finalizeState === "idle")
-  const successMessage = finalizeState === "succeeded"
-    ? "Initial install succeeded and post-bootstrap hardening was queued automatically."
-    : bootstrapStatus === "succeeded"
-      ? "Initial install succeeded."
-      : "Server already deployed for this host."
+  const showSuccessBanner = isBootstrapped
+  const successMessage = finalizeState === "running"
+    ? "Initial install succeeded. Post-bootstrap hardening is running."
+    : finalizeState === "succeeded"
+      ? "Initial install succeeded and post-bootstrap hardening was queued automatically."
+      : finalizeState === "failed"
+        ? `Initial install succeeded, but post-bootstrap hardening failed. ${finalizeRecoveryMessage}`
+        : "Server deployed. Continue to verification."
+
+  useEffect(() => {
+    if (!bootstrapFinalizeArmed) return
+    if (!isBootstrapped) return
+    if (finalizeStartedRef.current) return
+    finalizeStartedRef.current = true
+    startFinalize.mutate()
+  }, [bootstrapFinalizeArmed, isBootstrapped, startFinalize])
 
   return (
     <SettingsSection
@@ -822,11 +891,15 @@ export function DeployInitialInstallSetup(props: {
       headerBadge={props.headerBadge}
       statusText={cardStatus}
       actions={!isBootstrapped ? (
-        predeployReady ? (
+        bootstrapInProgress ? (
+          <AsyncButton type="button" disabled pending pendingText="Deploying...">
+            Deploy now
+          </AsyncButton>
+        ) : predeployReady ? (
           <AsyncButton
             type="button"
             disabled={!canStartDeploy}
-            pending={startDeploy.isPending}
+            pending={startDeploy.isPending || bootstrapInProgress}
             pendingText="Deploying..."
             onClick={() => startDeploy.mutate()}
           >
@@ -843,13 +916,41 @@ export function DeployInitialInstallSetup(props: {
             Run predeploy
           </AsyncButton>
         )
-      ) : finalizeState === "running" ? (
-        <AsyncButton type="button" disabled pending pendingText="Finishing...">
+      ) : finalizeState === "running" || bootstrapFinalizeArmed ? (
+        <AsyncButton
+          type="button"
+          disabled
+          pending
+          pendingText={finalizeState === "running" ? "Finishing..." : "Starting hardening..."}
+        >
           Finalizing
         </AsyncButton>
+      ) : showVpnRecoveryCta ? (
+        <Button
+          type="button"
+          nativeButton={false}
+          render={
+            <Link
+              to="/$projectSlug/hosts/$host"
+              params={{ projectSlug: props.projectSlug, host: props.host }}
+            />
+          }
+        >
+          Activate VPN & lockdown
+        </Button>
       ) : (
-        <Button type="button" onClick={props.onContinue}>
-          Continue
+        <Button
+          type="button"
+          nativeButton={false}
+          render={
+            <Link
+              to="/$projectSlug/hosts/$host/setup"
+              params={{ projectSlug: props.projectSlug, host: props.host }}
+              search={{ step: "verify" }}
+            />
+          }
+        >
+          Continue to verify
         </Button>
       )}
     >
@@ -1050,12 +1151,9 @@ export function DeployInitialInstallSetup(props: {
             onDone={(status) => {
               if (status === "succeeded") {
                 setBootstrapStatus("succeeded")
-                if (!finalizeStartedRef.current) {
-                  finalizeStartedRef.current = true
-                  startFinalize.mutate()
-                }
               } else if (status === "failed" || status === "canceled") {
                 setBootstrapStatus("failed")
+                setBootstrapFinalizeArmed(false)
               }
             }}
           />

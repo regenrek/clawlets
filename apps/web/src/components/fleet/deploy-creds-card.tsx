@@ -1,5 +1,5 @@
 import type { ReactNode } from "react"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { convexQuery } from "@convex-dev/react-query"
 import { toast } from "sonner"
@@ -80,6 +80,9 @@ type SaveFieldInput = {
 }
 
 const DEPLOY_CREDS_RECONCILE_DELAYS_MS = [800, 2_000, 5_000] as const
+const DEPLOY_CREDS_OPTIMISTIC_STATUS_TTL_MS = 15_000
+
+type OptimisticDeployCredStatus = "set" | "unset"
 
 export function DeployCredsCard({
   projectId,
@@ -103,9 +106,47 @@ export function DeployCredsCard({
   const showSopsAgeKeyFile = visibleKeySet.has("SOPS_AGE_KEY_FILE")
   const setupMode = Boolean(setupDraftFlow)
   const [setupDraftValues, setSetupDraftValues] = useState<Partial<Record<EditableDeployCredKey, string>>>({})
+  const [optimisticKeyStatus, setOptimisticKeyStatus] = useState<Partial<Record<EditableDeployCredKey, OptimisticDeployCredStatus>>>({})
+  const optimisticStatusTimeoutsRef = useRef<Partial<Record<EditableDeployCredKey, ReturnType<typeof setTimeout>>>>({})
+
+  const clearOptimisticStatusTimers = () => {
+    const timeouts = optimisticStatusTimeoutsRef.current
+    for (const timeout of Object.values(timeouts)) {
+      if (!timeout) continue
+      clearTimeout(timeout)
+    }
+    optimisticStatusTimeoutsRef.current = {}
+  }
+
+  const setOptimisticStatus = (key: EditableDeployCredKey, status: OptimisticDeployCredStatus) => {
+    setOptimisticKeyStatus((prev) => ({ ...prev, [key]: status }))
+
+    const existing = optimisticStatusTimeoutsRef.current[key]
+    if (existing) clearTimeout(existing)
+
+    optimisticStatusTimeoutsRef.current[key] = setTimeout(() => {
+      setOptimisticKeyStatus((prev) => {
+        if (!Object.prototype.hasOwnProperty.call(prev, key)) return prev
+        const next = { ...prev }
+        delete next[key]
+        return next
+      })
+      const active = optimisticStatusTimeoutsRef.current[key]
+      if (active) clearTimeout(active)
+      delete optimisticStatusTimeoutsRef.current[key]
+    }, DEPLOY_CREDS_OPTIMISTIC_STATUS_TTL_MS)
+  }
+
   useEffect(() => {
     setSetupDraftValues({})
+    setOptimisticKeyStatus({})
+    clearOptimisticStatusTimers()
   }, [projectId, setupDraftFlow?.host])
+  useEffect(() => {
+    return () => {
+      clearOptimisticStatusTimers()
+    }
+  }, [])
 
   const runnersQuery = useQuery({
     ...convexQuery(api.controlPlane.runners.listByProject, { projectId }),
@@ -161,6 +202,9 @@ export function DeployCredsCard({
     [selectedRunner?.deployCredsSummary, statusSummary],
   )
   const projectKeyIsSet = (key: EditableDeployCredKey): boolean => {
+    const optimistic = optimisticKeyStatus[key]
+    if (optimistic === "set") return true
+    if (optimistic === "unset") return false
     const summaryStatus = effectiveStatusSummary[key]?.status
     if (summaryStatus === "set") return true
     if (summaryStatus === "unset") return false
@@ -261,6 +305,7 @@ export function DeployCredsCard({
     onSuccess: async (input) => {
       toast.success(input.kind === "remove" ? `${input.key} removed` : `${input.key} saved`)
       onQueued?.()
+      setOptimisticStatus(input.key, input.kind === "remove" ? "unset" : "set")
       if (input.key === "GITHUB_TOKEN") setGithubToken("")
       if (setupDraftFlow) {
         await queryClient.invalidateQueries({ queryKey: ["setupDraft", projectId, setupDraftFlow.host] })

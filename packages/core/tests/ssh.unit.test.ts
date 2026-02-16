@@ -1,8 +1,10 @@
 import { describe, it, expect } from "vitest";
 
 import {
+  looksLikeHcloudSshKeyContents,
   looksLikeSshKeyContents,
   looksLikeSshPrivateKey,
+  normalizeHcloudSshPublicKey,
   normalizeSshPublicKey,
   parseSshPublicKeyLine,
   parseSshPublicKeysFromText,
@@ -60,6 +62,14 @@ describe("ssh public key parsing", () => {
       ed25519,
       "ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTY=",
     ]);
+  });
+
+  it("validates hcloud-compatible key material", () => {
+    const ed25519 = makeEd25519PublicKey({ seedByte: 7 });
+    expect(normalizeHcloudSshPublicKey(`${ed25519} comment`)).toBe(ed25519);
+    expect(looksLikeHcloudSshKeyContents(ed25519)).toBe(true);
+    expect(normalizeHcloudSshPublicKey("ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7dummy")).toBeNull();
+    expect(looksLikeHcloudSshKeyContents("ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7dummy")).toBe(false);
   });
 });
 

@@ -12,6 +12,7 @@ import {
   parseProjectHostTargetInput,
   takeRunnerCommandResultObject,
 } from "~/sdk/runtime"
+import { orderBootstrapRunsForIpv4 } from "~/lib/host/bootstrap-ipv4-selection"
 
 export type PublicIpv4Result =
   | { ok: true; ipv4: string; source: "bootstrap_logs" }
@@ -119,22 +120,37 @@ function lastErrorMessage(messages: string[]): string {
 
 async function resolveBootstrapIpv4(params: { projectId: Id<"projects">; host: string }): Promise<PublicIpv4Result> {
   const client = createConvexClient()
-  const page = await client.query(api.controlPlane.runs.listByProjectPage, {
-    projectId: params.projectId,
-    paginationOpts: { numItems: 50, cursor: null },
-  })
-  const runs = page.page || []
-  const match = runs.find((run: any) => run.kind === "bootstrap" && String(run.title || "").includes(params.host))
-  if (!match) return { ok: false, error: "bootstrap run not found", source: "bootstrap_logs" }
+  let cursor: string | null = null
+  let scannedPages = 0
+  let sawBootstrap = false
 
-  const eventsPage = await client.query(api.controlPlane.runEvents.pageByRun, {
-    runId: match._id,
-    paginationOpts: { numItems: 100, cursor: null },
-  })
-  const messages = (eventsPage.page || []).map((ev: any) => String(ev.message || ""))
-  const ipv4 = parseBootstrapIpv4FromLogs(messages)
-  if (!ipv4) return { ok: false, error: "bootstrap logs missing IPv4", source: "bootstrap_logs" }
-  return { ok: true, ipv4, source: "bootstrap_logs" }
+  while (scannedPages < 4) {
+    const page = await client.query(api.controlPlane.runs.listByProjectHostPage, {
+      projectId: params.projectId,
+      host: params.host,
+      paginationOpts: { numItems: 50, cursor },
+    })
+    scannedPages += 1
+
+    const candidates = orderBootstrapRunsForIpv4(page.page || [])
+    if (candidates.length > 0) sawBootstrap = true
+
+    for (const run of candidates as Array<{ _id: Id<"runs"> }>) {
+      const eventsPage = await client.query(api.controlPlane.runEvents.pageByRun, {
+        runId: run._id,
+        paginationOpts: { numItems: 100, cursor: null },
+      })
+      const messages = (eventsPage.page || []).map((ev: any) => String(ev.message || ""))
+      const ipv4 = parseBootstrapIpv4FromLogs(messages)
+      if (ipv4) return { ok: true, ipv4, source: "bootstrap_logs" }
+    }
+
+    if (page.isDone || !page.continueCursor) break
+    cursor = page.continueCursor
+  }
+
+  if (!sawBootstrap) return { ok: false, error: "bootstrap run not found", source: "bootstrap_logs" }
+  return { ok: false, error: "bootstrap logs missing IPv4", source: "bootstrap_logs" }
 }
 
 export const getHostPublicIpv4 = createServerFn({ method: "POST" })

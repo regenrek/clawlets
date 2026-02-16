@@ -9,10 +9,11 @@ function readFile(relPath: string): string {
 }
 
 describe("setup deploy creds source", () => {
-  it("keeps setup reads on runner metadata summary and setup draft status", () => {
+  it("keeps setup reads on runner metadata summary only", () => {
     const source = readFile("lib/setup/use-setup-model.ts")
-    expect(source).toContain("setupDraftDeployCredsSet")
     expect(source).toContain("deployCredsSummary")
+    expect(source).toContain("deployCredsSummary?.hasGithubToken")
+    expect(source).not.toContain("setupDraftDeployCredsSet")
     expect(source).not.toContain("getDeployCredsStatus")
     expect(source).not.toContain("deployCredsFallback")
   })

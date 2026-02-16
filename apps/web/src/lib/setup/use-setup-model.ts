@@ -114,7 +114,6 @@ export function useSetupModel(params: {
     refetchOnReconnect: false,
   })
   const setupDraft = setupDraftQuery.data ?? null
-  const setupDraftDeployCredsSet = setupDraft?.sealedSecretDrafts?.hostBootstrapCreds?.status === "set"
 
   const repoHealth = deriveRepoHealth({
     runnerOnline,
@@ -189,11 +188,8 @@ export function useSetupModel(params: {
     [effectiveProjectTokenKeyrings?.tailscale?.hasActive],
   )
   const hasProjectGithubToken = React.useMemo(
-    () => {
-      if (deployCredsSummary?.hasGithubToken === true) return true
-      return setupDraftDeployCredsSet
-    },
-    [deployCredsSummary?.hasGithubToken, setupDraftDeployCredsSet],
+    () => deployCredsSummary?.hasGithubToken === true,
+    [deployCredsSummary?.hasGithubToken],
   )
 
   const projectInitRunsPageQuery = useQuery({
