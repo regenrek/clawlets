@@ -591,20 +591,24 @@ export function DeployInitialInstallSetup(props: {
     },
   })
 
-  async function saveDraftAndQueuePredeploy(): Promise<void> {
+  async function saveDraftAndQueuePredeploy(params: {
+    desired: ReturnType<typeof deriveEffectiveSetupDesiredState>
+    adminPasswordRequired: boolean
+    adminPassword: string
+  }): Promise<void> {
     if (!projectId) throw new Error("Project not ready")
 
     const infrastructurePatch: SetupDraftInfrastructure = {
-      serverType: desired.infrastructure.serverType,
-      image: desired.infrastructure.image,
-      location: desired.infrastructure.location,
-      allowTailscaleUdpIngress: desired.infrastructure.allowTailscaleUdpIngress,
+      serverType: params.desired.infrastructure.serverType,
+      image: params.desired.infrastructure.image,
+      location: params.desired.infrastructure.location,
+      allowTailscaleUdpIngress: params.desired.infrastructure.allowTailscaleUdpIngress,
     }
     const connectionPatch: SetupDraftConnection = {
-      adminCidr: desired.connection.adminCidr,
-      sshExposureMode: desired.connection.sshExposureMode,
-      sshKeyCount: desired.connection.sshKeyCount,
-      sshAuthorizedKeys: desired.connection.sshAuthorizedKeys,
+      adminCidr: params.desired.connection.adminCidr,
+      sshExposureMode: params.desired.connection.sshExposureMode,
+      sshKeyCount: params.desired.connection.sshKeyCount,
+      sshAuthorizedKeys: params.desired.connection.sshAuthorizedKeys,
     }
 
     if (!infrastructurePatch.serverType?.trim() || !infrastructurePatch.location?.trim()) {
@@ -616,7 +620,7 @@ export function DeployInitialInstallSetup(props: {
     if (!connectionPatch.sshAuthorizedKeys?.length) {
       throw new Error("Server access incomplete. Add at least one SSH key.")
     }
-    if (adminPasswordRequired && !adminPassword) {
+    if (params.adminPasswordRequired && !params.adminPassword) {
       throw new Error("Server access incomplete. Set admin password.")
     }
 
@@ -692,7 +696,7 @@ export function DeployInitialInstallSetup(props: {
     currentDraftVersion = savedDeployCredsDraft.version
 
     const bootstrapSecretsPayload: Record<string, string> = {}
-    if (adminPassword) bootstrapSecretsPayload.adminPassword = adminPassword
+    if (params.adminPassword) bootstrapSecretsPayload.adminPassword = params.adminPassword
 
     const bootstrapSecretsAad = buildSetupDraftSectionAad({
       projectId: projectId as Id<"projects">,
@@ -769,26 +773,83 @@ export function DeployInitialInstallSetup(props: {
       }
       setPredeployCheck("runner", "passed", "Runner online and sealed-capable")
 
-      if (repoGateBlocked) {
-        setPredeployCheck("repo", "failed", deployStatusReason || "Repo not ready")
-        throw new Error(deployStatusReason || "Repo not ready for deploy.")
+      setPredeployCheck("repo", "pending", "Checking repo state...")
+      let repoStatusNow: Awaited<ReturnType<typeof gitRepoStatus>>
+      try {
+        repoStatusNow = await gitRepoStatus({ data: { projectId: projectId as Id<"projects"> } })
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        setPredeployCheck("repo", "failed", message || "Repo state unavailable")
+        throw error
       }
-      setPredeployCheck("repo", "passed", selectedRev ? `revision ${selectedRev.slice(0, 7)}` : "ready")
+      queryClient.setQueryData(["gitRepoStatus", projectId], repoStatusNow)
 
-      if (sshKeyGateBlocked) {
-        setPredeployCheck("ssh", "failed", sshKeyGateMessage || "SSH setup incomplete")
-        throw new Error(sshKeyGateMessage || "SSH setup incomplete.")
+      const selectedRevNow = repoStatusNow.originHead
+      const missingRevNow = !selectedRevNow
+      const needsPushNow = Boolean(repoStatusNow.needsPush)
+      const repoReadiness = deriveDeployReadiness({
+        runnerOnline: true,
+        repoPending: false,
+        repoError: null,
+        missingRev: missingRevNow,
+        needsPush: needsPushNow,
+        localSelected: false,
+        allowLocalDeploy: false,
+      })
+      if (repoReadiness.blocksDeploy) {
+        const message = repoReadiness.message || "Repo not ready"
+        setPredeployCheck("repo", "failed", message)
+        throw new Error(message)
       }
-      setPredeployCheck("ssh", "passed", `${desired.connection.sshAuthorizedKeys.length} key(s)`)
+      setPredeployCheck("repo", "passed", selectedRevNow ? `revision ${selectedRevNow.slice(0, 7)}` : "ready")
 
-      if (adminPasswordGateBlocked) {
-        setPredeployCheck("adminPassword", "failed", adminPasswordGateMessage || "Admin password missing")
-        throw new Error(adminPasswordGateMessage || "Server access incomplete. Set admin password.")
+      // Ensure setup config is loaded so SSH key checks don't fail with "checking..." race.
+      let setupConfigNow = setupConfigQuery.data ?? null
+      if (!setupConfigNow) {
+        try {
+          setupConfigNow = await queryClient.fetchQuery(setupConfigProbeQueryOptions(projectId))
+        } catch {
+          setupConfigNow = null
+        }
+      }
+      const desiredNow = deriveEffectiveSetupDesiredState({
+        config: setupConfigNow,
+        host: props.host,
+        setupDraft: props.setupDraft,
+        pendingNonSecretDraft: {
+          infrastructure: props.pendingInfrastructureDraft ?? undefined,
+          connection: props.pendingConnectionDraft ?? undefined,
+        },
+      })
+
+      if (desiredNow.connection.sshAuthorizedKeys.length < 1) {
+        setPredeployCheck("ssh", "failed", "SSH key required. Add at least one key in Server Access.")
+        throw new Error("SSH key required. Add at least one key in Server Access.")
+      }
+      setPredeployCheck("ssh", "passed", `${desiredNow.connection.sshAuthorizedKeys.length} key(s)`)
+
+      // Refresh wiring so admin_password_hash doesn't incorrectly appear missing while query is still loading.
+      let adminPasswordConfiguredNow = adminPasswordConfigured
+      try {
+        const secretWiringNow = await secretWiringQuery.refetch().then((res) => res.data ?? [])
+        adminPasswordConfiguredNow = secretWiringNow.some(
+          (row) => row.secretName === "admin_password_hash" && row.status === "configured",
+        )
+      } catch {
+        // Fall back to current query state; require password if uncertain.
+        adminPasswordConfiguredNow = adminPasswordConfigured
+      }
+      const adminPasswordRequiredNow = !adminPasswordConfiguredNow
+      const adminPasswordNow = props.pendingBootstrapSecrets.adminPassword.trim()
+
+      if (adminPasswordRequiredNow && !adminPasswordNow) {
+        setPredeployCheck("adminPassword", "failed", "Server access incomplete. Set admin password.")
+        throw new Error("Server access incomplete. Set admin password.")
       }
       setPredeployCheck(
         "adminPassword",
         "passed",
-        adminPasswordRequired ? "provided for bootstrap" : "existing admin_password_hash configured",
+        adminPasswordRequiredNow ? "provided for bootstrap" : "existing admin_password_hash configured",
       )
 
       if (credsGateBlocked) {
@@ -797,9 +858,26 @@ export function DeployInitialInstallSetup(props: {
       }
       setPredeployCheck("projectCreds", "passed", "GitHub token configured")
 
-      await saveDraftAndQueuePredeploy()
+      await saveDraftAndQueuePredeploy({
+        desired: desiredNow,
+        adminPasswordRequired: adminPasswordRequiredNow,
+        adminPassword: adminPasswordNow,
+      })
       setPredeployState("ready")
-      setPredeployReadyFingerprint(predeployFingerprintRef.current)
+      const predeployFingerprintNow = JSON.stringify({
+        host: props.host,
+        selectedRev: selectedRevNow ?? "",
+        runnerOnline,
+        runnerNixReady: runnerNixReadiness.ready,
+        infra: desiredNow.infrastructure,
+        connection: desiredNow.connection,
+        hasProjectGithubToken: props.hasProjectGithubToken,
+        hasProjectTailscaleAuthKey,
+        useTailscaleLockdown: wantsTailscaleLockdown,
+        adminPasswordRequired: adminPasswordRequiredNow,
+        adminPasswordSet: Boolean(props.pendingBootstrapSecrets.adminPassword.trim()),
+      })
+      setPredeployReadyFingerprint(predeployFingerprintNow)
       setPredeployUpdatedAt(Date.now())
       return true
     },
