@@ -277,7 +277,6 @@ export function DeployInitialInstallSetup(props: {
         selectedRev: selectedRev ?? "",
         runnerOnline,
         runnerNixReady: runnerNixReadiness.ready,
-        setupDraftVersion: props.setupDraft?.version ?? null,
         infra: desired.infrastructure,
         connection: desired.connection,
         hasProjectGithubToken: props.hasProjectGithubToken,
@@ -293,7 +292,6 @@ export function DeployInitialInstallSetup(props: {
       hasProjectTailscaleAuthKey,
       props.host,
       props.pendingBootstrapSecrets.adminPassword,
-      props.setupDraft?.version,
       adminPasswordRequired,
       runnerNixReadiness.ready,
       runnerOnline,
@@ -301,6 +299,11 @@ export function DeployInitialInstallSetup(props: {
       wantsTailscaleLockdown,
     ],
   )
+  const predeployFingerprintRef = useRef(predeployFingerprint)
+
+  useEffect(() => {
+    predeployFingerprintRef.current = predeployFingerprint
+  }, [predeployFingerprint])
 
   useEffect(() => {
     if (predeployState !== "ready") return
@@ -712,7 +715,7 @@ export function DeployInitialInstallSetup(props: {
 
       await saveDraftAndQueuePredeploy()
       setPredeployState("ready")
-      setPredeployReadyFingerprint(predeployFingerprint)
+      setPredeployReadyFingerprint(predeployFingerprintRef.current)
       setPredeployUpdatedAt(Date.now())
       return true
     },
