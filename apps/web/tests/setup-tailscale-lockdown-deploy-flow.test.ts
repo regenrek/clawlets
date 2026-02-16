@@ -15,7 +15,8 @@ describe("setup tailscale lockdown deploy flow", () => {
     expect(deploy).toContain("const canAutoLockdown = wantsTailscaleLockdown && hasProjectTailscaleAuthKey")
     expect(deploy).toContain("if (canAutoLockdown && !isTailnet)")
     expect(deploy).toContain("path: `hosts.${props.host}.tailnet.mode`")
-    expect(deploy).toContain("lockdownAfter: canAutoLockdown")
+    // Bootstrap keeps public SSH reachable (admin CIDR) until post-bootstrap hardening runs.
+    expect(deploy).toContain("lockdownAfter: false")
   })
 
   it("sets tailnet mode before switching SSH exposure during finalize", () => {

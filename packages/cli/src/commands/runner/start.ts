@@ -894,6 +894,22 @@ class RunnerJobExecutionError extends Error {
   }
 }
 
+function pickRunnerErrorDetail(raw: string): string | null {
+  const text = String(raw || "").trim();
+  if (!text) return null;
+  const lines = text
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (lines.length === 0) return null;
+
+  const interestingRe = /timed out|timeout|permission denied|host key|connection refused|no route|could not|missing|invalid|error:/i;
+  const candidates = lines.filter((line) => interestingRe.test(line));
+  const picked = candidates.find((line) => /^error:/i.test(line)) ?? candidates[0] ?? lines[0];
+  const bounded = picked.length > 500 ? `${picked.slice(0, 500)}...(truncated)` : picked;
+  return bounded.trim() ? bounded : null;
+}
+
 async function executeJob(params: {
   job: RunnerLeaseJob;
   repoRoot: string;
@@ -1256,7 +1272,9 @@ async function executeLeasedJobWithRunEvents(params: {
   } catch (err) {
     const durationMs = Math.max(0, Date.now() - startedAt);
     const errorMessage = sanitizeErrorMessage(err, "runner job failed");
+    let errorDetail: string | null = null;
     if (err instanceof RunnerJobExecutionError) {
+      errorDetail = pickRunnerErrorDetail(err.stderrTail || err.stdoutTail || "");
       params.logger.error(
         {
           terminal: "failed",
@@ -1276,6 +1294,7 @@ async function executeLeasedJobWithRunEvents(params: {
       );
     } else {
       const detail = redactKnownSecrets(err instanceof Error ? err.message : String(err || "")).text.trim();
+      errorDetail = pickRunnerErrorDetail(detail);
       params.logger.error(
         {
           terminal: "failed",
@@ -1299,6 +1318,14 @@ async function executeLeasedJobWithRunEvents(params: {
           message: errorMessage,
           meta: { kind: "phase", phase: "command_end" },
         },
+        ...(errorDetail ? [
+          {
+            ts: Date.now(),
+            level: "error",
+            message: errorDetail,
+            meta: { kind: "detail" },
+          },
+        ] : []),
       ],
     });
     return { terminal: "failed", errorMessage };

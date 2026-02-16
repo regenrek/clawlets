@@ -71,6 +71,10 @@ type PredeployCheck = {
   detail?: string
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
 function initialPredeployChecks(): PredeployCheck[] {
   return [
     { id: "runner", label: "Runner ready", state: "pending" },
@@ -455,25 +459,43 @@ export function DeployInitialInstallSetup(props: {
           id: "switchTailnetTarget",
           run: async () => {
             if (!targetHost.trim()) throw new Error("targetHost missing")
-            const probe = await probeHostTailscaleIpv4({
-              data: {
-                projectId: projectId as Id<"projects">,
-                host: props.host,
-                targetHost,
-              },
-            })
-            if (!probe.ok) throw new Error(probe.error || "Could not resolve tailnet IPv4")
-            if (!probe.ipv4) throw new Error("Could not resolve tailnet IPv4")
-            targetHost = `admin@${probe.ipv4}`
-            const result = await configDotSet({
-              data: {
-                projectId: projectId as Id<"projects">,
-                path: `hosts.${props.host}.targetHost`,
-                value: targetHost,
-              },
-            })
-            if (!result.ok) throw new Error(extractIssueMessage(result, "Could not set tailnet targetHost"))
-            return targetHost
+            const startedAt = Date.now()
+            const timeoutMs = 3 * 60_000
+            const pollMs = 10_000
+            let attempt = 0
+            let lastError = "Could not resolve tailnet IPv4"
+
+            while (Date.now() - startedAt < timeoutMs) {
+              attempt += 1
+              setStepStatus(
+                "switchTailnetTarget",
+                "running",
+                `Waiting for tailnet IPv4 via ${targetHost} (attempt ${attempt})...`,
+              )
+              const probe = await probeHostTailscaleIpv4({
+                data: {
+                  projectId: projectId as Id<"projects">,
+                  host: props.host,
+                  targetHost,
+                },
+              })
+              if (probe.ok && probe.ipv4) {
+                targetHost = `admin@${probe.ipv4}`
+                const result = await configDotSet({
+                  data: {
+                    projectId: projectId as Id<"projects">,
+                    path: `hosts.${props.host}.targetHost`,
+                    value: targetHost,
+                  },
+                })
+                if (!result.ok) throw new Error(extractIssueMessage(result, "Could not set tailnet targetHost"))
+                return targetHost
+              }
+              lastError = probe.error || lastError
+              await sleep(pollMs)
+            }
+
+            throw new Error(lastError)
           },
         })
 
@@ -937,7 +959,9 @@ export function DeployInitialInstallSetup(props: {
             mode: "nixos-anywhere",
             force: false,
             dryRun: false,
-            lockdownAfter: canAutoLockdown,
+            // Post-bootstrap hardening is handled by the setup UI flow (lockdown + apply updates).
+            // Keep public SSH reachable (admin CIDR) until hardening completes.
+            lockdownAfter: false,
             rev: selectedRev,
           },
         })
@@ -1019,7 +1043,7 @@ export function DeployInitialInstallSetup(props: {
     && runnerOnline
     && Boolean(projectId)
   const finalizeRecoveryMessage = wantsTailscaleLockdown
-    ? "Automatic hardening failed. Open VPN settings and run Activate + Lockdown."
+    ? "Automatic hardening failed. Retry Activate VPN & lockdown."
     : "Automatic hardening failed. Review run logs before continuing."
   const showVpnRecoveryCta = isBootstrapped && effectiveFinalizeState === "failed" && wantsTailscaleLockdown
   const openClawSetupPath = `/${props.projectSlug}/hosts/${props.host}/openclaw-setup`
@@ -1104,18 +1128,15 @@ export function DeployInitialInstallSetup(props: {
           Finalizing
         </AsyncButton>
       ) : showVpnRecoveryCta ? (
-        <Button
+        <AsyncButton
           type="button"
-          nativeButton={false}
-          render={
-            <Link
-              to="/$projectSlug/hosts/$host"
-              params={{ projectSlug: props.projectSlug, host: props.host }}
-            />
-          }
+          disabled={startFinalize.isPending}
+          pending={startFinalize.isPending}
+          pendingText="Starting..."
+          onClick={() => startFinalize.mutate()}
         >
-          Activate VPN & lockdown
-        </Button>
+          Retry Activate VPN & lockdown
+        </AsyncButton>
       ) : showInstalledCard ? (
         <Button
           type="button"
