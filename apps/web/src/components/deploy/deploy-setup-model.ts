@@ -3,6 +3,7 @@ export type DeployReadinessReason =
   | "runner_offline"
   | "repo_pending"
   | "repo_error"
+  | "dirty_repo"
   | "missing_remote_rev"
   | "missing_local_rev"
   | "needs_push"
@@ -64,6 +65,7 @@ export function deriveDeployReadiness(params: {
   runnerOnline: boolean
   repoPending: boolean
   repoError: unknown
+  dirty: boolean
   missingRev: boolean
   needsPush: boolean
   localSelected: boolean
@@ -97,6 +99,17 @@ export function deriveDeployReadiness(params: {
       title: "Repo state unavailable",
       detail: "Refresh and retry. If this persists, check runner logs.",
       severity: "error",
+      blocksDeploy: true,
+      showFirstPushGuidance: false,
+    }
+  }
+  if (params.dirty) {
+    return {
+      reason: "dirty_repo",
+      message: "Uncommitted changes detected. Commit and push before deploying.",
+      title: "Repo has uncommitted changes",
+      detail: "Deploy pins a git revision. Uncommitted changes are ignored until saved to git.",
+      severity: "warning",
       blocksDeploy: true,
       showFirstPushGuidance: false,
     }
@@ -160,6 +173,7 @@ export function formatStatusReason(params: {
   runnerOnline: boolean
   repoPending: boolean
   repoError: unknown
+  dirty: boolean
   missingRev: boolean
   needsPush: boolean
   localSelected: boolean

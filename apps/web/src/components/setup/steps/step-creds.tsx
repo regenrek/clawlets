@@ -8,7 +8,7 @@ import { DeployCredsCard } from "~/components/fleet/deploy-creds-card"
 import { SetupSaveStateBadge } from "~/components/setup/steps/setup-save-state-badge"
 import { isProjectRunnerOnline } from "~/lib/setup/runner-status"
 import type { SetupStepStatus } from "~/lib/setup/setup-model"
-import { gitRepoStatus } from "~/sdk/vcs"
+import { gitRepoStatus } from "~/domains/vcs"
 
 export function SetupStepCreds(props: {
   projectId: Id<"projects">
@@ -80,6 +80,7 @@ export function SetupStepCreds(props: {
         runnerOnline,
         repoPending: repoStatus.isPending,
         repoError: repoStatus.error,
+        dirty: Boolean(repoStatus.data?.dirty),
         missingRev: !repoStatus.data?.originHead,
         needsPush: Boolean(repoStatus.data?.needsPush),
         localSelected: false,
@@ -87,6 +88,7 @@ export function SetupStepCreds(props: {
       })
     },
     [
+      repoStatus.data?.dirty,
       repoStatus.data?.needsPush,
       repoStatus.data?.originHead,
       repoStatus.error,

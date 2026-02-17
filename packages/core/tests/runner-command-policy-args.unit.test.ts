@@ -55,6 +55,14 @@ describe("runner command policy args parser", () => {
     if (!result.ok) expect(result.error).toMatch(/does not take a value/i);
   });
 
+  it("accepts git setup-save for custom jobs", () => {
+    const result = __test_validateArgsForKind({
+      kind: "custom",
+      args: ["git", "setup-save", "--host", "openclaw-fleet-host", "--json"],
+    });
+    expect(result).toEqual({ ok: true });
+  });
+
   it("accepts secrets verify --json for secrets_verify kinds", () => {
     for (const kind of ["secrets_verify", "secrets_verify_bootstrap", "secrets_verify_openclaw"]) {
       const result = __test_validateArgsForKind({
@@ -143,6 +151,21 @@ describe("runner command policy args parser", () => {
     expect(resolved.ok).toBe(true);
     if (!resolved.ok) return;
     expect(resolved.spec.id).toBe("env_token_keyring_mutate");
+    expect(resolved.spec.resultMode).toBe("json_small");
+    expect(resolved.spec.resultMaxBytes).toBe(512 * 1024);
+  });
+
+  it("resolves json_small mode for git setup-save", () => {
+    const resolved = resolveCommandSpecForKind("custom", [
+      "git",
+      "setup-save",
+      "--host",
+      "openclaw-fleet-host",
+      "--json",
+    ]);
+    expect(resolved.ok).toBe(true);
+    if (!resolved.ok) return;
+    expect(resolved.spec.id).toBe("git_setup_save_json");
     expect(resolved.spec.resultMode).toBe("json_small");
     expect(resolved.spec.resultMaxBytes).toBe(512 * 1024);
   });

@@ -29,7 +29,7 @@ import { canBootstrapFromDoctorGate } from "~/lib/bootstrap-gate"
 import { useProjectBySlug } from "~/lib/project-data"
 import { deriveProjectRunnerNixReadiness, isProjectRunnerOnline } from "~/lib/setup/runner-status"
 import { setupFieldHelp } from "~/lib/setup-field-help"
-import { gitPushExecute, gitRepoStatus } from "~/sdk/vcs"
+import { gitPushExecute, gitRepoStatus } from "~/domains/vcs"
 import { bootstrapExecute, bootstrapStart, runDoctor } from "~/sdk/infra"
 import { DeployInitialInstallSetup } from "~/components/deploy/deploy-initial-setup"
 import type { SetupDraftConnection, SetupDraftInfrastructure, SetupDraftView } from "~/sdk/setup"
@@ -216,8 +216,9 @@ function DeployInitialInstallDefault({
   const missingRev = requiresFlake && (localSelected ? !repo?.localHead : !repo?.originHead)
   const needsPush = requiresFlake && localSelected && Boolean(repo?.needsPush)
   const pushBlocked = needsPush && !repo?.canPush
+  const dirtyRepo = requiresFlake && Boolean(repo?.dirty)
   const repoGateBlocked = requiresFlake
-    && (repoStatus.isPending || missingRev || needsPush || pushBlocked || Boolean(repoStatus.error))
+    && (repoStatus.isPending || missingRev || needsPush || pushBlocked || dirtyRepo || Boolean(repoStatus.error))
 
   const canAutoLockdown = mode === "nixos-anywhere" && tailnetMode === "tailscale"
   const lockdownAfterRequested = host

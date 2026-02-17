@@ -98,6 +98,18 @@ const specGitStatusJson: CommandSpec = {
   resultMaxBytes: RUNNER_COMMAND_RESULT_SMALL_MAX_BYTES,
 };
 
+const specGitSetupSaveJson: CommandSpec = {
+  id: "git_setup_save_json",
+  prefix: ["git", "setup-save"],
+  flags: {
+    "--host": { kind: "value", validate: validateSafeValue("--host", META_MAX.hostName) },
+    "--json": { kind: "boolean" },
+  },
+  required: ["--host", "--json"],
+  resultMode: "json_small",
+  resultMaxBytes: RUNNER_COMMAND_RESULT_SMALL_MAX_BYTES,
+};
+
 const specConfigShow: CommandSpec = {
   id: "config_show",
   prefix: ["config", "show"],
@@ -537,6 +549,7 @@ const SPECS_BY_KIND: Record<string, CommandSpec[]> = {
   project_init: [specProjectInit],
   custom: [
     specGitStatusJson,
+    specGitSetupSaveJson,
     specConfigShow,
     specConfigGet,
     specSecretsSyncPreview,

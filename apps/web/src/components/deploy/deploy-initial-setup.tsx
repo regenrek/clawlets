@@ -24,7 +24,7 @@ import { deriveEffectiveSetupDesiredState } from "~/lib/setup/desired-state"
 import { setupConfigProbeQueryKey, setupConfigProbeQueryOptions } from "~/lib/setup/repo-probe"
 import { deriveSshKeyGateUi } from "~/lib/setup/ssh-key-gate"
 import { sealForRunner } from "~/lib/security/sealed-input"
-import { gitRepoStatus } from "~/sdk/vcs"
+import { gitRepoStatus, gitSetupSaveExecute } from "~/domains/vcs"
 import { serverUpdateApplyExecute, serverUpdateApplyStart } from "~/sdk/server"
 import {
   buildSetupDraftSectionAad,
@@ -60,6 +60,7 @@ type PredeployCheckId =
   | "projectCreds"
   | "sealedDrafts"
   | "setupApply"
+  | "saveToGit"
 
 type PredeployCheckState = "pending" | "passed" | "failed"
 type PredeployState = "idle" | "running" | "failed" | "ready"
@@ -83,7 +84,8 @@ function initialPredeployChecks(): PredeployCheck[] {
     { id: "adminPassword", label: "Admin password ready", state: "pending" },
     { id: "projectCreds", label: "Project creds ready", state: "pending" },
     { id: "sealedDrafts", label: "Host secrets written", state: "pending" },
-    { id: "setupApply", label: "Setup apply queued", state: "pending" },
+    { id: "setupApply", label: "Setup apply", state: "pending" },
+    { id: "saveToGit", label: "Saved to Git", state: "pending" },
   ]
 }
 
@@ -237,13 +239,17 @@ export function DeployInitialInstallSetup(props: {
   const projectGithubTokenSet = props.hasProjectGithubToken
   const effectiveDeployCredsReady = projectGithubTokenSet
 
-  const selectedRev = repoStatus.data?.originHead
+  const [preparedRev, setPreparedRev] = useState<string | null>(null)
+
+  const selectedRev = preparedRev ?? repoStatus.data?.originHead
   const missingRev = !selectedRev
   const needsPush = Boolean(repoStatus.data?.needsPush)
+  const dirtyRepo = Boolean(repoStatus.data?.dirty)
   const readiness = deriveDeployReadiness({
     runnerOnline,
     repoPending: repoStatus.isPending,
     repoError: repoStatus.error,
+    dirty: dirtyRepo,
     missingRev,
     needsPush,
     localSelected: false,
@@ -328,6 +334,8 @@ export function DeployInitialInstallSetup(props: {
       JSON.stringify({
         host: props.host,
         selectedRev: selectedRev ?? "",
+        repoDirty: dirtyRepo,
+        repoNeedsPush: needsPush,
         runnerOnline,
         runnerNixReady: runnerNixReadiness.ready,
         infra: desired.infrastructure,
@@ -349,6 +357,8 @@ export function DeployInitialInstallSetup(props: {
       runnerNixReadiness.ready,
       runnerOnline,
       selectedRev,
+      dirtyRepo,
+      needsPush,
       wantsTailscaleLockdown,
     ],
   )
@@ -359,6 +369,10 @@ export function DeployInitialInstallSetup(props: {
   }, [predeployFingerprint])
 
   useEffect(() => {
+    setPreparedRev(null)
+  }, [projectId, props.host])
+
+  useEffect(() => {
     if (predeployState !== "ready") return
     if (predeployReadyFingerprint === predeployFingerprint) return
     setPredeployState("idle")
@@ -366,6 +380,7 @@ export function DeployInitialInstallSetup(props: {
     setPredeployError("Predeploy summary is stale. Re-run checks.")
     setPredeployReadyFingerprint(null)
     setPredeployUpdatedAt(null)
+    setPreparedRev(null)
   }, [predeployFingerprint, predeployReadyFingerprint, predeployState])
 
   useEffect(() => {
@@ -617,7 +632,7 @@ export function DeployInitialInstallSetup(props: {
     desired: ReturnType<typeof deriveEffectiveSetupDesiredState>
     adminPasswordRequired: boolean
     adminPassword: string
-  }): Promise<void> {
+  }): Promise<{ pinnedRev: string; repoStatus: Awaited<ReturnType<typeof gitRepoStatus>> }> {
     if (!projectId) throw new Error("Project not ready")
 
     const infrastructurePatch: SetupDraftInfrastructure = {
@@ -750,6 +765,7 @@ export function DeployInitialInstallSetup(props: {
     await queryClient.invalidateQueries({ queryKey: ["setupDraft", projectId, props.host] })
     setPredeployCheck("sealedDrafts", "passed", "Host bootstrap secrets queued")
 
+    setPredeployCheck("setupApply", "pending", "Running setup apply...")
     const setupApply = await setupDraftCommit({
       data: {
         projectId: projectId as Id<"projects">,
@@ -770,6 +786,52 @@ export function DeployInitialInstallSetup(props: {
       "passed",
       `setup_apply ${String(setupApply.runId)}; doctor ${String(doctor.runId)}`,
     )
+
+    setPredeployCheck("saveToGit", "pending", "Committing and pushing setup changes...")
+    try {
+      const saved = await gitSetupSaveExecute({
+        data: {
+          projectId: projectId as Id<"projects">,
+          host: props.host,
+        },
+      })
+      const pinnedRev = String(saved.result?.sha || "").trim()
+      if (!pinnedRev) throw new Error("git setup-save did not return a revision")
+      setPreparedRev(pinnedRev)
+      const changedCount = Array.isArray(saved.result?.changedPaths) ? saved.result.changedPaths.length : 0
+      const commitVerb = saved.result.committed ? "Committed" : "No changes"
+      const pushVerb = saved.result.pushed ? "pushed" : "push skipped"
+      setPredeployCheck(
+        "saveToGit",
+        "passed",
+        `${commitVerb}; ${pushVerb}; revision ${pinnedRev.slice(0, 7)}; files ${changedCount}`,
+      )
+
+      setPredeployCheck("repo", "pending", "Refreshing repo state...")
+      const repoStatusAfter = await gitRepoStatus({ data: { projectId: projectId as Id<"projects"> } })
+      queryClient.setQueryData(["gitRepoStatus", projectId], repoStatusAfter)
+      const repoAfterReadiness = deriveDeployReadiness({
+        runnerOnline: true,
+        repoPending: false,
+        repoError: null,
+        dirty: Boolean(repoStatusAfter.dirty),
+        missingRev: !repoStatusAfter.originHead,
+        needsPush: Boolean(repoStatusAfter.needsPush),
+        localSelected: false,
+        allowLocalDeploy: false,
+      })
+      if (repoAfterReadiness.blocksDeploy) {
+        const message = repoAfterReadiness.message || "Repo not ready"
+        setPredeployCheck("repo", "failed", message)
+        throw new Error(message)
+      }
+      setPredeployCheck("repo", "passed", repoStatusAfter.originHead ? `revision ${repoStatusAfter.originHead.slice(0, 7)}` : "ready")
+      return { pinnedRev, repoStatus: repoStatusAfter }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      setPredeployCheck("saveToGit", "failed", message || "git setup-save failed")
+      throw error
+    }
   }
 
   const runPredeploy = useMutation({
@@ -780,6 +842,7 @@ export function DeployInitialInstallSetup(props: {
       setPredeployError(null)
       setPredeployChecks(initialPredeployChecks())
       setPredeployReadyFingerprint(null)
+      setPreparedRev(null)
 
       if (!runnerOnline) {
         setPredeployCheck("runner", "failed", "Runner offline")
@@ -809,10 +872,12 @@ export function DeployInitialInstallSetup(props: {
       const selectedRevNow = repoStatusNow.originHead
       const missingRevNow = !selectedRevNow
       const needsPushNow = Boolean(repoStatusNow.needsPush)
+      const dirtyNow = Boolean(repoStatusNow.dirty)
       const repoReadiness = deriveDeployReadiness({
         runnerOnline: true,
         repoPending: false,
         repoError: null,
+        dirty: dirtyNow,
         missingRev: missingRevNow,
         needsPush: needsPushNow,
         localSelected: false,
@@ -880,7 +945,7 @@ export function DeployInitialInstallSetup(props: {
       }
       setPredeployCheck("projectCreds", "passed", "GitHub token configured")
 
-      await saveDraftAndQueuePredeploy({
+      const predeployResult = await saveDraftAndQueuePredeploy({
         desired: desiredNow,
         adminPasswordRequired: adminPasswordRequiredNow,
         adminPassword: adminPasswordNow,
@@ -888,7 +953,9 @@ export function DeployInitialInstallSetup(props: {
       setPredeployState("ready")
       const predeployFingerprintNow = JSON.stringify({
         host: props.host,
-        selectedRev: selectedRevNow ?? "",
+        selectedRev: predeployResult.pinnedRev,
+        repoDirty: Boolean(predeployResult.repoStatus.dirty),
+        repoNeedsPush: Boolean(predeployResult.repoStatus.needsPush),
         runnerOnline,
         runnerNixReady: runnerNixReadiness.ready,
         infra: desiredNow.infrastructure,

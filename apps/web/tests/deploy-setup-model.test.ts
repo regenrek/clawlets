@@ -10,6 +10,7 @@ describe("deriveDeployReadiness", () => {
       runnerOnline: true,
       repoPending: false,
       repoError: null,
+      dirty: false,
       missingRev: true,
       needsPush: false,
       localSelected: false,
@@ -25,6 +26,7 @@ describe("deriveDeployReadiness", () => {
       runnerOnline: true,
       repoPending: false,
       repoError: null,
+      dirty: false,
       missingRev: false,
       needsPush: true,
       localSelected: true,
@@ -40,6 +42,7 @@ describe("deriveDeployReadiness", () => {
       runnerOnline: true,
       repoPending: false,
       repoError: null,
+      dirty: false,
       missingRev: false,
       needsPush: false,
       localSelected: false,
@@ -47,6 +50,20 @@ describe("deriveDeployReadiness", () => {
     expect(result.reason).toBe("ready")
     expect(result.blocksDeploy).toBe(false)
     expect(result.showFirstPushGuidance).toBe(false)
+  })
+
+  it("blocks deploy when repo is dirty", () => {
+    const result = deriveDeployReadiness({
+      runnerOnline: true,
+      repoPending: false,
+      repoError: null,
+      dirty: true,
+      missingRev: false,
+      needsPush: false,
+      localSelected: false,
+    })
+    expect(result.reason).toBe("dirty_repo")
+    expect(result.blocksDeploy).toBe(true)
   })
 })
 
