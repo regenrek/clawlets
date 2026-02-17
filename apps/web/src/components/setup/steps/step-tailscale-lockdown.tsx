@@ -5,6 +5,7 @@ import { LabelWithHelp } from "~/components/ui/label-help"
 import { SettingsSection } from "~/components/ui/settings-section"
 import { SetupSaveStateBadge } from "~/components/setup/steps/setup-save-state-badge"
 import { Switch } from "~/components/ui/switch"
+import { DOCS_TAILSCALE_AUTH_KEY_URL } from "~/lib/docs-links"
 import { setupFieldHelp } from "~/lib/setup-field-help"
 import type { SetupStepStatus } from "~/lib/setup/setup-model"
 import type { SetupDraftView } from "~/sdk/setup"
@@ -65,12 +66,24 @@ export function SetupStepTailscaleLockdown(props: {
           />
         </div>
         {props.useTailscaleLockdown ? (
-        <ProjectTokenKeyringCard
+          <ProjectTokenKeyringCard
             projectId={props.projectId}
             kind="tailscale"
             setupHref={`/${props.projectSlug}/runner`}
-            title="Tailscale API keys"
-            description="Project-wide keyring. Add multiple keys and select the active one used during setup/deploy."
+            title="Tailscale auth keys"
+            description={
+              <>
+                Project-wide keyring. Add multiple keys and select the active one used during setup/deploy.{" "}
+                <a
+                  className="underline underline-offset-4 hover:text-foreground"
+                  href={DOCS_TAILSCALE_AUTH_KEY_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  How to create a Tailscale auth key
+                </a>
+              </>
+            }
             runnerStatusMode="none"
             wrapInSection={false}
             showRunnerStatusBanner={false}

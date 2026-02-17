@@ -5,6 +5,7 @@ import type { Id } from "../../../../convex/_generated/dataModel"
 import { api } from "../../../../convex/_generated/api"
 import { DeployCredsCard } from "~/components/fleet/deploy-creds-card"
 import { ProjectTokenKeyringCard } from "~/components/setup/project-token-keyring-card"
+import { DOCS_TAILSCALE_AUTH_KEY_URL } from "~/lib/docs-links"
 import { useProjectBySlug } from "~/lib/project-data"
 
 export const Route = createFileRoute("/$projectSlug/security/api-keys")({
@@ -66,8 +67,20 @@ function SecurityApiKeys() {
         projectId={projectQuery.projectId as Id<"projects">}
         kind="tailscale"
         setupHref={`/${projectSlug}/runner`}
-        title="Tailscale API keys"
-        description="Project-wide keyring used by setup and tailnet bootstrap."
+        title="Tailscale auth keys"
+        description={
+          <>
+            Project-wide keyring used by setup and tailnet activation.{" "}
+            <a
+              className="underline underline-offset-4 hover:text-foreground"
+              href={DOCS_TAILSCALE_AUTH_KEY_URL}
+              target="_blank"
+              rel="noreferrer"
+            >
+              How to create a Tailscale auth key
+            </a>
+          </>
+        }
         statusSummary={{
           hasActive: tailscale?.hasActive === true,
           itemCount: Number(tailscale?.itemCount || 0),

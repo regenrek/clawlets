@@ -28,6 +28,7 @@ import {
   HETZNER_SETUP_DEFAULT_SERVER_TYPE,
 } from "~/components/hosts/hetzner-options"
 import { looksLikeSshPrivateKeyText, looksLikeSshPublicKeyText } from "~/lib/form-utils"
+import { DOCS_TAILSCALE_AUTH_KEY_URL } from "~/lib/docs-links"
 import { setupFieldHelp } from "~/lib/setup-field-help"
 import { ConnectivityPanel } from "~/components/hosts/connectivity-panel"
 import { configDotSet } from "~/sdk/config"
@@ -392,8 +393,20 @@ export function HostSettingsForm(props: {
             <ProjectTokenKeyringCard
               projectId={props.projectId}
               kind="tailscale"
-              title="Tailscale API keys"
-              description="Project-wide keyring used during setup and tailnet activation."
+              title="Tailscale auth keys"
+              description={
+                <>
+                  Project-wide keyring used during setup and tailnet activation.{" "}
+                  <a
+                    className="underline underline-offset-4 hover:text-foreground"
+                    href={DOCS_TAILSCALE_AUTH_KEY_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    How to create a Tailscale auth key
+                  </a>
+                </>
+              }
               statusSummary={tailscaleKeyringSummary}
               onQueued={() => {
                 void credentialsQuery.refetch()

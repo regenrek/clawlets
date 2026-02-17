@@ -48,7 +48,7 @@ export const setupFieldHelp = {
     allowPlaceholders: "Allow placeholder secret values during init (unsafe; only for dry scaffolding).",
     adminPassword: "Linux login password for server user `admin`. Required before first deploy when no `admin_password_hash` is configured.",
     adminPasswordHash: "Precomputed server admin password hash (`$y$…`). Stored as `admin_password_hash`.",
-    tailscaleAuthKey: "Tailscale auth key used to join your tailnet (only required when tailnet mode is tailscale).",
+    tailscaleAuthKey: "Tailscale auth key (tskey-auth-...) used to join your tailnet (not an API key). Only required when tailnet mode is tailscale.",
     extraSecret: "Additional secret value written to encrypted YAML under `secrets/hosts/<host>`.",
   },
   doctor: {
