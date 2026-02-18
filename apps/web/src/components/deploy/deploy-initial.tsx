@@ -51,6 +51,10 @@ type DeployInitialInstallProps = {
   pendingConnectionDraft?: SetupDraftConnection | null
   pendingBootstrapSecrets?: SetupPendingBootstrapSecrets
   hasProjectGithubToken?: boolean
+  hasProjectGithubTokenAccess?: boolean
+  githubTokenAccessMessage?: string
+  hasProjectGitRemoteOrigin?: boolean
+  projectGitRemoteOrigin?: string
   hasActiveTailscaleAuthKey?: boolean
   showRunnerStatusBanner?: boolean
 }
@@ -70,6 +74,10 @@ export function DeployInitialInstall({
     useTailscaleLockdown: true,
   },
   hasProjectGithubToken = false,
+  hasProjectGithubTokenAccess = false,
+  githubTokenAccessMessage = "",
+  hasProjectGitRemoteOrigin = false,
+  projectGitRemoteOrigin = "",
   hasActiveTailscaleAuthKey = false,
   showRunnerStatusBanner = true,
 }: DeployInitialInstallProps) {
@@ -85,6 +93,10 @@ export function DeployInitialInstall({
         pendingConnectionDraft={pendingConnectionDraft}
         pendingBootstrapSecrets={pendingBootstrapSecrets}
         hasProjectGithubToken={hasProjectGithubToken}
+        hasProjectGithubTokenAccess={hasProjectGithubTokenAccess}
+        githubTokenAccessMessage={githubTokenAccessMessage}
+        hasProjectGitRemoteOrigin={hasProjectGitRemoteOrigin}
+        projectGitRemoteOrigin={projectGitRemoteOrigin}
         hasActiveTailscaleAuthKey={hasActiveTailscaleAuthKey}
         showRunnerStatusBanner={showRunnerStatusBanner}
       />

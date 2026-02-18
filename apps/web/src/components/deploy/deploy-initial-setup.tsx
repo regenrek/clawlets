@@ -1066,7 +1066,7 @@ export function DeployInitialInstallSetup(props: {
           },
         })
       }
-      setPredeployCheck("projectCreds", "passed", projectCredsPassedLabel)
+      setPredeployCheck("projectCreds", "passed", projectCredsPassedDetail)
 
       const predeployResult = await saveDraftAndQueuePredeploy({
         desired: desiredNow,
