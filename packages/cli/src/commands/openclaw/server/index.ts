@@ -43,6 +43,75 @@ function parseSystemctlShow(output: string): Record<string, string> {
   return out;
 }
 
+function parseDurationToMs(raw: string): number | null {
+  const v = String(raw || "").trim();
+  if (!v) return null;
+  if (/^[0-9]+$/.test(v)) {
+    const parsed = Number.parseInt(v, 10);
+    if (!Number.isFinite(parsed) || parsed <= 0) return null;
+    if (parsed > 3_600_000) return null;
+    return parsed;
+  }
+  const m = v.match(/^(\d+)\s*([smhd])$/i);
+  if (!m) return null;
+  const n = Number(m[1]);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  const unit = String(m[2]).toLowerCase();
+  const seconds =
+    unit === "s" ? n :
+    unit === "m" ? n * 60 :
+    unit === "h" ? n * 60 * 60 :
+    unit === "d" ? n * 60 * 60 * 24 :
+    null;
+  if (seconds == null) return null;
+  const ms = seconds * 1000;
+  if (!Number.isFinite(ms) || ms <= 0) return null;
+  if (ms > 3_600_000) return null;
+  return ms;
+}
+
+function parseMs(raw: string): number | null {
+  const v = String(raw || "").trim();
+  if (!v) return null;
+  if (!/^[0-9]+$/.test(v)) return null;
+  const parsed = Number.parseInt(v, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  if (parsed > 120_000) return null;
+  return parsed;
+}
+
+async function probeTailscaleIpv4(params: { targetHost: string }): Promise<string> {
+  const raw = await sshCapture(params.targetHost, "ip -4 addr show dev tailscale0 2>/dev/null || true", {
+    tty: false,
+    timeoutMs: 15_000,
+    maxOutputBytes: 8 * 1024,
+  });
+  const normalized = normalizeSingleLineOutput(raw || "");
+  const ipv4 = extractFirstIpv4(normalized || raw || "");
+  if (!ipv4) throw new Error("tailscale ip missing");
+  if (!isTailscaleIpv4(ipv4)) throw new Error(`unexpected IPv4 ${ipv4}`);
+  return ipv4;
+}
+
+async function waitForTailscaleIpv4(params: { targetHost: string; timeoutMs: number; pollMs: number }): Promise<string> {
+  const startedAt = Date.now();
+  let lastError = "tailscale ip missing";
+  const deadline = startedAt + Math.max(1, params.timeoutMs);
+
+  while (Date.now() < deadline) {
+    try {
+      const ipv4 = await probeTailscaleIpv4({ targetHost: params.targetHost });
+      return ipv4;
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error);
+    }
+    await new Promise((resolve) => setTimeout(resolve, Math.max(1, params.pollMs)));
+  }
+
+  const waited = Math.max(0, Date.now() - startedAt);
+  throw new Error(`timed out waiting for tailscale ipv4 after ${waited}ms (last error: ${lastError || "unknown"})`);
+}
+
 type AuditCheck = { status: "ok" | "warn" | "missing"; label: string; detail?: string };
 
 async function trySshCapture(targetHost: string, remoteCmd: string, opts: { tty?: boolean } = {}): Promise<{ ok: boolean; out: string }> {
@@ -364,6 +433,9 @@ const serverTailscaleIpv4 = defineCommand({
     host: { type: "string", description: "Host name (defaults to clawlets.json defaultHost / sole host)." },
     targetHost: { type: "string", description: "SSH target override (default: from clawlets.json)." },
     json: { type: "boolean", description: "Output JSON.", default: false },
+    wait: { type: "boolean", description: "Retry until tailscale IPv4 appears.", default: false },
+    waitTimeout: { type: "string", description: "Max wait duration (duration or milliseconds).", default: "10m" },
+    waitPollMs: { type: "string", description: "Poll interval in ms.", default: "5000" },
     sshTty: { type: "boolean", description: "Allocate TTY for sudo prompts.", default: true },
   },
   async run({ args }) {
@@ -373,17 +445,25 @@ const serverTailscaleIpv4 = defineCommand({
     const { hostName, hostCfg } = ctx;
     const targetHost = requireTargetHost(String(args.targetHost || hostCfg.targetHost || ""), hostName);
 
-    // Avoid relying on `tailscale` CLI permissions; `ip addr` is readable by unprivileged users.
-    // Keep this non-interactive (no TTY) so it can run in runner jobs.
-    const raw = await sshCapture(targetHost, "ip -4 addr show dev tailscale0 2>/dev/null || true", {
-      tty: false,
-      timeoutMs: 15_000,
-      maxOutputBytes: 8 * 1024,
-    });
-    const normalized = normalizeSingleLineOutput(raw || "");
-    const ipv4 = extractFirstIpv4(normalized || raw || "");
-    if (!ipv4) throw new Error("tailscale ip missing");
-    if (!isTailscaleIpv4(ipv4)) throw new Error(`unexpected IPv4 ${ipv4}`);
+    const wait = Boolean(args.wait)
+    const waitTimeout = wait ? parseDurationToMs(String((args as any).waitTimeout || "10m")) : null
+    const waitPollMs = wait ? parseMs(String((args as any).waitPollMs || "5000")) : null;
+    if (wait) {
+      if (waitTimeout == null) {
+        throw new Error(`invalid --wait-timeout: ${String((args as any).waitTimeout)}`);
+      }
+      if (waitPollMs == null) {
+        throw new Error(`invalid --wait-poll-ms: ${String((args as any).waitPollMs)}`);
+      }
+    }
+
+    const ipv4 = wait
+      ? await waitForTailscaleIpv4({
+          targetHost,
+          timeoutMs: waitTimeout as number,
+          pollMs: waitPollMs as number,
+        })
+      : await probeTailscaleIpv4({ targetHost });
 
     if (args.json) {
       console.log(JSON.stringify({ ok: true, ipv4 }, null, 2));

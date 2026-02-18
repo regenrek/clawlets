@@ -16,7 +16,7 @@ import { Button } from "~/components/ui/button"
 import { SettingsSection } from "~/components/ui/settings-section"
 import { Spinner } from "~/components/ui/spinner"
 import { configDotSet } from "~/sdk/config"
-import { getHostPublicIpv4, probeHostTailscaleIpv4 } from "~/sdk/host"
+import { getHostPublicIpv4, probeHostTailscaleIpv4, probeSshReachability } from "~/sdk/host"
 import {
   bootstrapExecute,
   bootstrapStart,
@@ -483,6 +483,11 @@ export function DeployInitialInstallSetup(props: {
       setFinalizeUpdatedAt(null)
 
       let targetHost = String(hostSummary?.desired?.targetHost || "").trim()
+      const isTailnetTargetHost = (value: string) => /^admin@100\./.test(value)
+      const switchTailnetWaitMs = 10 * 60_000
+      const switchTailnetPollMs = 5_000
+      const sshReachabilityWaitMs = 90_000
+      const sshReachabilityPollMs = 5_000
       await runFinalizeStep({
         id: "enableHost",
         run: async () => {
@@ -498,33 +503,32 @@ export function DeployInitialInstallSetup(props: {
         },
       })
 
-      if (targetHost) {
-        setStepStatus("setTargetHost", "skipped", `Already set: ${targetHost}`)
-      } else {
-        await runFinalizeStep({
-          id: "setTargetHost",
-          run: async () => {
-            const ipv4 = await getHostPublicIpv4({
-              data: {
-                projectId: projectId as Id<"projects">,
-                host: props.host,
-              },
-            })
-            if (!ipv4.ok) throw new Error(ipv4.error || "Could not find public IPv4")
-            if (!ipv4.ipv4) throw new Error("Could not find public IPv4")
-            targetHost = `admin@${ipv4.ipv4}`
-            const result = await configDotSet({
-              data: {
-                projectId: projectId as Id<"projects">,
-                path: `hosts.${props.host}.targetHost`,
-                value: targetHost,
-              },
-            })
-            if (!result.ok) throw new Error(extractIssueMessage(result, "Could not set target host"))
-            return targetHost
-          },
-        })
-      }
+      await runFinalizeStep({
+        id: "setTargetHost",
+        run: async () => {
+          if (isTailnetTargetHost(targetHost)) return `Already set: ${targetHost}`
+          const ipv4 = await getHostPublicIpv4({
+            data: {
+              projectId: projectId as Id<"projects">,
+              host: props.host,
+            },
+          })
+          if (!ipv4.ok) throw new Error(ipv4.error || "Could not find public IPv4")
+          if (!ipv4.ipv4) throw new Error("Could not find public IPv4")
+          const publicTargetHost = `admin@${ipv4.ipv4}`
+          if (targetHost === publicTargetHost) return `Already set: ${targetHost}`
+          targetHost = publicTargetHost
+          const result = await configDotSet({
+            data: {
+              projectId: projectId as Id<"projects">,
+              path: `hosts.${props.host}.targetHost`,
+              value: targetHost,
+            },
+          })
+          if (!result.ok) throw new Error(extractIssueMessage(result, "Could not set target host"))
+          return targetHost
+        },
+      })
 
       if (!wantsTailscaleLockdown) {
         setStepStatus("switchTailnetTarget", "skipped", "Auto-lockdown disabled")
@@ -540,44 +544,54 @@ export function DeployInitialInstallSetup(props: {
           run: async () => {
             if (!targetHost.trim()) throw new Error("targetHost missing")
             const startedAt = Date.now()
-            const timeoutMs = 3 * 60_000
-            const pollMs = 10_000
             let attempt = 0
-            let lastError = "Could not resolve tailnet IPv4"
-
-            while (Date.now() - startedAt < timeoutMs) {
+            let lastError = "SSH not reachable yet"
+            while (Date.now() - startedAt < sshReachabilityWaitMs) {
               attempt += 1
               setStepStatus(
                 "switchTailnetTarget",
                 "running",
-                `Waiting for tailnet IPv4 via ${targetHost} (attempt ${attempt})...`,
+                `Waiting for SSH via ${targetHost} (attempt ${attempt})...`,
               )
-              const probe = await probeHostTailscaleIpv4({
+              const sshProbe = await probeSshReachability({
                 data: {
                   projectId: projectId as Id<"projects">,
                   host: props.host,
                   targetHost,
                 },
               })
-              if (probe.ok && probe.ipv4) {
-                targetHost = `admin@${probe.ipv4}`
-                const result = await configDotSet({
-                  data: {
-                    projectId: projectId as Id<"projects">,
-                    path: `hosts.${props.host}.targetHost`,
-                    value: targetHost,
-                  },
-                })
-                if (!result.ok) throw new Error(extractIssueMessage(result, "Could not set tailnet targetHost"))
-                return targetHost
-              }
-              if (!probe.ok) {
-                lastError = probe.error || lastError
-              }
-              await sleep(pollMs)
+              if (sshProbe.ok) break
+              lastError = sshProbe.error || lastError
+              await sleep(sshReachabilityPollMs)
+            }
+            if (Date.now() - startedAt >= sshReachabilityWaitMs) {
+              throw new Error(`SSH not reachable within ${sshReachabilityWaitMs}ms (${lastError || "unknown"})`)
             }
 
-            throw new Error(lastError)
+            setStepStatus("switchTailnetTarget", "running", `Waiting for tailnet IPv4 via ${targetHost}...`)
+            const probe = await probeHostTailscaleIpv4({
+              data: {
+                projectId: projectId as Id<"projects">,
+                host: props.host,
+                targetHost,
+                wait: true,
+                waitTimeoutMs: switchTailnetWaitMs,
+                waitPollMs: switchTailnetPollMs,
+              },
+            })
+            if (probe.ok && probe.ipv4) {
+              targetHost = `admin@${probe.ipv4}`
+              const result = await configDotSet({
+                data: {
+                  projectId: projectId as Id<"projects">,
+                  path: `hosts.${props.host}.targetHost`,
+                  value: targetHost,
+                },
+              })
+              if (!result.ok) throw new Error(extractIssueMessage(result, "Could not set tailnet targetHost"))
+              return targetHost
+            }
+            throw new Error(probe.error || "Could not resolve tailnet IPv4")
           },
         })
 

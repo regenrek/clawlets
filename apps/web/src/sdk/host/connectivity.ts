@@ -23,6 +23,12 @@ export type TailscaleIpv4Result =
   | { ok: true; ipv4: string }
   | { ok: false; error: string; raw?: string }
 
+type TailscaleIpv4ProbeConfig = {
+  wait?: boolean
+  waitTimeoutMs?: number
+  waitPollMs?: number
+}
+
 export type SshReachabilityResult =
   | { ok: true; hostname?: string }
   | { ok: false; error: string }
@@ -180,6 +186,10 @@ export const probeHostTailscaleIpv4 = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<TailscaleIpv4Result> => {
     await assertKnownHost({ projectId: data.projectId, host: data.host })
     const targetHost = validateTargetHost(data.targetHost)
+    const probeConfig = data as TailscaleIpv4ProbeConfig
+    const wait = probeConfig.wait === true
+    const waitTimeoutMs = probeConfig.waitTimeoutMs ?? 600_000
+    const waitPollMs = probeConfig.waitPollMs ?? 5_000
 
     const queued = await enqueueCustomProbe({
       projectId: data.projectId,
@@ -192,6 +202,11 @@ export const probeHostTailscaleIpv4 = createServerFn({ method: "POST" })
         data.host,
         "--target-host",
         targetHost,
+        ...(wait ? [
+          "--wait",
+          `--wait-timeout=${String(waitTimeoutMs)}`,
+          `--wait-poll-ms=${String(waitPollMs)}`,
+        ] : []),
         "--json",
         "--ssh-tty=false",
       ],
