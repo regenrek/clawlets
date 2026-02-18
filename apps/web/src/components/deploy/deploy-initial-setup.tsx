@@ -17,7 +17,15 @@ import { SettingsSection } from "~/components/ui/settings-section"
 import { Spinner } from "~/components/ui/spinner"
 import { configDotSet } from "~/sdk/config"
 import { getHostPublicIpv4, probeHostTailscaleIpv4 } from "~/sdk/host"
-import { bootstrapExecute, bootstrapStart, generateSopsAgeKey, lockdownExecute, lockdownStart, runDoctor } from "~/sdk/infra"
+import {
+  bootstrapExecute,
+  bootstrapStart,
+  generateSopsAgeKey,
+  lockdownExecute,
+  lockdownStart,
+  queueDeployCredsUpdate,
+  runDoctor,
+} from "~/sdk/infra"
 import { useProjectBySlug } from "~/lib/project-data"
 import { deriveProjectRunnerNixReadiness, isProjectRunnerOnline } from "~/lib/setup/runner-status"
 import { deriveEffectiveSetupDesiredState } from "~/lib/setup/desired-state"
@@ -46,6 +54,7 @@ import {
   type FinalizeStepId,
   type FinalizeStepStatus,
 } from "~/components/deploy/deploy-setup-model"
+import { secretsVerifyAndWait } from "~/sdk/secrets/verify"
 
 type SetupPendingBootstrapSecrets = {
   adminPassword: string
@@ -58,6 +67,7 @@ type PredeployCheckId =
   | "ssh"
   | "adminPassword"
   | "projectCreds"
+  | "requiredHostSecrets"
   | "sealedDrafts"
   | "setupApply"
   | "saveToGit"
@@ -83,6 +93,7 @@ function initialPredeployChecks(): PredeployCheck[] {
     { id: "ssh", label: "SSH setup ready", state: "pending" },
     { id: "adminPassword", label: "Admin password ready", state: "pending" },
     { id: "projectCreds", label: "Project creds ready", state: "pending" },
+    { id: "requiredHostSecrets", label: "Required host secrets", state: "pending" },
     { id: "sealedDrafts", label: "Host secrets written", state: "pending" },
     { id: "setupApply", label: "Setup apply", state: "pending" },
     { id: "saveToGit", label: "Saved to Git", state: "pending" },
@@ -99,6 +110,10 @@ export function DeployInitialInstallSetup(props: {
   pendingConnectionDraft: SetupDraftConnection | null
   pendingBootstrapSecrets: SetupPendingBootstrapSecrets
   hasProjectGithubToken: boolean
+  hasProjectGithubTokenAccess: boolean
+  githubTokenAccessMessage: string
+  hasProjectGitRemoteOrigin: boolean
+  projectGitRemoteOrigin: string
   hasActiveTailscaleAuthKey: boolean
   showRunnerStatusBanner?: boolean
 }) {
@@ -197,13 +212,19 @@ export function DeployInitialInstallSetup(props: {
       ),
     [secretWiringQuery.data],
   )
+  const tailscaleAuthKeyConfigured = useMemo(
+    () =>
+      (secretWiringQuery.data ?? []).some(
+        (row) => row.secretName === "tailscale_auth_key" && row.status === "configured",
+      ),
+    [secretWiringQuery.data],
+  )
   const adminPasswordRequired = !adminPasswordConfigured
   const adminPassword = props.pendingBootstrapSecrets.adminPassword.trim()
   const adminPasswordGateBlocked = adminPasswordRequired && !adminPassword
   const adminPasswordGateMessage = adminPasswordGateBlocked
     ? "Server access incomplete. Set admin password."
     : null
-
   const repoStatus = useQuery({
     queryKey: ["gitRepoStatus", projectId],
     queryFn: async () =>
@@ -237,7 +258,20 @@ export function DeployInitialInstallSetup(props: {
   )
 
   const projectGithubTokenSet = props.hasProjectGithubToken
-  const effectiveDeployCredsReady = projectGithubTokenSet
+  const projectGithubTokenAccessSet = props.hasProjectGithubTokenAccess
+  const githubTokenAccessMessage = props.githubTokenAccessMessage?.trim()
+  const githubTokenAccessText = githubTokenAccessMessage.length > 0 ? githubTokenAccessMessage : null
+  const projectGitRemoteOriginSet = props.hasProjectGitRemoteOrigin
+  const projectGitRemoteOriginFromValue = Boolean(props.projectGitRemoteOrigin.trim())
+  const projectGitRemoteOriginReady = projectGitRemoteOriginSet || projectGitRemoteOriginFromValue
+
+  const requiresTailscaleAuthKey = isTailnet || desired.connection.sshExposureMode === "tailnet"
+  const requiredHostSecretsConfigured = !requiresTailscaleAuthKey || tailscaleAuthKeyConfigured
+  const hasSecretWiringData = secretWiringQuery.isSuccess
+  const requiredHostSecretsGateBlocked = runnerOnline && hasSecretWiringData && !requiredHostSecretsConfigured
+  const requiredHostSecretsGateMessage = runnerOnline && hasSecretWiringData && requiresTailscaleAuthKey && !tailscaleAuthKeyConfigured
+    ? "Missing tailscale auth key for bootstrap. Configure it in Host secrets."
+    : null
 
   const [preparedRev, setPreparedRev] = useState<string | null>(null)
 
@@ -257,6 +291,14 @@ export function DeployInitialInstallSetup(props: {
   })
   const repoGateBlocked = readiness.blocksDeploy
   const statusReason = readiness.message
+  const showRepoSaveToGitButton = readiness.reason === "dirty_repo" || readiness.reason === "needs_push"
+  const repoSaveManualCommand = readiness.reason === "needs_push"
+    ? "git push"
+    : "git add .\ngit commit -m \"Prepare deploy\"\ngit push"
+
+  const runPredeployAfterSave = () => {
+    runPredeploy.mutate()
+  }
 
   const hasDesiredSshKeys = desired.connection.sshAuthorizedKeys.length > 0
   const nixGateBlocked = runnerOnline && !runnerNixReadiness.ready
@@ -274,18 +316,33 @@ export function DeployInitialInstallSetup(props: {
   const sshKeyGateBlocked = sshKeyGateUi.blocked
   const sshKeyGateMessage = sshKeyGateUi.message
 
-  const credsGateBlocked = runnerOnline && !effectiveDeployCredsReady
+  const credsGateBlocked =
+    runnerOnline &&
+    (!props.hasProjectGithubToken || !projectGitRemoteOriginReady || !projectGithubTokenAccessSet)
   const credsGateMessage = !runnerOnline
     ? null
-    : !effectiveDeployCredsReady
-      ? "Missing credentials. Add GitHub token in Hetzner setup."
-      : null
+    : !projectGithubTokenSet
+      ? "Missing GitHub Deploy Token. Add it in Git Configuration."
+      : !projectGitRemoteOriginReady
+        ? "Missing git remote origin. Add it in Git Configuration."
+        : !projectGithubTokenAccessSet
+          ? `GitHub Deploy Token lacks repository access. ${githubTokenAccessText || "Use a token with repo scope."}`
+          : null
+  const projectCredsFailureDetail = credsGateBlocked
+    ? credsGateMessage || "Project credentials missing"
+    : "Project credentials ready"
+  const projectCredsPassedDetail = `Deploy token and git remote configured${projectGithubTokenAccessSet ? "" : "; token access check failed"}`
+  const deployCredsGateAlertTitle = projectGithubTokenSet && !projectGithubTokenAccessSet && runnerOnline
+    ? "GitHub deploy token denied"
+    : "Provider token required"
 
   const deployGateBlocked =
-    repoGateBlocked || nixGateBlocked || sshKeyGateBlocked || adminPasswordGateBlocked || credsGateBlocked
+    repoGateBlocked || nixGateBlocked || sshKeyGateBlocked || adminPasswordGateBlocked
+    || credsGateBlocked || requiredHostSecretsGateBlocked
   const deployStatusReason = repoGateBlocked
     ? statusReason
-    : nixGateMessage || sshKeyGateMessage || adminPasswordGateMessage || credsGateMessage || statusReason
+    : nixGateMessage || sshKeyGateMessage || adminPasswordGateMessage
+      || requiredHostSecretsGateMessage || credsGateMessage || statusReason
 
   const wantsTailscaleLockdown = props.pendingBootstrapSecrets.useTailscaleLockdown
   const canAutoLockdown = wantsTailscaleLockdown && hasProjectTailscaleAuthKey
@@ -341,21 +398,29 @@ export function DeployInitialInstallSetup(props: {
         infra: desired.infrastructure,
         connection: desired.connection,
         hasProjectGithubToken: props.hasProjectGithubToken,
+        hasProjectGitRemoteOrigin: props.hasProjectGitRemoteOrigin,
+        projectGitRemoteOrigin: props.projectGitRemoteOrigin,
         hasProjectTailscaleAuthKey,
+        requiresTailscaleAuthKey,
+        requiredHostSecretsConfigured: tailscaleAuthKeyConfigured,
         useTailscaleLockdown: wantsTailscaleLockdown,
         adminPasswordRequired,
         adminPasswordSet: Boolean(props.pendingBootstrapSecrets.adminPassword.trim()),
       }),
-    [
-      desired.connection,
-      desired.infrastructure,
-      props.hasProjectGithubToken,
-      hasProjectTailscaleAuthKey,
-      props.host,
-      props.pendingBootstrapSecrets.adminPassword,
-      adminPasswordRequired,
-      runnerNixReadiness.ready,
-      runnerOnline,
+      [
+        desired.connection,
+        desired.infrastructure,
+        props.hasProjectGithubToken,
+        props.hasProjectGitRemoteOrigin,
+        props.projectGitRemoteOrigin,
+        hasProjectTailscaleAuthKey,
+        requiresTailscaleAuthKey,
+        tailscaleAuthKeyConfigured,
+        props.host,
+        props.pendingBootstrapSecrets.adminPassword,
+        adminPasswordRequired,
+        runnerNixReadiness.ready,
+        runnerOnline,
       selectedRev,
       dirtyRepo,
       needsPush,
@@ -780,7 +845,7 @@ export function DeployInitialInstallSetup(props: {
       data: {
         projectId: projectId as Id<"projects">,
         host: props.host,
-        scope: "bootstrap",
+        scope: "repo",
       },
     })
     setPredeployCheck(
@@ -919,14 +984,19 @@ export function DeployInitialInstallSetup(props: {
 
       // Refresh wiring so admin_password_hash doesn't incorrectly appear missing while query is still loading.
       let adminPasswordConfiguredNow = adminPasswordConfigured
+      let tailscaleAuthKeyConfiguredNow = tailscaleAuthKeyConfigured
       try {
         const secretWiringNow = await secretWiringQuery.refetch().then((res) => res.data ?? [])
         adminPasswordConfiguredNow = secretWiringNow.some(
           (row) => row.secretName === "admin_password_hash" && row.status === "configured",
         )
+        tailscaleAuthKeyConfiguredNow = secretWiringNow.some(
+          (row) => row.secretName === "tailscale_auth_key" && row.status === "configured",
+        )
       } catch {
         // Fall back to current query state; require password if uncertain.
         adminPasswordConfiguredNow = adminPasswordConfigured
+        tailscaleAuthKeyConfiguredNow = tailscaleAuthKeyConfigured
       }
       const adminPasswordRequiredNow = !adminPasswordConfiguredNow
       const adminPasswordNow = props.pendingBootstrapSecrets.adminPassword.trim()
@@ -941,11 +1011,62 @@ export function DeployInitialInstallSetup(props: {
         adminPasswordRequiredNow ? "provided for bootstrap" : "existing admin_password_hash configured",
       )
 
+      const requiredTailscaleAuthKeyNow = isTailnet || desiredNow.connection.sshExposureMode === "tailnet"
+      if (requiredTailscaleAuthKeyNow) {
+        setPredeployCheck("requiredHostSecrets", "pending", "Verifying tailscale_auth_key secret...")
+        let tailscaleAuthKeyVerified = false
+        try {
+          const tailscaleVerifyResult = await secretsVerifyAndWait({
+            data: {
+              projectId: projectId as Id<"projects">,
+              host: props.host,
+              scope: "bootstrap",
+            },
+          })
+          if (tailscaleVerifyResult.status !== "succeeded") {
+            throw new Error(tailscaleVerifyResult.errorMessage || "Missing required tailscale_auth_key. Configure it in Host secrets.")
+          }
+          tailscaleAuthKeyVerified = true
+        } catch (error) {
+          const detail = error instanceof Error ? error.message : String(error)
+          setPredeployCheck(
+            "requiredHostSecrets",
+            "failed",
+            detail || "Missing required tailscale_auth_key. Configure it in Host secrets.",
+          )
+          throw new Error(detail || "Missing required tailscale_auth_key for tailscale bootstrap.")
+        }
+        tailscaleAuthKeyConfiguredNow = tailscaleAuthKeyVerified
+      }
+      setPredeployCheck(
+        "requiredHostSecrets",
+        "passed",
+        requiredTailscaleAuthKeyNow ? "tailscale_auth_key verified" : "No additional required host secrets",
+      )
+
       if (credsGateBlocked) {
-        setPredeployCheck("projectCreds", "failed", credsGateMessage || "Project credentials missing")
+        setPredeployCheck("projectCreds", "failed", projectCredsFailureDetail)
         throw new Error(credsGateMessage || "Project credentials missing.")
       }
-      setPredeployCheck("projectCreds", "passed", "GitHub token configured")
+      const remoteUrl = props.projectGitRemoteOrigin.trim()
+      const targetRunner = sealedRunners[0]
+      if (!targetRunner) {
+        setPredeployCheck("projectCreds", "failed", "No sealed runner available for credentials")
+        throw new Error("No sealed-capable runner online for credentials.")
+      }
+      if (remoteUrl) {
+        setPredeployCheck("projectCreds", "pending", "Setting git remote origin")
+        await queueDeployCredsUpdate({
+          data: {
+            projectId: projectId as Id<"projects">,
+            targetRunnerId: String(targetRunner._id) as Id<"runners">,
+            updates: {
+              GIT_REMOTE_ORIGIN: remoteUrl,
+            },
+          },
+        })
+      }
+      setPredeployCheck("projectCreds", "passed", projectCredsPassedLabel)
 
       const predeployResult = await saveDraftAndQueuePredeploy({
         desired: desiredNow,
@@ -963,7 +1084,11 @@ export function DeployInitialInstallSetup(props: {
         infra: desiredNow.infrastructure,
         connection: desiredNow.connection,
         hasProjectGithubToken: props.hasProjectGithubToken,
+        hasProjectGitRemoteOrigin: props.hasProjectGitRemoteOrigin,
+        projectGitRemoteOrigin: props.projectGitRemoteOrigin,
         hasProjectTailscaleAuthKey,
+        requiresTailscaleAuthKey: requiredTailscaleAuthKeyNow,
+        requiredHostSecretsConfigured: tailscaleAuthKeyConfiguredNow,
         useTailscaleLockdown: wantsTailscaleLockdown,
         adminPasswordRequired: adminPasswordRequiredNow,
         adminPasswordSet: Boolean(props.pendingBootstrapSecrets.adminPassword.trim()),
@@ -980,6 +1105,47 @@ export function DeployInitialInstallSetup(props: {
       setPredeployState("failed")
       setPredeployError(message)
       toast.error(message)
+    },
+  })
+
+  const saveToGitNow = useMutation({
+    mutationFn: async () => {
+      if (!projectId) throw new Error("Project not ready")
+      if (!props.host.trim()) throw new Error("Host is required")
+      if (!runnerOnline) throw new Error("Runner offline. Start runner first.")
+      const saved = await gitSetupSaveExecute({
+        data: {
+          projectId: projectId as Id<"projects">,
+          host: props.host,
+        },
+      })
+      const pinnedRev = String(saved.result?.sha || "").trim()
+      if (!pinnedRev) throw new Error("git setup-save did not return a revision")
+      const repoStatusAfter = await gitRepoStatus({ data: { projectId: projectId as Id<"projects"> } })
+      queryClient.setQueryData(["gitRepoStatus", projectId], repoStatusAfter)
+      const changedCount = Array.isArray(saved.result?.changedPaths) ? saved.result.changedPaths.length : 0
+      const commitVerb = saved.result.committed ? "Committed" : "No changes"
+      const pushVerb = saved.result.pushed ? "pushed" : "push skipped"
+      setPreparedRev(pinnedRev)
+      return {
+        pinnedRev,
+        changedCount,
+        commitVerb,
+        pushVerb,
+      }
+    },
+    onSuccess: ({ pinnedRev, changedCount, commitVerb, pushVerb }) => {
+      toast.success(
+        `Saved to git: ${commitVerb}; ${pushVerb}; revision ${pinnedRev.slice(0, 7)}; files ${changedCount}`,
+      )
+      setPredeployState("idle")
+      setPredeployError(null)
+      setPredeployChecks(initialPredeployChecks())
+      setPredeployReadyFingerprint(null)
+      setPredeployUpdatedAt(null)
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : String(error))
     },
   })
 
@@ -1105,6 +1271,14 @@ export function DeployInitialInstallSetup(props: {
     && !bootstrapInProgress
     && runnerOnline
     && Boolean(projectId)
+  const mainActionIsSaveToGit = showRepoSaveToGitButton && !predeployReady
+  const canRunSaveToGit = !isBootstrapped
+    && !runPredeploy.isPending
+    && !saveToGitNow.isPending
+    && !bootstrapInProgress
+    && runnerOnline
+    && Boolean(projectId)
+    && showRepoSaveToGitButton
   const canStartDeploy = !isBootstrapped
     && !startDeploy.isPending
     && !bootstrapInProgress
@@ -1175,6 +1349,18 @@ export function DeployInitialInstallSetup(props: {
             onClick={() => startDeploy.mutate()}
           >
             Deploy now
+          </AsyncButton>
+        ) : mainActionIsSaveToGit ? (
+          <AsyncButton
+            type="button"
+            disabled={!canRunSaveToGit}
+            pending={saveToGitNow.isPending}
+            pendingText="Saving and continuing..."
+            onClick={() => {
+              saveToGitNow.mutate(undefined, { onSuccess: () => runPredeployAfterSave() })
+            }}
+          >
+            Save to git and continue
           </AsyncButton>
         ) : (
           <AsyncButton
@@ -1307,9 +1493,14 @@ export function DeployInitialInstallSetup(props: {
 
           {!isBootstrapped && credsGateMessage && !repoGateBlocked && !nixGateBlocked && !sshKeyGateBlocked && !adminPasswordGateBlocked ? (
             <Alert variant="destructive">
-              <AlertTitle>Provider token required</AlertTitle>
+              <AlertTitle>{deployCredsGateAlertTitle}</AlertTitle>
               <AlertDescription>
                 <div>{credsGateMessage}</div>
+                {githubTokenAccessText ? (
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {githubTokenAccessText}
+                  </div>
+                ) : null}
               </AlertDescription>
             </Alert>
           ) : null}
@@ -1326,6 +1517,22 @@ export function DeployInitialInstallSetup(props: {
                 {readiness.reason === "repo_error" && repoStatus.error ? (
                   <div className="mt-1 font-mono text-xs">{String(repoStatus.error)}</div>
                 ) : null}
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          {showRepoSaveToGitButton ? (
+            <Alert variant="default">
+              <AlertTitle>Git must be pushed</AlertTitle>
+              <AlertDescription>
+                <div className="text-sm">
+                  Deploy needs a committed and pushed revision. Use <strong>Save to git and continue</strong> to run this automatically.
+                </div>
+                <div className="mt-2 text-xs text-muted-foreground">
+                  Manual alternative:
+                </div>
+                <pre className="mt-1 whitespace-pre-wrap break-words rounded bg-muted/20 p-2 text-xs">
+                  {repoSaveManualCommand}
+                </pre>
               </AlertDescription>
             </Alert>
           ) : null}
