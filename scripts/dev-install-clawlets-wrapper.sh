@@ -155,18 +155,8 @@ parse_path_shells() {
         fish) add_target_shell fish ;;
         nu) add_target_shell nushell ;;
         pwsh | powershell | powershell.exe) add_target_shell pwsh ;;
+        *) add_target_shell posix ;;
       esac
-
-      [[ -f "$HOME/.zshrc" || -f "$HOME/.zprofile" || -f "$HOME/.zshenv" ]] && add_target_shell zsh
-      [[ -f "$HOME/.bashrc" || -f "$HOME/.bash_profile" || -f "$HOME/.bash_login" ]] && add_target_shell bash
-      [[ -d "$HOME/.config/fish" || -f "$HOME/.config/fish/config.fish" ]] && add_target_shell fish
-      [[ -d "$HOME/.config/nushell" || -f "$HOME/.config/nushell/env.nu" || -f "$HOME/.config/nushell/config.nu" ]] &&
-        add_target_shell nushell
-      [[ -f "$HOME/.config/powershell/profile.ps1" ]] && add_target_shell pwsh
-
-      if [[ -z "$target_shells" ]]; then
-        add_target_shell posix
-      fi
       ;;
     all)
       add_target_shell posix
@@ -278,7 +268,15 @@ upsert_block() {
     return 0
   fi
 
-  mkdir -p "$(dirname "$file")"
+  if [[ -e "$file" && ! -w "$file" ]]; then
+    warn "skip: $label is not writable; PATH not persisted there"
+    return 0
+  fi
+
+  if ! mkdir -p "$(dirname "$file")"; then
+    warn "skip: unable to create parent directory for $label"
+    return 0
+  fi
   tmp_without="$(mktemp)"
   tmp_next="$(mktemp)"
 
