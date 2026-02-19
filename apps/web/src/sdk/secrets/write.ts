@@ -36,6 +36,7 @@ export const writeHostSecrets = createServerFn({ method: "POST" })
           "--from-json",
           "__RUNNER_SECRETS_JSON__",
           "--yes",
+          "--allow-missing-admin-password-hash",
         ],
         note: "secrets sealed input attached at finalize",
       },

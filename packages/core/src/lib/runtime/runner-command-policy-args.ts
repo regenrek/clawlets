@@ -335,6 +335,7 @@ const specSecretsInit: CommandSpec = {
     },
     "--yes": { kind: "boolean" },
     "--allow-placeholders": { kind: "boolean" },
+    "--allow-missing-admin-password-hash": { kind: "boolean" },
   },
 };
 

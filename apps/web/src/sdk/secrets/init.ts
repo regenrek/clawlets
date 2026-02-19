@@ -127,6 +127,7 @@ export const secretsInitExecute = createServerFn({ method: "POST" })
       "--from-json",
       "__RUNNER_SECRETS_JSON__",
       "--yes",
+      "--allow-missing-admin-password-hash",
       ...(data.allowPlaceholders ? ["--allow-placeholders"] : []),
     ]
     const reserved = await client.mutation(api.controlPlane.jobs.reserveSealedInput, {
