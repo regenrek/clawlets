@@ -10,6 +10,7 @@ dry_run=0
 path_edit=1
 path_shells="${CLAWLETS_PATH_SHELLS:-auto}"
 target_shells=""
+did_persist_path=0
 
 usage() {
   cat <<EOF
@@ -193,10 +194,25 @@ build_sh_block() {
   local escaped
   escaped="$(escape_double_quotes "$path_value")"
   cat <<EOF
-case ":\$PATH:" in
-  *:"$escaped":*) ;;
-  *) export PATH="$escaped:\$PATH" ;;
-esac
+clawlets_bin="$escaped"
+if [ -n "\${PATH:-}" ]; then
+  clawlets_new_path=""
+  old_ifs="\$IFS"
+  IFS=":"
+  for p in \$PATH; do
+    [ -n "\$p" ] || continue
+    [ "\$p" = "\$clawlets_bin" ] && continue
+    if [ -n "\$clawlets_new_path" ]; then
+      clawlets_new_path="\$clawlets_new_path:\$p"
+    else
+      clawlets_new_path="\$p"
+    fi
+  done
+  IFS="\$old_ifs"
+  PATH="\$clawlets_new_path"
+fi
+export PATH="\$clawlets_bin\${PATH:+:\$PATH}"
+unset p clawlets_new_path old_ifs clawlets_bin
 EOF
 }
 
@@ -206,9 +222,14 @@ build_fish_block() {
   escaped="$(escape_double_quotes "$path_value")"
   cat <<EOF
 set -l clawlets_bin "$escaped"
-if not contains -- \$clawlets_bin \$PATH
-  set -gx PATH \$clawlets_bin \$PATH
+set -l clawlets_path
+for p in \$PATH
+  if test "\$p" != "\$clawlets_bin"
+    set -a clawlets_path "\$p"
+  end
 end
+set -gx PATH \$clawlets_bin \$clawlets_path
+set -e p clawlets_path clawlets_bin
 EOF
 }
 
@@ -218,9 +239,7 @@ build_nushell_block() {
   escaped="$(escape_single_quotes "$path_value")"
   cat <<EOF
 let clawlets_bin = '$escaped'
-if not (\$env.PATH | any {|p| \$p == \$clawlets_bin }) {
-  \$env.PATH = (\$env.PATH | prepend \$clawlets_bin)
-}
+let-env PATH = ([$clawlets_bin] | append ($env.PATH | where {|p| $p != $clawlets_bin }))
 EOF
 }
 
@@ -231,10 +250,8 @@ build_pwsh_block() {
   cat <<EOF
 \$clawletsBin = '$escaped'
 \$pathSep = [System.IO.Path]::PathSeparator
-\$parts = \$env:PATH -split [regex]::Escape([string]\$pathSep)
-if (-not (\$parts -contains \$clawletsBin)) {
-  \$env:PATH = "\$clawletsBin\$pathSep\$env:PATH"
-}
+\$parts = \$env:PATH -split [regex]::Escape([string]\$pathSep) | Where-Object { \$_ -and \$_ -ne \$clawletsBin }
+\$env:PATH = "\$clawletsBin\$pathSep" + (\$parts -join \$pathSep)
 EOF
 }
 
@@ -255,11 +272,6 @@ upsert_block() {
   local content="$3"
   local tmp_without
   local tmp_next
-
-  if file_mentions_path_entry "$file"; then
-    note "ok: PATH already references $bin_dir in $label"
-    return 0
-  fi
 
   if ((dry_run)); then
     note "dry-run: would ensure PATH block in $label"
@@ -298,6 +310,7 @@ upsert_block() {
 
   mv "$tmp_next" "$file"
   rm -f "$tmp_without"
+  did_persist_path=1
   note "ok: PATH persisted in $label"
 }
 
@@ -431,9 +444,10 @@ fi
 
 # Build workspace deps first so cli runtime imports exist in dist/
 if ((dry_run)); then
-  note "dry-run: would run pnpm -C $repo_root -r build"
+  note "dry-run: would run pnpm -C $repo_root --filter clawlets... build"
 else
-  pnpm -C "$repo_root" -r build >/dev/null
+  note "info: building clawlets CLI (and deps) ..."
+  pnpm -C "$repo_root" --filter clawlets... build
 fi
 
 if ((dry_run)); then
@@ -454,20 +468,18 @@ else
 fi
 
 if ((path_edit)); then
-  if path_contains_dir "$bin_dir"; then
-    note "ok: PATH already contains $bin_dir"
-  else
-    parse_path_shells "$path_shells"
-    for shell_name in $target_shells; do
-      case "$shell_name" in
-        posix) ensure_posix_path ;;
-        zsh) ensure_zsh_path ;;
-        bash) ensure_bash_path ;;
-        fish) ensure_fish_path ;;
-        nushell) ensure_nushell_path ;;
-        pwsh) ensure_pwsh_path ;;
-      esac
-    done
+  parse_path_shells "$path_shells"
+  for shell_name in $target_shells; do
+    case "$shell_name" in
+      posix) ensure_posix_path ;;
+      zsh) ensure_zsh_path ;;
+      bash) ensure_bash_path ;;
+      fish) ensure_fish_path ;;
+      nushell) ensure_nushell_path ;;
+      pwsh) ensure_pwsh_path ;;
+    esac
+  done
+  if ((did_persist_path)); then
     warn "PATH in your current shell has not changed. Start a new shell session or source updated profile files."
     print_reload_commands
   fi
@@ -483,4 +495,14 @@ fi
 if command -v "$typo_name" >/dev/null 2>&1; then
   warn "'$typo_name' is on PATH (stale typo binary)."
   warn "remove global typo package(s): pnpm remove -g clawdlets clawdlets-workspace"
+fi
+
+resolved_clawlets="$(command -v "$cli_name" 2>/dev/null || true)"
+if [[ -n "$resolved_clawlets" && "$resolved_clawlets" != "$wrapper" ]]; then
+  warn "'$cli_name' resolves to: $resolved_clawlets (expected: $wrapper)"
+  warn "this can cause runner version skew. fix PATH precedence (reload shell) or run $wrapper explicitly."
+  if command -v which >/dev/null 2>&1; then
+    warn "debug: which -a $cli_name"
+    which -a "$cli_name" || true
+  fi
 fi
