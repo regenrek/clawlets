@@ -8,6 +8,8 @@ import { api } from "../../../convex/_generated/api"
 import { RunLogTail } from "~/components/run-log-tail"
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert"
 import { AsyncButton } from "~/components/ui/async-button"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "~/components/ui/dialog"
+import { InputGroupButton } from "~/components/ui/input-group"
 import { LabelWithHelp } from "~/components/ui/label-help"
 import { NativeSelect, NativeSelectOption } from "~/components/ui/native-select"
 import { SecretInput } from "~/components/ui/secret-input"
@@ -26,7 +28,7 @@ export function TailscaleAuthKeyCard(props: {
   const [tailscaleAuthKey, setTailscaleAuthKey] = useState("")
   const [writeRunId, setWriteRunId] = useState<Id<"runs"> | null>(null)
   const [selectedRunnerId, setSelectedRunnerId] = useState("")
-  const [rotateMode, setRotateMode] = useState(false)
+  const [keyDialogOpen, setKeyDialogOpen] = useState(false)
 
   const wiringQueryOptions = convexQuery(api.controlPlane.secretWiring.listByProjectHost, {
     projectId: props.projectId,
@@ -126,7 +128,7 @@ export function TailscaleAuthKeyCard(props: {
     onSuccess: (runId) => {
       setWriteRunId(runId)
       setTailscaleAuthKey("")
-      setRotateMode(false)
+      setKeyDialogOpen(false)
       toast.success("Tailscale auth key write queued")
       void queryClient.invalidateQueries({ queryKey: wiringQueryOptions.queryKey })
     },
@@ -135,109 +137,142 @@ export function TailscaleAuthKeyCard(props: {
     },
   })
 
-  if (hasTailscaleSecret && !rotateMode) {
-    return (
-      <Alert>
-        <AlertTitle>Tailscale auth key configured</AlertTitle>
-        <AlertDescription className="space-y-3">
-          <div>Key wiring is configured for this host.</div>
-          <div className="flex flex-wrap items-center gap-2">
-            <AsyncButton
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => setRotateMode(true)}
-            >
-              Rotate key
-            </AsyncButton>
-            <AsyncButton
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={wiringQuery.isFetching}
-              pending={wiringQuery.isFetching}
-              pendingText="Checking..."
-              onClick={() => void wiringQuery.refetch()}
-            >
-              Refresh status
-            </AsyncButton>
-          </div>
-        </AlertDescription>
-      </Alert>
-    )
-  }
-
   const canQueueWrite = Boolean(tailscaleAuthKey.trim())
     && sealedRunners.length > 0
     && (sealedRunners.length === 1 || Boolean(selectedRunnerId))
+  const actionLabel = hasTailscaleSecret ? "Rotate key" : "Add key"
 
   return (
-    <div className="space-y-3 rounded-md border bg-muted/30 p-3">
-      <div className="space-y-1">
-        <div className="text-sm font-medium">Tailscale auth key</div>
-        <div className="text-xs text-muted-foreground">
-          Set <code>{TAILSCALE_SECRET_NAME}</code> without leaving this page.
+    <>
+      {hasTailscaleSecret ? (
+        <Alert>
+          <AlertTitle>Tailscale auth key configured</AlertTitle>
+          <AlertDescription className="space-y-3">
+            <div>Key wiring is configured for this host.</div>
+            <div className="flex flex-wrap items-center gap-2">
+              <AsyncButton
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setKeyDialogOpen(true)}
+              >
+                Rotate key
+              </AsyncButton>
+              <AsyncButton
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={wiringQuery.isFetching}
+                pending={wiringQuery.isFetching}
+                pendingText="Checking..."
+                onClick={() => void wiringQuery.refetch()}
+              >
+                Refresh status
+              </AsyncButton>
+            </div>
+          </AlertDescription>
+        </Alert>
+      ) : (
+        <div className="space-y-3 rounded-md border bg-muted/30 p-3">
+          <div className="space-y-1">
+            <div className="text-sm font-medium">Tailscale auth key</div>
+            <div className="text-xs text-muted-foreground">
+              Set <code>{TAILSCALE_SECRET_NAME}</code> without leaving this page.
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <InputGroupButton
+              type="button"
+              variant="outline"
+              onClick={() => setKeyDialogOpen(true)}
+            >
+              Add key
+            </InputGroupButton>
+            <Link
+              className="text-xs underline underline-offset-4 hover:text-foreground"
+              to="/$projectSlug/hosts/$host/secrets"
+              params={{ projectSlug: props.projectSlug, host: props.host }}
+            >
+              Open Host Secrets
+            </Link>
+          </div>
+
+          {sealedRunners.length === 0 ? (
+            <div className="text-xs text-destructive">
+              No online sealed-capable runner. Reconnect runner, then queue key write.
+            </div>
+          ) : null}
+          {writeRunId ? <RunLogTail runId={writeRunId} /> : null}
         </div>
-      </div>
+      )}
 
-      <div className="space-y-2">
-        <LabelWithHelp htmlFor="vpnTailscaleAuthKey" help={setupFieldHelp.secrets.tailscaleAuthKey}>
-          Key value
-        </LabelWithHelp>
-        <SecretInput
-          id="vpnTailscaleAuthKey"
-          value={tailscaleAuthKey}
-          onValueChange={setTailscaleAuthKey}
-          placeholder="tskey-auth-…"
-        />
-      </div>
+      <Dialog open={keyDialogOpen} onOpenChange={setKeyDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{actionLabel}</DialogTitle>
+            <DialogDescription>
+              Set host-scoped <code>{TAILSCALE_SECRET_NAME}</code> and queue a sealed runner write.
+            </DialogDescription>
+          </DialogHeader>
 
-      {sealedRunners.length > 1 ? (
-        <div className="space-y-2">
-          <LabelWithHelp htmlFor="vpnTailscaleRunner" help="Sealed-input write must target one online runner.">
-            Target runner
-          </LabelWithHelp>
-          <NativeSelect
-            id="vpnTailscaleRunner"
-            value={selectedRunnerId}
-            onChange={(event) => setSelectedRunnerId(event.target.value)}
-          >
-            <NativeSelectOption value="">Select runner…</NativeSelectOption>
-            {sealedRunners.map((runner) => (
-              <NativeSelectOption key={String(runner._id)} value={String(runner._id)}>
-                {runner.runnerName}
-              </NativeSelectOption>
-            ))}
-          </NativeSelect>
-        </div>
-      ) : null}
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <LabelWithHelp htmlFor="vpnTailscaleAuthKey" help={setupFieldHelp.secrets.tailscaleAuthKey}>
+                Key value
+              </LabelWithHelp>
+              <SecretInput
+                id="vpnTailscaleAuthKey"
+                value={tailscaleAuthKey}
+                onValueChange={setTailscaleAuthKey}
+                placeholder="tskey-auth-…"
+              />
+            </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <AsyncButton
-          type="button"
-          size="sm"
-          disabled={!canQueueWrite || queueTailscaleKeyWrite.isPending}
-          pending={queueTailscaleKeyWrite.isPending}
-          pendingText="Queueing..."
-          onClick={() => queueTailscaleKeyWrite.mutate()}
-        >
-          Add key
-        </AsyncButton>
-        <Link
-          className="text-xs underline underline-offset-4 hover:text-foreground"
-          to="/$projectSlug/hosts/$host/secrets"
-          params={{ projectSlug: props.projectSlug, host: props.host }}
-        >
-          Open Host Secrets
-        </Link>
-      </div>
+            {sealedRunners.length > 1 ? (
+              <div className="space-y-2">
+                <LabelWithHelp htmlFor="vpnTailscaleRunner" help="Sealed-input write must target one online runner.">
+                  Target runner
+                </LabelWithHelp>
+                <NativeSelect
+                  id="vpnTailscaleRunner"
+                  value={selectedRunnerId}
+                  onChange={(event) => setSelectedRunnerId(event.target.value)}
+                >
+                  <NativeSelectOption value="">Select runner…</NativeSelectOption>
+                  {sealedRunners.map((runner) => (
+                    <NativeSelectOption key={String(runner._id)} value={String(runner._id)}>
+                      {runner.runnerName}
+                    </NativeSelectOption>
+                  ))}
+                </NativeSelect>
+              </div>
+            ) : null}
 
-      {sealedRunners.length === 0 ? (
-        <div className="text-xs text-destructive">
-          No online sealed-capable runner. Reconnect runner, then queue key write.
-        </div>
-      ) : null}
-      {writeRunId ? <RunLogTail runId={writeRunId} /> : null}
-    </div>
+            {sealedRunners.length === 0 ? (
+              <div className="text-xs text-destructive">
+                No online sealed-capable runner. Reconnect runner, then queue key write.
+              </div>
+            ) : null}
+          </div>
+
+          <DialogFooter>
+            <InputGroupButton type="button" variant="outline" onClick={() => setKeyDialogOpen(false)}>
+              Close
+            </InputGroupButton>
+            <InputGroupButton
+              type="button"
+              variant="default"
+              disabled={!canQueueWrite || queueTailscaleKeyWrite.isPending}
+              onClick={() => queueTailscaleKeyWrite.mutate()}
+            >
+              {queueTailscaleKeyWrite.isPending
+                ? hasTailscaleSecret ? "Rotating..." : "Adding..."
+                : actionLabel}
+            </InputGroupButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }

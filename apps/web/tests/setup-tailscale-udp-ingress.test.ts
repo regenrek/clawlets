@@ -17,11 +17,9 @@ describe("setup tailscale UDP ingress", () => {
     expect(tailscale).toContain("Allow Tailscale UDP ingress")
     expect(tailscale).toContain("onAllowTailscaleUdpIngressChange")
     expect(tailscale).toContain("Advanced options")
-    expect(tailscale).toContain("ProjectTokenKeyringCard")
-    expect(tailscale).toContain("kind=\"tailscale\"")
+    expect(tailscale).toContain("TailscaleAuthKeyCard")
     expect(tailscale).not.toContain("setup-tailscale-key-label")
     expect(tailscale).not.toContain("setup-tailscale-key-value")
-    expect(tailscale.indexOf("Tailscale API keys")).toBeLessThan(tailscale.indexOf("Allow Tailscale UDP ingress"))
   })
 
   it("auto-enables UDP ingress when tailscale lockdown is turned on", () => {
@@ -41,15 +39,19 @@ describe("setup tailscale UDP ingress", () => {
     expect(setupRoute).toContain("...next,")
   })
 
-  it("passes tailscale keyring summary into setup tailscale step", () => {
-    const setupRoute = readFile("routes/$projectSlug/hosts/$host/setup.tsx")
-    const tailscale = readFile("components/setup/steps/step-tailscale-lockdown.tsx")
+  it("uses a modal tailscale key add flow and removes legacy inline key input ids", () => {
+    const tailscaleAuthKeyCard = readFile("components/hosts/tailscale-auth-key-card.tsx")
 
-    expect(setupRoute).toContain("tailscaleKeyringSummary={")
-    expect(setupRoute).toContain("setup.deployCredsSummary?.projectTokenKeyrings?.tailscale")
-    expect(tailscale).toContain("statusSummary={{")
-    expect(tailscale).toContain("hasActive: props.tailscaleKeyringSummary?.hasActive === true")
-    expect(tailscale).toContain("itemCount: Number(props.tailscaleKeyringSummary?.itemCount || 0)")
+    expect(tailscaleAuthKeyCard).toContain("Dialog")
+    expect(tailscaleAuthKeyCard).toContain("DialogContent")
+    expect(tailscaleAuthKeyCard).toContain("DialogTitle")
+    expect(tailscaleAuthKeyCard).toContain("DialogFooter")
+    expect(tailscaleAuthKeyCard).toContain("Add key")
+    expect(tailscaleAuthKeyCard).toContain("actionLabel")
+    expect(tailscaleAuthKeyCard).toContain("setKeyDialogOpen(true)")
+    expect(tailscaleAuthKeyCard).toContain("Close")
+    expect(tailscaleAuthKeyCard).not.toContain("setup-tailscale-key-label")
+    expect(tailscaleAuthKeyCard).not.toContain("setup-tailscale-key-value")
   })
 
   it("explains that deploy performs the tailnet switch and lockdown", () => {
