@@ -18,7 +18,6 @@ describe("runner deploy-creds summary sanitization", () => {
       sopsAgeKeyFileSet: "",
       projectTokenKeyrings: {
         hcloud: { hasActive: "yes", itemCount: 20_000 },
-        tailscale: { hasActive: 0, itemCount: -10 },
       },
     });
     expect(out).toEqual({
@@ -27,13 +26,34 @@ describe("runner deploy-creds summary sanitization", () => {
       envFileStatus: "missing",
       envFileError: "env read failed",
       hasGithubToken: true,
+      hasGithubTokenAccess: true,
+      hasGitRemoteOrigin: false,
       sopsAgeKeyFileSet: false,
       projectTokenKeyrings: {
         hcloud: { hasActive: true, itemCount: 10_000, items: [] },
-        tailscale: { hasActive: false, itemCount: 0, items: [] },
       },
       fleetSshAuthorizedKeys: { count: 0, items: [] },
       fleetSshKnownHosts: { count: 0, items: [] },
+    });
+  });
+
+  it("drops legacy project-level tailscale keyring entries", () => {
+    const out = sanitizeDeployCredsSummary({
+      updatedAtMs: 1234,
+      hasGithubToken: false,
+      sopsAgeKeyFileSet: false,
+      projectTokenKeyrings: {
+        hcloud: { hasActive: false, itemCount: 0, items: [] },
+        tailscale: {
+          hasActive: true,
+          itemCount: 2,
+          items: [{ id: "1", label: "ts", maskedValue: "***", isActive: true }],
+        },
+      },
+    });
+    expect(out).not.toBeNull();
+    expect(out?.projectTokenKeyrings).toEqual({
+      hcloud: { hasActive: false, itemCount: 0, items: [] },
     });
   });
 
@@ -43,10 +63,11 @@ describe("runner deploy-creds summary sanitization", () => {
       envFileOrigin: "explicit",
       envFileStatus: "ok",
       hasGithubToken: true,
+      hasGithubTokenAccess: true,
+      hasGitRemoteOrigin: false,
       sopsAgeKeyFileSet: true,
       projectTokenKeyrings: {
         hcloud: { hasActive: true, itemCount: 2, items: [] },
-        tailscale: { hasActive: false, itemCount: 1, items: [] },
       },
       fleetSshAuthorizedKeys: { count: 0, items: [] },
       fleetSshKnownHosts: { count: 0, items: [] },

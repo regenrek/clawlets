@@ -45,7 +45,9 @@ Open:
     <br />
     Enable <code>Use tailscale + lockdown</code> for safer SSH path. Setup auto-enables
     <code>allowTailscaleUdpIngress</code> when this toggle is enabled, and still allows
-    manual override for relay-only mode.
+    manual override for relay-only mode. In this step, save host-scoped
+    <code>tailscale_auth_key</code>; Setup persists it to
+    <code>secrets/hosts/&lt;host&gt;/tailscale_auth_key.yaml</code>.
   </Step>
   <Step>
     <strong>Install Server</strong>
