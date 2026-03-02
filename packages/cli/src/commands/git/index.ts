@@ -89,7 +89,9 @@ function formatUnsafePathError(paths: string[]): string {
     ...shown.map((p0) => `- ${p0}`),
     ...(extra > 0 ? [`- (+${extra} more)`] : []),
     "",
-    "Only fleet/ and secrets/ are allowed. Commit or discard other changes, then retry.",
+    "Only fleet/ and secrets/ are allowed for setup-save.",
+    "Action: commit, stash, or discard non-setup changes, then retry setup-save.",
+    "Tip: git stash push -u -m \"temp before setup-save\"",
   ];
   return lines.join("\n");
 }
@@ -249,7 +251,13 @@ async function readGitStatusJson(cwd: string): Promise<GitStatusResult> {
   if (detached) pushBlockedReason = "Detached HEAD; checkout a branch to push.";
   else if (!hasLocalCommit) pushBlockedReason = "No commits yet. Create the first commit before pushing.";
   else if (!branch || branch === "HEAD") pushBlockedReason = "Unknown branch.";
-  else if (!upstream && !originRemote) pushBlockedReason = "Missing origin remote.";
+  else if (!upstream && !originRemote) {
+    pushBlockedReason = [
+      "Missing git remote 'origin'.",
+      "Set remote first: git remote add origin <repo-url>",
+      "Then push once: git push -u origin <branch>",
+    ].join(" ");
+  }
 
   return {
     branch,

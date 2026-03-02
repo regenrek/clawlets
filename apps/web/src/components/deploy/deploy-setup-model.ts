@@ -68,10 +68,12 @@ export function deriveDeployReadiness(params: {
   dirty: boolean
   missingRev: boolean
   needsPush: boolean
+  pushBlockedReason?: string | null
   localSelected: boolean
   allowLocalDeploy?: boolean
 }): DeployReadiness {
   const allowLocalDeploy = params.allowLocalDeploy !== false
+  const pushBlockedReason = String(params.pushBlockedReason || "").trim()
   if (!params.runnerOnline) {
     return {
       reason: "runner_offline",
@@ -115,6 +117,17 @@ export function deriveDeployReadiness(params: {
     }
   }
   if (params.missingRev) {
+    if (pushBlockedReason) {
+      return {
+        reason: "missing_remote_rev",
+        message: pushBlockedReason,
+        title: "Git push blocked",
+        detail: "Resolve the git push issue first, then retry predeploy.",
+        severity: "error",
+        blocksDeploy: true,
+        showFirstPushGuidance: false,
+      }
+    }
     if (params.localSelected) {
       return {
         reason: "missing_local_rev",
@@ -139,6 +152,17 @@ export function deriveDeployReadiness(params: {
     }
   }
   if (params.needsPush) {
+    if (pushBlockedReason) {
+      return {
+        reason: "needs_push",
+        message: pushBlockedReason,
+        title: "Git push blocked",
+        detail: "Resolve the git push issue first, then retry predeploy.",
+        severity: "error",
+        blocksDeploy: true,
+        showFirstPushGuidance: false,
+      }
+    }
     if (params.localSelected) {
       return {
         reason: "needs_push",
@@ -176,6 +200,7 @@ export function formatStatusReason(params: {
   dirty: boolean
   missingRev: boolean
   needsPush: boolean
+  pushBlockedReason?: string | null
   localSelected: boolean
 }): string {
   return deriveDeployReadiness(params).message

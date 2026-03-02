@@ -110,6 +110,7 @@ function isStepCompleted(status: SetupStepStatus) {
 
 type SetupPendingBootstrapSecrets = {
   adminPassword: string;
+  tailscaleAuthKey: string;
   useTailscaleLockdown: boolean;
 };
 
@@ -249,6 +250,7 @@ function HostSetupPage() {
   const [pendingBootstrapSecrets, setPendingBootstrapSecrets] =
     React.useState<SetupPendingBootstrapSecrets>({
       adminPassword: "",
+      tailscaleAuthKey: "",
       useTailscaleLockdown: true,
     });
   const [projectAdminCidr, setProjectAdminCidr] = React.useState("");
@@ -310,6 +312,7 @@ function HostSetupPage() {
     host,
     pendingNonSecretDraft,
     pendingBootstrapSecrets: {
+      tailscaleAuthKey: pendingBootstrapSecrets.tailscaleAuthKey,
       useTailscaleLockdown: pendingBootstrapSecrets.useTailscaleLockdown,
     },
   });
@@ -320,6 +323,7 @@ function HostSetupPage() {
     setPendingConnectionDraft(null);
     setPendingBootstrapSecrets({
       adminPassword: "",
+      tailscaleAuthKey: "",
       useTailscaleLockdown: true,
     });
   }, [host]);
@@ -826,14 +830,15 @@ function StepContent(props: {
   if (stepId === "tailscale-lockdown") {
     return (
       <SetupStepTailscaleLockdown
-        projectId={projectId}
-        projectSlug={projectSlug}
-        host={host}
         stepStatus={step.status}
         setupDraft={setup.setupDraft}
         hasTailscaleAuthKey={hasHostTailscaleAuthKey}
+        tailscaleAuthKey={pendingBootstrapSecrets.tailscaleAuthKey}
         allowTailscaleUdpIngress={desired.infrastructure.allowTailscaleUdpIngress}
         useTailscaleLockdown={pendingBootstrapSecrets.useTailscaleLockdown}
+        onTailscaleAuthKeyChange={(value) =>
+          props.onPendingBootstrapSecretsChange({ tailscaleAuthKey: value })
+        }
         onAllowTailscaleUdpIngressChange={(value) =>
           props.onPendingInfrastructureDraftChange({
             allowTailscaleUdpIngress: value,

@@ -1,6 +1,6 @@
-import type { Id } from "../../../../convex/_generated/dataModel"
+import { useEffect, useState } from "react"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "~/components/ui/accordion"
-import { TailscaleAuthKeyCard } from "~/components/hosts/tailscale-auth-key-card"
+import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "~/components/ui/input-group"
 import { LabelWithHelp } from "~/components/ui/label-help"
 import { SettingsSection } from "~/components/ui/settings-section"
 import { SetupSaveStateBadge } from "~/components/setup/steps/setup-save-state-badge"
@@ -11,26 +11,36 @@ import type { SetupStepStatus } from "~/lib/setup/setup-model"
 import type { SetupDraftView } from "~/sdk/setup"
 
 export function SetupStepTailscaleLockdown(props: {
-  projectId: Id<"projects">
-  projectSlug: string
-  host: string
   stepStatus: SetupStepStatus
   setupDraft: SetupDraftView | null
   hasTailscaleAuthKey: boolean
+  tailscaleAuthKey: string
   allowTailscaleUdpIngress: boolean
   useTailscaleLockdown: boolean
+  onTailscaleAuthKeyChange: (value: string) => void
   onAllowTailscaleUdpIngressChange: (value: boolean) => void
   onUseTailscaleLockdownChange: (value: boolean) => void
 }) {
+  const [tailscaleUnlocked, setTailscaleUnlocked] = useState(false)
+
+  const hasPendingTailscaleAuthKey = props.tailscaleAuthKey.trim().length > 0
+  const tailscaleLocked = props.hasTailscaleAuthKey && !tailscaleUnlocked && !hasPendingTailscaleAuthKey
+  const hasTailscaleAuthKeyReady = props.hasTailscaleAuthKey || hasPendingTailscaleAuthKey
+
+  useEffect(() => {
+    if (hasPendingTailscaleAuthKey) return
+    setTailscaleUnlocked(false)
+  }, [hasPendingTailscaleAuthKey, props.hasTailscaleAuthKey, props.useTailscaleLockdown])
+
   const statusText =
     !props.useTailscaleLockdown
       ? "Disabled. Deploy keeps bootstrap SSH access until you run lockdown manually."
-      : props.hasTailscaleAuthKey
+      : hasTailscaleAuthKeyReady
         ? "Ready. Deploy will switch SSH access to tailnet and queue lockdown automatically."
         : "Missing tailscale_auth_key for this host."
   const saveState = props.setupDraft?.status === "failed"
     ? "error"
-    : !props.useTailscaleLockdown || props.hasTailscaleAuthKey
+    : !props.useTailscaleLockdown || hasTailscaleAuthKeyReady
       ? "saved"
       : "not_saved"
 
@@ -67,11 +77,54 @@ export function SetupStepTailscaleLockdown(props: {
                 How to create a Tailscale auth key
               </a>
             </div>
-            <TailscaleAuthKeyCard
-            projectId={props.projectId}
-              projectSlug={props.projectSlug}
-              host={props.host}
-            />
+            <div className="space-y-2 rounded-md border bg-muted/10 p-3">
+              <LabelWithHelp htmlFor="setup-tailscale-auth-key" help={setupFieldHelp.secrets.tailscaleAuthKey}>
+                Tailscale auth key
+              </LabelWithHelp>
+              {tailscaleLocked ? (
+                <InputGroup>
+                  <InputGroupInput id="setup-tailscale-auth-key" readOnly value="Saved for this host" />
+                  <InputGroupAddon align="inline-end">
+                    <InputGroupButton
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setTailscaleUnlocked(true)
+                        props.onTailscaleAuthKeyChange("")
+                      }}
+                    >
+                      Remove
+                    </InputGroupButton>
+                  </InputGroupAddon>
+                </InputGroup>
+              ) : (
+                <InputGroup>
+                  <InputGroupInput
+                    id="setup-tailscale-auth-key"
+                    type="password"
+                    value={props.tailscaleAuthKey}
+                    onChange={(event) => props.onTailscaleAuthKeyChange(event.target.value)}
+                    placeholder={props.hasTailscaleAuthKey ? "Enter new tailscale auth key" : "tskey-auth-..."}
+                  />
+                  {props.tailscaleAuthKey.trim() ? (
+                    <InputGroupAddon align="inline-end">
+                      <InputGroupButton
+                        type="button"
+                        variant="outline"
+                        onClick={() => props.onTailscaleAuthKeyChange("")}
+                      >
+                        Remove
+                      </InputGroupButton>
+                    </InputGroupAddon>
+                  ) : null}
+                </InputGroup>
+              )}
+              <div className="text-xs text-muted-foreground">
+                {tailscaleLocked
+                  ? "Already saved for this host. Click Remove to rotate."
+                  : "Value stays in encrypted setup draft and is written once during install."}
+              </div>
+            </div>
           </div>
         ) : null}
 

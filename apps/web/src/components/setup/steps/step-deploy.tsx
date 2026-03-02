@@ -4,6 +4,7 @@ import type { SetupDraftConnection, SetupDraftInfrastructure, SetupDraftView } f
 
 type SetupPendingBootstrapSecrets = {
   adminPassword: string
+  tailscaleAuthKey: string
   useTailscaleLockdown: boolean
 }
 

@@ -14,13 +14,28 @@ import { getTheme, type Theme } from "@/lib/theme";
 import { DefaultCatchBoundary } from "@/components/DefaultCatchBoundary";
 import { NotFound } from "@/components/NotFound";
 
+const DOCS_TITLE = "Clawlets Docs";
+const DOCS_DESCRIPTION = "Documentation for Clawlets.";
+const DOCS_OG_IMAGE_PATH = "/og.png";
+
 export const Route = createRootRoute({
   loader: () => getTheme(),
   head: () => ({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Clawlets Docs" },
+      { title: DOCS_TITLE },
+      { name: "description", content: DOCS_DESCRIPTION },
+      { property: "og:type", content: "website" },
+      { property: "og:title", content: DOCS_TITLE },
+      { property: "og:description", content: DOCS_DESCRIPTION },
+      { property: "og:image", content: DOCS_OG_IMAGE_PATH },
+      { property: "og:image:width", content: "1200" },
+      { property: "og:image:height", content: "630" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: DOCS_TITLE },
+      { name: "twitter:description", content: DOCS_DESCRIPTION },
+      { name: "twitter:image", content: DOCS_OG_IMAGE_PATH },
     ],
     links: [
       { rel: "stylesheet", href: appCss },

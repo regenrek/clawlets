@@ -376,7 +376,7 @@ function SetupStepConnectionForm(props: {
                       variant="outline"
                       onClick={() => props.onAdminPasswordChange("")}
                     >
-                      Clear
+                      Remove
                     </InputGroupButton>
                   </InputGroupAddon>
                 ) : null}

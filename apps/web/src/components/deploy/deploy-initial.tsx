@@ -36,6 +36,7 @@ import type { SetupDraftConnection, SetupDraftInfrastructure, SetupDraftView } f
 
 type SetupPendingBootstrapSecrets = {
   adminPassword: string
+  tailscaleAuthKey: string
   useTailscaleLockdown: boolean
 }
 
@@ -71,6 +72,7 @@ export function DeployInitialInstall({
   pendingConnectionDraft = null,
   pendingBootstrapSecrets = {
     adminPassword: "",
+    tailscaleAuthKey: "",
     useTailscaleLockdown: true,
   },
   hasProjectGithubToken = false,

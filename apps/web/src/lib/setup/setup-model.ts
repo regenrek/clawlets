@@ -88,6 +88,7 @@ export type DeriveSetupModelInput = {
   infraExists?: boolean
   useTailscaleLockdown?: boolean
   hasHostTailscaleAuthKey?: boolean
+  hasPendingTailscaleAuthKey?: boolean
   hasActiveHcloudToken?: boolean
   hasProjectGithubToken?: boolean
   hasProjectGitRemoteOrigin?: boolean
@@ -137,7 +138,7 @@ export function deriveSetupModel(input: DeriveSetupModelInput): SetupModel {
   const credsStepDone = githubCredsOk && gitRemoteOriginOk
   const connectionStepDone = connectionOk
   const useTailscaleLockdown = input.useTailscaleLockdown === true
-  const hasTailscaleAuthKey = Boolean(input.hasHostTailscaleAuthKey)
+  const hasTailscaleAuthKey = Boolean(input.hasHostTailscaleAuthKey || input.hasPendingTailscaleAuthKey)
   const tailscaleLockdownOk = !useTailscaleLockdown || hasTailscaleAuthKey
 
   const steps: SetupStep[] = [

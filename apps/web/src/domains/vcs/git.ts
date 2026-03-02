@@ -36,6 +36,33 @@ export type GitSetupSaveResult = {
   changedPaths: string[]
 }
 
+function sanitizeRunnerErrorMessage(raw: string): string {
+  const message = String(raw || "").trim()
+  if (!message) return "git setup-save failed"
+
+  if (message.includes("refusing to save setup changes: repo has non-setup modifications")) {
+    const lines = message
+      .split("\n")
+      .map((line) => line.trimEnd())
+      .filter((line) => !line.startsWith("    at "))
+    const cutoff = lines.findIndex((line) => line.startsWith("Error: "))
+    const body = cutoff >= 0 ? lines.slice(cutoff + 1) : lines
+    const relevant = body.filter((line) => line && !line.startsWith("at "))
+    const stopIndex = relevant.findIndex((line) => line.startsWith("Tip: ") || line.startsWith("Action: "))
+    if (stopIndex >= 0) {
+      return relevant.slice(0, stopIndex + 1).join("\n")
+    }
+    return relevant.slice(0, 24).join("\n")
+  }
+
+  if (message.includes("Missing git remote 'origin'") || message.includes("Missing origin remote.")) {
+    return "Cannot push setup changes: missing git remote 'origin'. Add origin in Git Configuration (or via git remote add), then retry."
+  }
+
+  const firstLine = message.split("\n").find((line) => line.trim().length > 0)?.trim()
+  return firstLine || "git setup-save failed"
+}
+
 export const gitRepoStatus = createServerFn({ method: "POST" })
   .inputValidator(parseProjectIdInput)
   .handler(async ({ data }) => {
@@ -125,7 +152,8 @@ export const gitSetupSaveExecute = createServerFn({ method: "POST" })
     })
     const messages = terminal.status === "succeeded" ? [] : await listRunMessages({ client, runId: queued.runId, limit: 300 })
     if (terminal.status !== "succeeded") {
-      throw new Error(terminal.errorMessage || lastErrorMessage(messages, "git setup-save failed"))
+      const raw = terminal.errorMessage || lastErrorMessage(messages, "git setup-save failed")
+      throw new Error(sanitizeRunnerErrorMessage(raw))
     }
     const parsed = await takeRunnerCommandResultObject({
       client,
@@ -149,4 +177,3 @@ export const gitSetupSaveExecute = createServerFn({ method: "POST" })
     if (!result.branch) throw new Error("git setup-save missing branch")
     return { ok: true as const, runId: queued.runId, jobId: queued.jobId, result }
   })
-

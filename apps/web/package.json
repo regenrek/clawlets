@@ -7,6 +7,9 @@
     "dev": "npx convex dev --once && concurrently -r npm:dev:web npm:dev:db",
     "dev:web": "vite dev",
     "dev:db": "convex dev",
+    "agent-browser:install": "agent-browser install",
+    "agent-browser:open": "agent-browser open http://localhost:3000",
+    "agent-browser:snapshot": "agent-browser open http://localhost:3000 && agent-browser wait --load networkidle && agent-browser snapshot -i",
     "build": "vite build && tsc --noEmit",
     "test": "vitest run --coverage --config vitest.config.ts",
     "preview": "vite preview",
@@ -71,6 +74,7 @@
     "tw-animate-css": "^1.3.4",
     "typescript": "^5.9.3",
     "unplugin-icons": "^23.0.1",
+    "agent-browser": "^0.15.1",
     "vite": "^7.1.7",
     "vite-tsconfig-paths": "^6.1.0",
     "vitest": "4.0.18"

@@ -27,6 +27,7 @@ type PendingNonSecretDraft = {
 }
 
 type PendingBootstrapSecrets = {
+  tailscaleAuthKey?: string
   useTailscaleLockdown?: boolean
 }
 
@@ -244,6 +245,10 @@ export function useSetupModel(params: {
       ),
     [secretWiringQuery.data],
   )
+  const hasPendingTailscaleAuthKey = React.useMemo(
+    () => Boolean(String(params.pendingBootstrapSecrets?.tailscaleAuthKey || "").trim()),
+    [params.pendingBootstrapSecrets?.tailscaleAuthKey],
+  )
   const hasProjectGithubToken = React.useMemo(
     () =>
       deployCredsSummary?.hasGithubToken === true
@@ -302,6 +307,7 @@ export function useSetupModel(params: {
         hasProjectGithubTokenAccess,
         hasProjectGitRemoteOrigin,
         hasHostTailscaleAuthKey,
+        hasPendingTailscaleAuthKey,
         useTailscaleLockdown: params.pendingBootstrapSecrets?.useTailscaleLockdown,
         latestBootstrapRun: latestBootstrapRunQuery.data ?? null,
         latestBootstrapSecretsVerifyRun: latestBootstrapSecretsVerifyRunQuery.data ?? null,
@@ -315,6 +321,7 @@ export function useSetupModel(params: {
       hasProjectGithubToken,
       hasProjectGitRemoteOrigin,
       hasHostTailscaleAuthKey,
+      hasPendingTailscaleAuthKey,
       params.pendingBootstrapSecrets?.useTailscaleLockdown,
       latestBootstrapRunQuery.data,
       latestBootstrapSecretsVerifyRunQuery.data,

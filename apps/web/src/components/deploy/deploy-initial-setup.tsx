@@ -57,6 +57,7 @@ import {
 
 type SetupPendingBootstrapSecrets = {
   adminPassword: string
+  tailscaleAuthKey: string
   useTailscaleLockdown: boolean
 }
 
@@ -237,6 +238,9 @@ export function DeployInitialInstallSetup(props: {
       ),
     [secretWiringQuery.data],
   )
+  const pendingTailscaleAuthKey = props.pendingBootstrapSecrets.tailscaleAuthKey.trim()
+  const hasPendingTailscaleAuthKey = pendingTailscaleAuthKey.length > 0
+  const hasTailscaleAuthKeyForSetup = tailscaleAuthKeyConfigured || hasPendingTailscaleAuthKey
   const adminPasswordConfigured = useMemo(
     () =>
       (secretWiringQuery.data ?? []).some(
@@ -292,11 +296,11 @@ export function DeployInitialInstallSetup(props: {
 
   const wantsTailscaleLockdown = props.pendingBootstrapSecrets.useTailscaleLockdown
   const requiresTailscaleAuthKey = wantsTailscaleLockdown || isTailnet || desired.connection.sshExposureMode === "tailnet"
-  const requiredHostSecretsConfigured = !requiresTailscaleAuthKey || tailscaleAuthKeyConfigured
+  const requiredHostSecretsConfigured = !requiresTailscaleAuthKey || hasTailscaleAuthKeyForSetup
   const requiredHostSecretsGateBlocked = runnerOnline && !requiredHostSecretsConfigured
   const requiredHostSecretsGateMessage = runnerOnline && requiresTailscaleAuthKey
     && !requiredHostSecretsConfigured
-    ? "Missing tailscale_auth_key. Configure it in Tailscale lockdown (per host)."
+    ? "Missing tailscale_auth_key. Enter it in Tailscale lockdown (setup) or configure Host Secrets."
     : null
 
   const [preparedRev, setPreparedRev] = useState<string | null>(null)
@@ -312,14 +316,21 @@ export function DeployInitialInstallSetup(props: {
     dirty: dirtyRepo,
     missingRev,
     needsPush,
+    pushBlockedReason: repoStatus.data?.pushBlockedReason ?? null,
     localSelected: false,
     allowLocalDeploy: false,
   })
   const repoGateBlocked = readiness.blocksDeploy
   const statusReason = readiness.message
-  const showRepoSaveToGitButton = readiness.reason === "dirty_repo" || readiness.reason === "needs_push"
-  const repoSaveManualCommand = readiness.reason === "needs_push"
-    ? "git push"
+  const repoPushBlockedReason = String(repoStatus.data?.pushBlockedReason || "").trim()
+  const repoPushBlocked = readiness.reason === "needs_push" && repoPushBlockedReason.length > 0
+  const showRepoSaveToGitButton =
+    (readiness.reason === "dirty_repo" || readiness.reason === "needs_push")
+    && !repoPushBlocked
+  const repoSaveManualCommand = repoPushBlocked
+    ? "git remote add origin <repo-url>\ngit push -u origin <branch>"
+    : readiness.reason === "needs_push"
+      ? "git push"
     : "git add .\ngit commit -m \"Prepare deploy\"\ngit push"
 
   const runPredeployAfterSave = () => {
@@ -370,10 +381,10 @@ export function DeployInitialInstallSetup(props: {
     : nixGateMessage || sshKeyGateMessage || adminPasswordGateMessage
       || requiredHostSecretsGateMessage || credsGateMessage || statusReason
 
-  const canAutoLockdown = wantsTailscaleLockdown && tailscaleAuthKeyConfigured
+  const canAutoLockdown = wantsTailscaleLockdown && hasTailscaleAuthKeyForSetup
   const adminCidr = String(desired.connection.adminCidr || "").trim()
   const adminCidrWorldOpen = adminCidr === "0.0.0.0/0" || adminCidr === "::/0"
-  const autoLockdownMissingTailscaleKey = !tailscaleAuthKeyConfigured
+  const autoLockdownMissingTailscaleKey = !hasTailscaleAuthKeyForSetup
   const latestBootstrapRun = latestBootstrapRunQuery.data ?? null
   const latestBootstrapRunId = latestBootstrapRun?._id as Id<"runs"> | null
   const latestBootstrapRunStatus = String(latestBootstrapRun?.status || "").trim()
@@ -425,12 +436,13 @@ export function DeployInitialInstallSetup(props: {
         hasProjectGithubToken: props.hasProjectGithubToken,
         hasProjectGitRemoteOrigin: props.hasProjectGitRemoteOrigin,
         projectGitRemoteOrigin: props.projectGitRemoteOrigin,
-        hasHostTailscaleAuthKey: tailscaleAuthKeyConfigured,
+        hasHostTailscaleAuthKey: hasTailscaleAuthKeyForSetup,
         requiresTailscaleAuthKey,
         requiredHostSecretsConfigured,
         useTailscaleLockdown: wantsTailscaleLockdown,
         adminPasswordRequired,
         adminPasswordSet: Boolean(props.pendingBootstrapSecrets.adminPassword.trim()),
+        tailscaleAuthKeySet: hasPendingTailscaleAuthKey,
       }),
       [
         desired.connection,
@@ -438,11 +450,12 @@ export function DeployInitialInstallSetup(props: {
         props.hasProjectGithubToken,
         props.hasProjectGitRemoteOrigin,
         props.projectGitRemoteOrigin,
-        tailscaleAuthKeyConfigured,
+        hasTailscaleAuthKeyForSetup,
         requiresTailscaleAuthKey,
         requiredHostSecretsConfigured,
         props.host,
         props.pendingBootstrapSecrets.adminPassword,
+        props.pendingBootstrapSecrets.tailscaleAuthKey,
         adminPasswordRequired,
         runnerNixReadiness.ready,
         runnerOnline,
@@ -561,7 +574,7 @@ export function DeployInitialInstallSetup(props: {
         setStepStatus("switchTailnetTarget", "skipped", "Auto-lockdown disabled")
         setStepStatus("switchSshExposure", "skipped", "Auto-lockdown disabled")
         setStepStatus("lockdown", "skipped", "Auto-lockdown disabled")
-      } else if (!tailscaleAuthKeyConfigured) {
+      } else if (!hasTailscaleAuthKeyForSetup) {
         setStepStatus("switchTailnetTarget", "skipped", "tailscale_auth_key missing")
         setStepStatus("switchSshExposure", "skipped", "tailscale_auth_key missing")
         setStepStatus("lockdown", "skipped", "tailscale_auth_key missing")
@@ -833,6 +846,7 @@ export function DeployInitialInstallSetup(props: {
 
     const bootstrapSecretsPayload: Record<string, string> = {}
     if (params.adminPassword) bootstrapSecretsPayload.adminPassword = params.adminPassword
+    if (pendingTailscaleAuthKey) bootstrapSecretsPayload.tailscaleAuthKey = pendingTailscaleAuthKey
 
     const bootstrapSecretsAad = buildSetupDraftSectionAad({
       projectId: projectId as Id<"projects">,
@@ -916,6 +930,7 @@ export function DeployInitialInstallSetup(props: {
         dirty: Boolean(repoStatusAfter.dirty),
         missingRev: !repoStatusAfter.originHead,
         needsPush: Boolean(repoStatusAfter.needsPush),
+        pushBlockedReason: repoStatusAfter.pushBlockedReason ?? null,
         localSelected: false,
         allowLocalDeploy: false,
       })
@@ -979,6 +994,7 @@ export function DeployInitialInstallSetup(props: {
         dirty: dirtyNow,
         missingRev: missingRevNow,
         needsPush: needsPushNow,
+        pushBlockedReason: repoStatusNow.pushBlockedReason ?? null,
         localSelected: false,
         allowLocalDeploy: false,
       })
@@ -1039,17 +1055,19 @@ export function DeployInitialInstallSetup(props: {
       )
 
       const requiredTailscaleAuthKeyNow = isTailnet || desiredNow.connection.sshExposureMode === "tailnet"
-      if (requiredTailscaleAuthKeyNow && !tailscaleAuthKeyConfigured) {
+      if (requiredTailscaleAuthKeyNow && !hasTailscaleAuthKeyForSetup) {
         setPredeployCheck(
           "requiredHostSecrets",
           "failed",
-          "Missing tailscale_auth_key. Configure it in Tailscale lockdown (per host).",
+          "Missing tailscale_auth_key. Enter it in Tailscale lockdown (setup) or configure Host Secrets.",
         )
         throw new Error("Missing required tailscale_auth_key for tailscale bootstrap.")
       }
 
       const requiredHostSecretsDetail = requiredTailscaleAuthKeyNow
-        ? "tailscale_auth_key configured"
+        ? hasPendingTailscaleAuthKey
+          ? "tailscale_auth_key provided in setup draft"
+          : "tailscale_auth_key configured"
         : "No additional required host secrets"
 
       setPredeployCheck(
@@ -1100,12 +1118,13 @@ export function DeployInitialInstallSetup(props: {
         hasProjectGithubToken: props.hasProjectGithubToken,
         hasProjectGitRemoteOrigin: props.hasProjectGitRemoteOrigin,
         projectGitRemoteOrigin: props.projectGitRemoteOrigin,
-        hasHostTailscaleAuthKey: tailscaleAuthKeyConfigured,
+        hasHostTailscaleAuthKey: hasTailscaleAuthKeyForSetup,
         requiresTailscaleAuthKey: requiredTailscaleAuthKeyNow,
-        requiredHostSecretsConfigured: tailscaleAuthKeyConfigured,
+        requiredHostSecretsConfigured: hasTailscaleAuthKeyForSetup,
         useTailscaleLockdown: wantsTailscaleLockdown,
         adminPasswordRequired: adminPasswordRequiredNow,
         adminPasswordSet: Boolean(props.pendingBootstrapSecrets.adminPassword.trim()),
+        tailscaleAuthKeySet: hasPendingTailscaleAuthKey,
       })
       setPredeployReadyFingerprint(predeployFingerprintNow)
       setPredeployUpdatedAt(Date.now())
@@ -1543,12 +1562,14 @@ export function DeployInitialInstallSetup(props: {
               </AlertDescription>
             </Alert>
           ) : null}
-          {showRepoSaveToGitButton ? (
+          {(showRepoSaveToGitButton || repoPushBlocked) ? (
             <Alert variant="default">
-              <AlertTitle>Git must be pushed</AlertTitle>
+              <AlertTitle>{repoPushBlocked ? "Git push blocked" : "Git must be pushed"}</AlertTitle>
               <AlertDescription>
                 <div className="text-sm">
-                  Deploy needs a committed and pushed revision. Use <strong>Save to git and continue</strong> to run this automatically.
+                  {repoPushBlocked
+                    ? repoPushBlockedReason
+                    : <>Deploy needs a committed and pushed revision. Use <strong>Save to git and continue</strong> to run this automatically.</>}
                 </div>
                 <div className="mt-2 text-xs text-muted-foreground">
                   Manual alternative:
