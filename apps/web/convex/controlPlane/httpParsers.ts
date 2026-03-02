@@ -188,11 +188,6 @@ export function sanitizeDeployCredsSummary(value: unknown): {
       itemCount: number;
       items: Array<{ id: string; label: string; maskedValue: string; isActive: boolean }>;
     };
-    tailscale: {
-      hasActive: boolean;
-      itemCount: number;
-      items: Array<{ id: string; label: string; maskedValue: string; isActive: boolean }>;
-    };
   };
   fleetSshAuthorizedKeys: { count: number; items: string[] };
   fleetSshKnownHosts: { count: number; items: string[] };
@@ -224,13 +219,8 @@ export function sanitizeDeployCredsSummary(value: unknown): {
     keyrings.hcloud && typeof keyrings.hcloud === "object" && !Array.isArray(keyrings.hcloud)
       ? keyrings.hcloud as Record<string, unknown>
       : {};
-  const tailscale =
-    keyrings.tailscale && typeof keyrings.tailscale === "object" && !Array.isArray(keyrings.tailscale)
-      ? keyrings.tailscale as Record<string, unknown>
-      : {};
 
   const hcloudItemCount = asNonNegativeInt(hcloud.itemCount, 10_000) ?? 0;
-  const tailscaleItemCount = asNonNegativeInt(tailscale.itemCount, 10_000) ?? 0;
   const toKeyringItems = (raw: unknown): Array<{ id: string; label: string; maskedValue: string; isActive: boolean }> => {
     if (!Array.isArray(raw)) return [];
     const items: Array<{ id: string; label: string; maskedValue: string; isActive: boolean }> = [];
@@ -278,7 +268,6 @@ export function sanitizeDeployCredsSummary(value: unknown): {
     };
   };
   const hcloudItems = toKeyringItems(hcloud.items);
-  const tailscaleItems = toKeyringItems(tailscale.items);
   const fleetSshAuthorizedKeys = toSshListSummary(
     row.fleetSshAuthorizedKeys,
     "deployCredsSummary.fleetSshAuthorizedKeys",
@@ -290,18 +279,17 @@ export function sanitizeDeployCredsSummary(value: unknown): {
 
   return {
     updatedAtMs,
-      envFileOrigin,
-      envFileStatus,
-      ...(envFileError ? { envFileError } : {}),
-      hasGithubToken: Boolean(row.hasGithubToken),
-      hasGitRemoteOrigin,
-      hasGithubTokenAccess,
-      ...(githubTokenAccessMessage ? { githubTokenAccessMessage } : {}),
-      ...(gitRemoteOrigin ? { gitRemoteOrigin } : {}),
-      sopsAgeKeyFileSet: Boolean(row.sopsAgeKeyFileSet),
-      projectTokenKeyrings: {
+    envFileOrigin,
+    envFileStatus,
+    ...(envFileError ? { envFileError } : {}),
+    hasGithubToken: Boolean(row.hasGithubToken),
+    hasGitRemoteOrigin,
+    hasGithubTokenAccess,
+    ...(githubTokenAccessMessage ? { githubTokenAccessMessage } : {}),
+    ...(gitRemoteOrigin ? { gitRemoteOrigin } : {}),
+    sopsAgeKeyFileSet: Boolean(row.sopsAgeKeyFileSet),
+    projectTokenKeyrings: {
       hcloud: { hasActive: Boolean(hcloud.hasActive), itemCount: hcloudItemCount, items: hcloudItems },
-      tailscale: { hasActive: Boolean(tailscale.hasActive), itemCount: tailscaleItemCount, items: tailscaleItems },
     },
     fleetSshAuthorizedKeys,
     fleetSshKnownHosts,

@@ -229,14 +229,12 @@ export const RunnerDeployCredsSummary = v.object({
   gitRemoteOrigin: v.optional(v.string()),
   projectTokenKeyrings: v.object({
     hcloud: RunnerProjectTokenKeyringSummary,
-    tailscale: RunnerProjectTokenKeyringSummary,
   }),
   fleetSshAuthorizedKeys: v.optional(RunnerSshListSummary),
   fleetSshKnownHosts: v.optional(RunnerSshListSummary),
 });
 export const ProjectCredentialSection = v.union(
   v.literal("hcloudKeyring"),
-  v.literal("tailscaleKeyring"),
   v.literal("githubToken"),
   v.literal("gitRemoteOrigin"),
   v.literal("sshAuthorizedKeys"),

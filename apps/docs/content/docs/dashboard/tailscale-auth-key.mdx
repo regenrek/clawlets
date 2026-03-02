@@ -1,16 +1,15 @@
 ---
 title: Tailscale auth key
-description: Generate a Tailscale auth key (tskey-auth-...) and save it in the project keyring for tailnet activation and lockdown.
+description: Generate a Tailscale auth key (tskey-auth-...) and set `tailscale_auth_key` per host in Setup.
 ---
 
-Clawlets uses a Tailscale **auth key** (preauth key) to join a host to your tailnet during
-post-bootstrap hardening. This enables automatic "Activate VPN & lockdown" after the
-server is installed.
+Clawlets uses a Tailscale **auth key** (preauth key) per host to join that host to your
+tailnet during post-bootstrap hardening.
 
 Do not use a Tailscale API key. API keys are for the Tailscale HTTP API and won’t work
 for `tailscale up --authkey`.
 
-UI route: `/<projectSlug>/security/api-keys`
+UI route: `/<projectSlug>/hosts/<host>/setup`
 
 <Callout type="warning" title="Auth key vs API key">
   Auth keys start with <code>tskey-auth-</code>. API keys start with <code>tskey-api-</code>.
@@ -20,6 +19,7 @@ UI route: `/<projectSlug>/security/api-keys`
 ## Prereqs
 
 - Tailscale admin access for your tailnet.
+- Host setup route open for target host.
 - Project runner online (sealed input).
 
 ## Create auth key (Tailscale admin)
@@ -38,7 +38,7 @@ UI route: `/<projectSlug>/security/api-keys`
     <br />
     - set an expiration
     <br />
-    - non-reusable for one host, or reusable for batch bootstrap
+    - non-reusable per host (recommended)
     <br />
     - optional: add tags if your ACLs require them
   </Step>
@@ -47,40 +47,41 @@ UI route: `/<projectSlug>/security/api-keys`
   </Step>
 </Steps>
 
-## Save key in Clawlets
+## Set key in host Setup
 
 <Steps>
   <Step>
-    Open Project credentials at <code>/$projectSlug/security/api-keys</code>.
+    Open <code>/$projectSlug/hosts/$host/setup</code> for the host you are onboarding.
   </Step>
   <Step>
-    In <strong>Tailscale auth keys</strong>, click <strong>Add key</strong>.
+    In <strong>Tailscale lockdown</strong>, enable <code>Use tailscale + lockdown</code>.
   </Step>
   <Step>
-    Paste the auth key (<code>tskey-auth-...</code>) and save.
+    Paste the auth key (<code>tskey-auth-...</code>) for this host and save.
   </Step>
   <Step>
-    If multiple keys exist, select the one you want to be active.
+    Run setup deploy/apply. Clawlets persists the host-scoped secret during this flow.
   </Step>
 </Steps>
 
 ## Where this is stored
 
-- The full key is stored locally on the selected runner in deploy credentials (`<runtimeDir>/env`).
-- Convex stores metadata only (masked value + active selection).
-- If `hosts.<host>.tailnet.mode=tailscale`, setup apply writes the encrypted host secret:
+- The key is stored as encrypted host secret:
   `secrets/hosts/<host>/tailscale_auth_key.yaml`.
+- Setup/lockdown uses this host-scoped secret when `hosts.<host>.tailnet.mode=tailscale`.
+- Tailscale auth keys are not managed as project-wide deploy credentials.
 
 ## Verify
 
-- `/$projectSlug/security/api-keys` shows an active Tailscale auth key.
+- `secrets/hosts/<host>/tailscale_auth_key.yaml` exists and is encrypted.
 - Host Setup `Tailscale lockdown` shows status `Ready` when enabled.
 
 ## Troubleshooting
 
-### Setup says "Missing active project Tailscale auth key"
+### Setup says "Tailscale auth key missing"
 
-- Open `/$projectSlug/security/api-keys` and select an active key.
+- Reopen `/$projectSlug/hosts/$host/setup` and save the Tailscale lockdown step again.
+- Confirm `hosts.<host>.tailnet.mode=tailscale` for that host.
 
 ### Auth key rejected or join fails
 
@@ -90,7 +91,6 @@ UI route: `/<projectSlug>/security/api-keys`
 
 ### Key expired
 
-- Generate a new auth key and replace the active key in the dashboard.
+- Generate a new auth key and replace `tailscale_auth_key` for the affected host.
 
-Related: [Deploy credentials](/dashboard/deploy-credentials), [Setup](/dashboard/setup)
-
+Related: [Setup](/dashboard/setup), [Secrets](/security/secrets)

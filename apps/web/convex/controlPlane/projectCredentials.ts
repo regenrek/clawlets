@@ -24,6 +24,19 @@ type ProjectCredentialSectionValue =
   | "sshAuthorizedKeys"
   | "sshKnownHosts";
 
+const PROJECT_CREDENTIAL_SECTIONS = [
+  "hcloudKeyring",
+  "githubToken",
+  "gitRemoteOrigin",
+  "sshAuthorizedKeys",
+  "sshKnownHosts",
+] as const satisfies readonly ProjectCredentialSectionValue[];
+const PROJECT_CREDENTIAL_SECTION_SET = new Set<string>(PROJECT_CREDENTIAL_SECTIONS);
+
+function isCanonicalProjectCredentialSection(value: unknown): value is ProjectCredentialSectionValue {
+  return typeof value === "string" && PROJECT_CREDENTIAL_SECTION_SET.has(value);
+}
+
 const DEPLOY_CREDS_KEY_TO_SECTION: Record<string, ProjectCredentialSectionValue> = {
   GITHUB_TOKEN: "githubToken",
   GIT_REMOTE_ORIGIN: "gitRemoteOrigin",
@@ -179,7 +192,7 @@ export const listByProject = query({
       .withIndex("by_project", (q) => q.eq("projectId", projectId))
       .collect();
     return [...rows]
-      .filter((row) => row.section !== "tailscaleKeyring")
+      .filter((row) => isCanonicalProjectCredentialSection((row as { section?: unknown }).section))
       .sort((a, b) => a.section.localeCompare(b.section));
   },
 });
