@@ -1073,7 +1073,9 @@ export function DeployInitialInstallSetup(props: {
         adminPasswordRequiredNow ? "provided for bootstrap" : "existing admin_password_hash configured",
       )
 
-      const requiredTailscaleAuthKeyNow = isTailnet || desiredNow.connection.sshExposureMode === "tailnet"
+      // Keep this in sync with `requiresTailscaleAuthKey` used by `predeployFingerprint`.
+      const requiredTailscaleAuthKeyNow =
+        wantsTailscaleLockdown || isTailnet || desiredNow.connection.sshExposureMode === "tailnet"
       if (requiredTailscaleAuthKeyNow && !hasTailscaleAuthKeyForSetup) {
         setPredeployCheck(
           "requiredHostSecrets",
