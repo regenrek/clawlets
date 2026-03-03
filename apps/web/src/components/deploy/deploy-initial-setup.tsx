@@ -100,6 +100,36 @@ function initialPredeployChecks(): PredeployCheck[] {
   ]
 }
 
+function buildPredeployFingerprint(params: {
+  host: string
+  selectedRev: string
+  repoDirty: boolean
+  repoNeedsPush: boolean
+  infra: SetupDraftInfrastructure
+  connection: SetupDraftConnection
+  projectCredsReady: boolean
+  requiresTailscaleAuthKey: boolean
+  requiredHostSecretsConfigured: boolean
+  useTailscaleLockdown: boolean
+  adminPasswordRequired: boolean
+  adminPasswordReady: boolean
+}): string {
+  return JSON.stringify({
+    host: params.host,
+    selectedRev: params.selectedRev,
+    repoDirty: params.repoDirty,
+    repoNeedsPush: params.repoNeedsPush,
+    infra: params.infra,
+    connection: params.connection,
+    projectCredsReady: params.projectCredsReady,
+    requiresTailscaleAuthKey: params.requiresTailscaleAuthKey,
+    requiredHostSecretsConfigured: params.requiredHostSecretsConfigured,
+    useTailscaleLockdown: params.useTailscaleLockdown,
+    adminPasswordRequired: params.adminPasswordRequired,
+    adminPasswordReady: params.adminPasswordReady,
+  })
+}
+
 export function DeployInitialInstallSetup(props: {
   projectSlug: string
   host: string
@@ -293,6 +323,7 @@ export function DeployInitialInstallSetup(props: {
   const projectGitRemoteOriginSet = props.hasProjectGitRemoteOrigin
   const projectGitRemoteOriginFromValue = Boolean(props.projectGitRemoteOrigin.trim())
   const projectGitRemoteOriginReady = projectGitRemoteOriginSet || projectGitRemoteOriginFromValue
+  const projectCredsReady = projectGithubTokenSet && projectGitRemoteOriginReady && projectGithubTokenAccessSet
 
   const wantsTailscaleLockdown = props.pendingBootstrapSecrets.useTailscaleLockdown
   const requiresTailscaleAuthKey = wantsTailscaleLockdown || isTailnet || desired.connection.sshExposureMode === "tailnet"
@@ -424,45 +455,33 @@ export function DeployInitialInstallSetup(props: {
 
   const predeployFingerprint = useMemo(
     () =>
-      JSON.stringify({
+      buildPredeployFingerprint({
         host: props.host,
         selectedRev: selectedRev ?? "",
         repoDirty: dirtyRepo,
         repoNeedsPush: needsPush,
-        runnerOnline,
-        runnerNixReady: runnerNixReadiness.ready,
         infra: desired.infrastructure,
         connection: desired.connection,
-        hasProjectGithubToken: props.hasProjectGithubToken,
-        hasProjectGitRemoteOrigin: props.hasProjectGitRemoteOrigin,
-        projectGitRemoteOrigin: props.projectGitRemoteOrigin,
-        hasHostTailscaleAuthKey: hasTailscaleAuthKeyForSetup,
+        projectCredsReady,
         requiresTailscaleAuthKey,
         requiredHostSecretsConfigured,
         useTailscaleLockdown: wantsTailscaleLockdown,
         adminPasswordRequired,
-        adminPasswordSet: Boolean(props.pendingBootstrapSecrets.adminPassword.trim()),
-        tailscaleAuthKeySet: hasPendingTailscaleAuthKey,
+        adminPasswordReady: !adminPasswordRequired || Boolean(props.pendingBootstrapSecrets.adminPassword.trim()),
       }),
       [
         desired.connection,
         desired.infrastructure,
-        props.hasProjectGithubToken,
-        props.hasProjectGitRemoteOrigin,
-        props.projectGitRemoteOrigin,
-        hasTailscaleAuthKeyForSetup,
+        projectCredsReady,
         requiresTailscaleAuthKey,
         requiredHostSecretsConfigured,
         props.host,
         props.pendingBootstrapSecrets.adminPassword,
-        props.pendingBootstrapSecrets.tailscaleAuthKey,
         adminPasswordRequired,
-        runnerNixReadiness.ready,
-        runnerOnline,
-      selectedRev,
-      dirtyRepo,
-      needsPush,
-      wantsTailscaleLockdown,
+        selectedRev,
+        dirtyRepo,
+        needsPush,
+        wantsTailscaleLockdown,
     ],
   )
   const predeployFingerprintRef = useRef(predeployFingerprint)
@@ -1106,25 +1125,19 @@ export function DeployInitialInstallSetup(props: {
         adminPassword: adminPasswordNow,
       })
       setPredeployState("ready")
-      const predeployFingerprintNow = JSON.stringify({
+      const predeployFingerprintNow = buildPredeployFingerprint({
         host: props.host,
         selectedRev: predeployResult.pinnedRev,
         repoDirty: Boolean(predeployResult.repoStatus.dirty),
         repoNeedsPush: Boolean(predeployResult.repoStatus.needsPush),
-        runnerOnline,
-        runnerNixReady: runnerNixReadiness.ready,
         infra: desiredNow.infrastructure,
         connection: desiredNow.connection,
-        hasProjectGithubToken: props.hasProjectGithubToken,
-        hasProjectGitRemoteOrigin: props.hasProjectGitRemoteOrigin,
-        projectGitRemoteOrigin: props.projectGitRemoteOrigin,
-        hasHostTailscaleAuthKey: hasTailscaleAuthKeyForSetup,
+        projectCredsReady: true,
         requiresTailscaleAuthKey: requiredTailscaleAuthKeyNow,
-        requiredHostSecretsConfigured: hasTailscaleAuthKeyForSetup,
+        requiredHostSecretsConfigured: !requiredTailscaleAuthKeyNow || hasTailscaleAuthKeyForSetup,
         useTailscaleLockdown: wantsTailscaleLockdown,
         adminPasswordRequired: adminPasswordRequiredNow,
-        adminPasswordSet: Boolean(props.pendingBootstrapSecrets.adminPassword.trim()),
-        tailscaleAuthKeySet: hasPendingTailscaleAuthKey,
+        adminPasswordReady: !adminPasswordRequiredNow || Boolean(adminPasswordNow),
       })
       setPredeployReadyFingerprint(predeployFingerprintNow)
       setPredeployUpdatedAt(Date.now())
