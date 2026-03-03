@@ -111,22 +111,43 @@ function buildPredeployFingerprint(params: {
   requiresTailscaleAuthKey: boolean
   requiredHostSecretsConfigured: boolean
   useTailscaleLockdown: boolean
-  adminPasswordRequired: boolean
-  adminPasswordReady: boolean
+  adminPasswordSatisfied: boolean
 }): string {
+  const normalizedInfra = {
+    serverType: String(params.infra.serverType || "").trim(),
+    image: String(params.infra.image || "").trim(),
+    location: String(params.infra.location || "").trim(),
+    allowTailscaleUdpIngress: Boolean(params.infra.allowTailscaleUdpIngress),
+    volumeEnabled: Boolean(params.infra.volumeEnabled),
+    volumeSizeGb: typeof params.infra.volumeSizeGb === "number" ? params.infra.volumeSizeGb : null,
+  }
+
+  const normalizedSshAuthorizedKeys = Array.from(
+    new Set(
+      (params.connection.sshAuthorizedKeys ?? [])
+        .map((key) => key.trim())
+        .filter((key) => key.length > 0),
+    ),
+  )
+  const normalizedConnection = {
+    adminCidr: String(params.connection.adminCidr || "").trim(),
+    sshExposureMode: String(params.connection.sshExposureMode || "").trim(),
+    sshAuthorizedKeys: normalizedSshAuthorizedKeys,
+    sshKeyCount: normalizedSshAuthorizedKeys.length,
+  }
+
   return JSON.stringify({
     host: params.host,
     selectedRev: params.selectedRev,
     repoDirty: params.repoDirty,
     repoNeedsPush: params.repoNeedsPush,
-    infra: params.infra,
-    connection: params.connection,
+    infra: normalizedInfra,
+    connection: normalizedConnection,
     projectCredsReady: params.projectCredsReady,
     requiresTailscaleAuthKey: params.requiresTailscaleAuthKey,
     requiredHostSecretsConfigured: params.requiredHostSecretsConfigured,
     useTailscaleLockdown: params.useTailscaleLockdown,
-    adminPasswordRequired: params.adminPasswordRequired,
-    adminPasswordReady: params.adminPasswordReady,
+    adminPasswordSatisfied: params.adminPasswordSatisfied,
   })
 }
 
@@ -466,8 +487,8 @@ export function DeployInitialInstallSetup(props: {
         requiresTailscaleAuthKey,
         requiredHostSecretsConfigured,
         useTailscaleLockdown: wantsTailscaleLockdown,
-        adminPasswordRequired,
-        adminPasswordReady: !adminPasswordRequired || Boolean(props.pendingBootstrapSecrets.adminPassword.trim()),
+        adminPasswordSatisfied:
+          adminPasswordConfigured || Boolean(props.pendingBootstrapSecrets.adminPassword.trim()),
       }),
       [
         desired.connection,
@@ -477,7 +498,7 @@ export function DeployInitialInstallSetup(props: {
         requiredHostSecretsConfigured,
         props.host,
         props.pendingBootstrapSecrets.adminPassword,
-        adminPasswordRequired,
+        adminPasswordConfigured,
         selectedRev,
         dirtyRepo,
         needsPush,
@@ -1126,20 +1147,61 @@ export function DeployInitialInstallSetup(props: {
         adminPasswordRequired: adminPasswordRequiredNow,
         adminPassword: adminPasswordNow,
       })
+      let settledRepoStatus = predeployResult.repoStatus
+      try {
+        settledRepoStatus = await gitRepoStatus({ data: { projectId: projectId as Id<"projects"> } })
+      } catch {
+        settledRepoStatus = predeployResult.repoStatus
+      }
+      queryClient.setQueryData(["gitRepoStatus", projectId], settledRepoStatus)
+
+      let settledSecretWiring = secretWiringQuery.data ?? []
+      try {
+        settledSecretWiring = await secretWiringQuery.refetch().then((res) => res.data ?? [])
+      } catch {
+        settledSecretWiring = secretWiringQuery.data ?? []
+      }
+
+      let settledSetupConfig = setupConfigNow
+      try {
+        settledSetupConfig = await queryClient.fetchQuery(setupConfigProbeQueryOptions(projectId))
+      } catch {
+        settledSetupConfig = setupConfigNow
+      }
+      const settledDesired = deriveEffectiveSetupDesiredState({
+        config: settledSetupConfig,
+        host: props.host,
+        setupDraft: props.setupDraft,
+        pendingNonSecretDraft: {
+          infrastructure: props.pendingInfrastructureDraft ?? undefined,
+          connection: props.pendingConnectionDraft ?? undefined,
+        },
+      })
+      const adminPasswordConfiguredSettled = settledSecretWiring.some(
+        (row) => row.secretName === "admin_password_hash" && row.status === "configured",
+      )
+      const tailscaleAuthKeyConfiguredSettled = settledSecretWiring.some(
+        (row) => row.secretName === "tailscale_auth_key" && row.status === "configured",
+      )
+      const hasTailscaleAuthKeyForSetupSettled = tailscaleAuthKeyConfiguredSettled || hasPendingTailscaleAuthKey
+      const requiredTailscaleAuthKeySettled =
+        wantsTailscaleLockdown || isTailnet || settledDesired.connection.sshExposureMode === "tailnet"
+      const settledRev = String(settledRepoStatus.originHead || predeployResult.pinnedRev || "").trim()
+      if (settledRev) setPreparedRev(settledRev)
+
       setPredeployState("ready")
       const predeployFingerprintNow = buildPredeployFingerprint({
         host: props.host,
-        selectedRev: predeployResult.pinnedRev,
-        repoDirty: Boolean(predeployResult.repoStatus.dirty),
-        repoNeedsPush: Boolean(predeployResult.repoStatus.needsPush),
-        infra: desiredNow.infrastructure,
-        connection: desiredNow.connection,
-        projectCredsReady: true,
-        requiresTailscaleAuthKey: requiredTailscaleAuthKeyNow,
-        requiredHostSecretsConfigured: !requiredTailscaleAuthKeyNow || hasTailscaleAuthKeyForSetup,
+        selectedRev: settledRev,
+        repoDirty: Boolean(settledRepoStatus.dirty),
+        repoNeedsPush: Boolean(settledRepoStatus.needsPush),
+        infra: settledDesired.infrastructure,
+        connection: settledDesired.connection,
+        projectCredsReady,
+        requiresTailscaleAuthKey: requiredTailscaleAuthKeySettled,
+        requiredHostSecretsConfigured: !requiredTailscaleAuthKeySettled || hasTailscaleAuthKeyForSetupSettled,
         useTailscaleLockdown: wantsTailscaleLockdown,
-        adminPasswordRequired: adminPasswordRequiredNow,
-        adminPasswordReady: !adminPasswordRequiredNow || Boolean(adminPasswordNow),
+        adminPasswordSatisfied: adminPasswordConfiguredSettled || Boolean(adminPasswordNow),
       })
       setPredeployReadyFingerprint(predeployFingerprintNow)
       setPredeployUpdatedAt(Date.now())
