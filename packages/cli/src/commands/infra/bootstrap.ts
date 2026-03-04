@@ -413,18 +413,27 @@ export const bootstrap = defineCommand({
         nextHostCfg.targetHost = `admin@${tailscaleIpv4}`;
         nextHostCfg.sshExposure = { ...nextHostCfg.sshExposure, mode: "tailnet" };
         nextHostCfg.tailnet = { ...nextHostCfg.tailnet, mode: "tailscale" };
-        const nextConfig = ClawletsConfigSchema.parse({
-          ...currentConfig,
-          hosts: { ...currentConfig.hosts, [hostName]: nextHostCfg },
-        });
+	        const nextConfig = ClawletsConfigSchema.parse({
+	          ...currentConfig,
+	          hosts: { ...currentConfig.hosts, [hostName]: nextHostCfg },
+	        });
 	        await writeClawletsConfig({ configPath, config: nextConfig });
 	        currentConfig = nextConfig;
 	        log(`ok: updated fleet/clawlets.json (targetHost + sshExposure=tailnet)`);
 
-        const nextHostProvisioningConfig = resolveHostProvisioningConfig({
-          repoRoot,
-          layout,
-          config: nextConfig,
+	        await requireDeployGate({
+	          runtimeDir: (args as any).runtimeDir,
+	          envFile: (args as any).envFile,
+	          host: hostName,
+	          scope: "lockdown",
+	          strict: true,
+	          skipGithubTokenCheck: true,
+	        });
+
+	        const nextHostProvisioningConfig = resolveHostProvisioningConfig({
+	          repoRoot,
+	          layout,
+	          config: nextConfig,
           hostName,
         });
         const lockdownSpec = buildHostProvisionSpec({ repoRoot, hostName, hostCfg: nextHostProvisioningConfig.hostCfg });

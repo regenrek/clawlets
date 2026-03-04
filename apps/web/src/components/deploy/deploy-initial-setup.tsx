@@ -29,6 +29,7 @@ import {
 import { useProjectBySlug } from "~/lib/project-data"
 import { deriveProjectRunnerNixReadiness, isProjectRunnerOnline } from "~/lib/setup/runner-status"
 import { deriveEffectiveSetupDesiredState } from "~/lib/setup/desired-state"
+import { deriveHostSelfUpdateState, readHostConfigFromSetupConfig } from "~/lib/setup/self-update"
 import { setupConfigProbeQueryKey, setupConfigProbeQueryOptions } from "~/lib/setup/repo-probe"
 import { deriveSshKeyGateUi } from "~/lib/setup/ssh-key-gate"
 import { sealForRunner } from "~/lib/security/sealed-input"
@@ -336,6 +337,22 @@ export function DeployInitialInstallSetup(props: {
       props.setupDraft,
     ],
   )
+  const setupHostConfig = useMemo(
+    () =>
+      readHostConfigFromSetupConfig({
+        setupConfig: setupConfigQuery.data ?? null,
+        host: props.host,
+      }),
+    [setupConfigQuery.data, props.host],
+  )
+  const selfUpdateConfigured = useMemo(
+    () =>
+      deriveHostSelfUpdateState({
+        hostDesired: hostSummary?.desired ?? null,
+        hostCfg: setupHostConfig,
+      }).configured,
+    [hostSummary, setupHostConfig],
+  )
 
   const projectGithubTokenSet = props.hasProjectGithubToken
   const projectGithubTokenAccessSet = props.hasProjectGithubTokenAccess
@@ -434,6 +451,7 @@ export function DeployInitialInstallSetup(props: {
       || requiredHostSecretsGateMessage || credsGateMessage || statusReason
 
   const canAutoLockdown = wantsTailscaleLockdown && hasTailscaleAuthKeyForSetup
+  const skipApplyAfterLockdown = canAutoLockdown && !selfUpdateConfigured
   const adminCidr = String(desired.connection.adminCidr || "").trim()
   const adminCidrWorldOpen = adminCidr === "0.0.0.0/0" || adminCidr === "::/0"
   const autoLockdownMissingTailscaleKey = !hasTailscaleAuthKeyForSetup
@@ -561,6 +579,7 @@ export function DeployInitialInstallSetup(props: {
       setFinalizeError(null)
       setFinalizeSteps(initialFinalizeSteps())
       setFinalizeUpdatedAt(null)
+      setApplyRunId(null)
 
       let targetHost = String(hostSummary?.desired?.targetHost || "").trim()
       const isTailnetTargetHost = (value: string) => /^admin@100\./.test(value)
@@ -711,6 +730,11 @@ export function DeployInitialInstallSetup(props: {
         })
       }
 
+      if (skipApplyAfterLockdown) {
+        setStepStatus("applyUpdates", "skipped", "selfUpdate disabled/unconfigured")
+        return { updatesApplied: false }
+      }
+
       await runFinalizeStep({
         id: "applyUpdates",
         run: async () => {
@@ -734,12 +758,16 @@ export function DeployInitialInstallSetup(props: {
         },
       })
 
-      return true
+      return { updatesApplied: true }
     },
-    onSuccess: () => {
-      setFinalizeState("running")
+    onSuccess: (result) => {
+      setFinalizeState(result.updatesApplied ? "running" : "succeeded")
       setBootstrapFinalizeArmed(false)
-      toast.success("Server hardening queued")
+      toast.success(
+        result.updatesApplied
+          ? "Server hardening queued"
+          : "Lockdown completed. Updates skipped (selfUpdate disabled).",
+      )
       void queryClient.invalidateQueries({
         queryKey: ["gitRepoStatus", projectId],
       })
@@ -1350,21 +1378,30 @@ export function DeployInitialInstallSetup(props: {
   const latestLockdownRunStatus = String(latestLockdownForCurrentBootstrap?.status || "").trim()
   const latestApplyRunStatus = String(latestApplyForCurrentBootstrap?.status || "").trim()
   const latestLockdownRunning = latestLockdownRunStatus === "queued" || latestLockdownRunStatus === "running"
+  const latestLockdownSucceeded = latestLockdownRunStatus === "succeeded"
   const latestLockdownFailed = latestLockdownRunStatus === "failed" || latestLockdownRunStatus === "canceled"
   const latestApplyRunning = latestApplyRunStatus === "queued" || latestApplyRunStatus === "running"
   const latestApplySucceeded = latestApplyRunStatus === "succeeded"
   const latestApplyFailed = latestApplyRunStatus === "failed" || latestApplyRunStatus === "canceled"
   const persistedFinalizeState: FinalizeState = !isBootstrapped
     ? "idle"
-    : latestApplyRunning
-      ? "running"
-      : latestApplySucceeded
-        ? "succeeded"
-        : latestApplyFailed || latestLockdownFailed
-          ? "failed"
-          : latestLockdownRunning
-            ? "running"
+    : skipApplyAfterLockdown
+      ? latestLockdownRunning
+        ? "running"
+        : latestLockdownSucceeded
+          ? "succeeded"
+          : latestLockdownFailed
+            ? "failed"
             : "idle"
+      : latestApplyRunning
+        ? "running"
+        : latestApplySucceeded
+          ? "succeeded"
+          : latestApplyFailed || latestLockdownFailed
+            ? "failed"
+            : latestLockdownRunning
+              ? "running"
+              : "idle"
   const effectiveFinalizeState: FinalizeState = finalizeState === "running"
     ? "running"
     : persistedFinalizeState !== "idle"
@@ -1433,7 +1470,9 @@ export function DeployInitialInstallSetup(props: {
   const successMessage = effectiveFinalizeState === "running" || shouldAutoStartFinalize
     ? "Initial install succeeded. Post-bootstrap hardening is running."
     : effectiveFinalizeState === "succeeded"
-      ? "Initial install succeeded and post-bootstrap hardening was queued automatically."
+      ? skipApplyAfterLockdown
+        ? "Lockdown completed. Updates skipped (selfUpdate disabled)."
+        : "Initial install succeeded and post-bootstrap hardening was queued automatically."
       : effectiveFinalizeState === "failed"
         ? `Initial install succeeded, but post-bootstrap hardening failed. ${finalizeRecoveryMessage}`
         : "Server deployed. Post-deploy summary is ready."
@@ -1764,9 +1803,11 @@ export function DeployInitialInstallSetup(props: {
         {showInstalledCard ? (
           <SetupCelebration
             title="Server installed"
-            description={wantsTailscaleLockdown
-              ? "Post-deploy hardening completed. Next: install OpenClaw."
-              : "Server installed with SSH-only mode as configured. You can enable Tailscale lockdown later from VPN settings. Next: install OpenClaw."}
+            description={skipApplyAfterLockdown
+              ? "Lockdown completed. Updates skipped (selfUpdate disabled)."
+              : wantsTailscaleLockdown
+                ? "Post-deploy hardening completed. Next: install OpenClaw."
+                : "Server installed with SSH-only mode as configured. You can enable Tailscale lockdown later from VPN settings. Next: install OpenClaw."}
             primaryLabel="Install OpenClaw"
             primaryTo={openClawSetupPath}
             secondaryLabel="Go to host overview"

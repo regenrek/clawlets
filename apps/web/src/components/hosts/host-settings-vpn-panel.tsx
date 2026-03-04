@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { convexQuery } from "@convex-dev/react-query"
 import { Link } from "@tanstack/react-router"
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { toast } from "sonner"
 import type { Id } from "../../../convex/_generated/dataModel"
 import { api } from "../../../convex/_generated/api"
@@ -14,6 +14,7 @@ import { NativeSelect, NativeSelectOption } from "~/components/ui/native-select"
 import { SettingsSection } from "~/components/ui/settings-section"
 import { TailscaleAuthKeyCard } from "~/components/hosts/tailscale-auth-key-card"
 import { setupFieldHelp } from "~/lib/setup-field-help"
+import { deriveHostSelfUpdateState } from "~/lib/setup/self-update"
 import { configDotSet } from "~/sdk/config"
 import { getHostPublicIpv4, probeHostTailscaleIpv4 } from "~/sdk/host"
 import { lockdownExecute, lockdownStart } from "~/sdk/infra"
@@ -66,6 +67,10 @@ export function HostSettingsVpnPanel(props: {
   const [activateError, setActivateError] = useState<string | null>(null)
   const [lockdownRunId, setLockdownRunId] = useState<Id<"runs"> | null>(null)
   const [applyRunId, setApplyRunId] = useState<Id<"runs"> | null>(null)
+  const selfUpdateConfigured = useMemo(
+    () => deriveHostSelfUpdateState({ hostCfg: props.hostCfg }).configured,
+    [props.hostCfg],
+  )
 
   const publicIpv4Query = useQuery({
     queryKey: ["hostPublicIpv4", props.projectId, props.host],
@@ -132,6 +137,7 @@ export function HostSettingsVpnPanel(props: {
       if (!props.host.trim()) throw new Error("Host is required")
       if (!hasHostTailscaleAuthKey) throw new Error("Missing required tailscale_auth_key. Configure it in Host Secrets first.")
       setActivateError(null)
+      setApplyRunId(null)
 
       await requireConfigSet({
         path: `hosts.${props.host}.tailnet.mode`,
@@ -183,6 +189,13 @@ export function HostSettingsVpnPanel(props: {
         data: { projectId: props.projectId, runId: lockdown.runId, host: props.host },
       })
 
+      if (!selfUpdateConfigured) {
+        return {
+          targetHost: nextTargetHost,
+          updatesApplied: false,
+        }
+      }
+
       const apply = await serverUpdateApplyStart({
         data: { projectId: props.projectId, host: props.host },
       })
@@ -196,13 +209,20 @@ export function HostSettingsVpnPanel(props: {
           confirm: `apply updates ${props.host}`,
         },
       })
-      return { targetHost: nextTargetHost }
+      return {
+        targetHost: nextTargetHost,
+        updatesApplied: true,
+      }
     },
     onSuccess: (result) => {
       setTailnetMode("tailscale")
       setSshExposure("tailnet")
       setTargetHost(result.targetHost)
-      toast.success("Tailnet activation + lockdown queued")
+      toast.success(
+        result.updatesApplied
+          ? "Tailnet activation + lockdown queued"
+          : "Lockdown completed. Updates skipped (selfUpdate disabled).",
+      )
       void queryClient.invalidateQueries({ queryKey: props.hostConfigQueryKey })
     },
     onError: (error) => {
@@ -355,7 +375,7 @@ export function HostSettingsVpnPanel(props: {
 
       <SettingsSection
         title="Activate Tailnet"
-        description="Adds tailnet target host, switches SSH exposure, runs lockdown, then applies updates."
+        description="Adds tailnet target host, switches SSH exposure, runs lockdown, then applies updates when selfUpdate is configured."
         actions={
           <AsyncButton
             type="button"
@@ -369,7 +389,7 @@ export function HostSettingsVpnPanel(props: {
         }
       >
         <div className="text-sm text-muted-foreground">
-          This action automates: probe Tailscale IP, set <code>targetHost</code>, switch SSH exposure to <code>tailnet</code>, run <code>lockdown</code>, and re-apply updates.
+          This action automates: probe Tailscale IP, set <code>targetHost</code>, switch SSH exposure to <code>tailnet</code>, run <code>lockdown</code>, then apply updates only if selfUpdate is configured.
         </div>
       </SettingsSection>
 
