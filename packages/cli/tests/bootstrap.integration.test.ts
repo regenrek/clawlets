@@ -239,6 +239,10 @@ describe("bootstrap command", () => {
 
   it("runs auto-lockdown when --lockdown-after is set", async () => {
     setConfig({ sshExposure: { mode: "bootstrap" }, tailnet: { mode: "tailscale" } });
+    sshCaptureMock.mockResolvedValue(
+      "3: tailscale0: <POINTOPOINT,MULTICAST,NOARP,UP,LOWER_UP> mtu 1280\n"
+      + "    inet 100.64.0.10/32 scope global tailscale0\n",
+    );
     const { bootstrap } = await import("../src/commands/infra/bootstrap.ts");
     await bootstrap.run({
       args: {
@@ -249,6 +253,8 @@ describe("bootstrap command", () => {
         force: true,
         dryRun: false,
         lockdownAfter: true,
+        lockdownTimeout: "1s",
+        lockdownPoll: "1s",
       } as any,
     });
 

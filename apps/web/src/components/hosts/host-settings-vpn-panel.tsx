@@ -22,6 +22,8 @@ import { serverUpdateApplyExecute, serverUpdateApplyStart } from "~/sdk/server"
 type SshExposureMode = "tailnet" | "bootstrap" | "public"
 type TailnetMode = "tailscale" | "none"
 const TAILSCALE_SECRET_NAME = "tailscale_auth_key"
+const TAILSCALE_PROBE_WAIT_TIMEOUT_MS = 10 * 60_000
+const TAILSCALE_PROBE_WAIT_POLL_MS = 5_000
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null
@@ -151,7 +153,14 @@ export function HostSettingsVpnPanel(props: {
       }
 
       const probe = await probeHostTailscaleIpv4({
-        data: { projectId: props.projectId, host: props.host, targetHost: nextTargetHost },
+        data: {
+          projectId: props.projectId,
+          host: props.host,
+          targetHost: nextTargetHost,
+          wait: true,
+          waitTimeoutMs: TAILSCALE_PROBE_WAIT_TIMEOUT_MS,
+          waitPollMs: TAILSCALE_PROBE_WAIT_POLL_MS,
+        },
       })
       if (!probe.ok) throw new Error(probe.error || "Could not resolve Tailscale IPv4")
       if (!probe.ipv4) throw new Error("Could not resolve Tailscale IPv4")

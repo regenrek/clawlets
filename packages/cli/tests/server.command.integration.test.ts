@@ -79,7 +79,10 @@ describe("server command", () => {
     const config = makeConfig({ hostName: "alpha" });
     const hostCfg = config.hosts.alpha;
     loadHostContextMock.mockReturnValue({ hostName: "alpha", hostCfg });
-    sshCaptureMock.mockResolvedValue("100.64.0.22\n");
+    sshCaptureMock.mockResolvedValue(
+      "3: tailscale0: <POINTOPOINT,MULTICAST,NOARP,UP,LOWER_UP> mtu 1280\n"
+      + "    inet 100.64.0.22/32 scope global tailscale0\n",
+    );
     const logs: string[] = [];
     const logSpy = vi.spyOn(console, "log").mockImplementation((...args) => logs.push(args.join(" ")));
     const { server } = await import("../src/commands/openclaw/server/index.js");

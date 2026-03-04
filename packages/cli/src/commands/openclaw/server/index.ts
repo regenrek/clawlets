@@ -86,8 +86,7 @@ async function probeTailscaleIpv4(params: { targetHost: string }): Promise<strin
     timeoutMs: 15_000,
     maxOutputBytes: 8 * 1024,
   });
-  const normalized = normalizeSingleLineOutput(raw || "");
-  const ipv4 = extractFirstIpv4(normalized || raw || "");
+  const ipv4 = extractFirstIpv4(raw || "");
   if (!ipv4) throw new Error("tailscale ip missing");
   if (!isTailscaleIpv4(ipv4)) throw new Error(`unexpected IPv4 ${ipv4}`);
   return ipv4;

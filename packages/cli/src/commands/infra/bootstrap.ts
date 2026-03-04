@@ -16,7 +16,7 @@ import { getHostExtraFilesDir, getHostExtraFilesKeyPath, getHostExtraFilesSecret
 import { coerceTrimmedString } from "@clawlets/shared/lib/strings";
 import { requireDeployGate } from "../../lib/deploy-gate.js";
 import { resolveHostNameOrExit } from "@clawlets/core/lib/host/host-resolve";
-import { extractFirstIpv4, isTailscaleIpv4, normalizeSingleLineOutput } from "@clawlets/core/lib/host/host-connectivity";
+import { extractFirstIpv4, isTailscaleIpv4 } from "@clawlets/core/lib/host/host-connectivity";
 import { assertProvisionerBootstrapMode, BOOTSTRAP_MODES, buildHostProvisionSpec, getProvisionerDriver } from "@clawlets/core/lib/infra/infra";
 import { resolveHostProvisioningConfig } from "../../lib/provisioning-ssh-pubkey-file.js";
 import { buildProvisionerRuntime } from "./provider-runtime.js";
@@ -62,8 +62,7 @@ async function waitForTailscaleIpv4ViaSsh(params: {
         "sh -lc 'command -v tailscale >/dev/null 2>&1 && tailscale ip -4 || true'",
         { cwd: params.repoRoot, timeoutMs: 8_000, maxOutputBytes: 8 * 1024 },
       );
-      const normalized = normalizeSingleLineOutput(raw || "");
-      const candidate = extractFirstIpv4(normalized || raw || "");
+      const candidate = extractFirstIpv4(raw || "");
       if (candidate && isTailscaleIpv4(candidate)) return candidate;
       lastError = candidate ? `unexpected IPv4 ${candidate}` : "tailscale ip missing";
     } catch (err) {
