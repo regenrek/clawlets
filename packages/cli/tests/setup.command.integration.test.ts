@@ -252,7 +252,6 @@ describe("setup apply command", () => {
       updateDeployCredsEnvFileMock.mockResolvedValue({
         updatedKeys: ["SOPS_AGE_KEY_FILE"],
       });
-      resolveActiveDeployCredsProjectTokenMock.mockReturnValue("tskey-from-keyring");
       runMock.mockImplementation(async (_cmd, args: string[]) => {
         const fromJsonIndex = args.indexOf("--from-json");
         if (fromJsonIndex < 0) return;
@@ -301,7 +300,70 @@ describe("setup apply command", () => {
     }
   });
 
-  it("falls back to active tailscale keyring value when bootstrap secrets omit tailscale key", async () => {
+  it("forces tailnet.mode=tailscale when bootstrap secrets include tailscale auth key", async () => {
+    const repoRoot = fs.mkdtempSync(path.join(tmpdir(), "clawlets-setup-apply-tailnet-mode-"));
+    const configPath = path.join(repoRoot, "clawlets.config.json");
+    const inputPath = path.join(repoRoot, "setup-input.json");
+    let writtenConfig: Record<string, unknown> | null = null;
+    try {
+      findRepoRootMock.mockReturnValue(repoRoot);
+      loadFullConfigMock.mockReturnValue({
+        config: {
+          hosts: {
+            alpha: {
+              tailnet: { mode: "none" },
+            },
+          },
+          fleet: {},
+        },
+        infraConfigPath: configPath,
+      });
+      writeClawletsConfigMock.mockImplementation(async ({ config }) => {
+        writtenConfig = config as Record<string, unknown>;
+      });
+      updateDeployCredsEnvFileMock.mockResolvedValue({
+        updatedKeys: ["HCLOUD_TOKEN"],
+      });
+      runMock.mockResolvedValue(undefined);
+      captureMock.mockResolvedValue(
+        JSON.stringify({
+          results: [{ status: "ok" }],
+        }),
+      );
+
+      fs.writeFileSync(
+        inputPath,
+        JSON.stringify(
+          {
+            hostName: "alpha",
+            configOps: [
+              { path: "hosts.alpha.provisioning.provider", value: "hetzner", del: false },
+            ],
+            deployCreds: {
+              HCLOUD_TOKEN: "token-123",
+            },
+            bootstrapSecrets: {
+              adminPasswordHash: "$6$hash",
+              tailscale_auth_key: "tskey-auth-123",
+            },
+          },
+          null,
+          2,
+        ),
+        "utf8",
+      );
+
+      const { setup } = await import("../src/commands/setup/index.js");
+      const apply = (setup as any).subCommands?.apply;
+      await apply.run({ args: { fromJson: inputPath, json: true } } as any);
+
+      expect((writtenConfig as any)?.hosts?.alpha?.tailnet?.mode).toBe("tailscale");
+    } finally {
+      fs.rmSync(repoRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("omits tailscale auth key when bootstrap secrets omit tailscale key", async () => {
     const repoRoot = fs.mkdtempSync(path.join(tmpdir(), "clawlets-setup-apply-keyring-fallback-"));
     const configPath = path.join(repoRoot, "clawlets.config.json");
     const inputPath = path.join(repoRoot, "setup-input.json");
@@ -315,7 +377,6 @@ describe("setup apply command", () => {
       updateDeployCredsEnvFileMock.mockResolvedValue({
         updatedKeys: ["SOPS_AGE_KEY_FILE"],
       });
-      resolveActiveDeployCredsProjectTokenMock.mockReturnValue("tskey-from-keyring");
       runMock.mockImplementation(async (_cmd, args: string[]) => {
         const fromJsonIndex = args.indexOf("--from-json");
         if (fromJsonIndex < 0) return;
@@ -352,7 +413,7 @@ describe("setup apply command", () => {
       const { setup } = await import("../src/commands/setup/index.js");
       const apply = (setup as any).subCommands?.apply;
       await apply.run({ args: { fromJson: inputPath, json: true } } as any);
-      expect(submittedSecretsBody?.tailscaleAuthKey).toBe("tskey-from-keyring");
+      expect(submittedSecretsBody?.tailscaleAuthKey).toBeUndefined();
     } finally {
       fs.rmSync(repoRoot, { recursive: true, force: true });
     }

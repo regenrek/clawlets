@@ -116,6 +116,34 @@ function parseSetupApplyPayload(rawJson: string): SetupApplyPayload {
   };
 }
 
+function hasBootstrapTailscaleAuthKey(bootstrapSecrets: Record<string, string>): boolean {
+  return String(
+    bootstrapSecrets["tailscaleAuthKey"]
+      || bootstrapSecrets["tailscale_auth_key"]
+      || "",
+  ).trim().length > 0;
+}
+
+function withDerivedSetupConfigOps(params: {
+  hostName: string;
+  configOps: SetupApplyConfigOp[];
+  bootstrapSecrets: Record<string, string>;
+}): SetupApplyConfigOp[] {
+  const tailnetModePath = `hosts.${params.hostName}.tailnet.mode`;
+  const hasTailscaleAuthKey = hasBootstrapTailscaleAuthKey(params.bootstrapSecrets);
+  if (!hasTailscaleAuthKey) return params.configOps;
+
+  const withoutTailnetMode = params.configOps.filter((op) => op.path !== tailnetModePath);
+  return [
+    ...withoutTailnetMode,
+    {
+      path: tailnetModePath,
+      value: "tailscale",
+      del: false,
+    },
+  ];
+}
+
 function setupApplyEnv(): NodeJS.ProcessEnv {
   return {
     ...process.env,
@@ -245,6 +273,11 @@ const setupApply = defineCommand({
     if (!fromJsonRaw) throw new Error("missing --from-json");
     const fromJsonPath = path.isAbsolute(fromJsonRaw) ? fromJsonRaw : path.resolve(cwd, fromJsonRaw);
     const payload = parseSetupApplyPayload(await fs.readFile(fromJsonPath, "utf8"));
+    const derivedConfigOps = withDerivedSetupConfigOps({
+      hostName: payload.hostName,
+      configOps: payload.configOps,
+      bootstrapSecrets: payload.bootstrapSecrets,
+    });
     const deployCredsUpdates: Record<string, string> = {};
     for (const key of DEPLOY_CREDS_KEYS) {
       if (typeof payload.deployCreds[key] === "string") {
@@ -266,7 +299,7 @@ const setupApply = defineCommand({
       const updatedConfigPaths = await applyConfigOps({
         repoRoot,
         runtimeDir,
-        ops: payload.configOps,
+        ops: derivedConfigOps,
       });
       const deployCredsResult = await updateDeployCredsEnvFile({
         repoRoot,
