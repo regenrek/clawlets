@@ -3,6 +3,7 @@ export type DeployReadinessReason =
   | "runner_offline"
   | "repo_pending"
   | "repo_error"
+  | "dirty_repo"
   | "missing_remote_rev"
   | "missing_local_rev"
   | "needs_push"
@@ -23,6 +24,8 @@ export type DeployReadiness = {
 export type FirstPushGuidance = {
   remoteName: string
   hasUpstream: boolean
+  repoPath: string
+  repoUrlHint?: string
   commands: string
   note: string
 }
@@ -62,12 +65,15 @@ export function deriveDeployReadiness(params: {
   runnerOnline: boolean
   repoPending: boolean
   repoError: unknown
+  dirty: boolean
   missingRev: boolean
   needsPush: boolean
+  pushBlockedReason?: string | null
   localSelected: boolean
   allowLocalDeploy?: boolean
 }): DeployReadiness {
   const allowLocalDeploy = params.allowLocalDeploy !== false
+  const pushBlockedReason = String(params.pushBlockedReason || "").trim()
   if (!params.runnerOnline) {
     return {
       reason: "runner_offline",
@@ -99,7 +105,29 @@ export function deriveDeployReadiness(params: {
       showFirstPushGuidance: false,
     }
   }
+  if (params.dirty) {
+    return {
+      reason: "dirty_repo",
+      message: "Uncommitted changes detected. Commit and push before deploying.",
+      title: "Repo has uncommitted changes",
+      detail: "Deploy pins a git revision. Uncommitted changes are ignored until saved to git.",
+      severity: "warning",
+      blocksDeploy: true,
+      showFirstPushGuidance: false,
+    }
+  }
   if (params.missingRev) {
+    if (pushBlockedReason) {
+      return {
+        reason: "missing_remote_rev",
+        message: pushBlockedReason,
+        title: "Git push blocked",
+        detail: "Resolve the git push issue first, then retry predeploy.",
+        severity: "error",
+        blocksDeploy: true,
+        showFirstPushGuidance: false,
+      }
+    }
     if (params.localSelected) {
       return {
         reason: "missing_local_rev",
@@ -124,6 +152,17 @@ export function deriveDeployReadiness(params: {
     }
   }
   if (params.needsPush) {
+    if (pushBlockedReason) {
+      return {
+        reason: "needs_push",
+        message: pushBlockedReason,
+        title: "Git push blocked",
+        detail: "Resolve the git push issue first, then retry predeploy.",
+        severity: "error",
+        blocksDeploy: true,
+        showFirstPushGuidance: false,
+      }
+    }
     if (params.localSelected) {
       return {
         reason: "needs_push",
@@ -158,8 +197,10 @@ export function formatStatusReason(params: {
   runnerOnline: boolean
   repoPending: boolean
   repoError: unknown
+  dirty: boolean
   missingRev: boolean
   needsPush: boolean
+  pushBlockedReason?: string | null
   localSelected: boolean
 }): string {
   return deriveDeployReadiness(params).message
@@ -174,25 +215,63 @@ function parseUpstreamRemote(upstream?: string | null): string | null {
   return remoteName || null
 }
 
+function shellQuote(value: string): string {
+  if (!value) return "''"
+  return `'${value.replace(/'/g, `'"'"'`)}'`
+}
+
+function shellQuotePath(value: string): string {
+  const trimmed = String(value || "").trim()
+  if (!trimmed) return "''"
+  if (trimmed.startsWith("<") && trimmed.endsWith(">")) return trimmed
+  if (trimmed === "~") return "\"$HOME\""
+  if (trimmed.startsWith("~/")) {
+    return `"${"$HOME"}"${shellQuote(trimmed.slice(1))}`
+  }
+  return shellQuote(trimmed)
+}
+
+function resolveRunnerRepoPathHint(value: unknown): string {
+  const trimmed = String(value || "").trim()
+  return trimmed || "<runner-repo-path>"
+}
+
+function resolveRepoUrlHint(value: unknown): string | null {
+  const trimmed = String(value || "").trim()
+  return trimmed || null
+}
+
 export function deriveFirstPushGuidance(params: {
   upstream?: string | null
+  runnerRepoPath?: string | null
+  repoUrlHint?: string | null
 }): FirstPushGuidance {
   const parsedRemote = parseUpstreamRemote(params.upstream)
   const remoteName = parsedRemote || "origin"
   const hasUpstream = Boolean(parsedRemote)
+  const repoPath = resolveRunnerRepoPathHint(params.runnerRepoPath)
+  const repoUrlHint = resolveRepoUrlHint(params.repoUrlHint)
+  const repoUrlValue = repoUrlHint || "<repo-url>"
+  const quotedRepoUrl = repoUrlHint ? shellQuote(repoUrlHint) : repoUrlValue
   const commands = hasUpstream
-    ? "git push"
+    ? [
+      `cd ${shellQuotePath(repoPath)}`,
+      "git push",
+    ].join("\n")
     : [
-      "git remote add origin <repo-url>",
+      `cd ${shellQuotePath(repoPath)}`,
+      `git remote add origin ${quotedRepoUrl}`,
       "# if origin already exists, update it first",
-      "git remote set-url origin <repo-url>",
+      `git remote set-url origin ${quotedRepoUrl}`,
       "git push -u origin HEAD",
     ].join("\n")
   return {
     remoteName,
     hasUpstream,
+    repoPath,
+    ...(repoUrlHint ? { repoUrlHint } : {}),
     commands,
-    note: "Private and org repos are supported. Auth uses your local git credentials (SSH key, token, or GitHub app).",
+    note: "Run on the runner host in this repo path. Auth uses local git credentials (SSH key, token, or GitHub app).",
   }
 }
 

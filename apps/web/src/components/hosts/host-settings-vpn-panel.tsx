@@ -1,8 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { convexQuery } from "@convex-dev/react-query"
 import { Link } from "@tanstack/react-router"
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { toast } from "sonner"
 import type { Id } from "../../../convex/_generated/dataModel"
+import { api } from "../../../convex/_generated/api"
 import { RunLogTail } from "~/components/run-log-tail"
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert"
 import { AsyncButton } from "~/components/ui/async-button"
@@ -10,15 +12,19 @@ import { Input } from "~/components/ui/input"
 import { LabelWithHelp } from "~/components/ui/label-help"
 import { NativeSelect, NativeSelectOption } from "~/components/ui/native-select"
 import { SettingsSection } from "~/components/ui/settings-section"
-import { ProjectTokenKeyringCard } from "~/components/setup/project-token-keyring-card"
+import { TailscaleAuthKeyCard } from "~/components/hosts/tailscale-auth-key-card"
 import { setupFieldHelp } from "~/lib/setup-field-help"
+import { deriveHostSelfUpdateState } from "~/lib/setup/self-update"
 import { configDotSet } from "~/sdk/config"
 import { getHostPublicIpv4, probeHostTailscaleIpv4 } from "~/sdk/host"
-import { getDeployCredsStatus, lockdownExecute, lockdownStart } from "~/sdk/infra"
+import { lockdownExecute, lockdownStart } from "~/sdk/infra"
 import { serverUpdateApplyExecute, serverUpdateApplyStart } from "~/sdk/server"
 
 type SshExposureMode = "tailnet" | "bootstrap" | "public"
 type TailnetMode = "tailscale" | "none"
+const TAILSCALE_SECRET_NAME = "tailscale_auth_key"
+const TAILSCALE_PROBE_WAIT_TIMEOUT_MS = 10 * 60_000
+const TAILSCALE_PROBE_WAIT_POLL_MS = 5_000
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null
@@ -61,6 +67,10 @@ export function HostSettingsVpnPanel(props: {
   const [activateError, setActivateError] = useState<string | null>(null)
   const [lockdownRunId, setLockdownRunId] = useState<Id<"runs"> | null>(null)
   const [applyRunId, setApplyRunId] = useState<Id<"runs"> | null>(null)
+  const selfUpdateConfigured = useMemo(
+    () => deriveHostSelfUpdateState({ hostCfg: props.hostCfg }).configured,
+    [props.hostCfg],
+  )
 
   const publicIpv4Query = useQuery({
     queryKey: ["hostPublicIpv4", props.projectId, props.host],
@@ -69,15 +79,17 @@ export function HostSettingsVpnPanel(props: {
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   })
-  const deployCredsQuery = useQuery({
-    queryKey: ["deployCreds", props.projectId],
-    queryFn: async () => await getDeployCredsStatus({ data: { projectId: props.projectId } }),
-    enabled: Boolean(props.projectId),
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
+  const wiringQueryOptions = convexQuery(api.controlPlane.secretWiring.listByProjectHost, {
+    projectId: props.projectId,
+    hostName: props.host,
   })
-
-  const hasTailscaleProjectKey = deployCredsQuery.data?.projectTokenKeyrings?.tailscale?.hasActive === true
+  const wiringQuery = useQuery({
+    ...wiringQueryOptions,
+    enabled: Boolean(props.projectId && props.host),
+  })
+  const hasHostTailscaleAuthKey = (wiringQuery.data ?? []).some(
+    (row) => row.secretName === TAILSCALE_SECRET_NAME && row.status === "configured",
+  )
 
   async function requireConfigSet(params: { path: string; value?: string; valueJson?: string }): Promise<void> {
     const result = await configDotSet({
@@ -123,10 +135,9 @@ export function HostSettingsVpnPanel(props: {
   const activateTailnet = useMutation({
     mutationFn: async () => {
       if (!props.host.trim()) throw new Error("Host is required")
-      if (!hasTailscaleProjectKey) {
-        throw new Error("Tailscale key missing. Configure one in Project credentials first.")
-      }
+      if (!hasHostTailscaleAuthKey) throw new Error("Missing required tailscale_auth_key. Configure it in Host Secrets first.")
       setActivateError(null)
+      setApplyRunId(null)
 
       await requireConfigSet({
         path: `hosts.${props.host}.tailnet.mode`,
@@ -148,7 +159,14 @@ export function HostSettingsVpnPanel(props: {
       }
 
       const probe = await probeHostTailscaleIpv4({
-        data: { projectId: props.projectId, host: props.host, targetHost: nextTargetHost },
+        data: {
+          projectId: props.projectId,
+          host: props.host,
+          targetHost: nextTargetHost,
+          wait: true,
+          waitTimeoutMs: TAILSCALE_PROBE_WAIT_TIMEOUT_MS,
+          waitPollMs: TAILSCALE_PROBE_WAIT_POLL_MS,
+        },
       })
       if (!probe.ok) throw new Error(probe.error || "Could not resolve Tailscale IPv4")
       if (!probe.ipv4) throw new Error("Could not resolve Tailscale IPv4")
@@ -171,6 +189,13 @@ export function HostSettingsVpnPanel(props: {
         data: { projectId: props.projectId, runId: lockdown.runId, host: props.host },
       })
 
+      if (!selfUpdateConfigured) {
+        return {
+          targetHost: nextTargetHost,
+          updatesApplied: false,
+        }
+      }
+
       const apply = await serverUpdateApplyStart({
         data: { projectId: props.projectId, host: props.host },
       })
@@ -184,13 +209,20 @@ export function HostSettingsVpnPanel(props: {
           confirm: `apply updates ${props.host}`,
         },
       })
-      return { targetHost: nextTargetHost }
+      return {
+        targetHost: nextTargetHost,
+        updatesApplied: true,
+      }
     },
     onSuccess: (result) => {
       setTailnetMode("tailscale")
       setSshExposure("tailnet")
       setTargetHost(result.targetHost)
-      toast.success("Tailnet activation + lockdown queued")
+      toast.success(
+        result.updatesApplied
+          ? "Tailnet activation + lockdown queued"
+          : "Lockdown completed. Updates skipped (selfUpdate disabled).",
+      )
       void queryClient.invalidateQueries({ queryKey: props.hostConfigQueryKey })
     },
     onError: (error) => {
@@ -287,18 +319,17 @@ export function HostSettingsVpnPanel(props: {
           )}
         </div>
 
-        {tailnetMode === "tailscale" && !hasTailscaleProjectKey ? (
+        {tailnetMode === "tailscale" && !hasHostTailscaleAuthKey ? (
           <Alert variant="destructive">
             <AlertTitle>Tailscale auth key missing</AlertTitle>
             <AlertDescription>
-              Configure a project-wide Tailscale key before activation.
-              {" "}
+              Configure <code>tailscale_auth_key</code> for this host before activation.{" "}
               <Link
                 className="underline underline-offset-4 hover:text-foreground"
-                to="/$projectSlug/security/api-keys"
-                params={{ projectSlug: props.projectSlug }}
+                to="/$projectSlug/hosts/$host/secrets"
+                params={{ projectSlug: props.projectSlug, host: props.host }}
               >
-                Open project credentials
+                Open Host Secrets
               </Link>
               .
             </AlertDescription>
@@ -335,17 +366,16 @@ export function HostSettingsVpnPanel(props: {
       </SettingsSection>
 
       {tailnetMode === "tailscale" ? (
-        <ProjectTokenKeyringCard
+        <TailscaleAuthKeyCard
           projectId={props.projectId}
-          kind="tailscale"
-          title="Tailnet auth"
-          description="Project-wide Tailscale keyring used during setup and activation."
+          projectSlug={props.projectSlug}
+          host={props.host}
         />
       ) : null}
 
       <SettingsSection
         title="Activate Tailnet"
-        description="Adds tailnet target host, switches SSH exposure, runs lockdown, then applies updates."
+        description="Adds tailnet target host, switches SSH exposure, runs lockdown, then applies updates when selfUpdate is configured."
         actions={
           <AsyncButton
             type="button"
@@ -359,7 +389,7 @@ export function HostSettingsVpnPanel(props: {
         }
       >
         <div className="text-sm text-muted-foreground">
-          This action automates: probe Tailscale IP, set <code>targetHost</code>, switch SSH exposure to <code>tailnet</code>, run <code>lockdown</code>, and re-apply updates.
+          This action automates: probe Tailscale IP, set <code>targetHost</code>, switch SSH exposure to <code>tailnet</code>, run <code>lockdown</code>, then apply updates only if selfUpdate is configured.
         </div>
       </SettingsSection>
 

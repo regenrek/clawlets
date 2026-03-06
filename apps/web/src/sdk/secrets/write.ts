@@ -24,7 +24,7 @@ export const writeHostSecrets = createServerFn({ method: "POST" })
       targetRunnerId: data.targetRunnerId,
       payloadMeta: {
         hostName: host,
-        scope: "all",
+        scope: "bootstrap",
         secretNames,
         args: [
           "secrets",
@@ -32,10 +32,11 @@ export const writeHostSecrets = createServerFn({ method: "POST" })
           "--host",
           host,
           "--scope",
-          "all",
+          "bootstrap",
           "--from-json",
           "__RUNNER_SECRETS_JSON__",
           "--yes",
+          "--allowMissingAdminPasswordHash",
         ],
         note: "secrets sealed input attached at finalize",
       },

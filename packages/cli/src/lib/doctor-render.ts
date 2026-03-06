@@ -4,7 +4,7 @@ import type { DoctorCheck } from "@clawlets/core/doctor";
 type DoctorStatus = DoctorCheck["status"];
 
 const STATUS_ORDER: Record<DoctorStatus, number> = { missing: 0, warn: 1, ok: 2 };
-const SCOPE_ORDER: Record<DoctorCheck["scope"], number> = { repo: 0, bootstrap: 1, updates: 2 };
+const SCOPE_ORDER: Record<DoctorCheck["scope"], number> = { repo: 0, bootstrap: 1, updates: 2, lockdown: 3 };
 
 function supportsColor(out: NodeJS.WriteStream): boolean {
   if (!out.isTTY) return false;
@@ -35,9 +35,9 @@ function categoryForLabel(label: string): string {
   if (l.includes("fleet") || l.includes("guild") || l.includes("discord") || l.includes("routing")) return "fleet / discord";
   if (l.includes("sops") || l.includes("secret") || l.includes("envsecrets") || l.includes("llm api")) return "secrets";
   if (l.includes("deploy env file") || l.includes("env file")) return "infra";
-  if (l.includes("hetzner") || l.includes("provisioning") || l.includes("opentofu") || l.includes("hcloud") || l.includes("nixos-anywhere")) return "infra";
+  if (l.includes("hetzner") || l.includes("provisioning") || l.includes("opentofu") || l.includes("hcloud") || l.includes("nixos-anywhere") || l.includes("infra state") || l.includes("provider credentials")) return "infra";
   if (l.includes("github_token") || l.includes("base flake")) return "github";
-  if (l.includes("ssh") || l.includes("targethost") || l.includes("authorizedkeys")) return "ssh";
+  if (l.includes("ssh") || l.includes("targethost") || l.includes("authorizedkeys") || l.includes("tailnet")) return "ssh";
   if (l.startsWith("nix")) return "nix";
 
   return "other";
@@ -87,7 +87,7 @@ function groupChecks(params: { checks: DoctorCheck[]; showOk: boolean }): Array<
 export function renderDoctorReport(params: {
   checks: DoctorCheck[];
   host: string;
-  scope: "repo" | "bootstrap" | "updates" | "all";
+  scope: "repo" | "bootstrap" | "updates" | "lockdown" | "all";
   strict: boolean;
   showOk: boolean;
 }): string {
@@ -127,7 +127,7 @@ export function renderDoctorReport(params: {
 
 export function renderDoctorGateFailure(params: {
   checks: DoctorCheck[];
-  scope: "repo" | "bootstrap" | "updates";
+  scope: "repo" | "bootstrap" | "updates" | "lockdown";
   strict: boolean;
 }): string {
   const missing = params.checks.filter((c) => c.status === "missing");
