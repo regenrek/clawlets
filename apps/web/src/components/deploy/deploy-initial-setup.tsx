@@ -6,6 +6,8 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { toast } from "sonner"
 import type { Id } from "../../../convex/_generated/dataModel"
 import { api } from "../../../convex/_generated/api"
+import { buildSetupApplyPlan } from "@clawlets/core/lib/setup/plan"
+import { deriveSetupBootstrapRequirements } from "@clawlets/core/lib/setup/requirements"
 import { SetupCelebration } from "~/components/setup/setup-celebration"
 import { RunLogTail } from "~/components/run-log-tail"
 import { RunnerStatusBanner } from "~/components/fleet/runner-status-banner"
@@ -29,16 +31,22 @@ import {
 import { useProjectBySlug } from "~/lib/project-data"
 import { deriveProjectRunnerNixReadiness, isProjectRunnerOnline } from "~/lib/setup/runner-status"
 import { deriveEffectiveSetupDesiredState } from "~/lib/setup/desired-state"
+import {
+  summarizeSetupOperation,
+  waitForSetupOperation,
+} from "~/lib/setup/setup-operation-state"
 import { setupConfigProbeQueryKey, setupConfigProbeQueryOptions } from "~/lib/setup/repo-probe"
 import { deriveSshKeyGateUi } from "~/lib/setup/ssh-key-gate"
 import { sealForRunner } from "~/lib/security/sealed-input"
 import { gitRepoStatus, gitSetupSaveExecute } from "~/domains/vcs"
 import { serverUpdateApplyExecute, serverUpdateApplyStart } from "~/sdk/server"
+import { getBootstrapSecretStatus } from "~/sdk/secrets"
+import type { BootstrapSecretStatusResult } from "~/sdk/secrets"
 import {
   buildSetupDraftSectionAad,
-  setupDraftCommit,
   setupDraftSaveNonSecret,
   setupDraftSaveSealedSection,
+  startSetupApplyOperation,
   type SetupDraftConnection,
   type SetupDraftInfrastructure,
   type SetupDraftView,
@@ -54,6 +62,7 @@ import {
   type FinalizeStepId,
   type FinalizeStepStatus,
 } from "~/components/deploy/deploy-setup-model"
+import { deriveInfrastructureGate, deriveInstallCardStatus } from "~/components/deploy/deploy-initial-setup-state"
 
 type SetupPendingBootstrapSecrets = {
   adminPassword: string
@@ -64,6 +73,7 @@ type SetupPendingBootstrapSecrets = {
 type PredeployCheckId =
   | "runner"
   | "repo"
+  | "infrastructure"
   | "ssh"
   | "adminPassword"
   | "projectCreds"
@@ -90,6 +100,7 @@ function initialPredeployChecks(): PredeployCheck[] {
   return [
     { id: "runner", label: "Runner ready", state: "pending" },
     { id: "repo", label: "Repo ready", state: "pending" },
+    { id: "infrastructure", label: "Infrastructure ready", state: "pending" },
     { id: "ssh", label: "SSH setup ready", state: "pending" },
     { id: "adminPassword", label: "Admin password ready", state: "pending" },
     { id: "projectCreds", label: "Project creds ready", state: "pending" },
@@ -106,6 +117,7 @@ function buildPredeployFingerprint(params: {
   repoDirty: boolean
   repoNeedsPush: boolean
   infra: SetupDraftInfrastructure
+  infrastructureReady: boolean
   connection: SetupDraftConnection
   projectCredsReady: boolean
   requiresTailscaleAuthKey: boolean
@@ -120,6 +132,7 @@ function buildPredeployFingerprint(params: {
     repoDirty: params.repoDirty,
     repoNeedsPush: params.repoNeedsPush,
     infra: params.infra,
+    infrastructureReady: params.infrastructureReady,
     connection: params.connection,
     projectCredsReady: params.projectCredsReady,
     requiresTailscaleAuthKey: params.requiresTailscaleAuthKey,
@@ -139,6 +152,7 @@ export function DeployInitialInstallSetup(props: {
   pendingInfrastructureDraft: SetupDraftInfrastructure | null
   pendingConnectionDraft: SetupDraftConnection | null
   pendingBootstrapSecrets: SetupPendingBootstrapSecrets
+  hasActiveHcloudToken: boolean
   hasProjectGithubToken: boolean
   hasProjectGithubTokenAccess: boolean
   githubTokenAccessMessage: string
@@ -203,13 +217,6 @@ export function DeployInitialInstallSetup(props: {
     ),
     enabled: Boolean(projectId && props.host),
   })
-  const secretWiringQuery = useQuery({
-    ...convexQuery(
-      api.controlPlane.secretWiring.listByProjectHost,
-      projectId ? { projectId, hostName: props.host } : "skip",
-    ),
-    enabled: Boolean(projectId && props.host),
-  })
   const runnerOnline = useMemo(() => isProjectRunnerOnline(runnersQuery.data ?? []), [runnersQuery.data])
   const runnerNixReadiness = useMemo(
     () => deriveProjectRunnerNixReadiness(runnersQuery.data ?? []),
@@ -232,6 +239,23 @@ export function DeployInitialInstallSetup(props: {
         .toSorted((a, b) => Number(b.lastSeenAt || 0) - Number(a.lastSeenAt || 0)),
     [runnersQuery.data],
   )
+  const bootstrapSecretStatusQuery = useQuery({
+    queryKey: ["bootstrapSecretStatus", projectId, props.host],
+    queryFn: async () => {
+      if (!projectId) throw new Error("missing projectId")
+      return await getBootstrapSecretStatus({
+        data: {
+          projectId: projectId as Id<"projects">,
+          host: props.host,
+          targetRunnerId: sealedRunners[0]?._id as Id<"runners"> | undefined,
+        },
+      })
+    },
+    enabled: Boolean(projectId && props.host && runnerOnline),
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  })
 
   const hostSummary = useMemo(
     () => (hostsQuery.data ?? []).find((row) => row.hostName === props.host) ?? null,
@@ -262,28 +286,17 @@ export function DeployInitialInstallSetup(props: {
   const isTailnet = tailnetMode === "tailscale"
   const desiredSshExposureMode = String(hostSummary?.desired?.sshExposureMode || "").trim()
   const tailscaleAuthKeyConfigured = useMemo(
-    () =>
-      (secretWiringQuery.data ?? []).some(
-        (row) => row.secretName === "tailscale_auth_key" && row.status === "configured",
-      ),
-    [secretWiringQuery.data],
+    () => bootstrapSecretStatusQuery.data?.statusBySecret?.["tailscale_auth_key"]?.status === "ok",
+    [bootstrapSecretStatusQuery.data],
   )
   const pendingTailscaleAuthKey = props.pendingBootstrapSecrets.tailscaleAuthKey.trim()
   const hasPendingTailscaleAuthKey = pendingTailscaleAuthKey.length > 0
   const hasTailscaleAuthKeyForSetup = tailscaleAuthKeyConfigured || hasPendingTailscaleAuthKey
   const adminPasswordConfigured = useMemo(
-    () =>
-      (secretWiringQuery.data ?? []).some(
-        (row) => row.secretName === "admin_password_hash" && row.status === "configured",
-      ),
-    [secretWiringQuery.data],
+    () => bootstrapSecretStatusQuery.data?.statusBySecret?.["admin_password_hash"]?.status === "ok",
+    [bootstrapSecretStatusQuery.data],
   )
-  const adminPasswordRequired = !adminPasswordConfigured
   const adminPassword = props.pendingBootstrapSecrets.adminPassword.trim()
-  const adminPasswordGateBlocked = adminPasswordRequired && !adminPassword
-  const adminPasswordGateMessage = adminPasswordGateBlocked
-    ? "Server access incomplete. Set admin password."
-    : null
   const repoStatus = useQuery({
     queryKey: ["gitRepoStatus", projectId],
     queryFn: async () =>
@@ -326,13 +339,56 @@ export function DeployInitialInstallSetup(props: {
   const projectCredsReady = projectGithubTokenSet && projectGitRemoteOriginReady && projectGithubTokenAccessSet
 
   const wantsTailscaleLockdown = props.pendingBootstrapSecrets.useTailscaleLockdown
-  const requiresTailscaleAuthKey = wantsTailscaleLockdown || isTailnet || desired.connection.sshExposureMode === "tailnet"
-  const requiredHostSecretsConfigured = !requiresTailscaleAuthKey || hasTailscaleAuthKeyForSetup
+  const bootstrapRequirements = useMemo(
+    () => deriveSetupBootstrapRequirements({
+      wantsTailscaleLockdown,
+      isTailnet,
+      sshExposureMode: desired.connection.sshExposureMode,
+      adminPasswordConfigured,
+      pendingAdminPassword: adminPassword,
+      hasTailscaleAuthKeyForSetup,
+    }),
+    [
+      adminPassword,
+      adminPasswordConfigured,
+      desired.connection.sshExposureMode,
+      hasTailscaleAuthKeyForSetup,
+      isTailnet,
+      wantsTailscaleLockdown,
+    ],
+  )
+  const adminPasswordRequired = bootstrapRequirements.adminPasswordRequired
+  const adminPasswordGateBlocked = adminPasswordRequired && !adminPassword
+  const adminPasswordGateMessage = adminPasswordGateBlocked
+    ? "Server access incomplete. Set admin password."
+    : null
+  const requiresTailscaleAuthKey = bootstrapRequirements.requiresTailscaleAuthKey
+  const requiredHostSecretsConfigured = bootstrapRequirements.requiredHostSecretsConfigured
   const requiredHostSecretsGateBlocked = runnerOnline && !requiredHostSecretsConfigured
   const requiredHostSecretsGateMessage = runnerOnline && requiresTailscaleAuthKey
     && !requiredHostSecretsConfigured
     ? "Missing tailscale_auth_key. Enter it in Tailscale lockdown (setup) or configure Host Secrets."
     : null
+  const setupApplyPlanPreview = useMemo(() => {
+    const hostBootstrapCredsDraft = props.setupDraft?.sealedSecretDrafts?.hostBootstrapCreds
+    const hostBootstrapSecretsDraft = props.setupDraft?.sealedSecretDrafts?.hostBootstrapSecrets
+    if (hostBootstrapCredsDraft?.status !== "set" || hostBootstrapSecretsDraft?.status !== "set") return null
+    if (!hostBootstrapCredsDraft.targetRunnerId || !hostBootstrapSecretsDraft.targetRunnerId) return null
+    if (!desired.infrastructure.serverType?.trim() || !desired.infrastructure.location?.trim()) return null
+    if (!desired.connection.adminCidr?.trim() || desired.connection.sshAuthorizedKeys.length < 1) return null
+    try {
+      return buildSetupApplyPlan({
+        hostName: props.host,
+        draft: {
+          infrastructure: desired.infrastructure,
+          connection: desired.connection,
+        },
+        targetRunnerId: String(hostBootstrapCredsDraft.targetRunnerId),
+      })
+    } catch {
+      return null
+    }
+  }, [desired.connection, desired.infrastructure, projectId, props.host, props.setupDraft])
 
   const [preparedRev, setPreparedRev] = useState<string | null>(null)
 
@@ -383,6 +439,13 @@ export function DeployInitialInstallSetup(props: {
   })
   const sshKeyGateBlocked = sshKeyGateUi.blocked
   const sshKeyGateMessage = sshKeyGateUi.message
+  const infrastructureGate = deriveInfrastructureGate({
+    runnerOnline,
+    hasActiveHcloudToken: props.hasActiveHcloudToken,
+    infrastructure: desired.infrastructure,
+  })
+  const infrastructureGateBlocked = infrastructureGate.blocked
+  const infrastructureGateMessage = infrastructureGate.message
 
   const credsGateBlocked =
     runnerOnline &&
@@ -405,11 +468,11 @@ export function DeployInitialInstallSetup(props: {
     : "Provider token required"
 
   const deployGateBlocked =
-    repoGateBlocked || nixGateBlocked || sshKeyGateBlocked || adminPasswordGateBlocked
+    repoGateBlocked || nixGateBlocked || infrastructureGateBlocked || sshKeyGateBlocked || adminPasswordGateBlocked
     || credsGateBlocked || requiredHostSecretsGateBlocked
   const deployStatusReason = repoGateBlocked
     ? statusReason
-    : nixGateMessage || sshKeyGateMessage || adminPasswordGateMessage
+    : nixGateMessage || infrastructureGateMessage || sshKeyGateMessage || adminPasswordGateMessage
       || requiredHostSecretsGateMessage || credsGateMessage || statusReason
 
   const canAutoLockdown = wantsTailscaleLockdown && hasTailscaleAuthKeyForSetup
@@ -425,6 +488,7 @@ export function DeployInitialInstallSetup(props: {
 
   const [bootstrapRunId, setBootstrapRunId] = useState<Id<"runs"> | null>(null)
   const [setupApplyRunId, setSetupApplyRunId] = useState<Id<"runs"> | null>(null)
+  const [setupOperationId, setSetupOperationId] = useState<Id<"setupOperations"> | null>(null)
   const [bootstrapStatus, setBootstrapStatus] = useState<"idle" | "running" | "succeeded" | "failed">("idle")
   const [bootstrapFinalizeArmed, setBootstrapFinalizeArmed] = useState(false)
   const [predeployState, setPredeployState] = useState<PredeployState>("idle")
@@ -439,6 +503,23 @@ export function DeployInitialInstallSetup(props: {
   const [lockdownRunId, setLockdownRunId] = useState<Id<"runs"> | null>(null)
   const [applyRunId, setApplyRunId] = useState<Id<"runs"> | null>(null)
   const finalizeAttemptedBootstrapRunRef = useRef<string | null>(null)
+  const latestSetupOperationQuery = useQuery({
+    ...convexQuery(
+      api.controlPlane.setupOperations.latestByProjectHost,
+      projectId ? { projectId, hostName: props.host } : "skip",
+    ),
+    enabled: Boolean(projectId && props.host),
+    refetchInterval: predeployState === "running" ? 1_000 : false,
+  })
+  const setupOperationQuery = useQuery({
+    ...convexQuery(
+      api.controlPlane.setupOperations.get,
+      setupOperationId ? { operationId: setupOperationId } : "skip",
+    ),
+    enabled: Boolean(setupOperationId),
+    refetchInterval: setupOperationId && predeployState === "running" ? 1_000 : false,
+  })
+  const effectiveSetupOperation = setupOperationQuery.data ?? latestSetupOperationQuery.data ?? null
 
   function setStepStatus(id: FinalizeStepId, status: FinalizeStepStatus, detail?: string): void {
     setFinalizeUpdatedAt(Date.now())
@@ -461,6 +542,7 @@ export function DeployInitialInstallSetup(props: {
         repoDirty: dirtyRepo,
         repoNeedsPush: needsPush,
         infra: desired.infrastructure,
+        infrastructureReady: infrastructureGate.ready,
         connection: desired.connection,
         projectCredsReady,
         requiresTailscaleAuthKey,
@@ -472,6 +554,7 @@ export function DeployInitialInstallSetup(props: {
       [
         desired.connection,
         desired.infrastructure,
+        infrastructureGate.ready,
         projectCredsReady,
         requiresTailscaleAuthKey,
         requiredHostSecretsConfigured,
@@ -485,6 +568,17 @@ export function DeployInitialInstallSetup(props: {
     ],
   )
   const predeployFingerprintRef = useRef(predeployFingerprint)
+  const setupApplyPreviewFingerprint = useMemo(
+    () => setupApplyPlanPreview
+      ? JSON.stringify({
+          schemaVersion: setupApplyPlanPreview.schemaVersion,
+          hostName: setupApplyPlanPreview.hostName,
+          targetRunnerId: setupApplyPlanPreview.targetRunnerId,
+          configMutations: setupApplyPlanPreview.configMutations,
+        })
+      : null,
+    [setupApplyPlanPreview],
+  )
 
   useEffect(() => {
     predeployFingerprintRef.current = predeployFingerprint
@@ -492,6 +586,7 @@ export function DeployInitialInstallSetup(props: {
 
   useEffect(() => {
     setPreparedRev(null)
+    setSetupOperationId(null)
   }, [projectId, props.host])
 
   useEffect(() => {
@@ -779,19 +874,6 @@ export function DeployInitialInstallSetup(props: {
       sshAuthorizedKeys: params.desired.connection.sshAuthorizedKeys,
     }
 
-    if (!infrastructurePatch.serverType?.trim() || !infrastructurePatch.location?.trim()) {
-      throw new Error("Host settings incomplete. Set server type and location.")
-    }
-    if (!connectionPatch.adminCidr?.trim()) {
-      throw new Error("Server access incomplete. Set admin CIDR.")
-    }
-    if (!connectionPatch.sshAuthorizedKeys?.length) {
-      throw new Error("Server access incomplete. Add at least one SSH key.")
-    }
-    if (params.adminPasswordRequired && !params.adminPassword) {
-      throw new Error("Server access incomplete. Set admin password.")
-    }
-
     const savedNonSecretDraft = await setupDraftSaveNonSecret({
       data: {
         projectId: projectId as Id<"projects">,
@@ -800,7 +882,7 @@ export function DeployInitialInstallSetup(props: {
           infrastructure: infrastructurePatch,
           connection: {
             ...connectionPatch,
-            sshKeyCount: connectionPatch.sshAuthorizedKeys.length,
+            sshKeyCount: connectionPatch.sshAuthorizedKeys?.length ?? 0,
           },
         },
       },
@@ -898,13 +980,27 @@ export function DeployInitialInstallSetup(props: {
     setPredeployCheck("sealedDrafts", "passed", "Host bootstrap secrets queued")
 
     setPredeployCheck("setupApply", "pending", "Running setup apply...")
-    const setupApply = await setupDraftCommit({
+    const setupApply = await startSetupApplyOperation({
       data: {
         projectId: projectId as Id<"projects">,
         host: props.host,
+        deployCreds: deployCredsPayload,
+        bootstrapSecrets: bootstrapSecretsPayload,
       },
     })
+    setSetupOperationId(setupApply.operationId)
     setSetupApplyRunId(setupApply.runId)
+    const setupOperation = await waitForSetupOperation({
+      queryClient,
+      operationId: setupApply.operationId,
+      sleep,
+      onUpdate: (operation) => {
+        setPredeployCheck("setupApply", operation?.status === "failed" ? "failed" : "pending", summarizeSetupOperation(operation))
+      },
+    })
+    if (setupOperation.status !== "succeeded") {
+      throw new Error(summarizeSetupOperation(setupOperation))
+    }
 
     const doctor = await runDoctor({
       data: {
@@ -916,7 +1012,7 @@ export function DeployInitialInstallSetup(props: {
     setPredeployCheck(
       "setupApply",
       "passed",
-      `setup_apply ${String(setupApply.runId)}; doctor ${String(doctor.runId)}`,
+      `setup_apply ${String(setupApply.runId)}; doctor ${String(doctor.runId)}; ${summarizeSetupOperation(setupOperation)}`,
     )
 
     setPredeployCheck("saveToGit", "pending", "Committing and pushing setup changes...")
@@ -1042,6 +1138,16 @@ export function DeployInitialInstallSetup(props: {
           connection: props.pendingConnectionDraft ?? undefined,
         },
       })
+      const infrastructureGateNow = deriveInfrastructureGate({
+        runnerOnline: true,
+        hasActiveHcloudToken: props.hasActiveHcloudToken,
+        infrastructure: desiredNow.infrastructure,
+      })
+      if (infrastructureGateNow.blocked) {
+        setPredeployCheck("infrastructure", "failed", infrastructureGateNow.message || "Infrastructure setup incomplete.")
+        throw new Error(infrastructureGateNow.message || "Infrastructure setup incomplete.")
+      }
+      setPredeployCheck("infrastructure", "passed", infrastructureGateNow.passedDetail)
 
       if (desiredNow.connection.sshAuthorizedKeys.length < 1) {
         setPredeployCheck("ssh", "failed", "SSH key required. Add at least one key in Server Access.")
@@ -1049,44 +1155,58 @@ export function DeployInitialInstallSetup(props: {
       }
       setPredeployCheck("ssh", "passed", `${desiredNow.connection.sshAuthorizedKeys.length} key(s)`)
 
-      // Refresh wiring so admin_password_hash doesn't incorrectly appear missing while query is still loading.
-      let adminPasswordConfiguredNow = adminPasswordConfigured
-      try {
-        const secretWiringNow = await secretWiringQuery.refetch().then((res) => res.data ?? [])
-        adminPasswordConfiguredNow = secretWiringNow.some(
-          (row) => row.secretName === "admin_password_hash" && row.status === "configured",
-        )
-      } catch {
-        // Fall back to current query state; require password if uncertain.
-        adminPasswordConfiguredNow = adminPasswordConfigured
-      }
-      const adminPasswordRequiredNow = !adminPasswordConfiguredNow
+      const bootstrapSecretStatus = await getBootstrapSecretStatus({
+        data: {
+          projectId: projectId as Id<"projects">,
+          host: props.host,
+          targetRunnerId: sealedRunners[0]?._id as Id<"runners"> | undefined,
+        },
+      }) as BootstrapSecretStatusResult
+      const existingAdminPasswordReady = bootstrapSecretStatus.statusBySecret["admin_password_hash"]?.status === "ok"
+      const existingTailscaleKeyReady = bootstrapSecretStatus.statusBySecret["tailscale_auth_key"]?.status === "ok"
+      const existingAdminPasswordDetail = bootstrapSecretStatus.statusBySecret["admin_password_hash"]?.detail || ""
+      const existingTailscaleDetail = bootstrapSecretStatus.statusBySecret["tailscale_auth_key"]?.detail || ""
       const adminPasswordNow = props.pendingBootstrapSecrets.adminPassword.trim()
+      const bootstrapRequirementsNow = deriveSetupBootstrapRequirements({
+        wantsTailscaleLockdown,
+        isTailnet,
+        sshExposureMode: desiredNow.connection.sshExposureMode,
+        adminPasswordConfigured: existingAdminPasswordReady,
+        pendingAdminPassword: adminPasswordNow,
+        hasTailscaleAuthKeyForSetup: hasPendingTailscaleAuthKey || existingTailscaleKeyReady,
+      })
+      const adminPasswordRequiredNow = bootstrapRequirementsNow.adminPasswordRequired
 
       if (adminPasswordRequiredNow && !adminPasswordNow) {
-        setPredeployCheck("adminPassword", "failed", "Server access incomplete. Set admin password.")
-        throw new Error("Server access incomplete. Set admin password.")
+        const detail = existingAdminPasswordDetail
+          ? `Server access incomplete. ${existingAdminPasswordDetail}`
+          : "Server access incomplete. Set admin password."
+        setPredeployCheck("adminPassword", "failed", detail)
+        throw new Error(detail)
       }
       setPredeployCheck(
         "adminPassword",
         "passed",
-        adminPasswordRequiredNow ? "provided for bootstrap" : "existing admin_password_hash configured",
+        adminPasswordRequiredNow ? "provided for bootstrap" : "existing admin_password_hash verified in repo",
       )
 
-      const requiredTailscaleAuthKeyNow = isTailnet || desiredNow.connection.sshExposureMode === "tailnet"
-      if (requiredTailscaleAuthKeyNow && !hasTailscaleAuthKeyForSetup) {
+      const requiredTailscaleAuthKeyNow = bootstrapRequirementsNow.requiresTailscaleAuthKey
+      if (requiredTailscaleAuthKeyNow && !(hasPendingTailscaleAuthKey || existingTailscaleKeyReady)) {
+        const detail = existingTailscaleDetail
+          ? `Missing tailscale_auth_key. ${existingTailscaleDetail}`
+          : "Missing tailscale_auth_key. Enter it in Tailscale lockdown (setup) or configure Host Secrets."
         setPredeployCheck(
           "requiredHostSecrets",
           "failed",
-          "Missing tailscale_auth_key. Enter it in Tailscale lockdown (setup) or configure Host Secrets.",
+          detail,
         )
-        throw new Error("Missing required tailscale_auth_key for tailscale bootstrap.")
+        throw new Error(detail)
       }
 
       const requiredHostSecretsDetail = requiredTailscaleAuthKeyNow
         ? hasPendingTailscaleAuthKey
           ? "tailscale_auth_key provided in setup draft"
-          : "tailscale_auth_key configured"
+          : "tailscale_auth_key verified in repo"
         : "No additional required host secrets"
 
       setPredeployCheck(
@@ -1131,10 +1251,11 @@ export function DeployInitialInstallSetup(props: {
         repoDirty: Boolean(predeployResult.repoStatus.dirty),
         repoNeedsPush: Boolean(predeployResult.repoStatus.needsPush),
         infra: desiredNow.infrastructure,
+        infrastructureReady: infrastructureGateNow.ready,
         connection: desiredNow.connection,
         projectCredsReady: true,
         requiresTailscaleAuthKey: requiredTailscaleAuthKeyNow,
-        requiredHostSecretsConfigured: !requiredTailscaleAuthKeyNow || hasTailscaleAuthKeyForSetup,
+        requiredHostSecretsConfigured: !requiredTailscaleAuthKeyNow || hasPendingTailscaleAuthKey || existingTailscaleKeyReady,
         useTailscaleLockdown: wantsTailscaleLockdown,
         adminPasswordRequired: adminPasswordRequiredNow,
         adminPasswordReady: !adminPasswordRequiredNow || Boolean(adminPasswordNow),
@@ -1200,7 +1321,7 @@ export function DeployInitialInstallSetup(props: {
       if (!projectId) throw new Error("Project not ready")
       if (!props.host.trim()) throw new Error("Host is required")
       if (!runnerOnline) throw new Error("Runner offline. Start runner first.")
-      if (predeployState !== "ready" || predeployReadyFingerprint !== predeployFingerprint) {
+      if (!predeployReady) {
         throw new Error("Run predeploy checks first and confirm green summary.")
       }
       if (!selectedRev) throw new Error("No pushed revision found.")
@@ -1315,13 +1436,20 @@ export function DeployInitialInstallSetup(props: {
     && infraExists === true
     && effectiveFinalizeState === "idle"
     && !startFinalize.isPending
-  const predeployReady = predeployState === "ready" && predeployReadyFingerprint === predeployFingerprint
+  const persistedPredeployReady = effectiveSetupOperation?.status === "succeeded"
+    && setupApplyPreviewFingerprint !== null
+    && effectiveSetupOperation.planJson === setupApplyPreviewFingerprint
+  const predeployReady = (predeployState === "ready" && predeployReadyFingerprint === predeployFingerprint)
+    || Boolean(persistedPredeployReady)
   const canRunPredeploy = !isBootstrapped
     && !runPredeploy.isPending
     && !startDeploy.isPending
     && !bootstrapInProgress
     && runnerOnline
     && Boolean(projectId)
+  const hasRetryableSetupOperationFailure = !isBootstrapped
+    && effectiveSetupOperation?.status === "failed"
+    && effectiveSetupOperation.steps.some((step) => step.status === "failed" && step.retryable)
   const mainActionIsSaveToGit = showRepoSaveToGitButton && !predeployReady
   const canRunSaveToGit = !isBootstrapped
     && !runPredeploy.isPending
@@ -1342,20 +1470,18 @@ export function DeployInitialInstallSetup(props: {
   const showVpnRecoveryCta = isBootstrapped && infraExists === true && effectiveFinalizeState === "failed" && wantsTailscaleLockdown
   const openClawSetupPath = `/${props.projectSlug}/hosts/${props.host}/openclaw-setup`
   const hostOverviewPath = `/${props.projectSlug}/hosts/${props.host}`
+  const hadSuccessfulBootstrap = props.hasBootstrapped || latestBootstrapSucceeded
   const cardStatus = !isBootstrapped
-    ? infraMissing
-      ? infraMissingDetail
-        ? `Infrastructure missing. ${infraMissingDetail}`
-        : "Infrastructure missing (likely destroyed). Redeploy required."
-      : bootstrapInProgress
-        ? "Deploy in progress..."
-        : predeployState === "running"
-          ? "Running predeploy checks..."
-          : predeployReady
-            ? "Predeploy checks are green. Review summary, then deploy."
-            : predeployState === "failed"
-              ? predeployError || "Predeploy checks failed."
-              : deployStatusReason
+    ? deriveInstallCardStatus({
+      infraExists,
+      infraMissingDetail,
+      bootstrapInProgress,
+      predeployState,
+      predeployReady,
+      predeployError,
+      deployStatusReason,
+      hadSuccessfulBootstrap,
+    })
     : effectiveFinalizeState === "running"
       ? "Auto-hardening running..."
       : effectiveFinalizeState === "failed"
@@ -1422,10 +1548,10 @@ export function DeployInitialInstallSetup(props: {
             type="button"
             disabled={!canRunPredeploy}
             pending={runPredeploy.isPending}
-            pendingText="Checking..."
+            pendingText={hasRetryableSetupOperationFailure ? "Retrying..." : "Checking..."}
             onClick={() => runPredeploy.mutate()}
           >
-            Run predeploy
+            {hasRetryableSetupOperationFailure ? "Retry setup apply" : "Run predeploy"}
           </AsyncButton>
         )
       ) : effectiveFinalizeState === "running" || shouldAutoStartFinalize || bootstrapFinalizeArmed ? (
@@ -1524,7 +1650,16 @@ export function DeployInitialInstallSetup(props: {
             </Alert>
           ) : null}
 
-          {!isBootstrapped && sshKeyGateMessage && !repoGateBlocked && !nixGateBlocked ? (
+          {!isBootstrapped && infrastructureGateMessage && !repoGateBlocked && !nixGateBlocked ? (
+            <Alert variant="destructive">
+              <AlertTitle>Hetzner setup required</AlertTitle>
+              <AlertDescription>
+                <div>{infrastructureGateMessage}</div>
+              </AlertDescription>
+            </Alert>
+          ) : null}
+
+          {!isBootstrapped && sshKeyGateMessage && !repoGateBlocked && !nixGateBlocked && !infrastructureGateBlocked ? (
             <Alert
               variant={sshKeyGateUi.variant}
             >
@@ -1537,7 +1672,7 @@ export function DeployInitialInstallSetup(props: {
             </Alert>
           ) : null}
 
-          {!isBootstrapped && adminPasswordGateMessage && !repoGateBlocked && !nixGateBlocked && !sshKeyGateBlocked ? (
+          {!isBootstrapped && adminPasswordGateMessage && !repoGateBlocked && !nixGateBlocked && !infrastructureGateBlocked && !sshKeyGateBlocked ? (
             <Alert variant="destructive">
               <AlertTitle>Admin password required</AlertTitle>
               <AlertDescription>
@@ -1546,7 +1681,7 @@ export function DeployInitialInstallSetup(props: {
             </Alert>
           ) : null}
 
-          {!isBootstrapped && credsGateMessage && !repoGateBlocked && !nixGateBlocked && !sshKeyGateBlocked && !adminPasswordGateBlocked ? (
+          {!isBootstrapped && credsGateMessage && !repoGateBlocked && !nixGateBlocked && !infrastructureGateBlocked && !sshKeyGateBlocked && !adminPasswordGateBlocked ? (
             <Alert variant="destructive">
               <AlertTitle>{deployCredsGateAlertTitle}</AlertTitle>
               <AlertDescription>
@@ -1638,6 +1773,56 @@ export function DeployInitialInstallSetup(props: {
                 Last update: {new Date(predeployUpdatedAt).toLocaleTimeString()}
               </div>
             ) : null}
+          </div>
+        ) : null}
+
+        {!isBootstrapped && setupApplyPlanPreview ? (
+          <div className="rounded-md border bg-muted/20 p-3 space-y-1">
+            <div className="text-sm font-medium">Setup apply preview</div>
+            <div className="text-xs text-muted-foreground">
+              Planned config mutations: <code>{setupApplyPlanPreview.configMutations.length}</code>
+            </div>
+          </div>
+        ) : null}
+
+        {!isBootstrapped && effectiveSetupOperation ? (
+          <div className="rounded-md border bg-muted/20 p-3 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-sm font-medium">Setup apply operation</div>
+              <Badge
+                variant={
+                  effectiveSetupOperation.status === "succeeded"
+                    ? "secondary"
+                    : effectiveSetupOperation.status === "failed"
+                      ? "destructive"
+                      : "outline"
+                }
+              >
+                {effectiveSetupOperation.status}
+              </Badge>
+            </div>
+            <div className="space-y-1.5">
+              {effectiveSetupOperation.steps.map((step) => (
+                <div key={step.stepId} className="flex items-center justify-between gap-3 rounded-md border bg-background px-2 py-1.5">
+                  <div className="min-w-0 text-xs">
+                    <div className="font-medium">{step.stepId}</div>
+                    <div className="truncate text-muted-foreground">{step.safeMessage}</div>
+                  </div>
+                  <Badge
+                    variant={
+                      step.status === "succeeded"
+                        ? "secondary"
+                        : step.status === "failed"
+                          ? "destructive"
+                          : "outline"
+                    }
+                    className="shrink-0"
+                  >
+                    {step.status}
+                  </Badge>
+                </div>
+              ))}
+            </div>
           </div>
         ) : null}
 

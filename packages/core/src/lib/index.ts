@@ -7,5 +7,6 @@ export * as project from "./project/index.js";
 export * as runtime from "./runtime/index.js";
 export * as secrets from "./secrets/index.js";
 export * as security from "./security/index.js";
+export * as setup from "./setup/index.js";
 export * as storage from "./storage/index.js";
 export * as vcs from "./vcs/index.js";

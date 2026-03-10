@@ -1,6 +1,6 @@
 import { convexQuery } from "@convex-dev/react-query"
 import { useQuery } from "@tanstack/react-query"
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import type { Id } from "../../../convex/_generated/dataModel"
 import { api } from "../../../convex/_generated/api"
@@ -69,6 +69,7 @@ function runnerStateDotClass(state: "offline" | "connecting" | "ready"): string 
 
 export function RunnerStatusControl(props: RunnerStatusControlProps) {
   const [open, setOpen] = useState(false)
+  const [statusNowMs, setStatusNowMs] = useState(() => Date.now())
   const [fallbackRunnerName] = useState(() => generateRunnerName())
   const [runnerLogging, setRunnerLogging] = useState<RunnerStartLogging>("info")
   const [tokenNonce, setTokenNonce] = useState(0)
@@ -80,7 +81,7 @@ export function RunnerStatusControl(props: RunnerStatusControlProps) {
     ...convexQuery(api.controlPlane.runners.listByProject, { projectId: props.projectId }),
   })
   const runners = runnersQuery.data ?? []
-  const runnerOnline = isProjectRunnerOnline(runners)
+  const runnerOnline = isProjectRunnerOnline(runners, statusNowMs)
 
   const projectConfigsQuery = useQuery({
     ...convexQuery(
@@ -211,8 +212,27 @@ export function RunnerStatusControl(props: RunnerStatusControlProps) {
       ? "Offline"
       : "Waiting"
 
+  const refreshRunnerState = useCallback(async () => {
+    setStatusNowMs(Date.now())
+    await runnersQuery.refetch()
+  }, [runnersQuery.refetch])
+
+  useEffect(() => {
+    if (!open) return
+    void refreshRunnerState()
+    const timer = window.setInterval(() => {
+      setStatusNowMs(Date.now())
+    }, 1_000)
+    return () => window.clearInterval(timer)
+  }, [open, refreshRunnerState])
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(nextOpen) => {
+      setOpen(nextOpen)
+      if (nextOpen) {
+        void refreshRunnerState()
+      }
+    }}>
       <DialogTrigger
         render={(triggerProps) => (
           <Button

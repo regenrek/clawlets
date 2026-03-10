@@ -16,6 +16,7 @@ export type RunnerLeaseJob = {
   sealedInputKeyId?: string;
   sealedInputRequired?: boolean;
   payloadMeta?: {
+    operationId?: string;
     hostName?: string;
     gatewayId?: string;
     scope?: SecretScope;
@@ -52,6 +53,7 @@ export type RunnerSshListSummary = {
 };
 
 export type RunnerDeployCredsSummary = {
+  schemaVersion?: number;
   updatedAtMs: number;
   envFileOrigin?: "default" | "explicit";
   envFileStatus?: "ok" | "missing" | "invalid";
@@ -329,6 +331,21 @@ export class RunnerApiClient {
     }>;
   }): Promise<{ ok: boolean }> {
     return await this.post("/runner/run-events/append-batch", params);
+  }
+
+  async updateSetupOperation(params: {
+    projectId: string;
+    jobId: string;
+    leaseId: string;
+    step: {
+      stepId: string;
+      status: "pending" | "running" | "succeeded" | "failed";
+      safeMessage: string;
+      detailJson?: string;
+      retryable?: boolean;
+    };
+  }): Promise<{ ok: boolean }> {
+    return await this.post("/runner/setup-operations/progress", params);
   }
 
   async syncMetadata(params: { projectId: string; payload: RunnerMetadataSyncPayload }): Promise<{ ok: boolean }> {

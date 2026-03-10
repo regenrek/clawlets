@@ -28,6 +28,9 @@ const http = httpRouter();
 type HttpActionCtx = Parameters<Parameters<typeof httpAction>[0]>[0];
 const RUNNER_COMMAND_RESULT_MAX_BYTES = 512 * 1024;
 const RUNNER_COMMAND_RESULT_BLOB_MAX_BYTES = 5 * 1024 * 1024;
+const RUNNER_LEASE_WAIT_MS_ROUTE_DEFAULT = 15_000;
+const RUNNER_LEASE_WAIT_MS_ROUTE_MIN = 5_000;
+const RUNNER_LEASE_WAIT_MS_ROUTE_MAX = 60_000;
 
 // Threat model: runner-submitted logs/metadata are untrusted telemetry.
 // Before persistence, these routes pass payloads through sanitizers to reduce secret leakage
@@ -63,6 +66,7 @@ async function requireRunnerAuth(
   ctx: HttpActionCtx,
   request: Request,
   expectedProjectId?: string,
+  options?: { touchLastUsed?: boolean },
 ): Promise<
   | {
       tokenId: Id<"runnerTokens">;
@@ -96,16 +100,28 @@ async function requireRunnerAuth(
   ) {
     return null;
   }
-  await touchRunnerTokenLastUsed(ctx, {
-    tokenId: authContext.tokenId,
-    now,
-  });
+  if (options?.touchLastUsed !== false) {
+    await touchRunnerTokenLastUsed(ctx, {
+      tokenId: authContext.tokenId,
+      now,
+      runnerName: authContext.runnerName,
+    });
+  }
   return {
     tokenId: authContext.tokenId,
     projectId: authContext.projectId,
     runnerId: authContext.runnerId,
     runnerName: authContext.runnerName,
   };
+}
+
+function normalizeRouteLeaseWaitMs(waitMsRaw: unknown): number {
+  if (typeof waitMsRaw !== "number" || !Number.isFinite(waitMsRaw)) {
+    return RUNNER_LEASE_WAIT_MS_ROUTE_DEFAULT;
+  }
+  const value = Math.trunc(waitMsRaw);
+  if (value <= 0) return RUNNER_LEASE_WAIT_MS_ROUTE_MIN;
+  return Math.max(RUNNER_LEASE_WAIT_MS_ROUTE_MIN, Math.min(RUNNER_LEASE_WAIT_MS_ROUTE_MAX, value));
 }
 
 http.route({
@@ -118,7 +134,7 @@ http.route({
     }
     const payload = body as Record<string, unknown>;
     const projectId = typeof payload.projectId === "string" ? payload.projectId : "";
-    const auth = await requireRunnerAuth(ctx, request, projectId);
+    const auth = await requireRunnerAuth(ctx, request, projectId, { touchLastUsed: false });
     if (!auth) return json(401, { error: "unauthorized" });
 
     const claimedRunnerName = ensureBoundedString(
@@ -165,7 +181,7 @@ http.route({
         ? Math.trunc(payload.leaseTtlMs)
         : undefined;
     const leased = await runLeaseNextWithWait({
-      waitMsRaw: payload.waitMs,
+      waitMsRaw: normalizeRouteLeaseWaitMs(payload.waitMs),
       waitPollMsRaw: payload.waitPollMs,
       sleep,
       leaseNext: async () =>
@@ -309,6 +325,66 @@ http.route({
       runId: runId as Id<"runs">,
       events: safeEvents,
     });
+    return json(200, { ok: true });
+  }),
+});
+
+http.route({
+  path: "/runner/setup-operations/progress",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const body = await readJson(request);
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return json(400, { error: "invalid JSON" });
+    }
+    const payload = body as Record<string, unknown>;
+    const projectId = typeof payload.projectId === "string" ? payload.projectId : "";
+    const auth = await requireRunnerAuth(ctx, request, projectId);
+    if (!auth) return json(401, { error: "unauthorized" });
+
+    const jobId = typeof payload.jobId === "string" ? payload.jobId : "";
+    const leaseId = typeof payload.leaseId === "string" ? payload.leaseId.trim() : "";
+    const step = asObject(payload.step);
+    if (!jobId || !leaseId || !step) return json(400, { error: "jobId, leaseId, and step required" });
+
+    const stepId = typeof step.stepId === "string" ? step.stepId : "";
+    const status = typeof step.status === "string" ? step.status : "";
+    const safeMessage = typeof step.safeMessage === "string" ? step.safeMessage : "";
+    const detailJson =
+      typeof step.detailJson === "string" && step.detailJson.trim()
+        ? ensureBoundedUtf8String(step.detailJson.trim(), "step.detailJson", 64 * 1024)
+        : undefined;
+    const retryable = typeof step.retryable === "boolean" ? step.retryable : status !== "succeeded";
+
+    if (!stepId || !status || !safeMessage) return json(400, { error: "invalid step" });
+
+    await ctx.runMutation(internal.controlPlane.setupOperations.progressInternal, {
+      jobId: jobId as Id<"jobs">,
+      leaseId,
+      step: {
+        stepId: stepId as any,
+        status: status as any,
+        safeMessage,
+        detailJson,
+        retryable,
+        updatedAt: Date.now(),
+      },
+    });
+
+    if (status === "failed") {
+      await ctx.runMutation(internal.controlPlane.setupOperations.finishAttemptInternal, {
+        jobId: jobId as Id<"jobs">,
+        status: "failed",
+        terminalMessage: safeMessage,
+      });
+    } else if (stepId === "persist_committed" && status === "succeeded") {
+      await ctx.runMutation(internal.controlPlane.setupOperations.finishAttemptInternal, {
+        jobId: jobId as Id<"jobs">,
+        status: "succeeded",
+        summaryJson: detailJson,
+      });
+    }
+
     return json(200, { ok: true });
   }),
 });

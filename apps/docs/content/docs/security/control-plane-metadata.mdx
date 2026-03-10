@@ -106,7 +106,7 @@ For protocol details: [Runner agent](/operations/runner-agent), [Deploy credenti
 - Secret setup inputs are stored only as runner-sealed ciphertext blobs.
 - Setup step readiness reads draft status from Convex (`set`/`missing`) instead of
   auto-reading runner-local deploy-credential files (`env show --json` is not part of setup readiness).
-- Final setup commit enqueues one sealed `setup_apply` job.
+- Final setup start creates one host-scoped setup operation and enqueues one sealed `setup_apply` runner job for that operation.
 - Secret-bearing jobs do not append raw command output to run events.
 
 ## Retention and erasure

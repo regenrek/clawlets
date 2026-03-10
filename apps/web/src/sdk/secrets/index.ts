@@ -1,5 +1,6 @@
 export * from "./helpers"
 export * from "./init"
+export * from "./status"
 export * from "./sync"
 export * from "./verify"
 export * from "./write"

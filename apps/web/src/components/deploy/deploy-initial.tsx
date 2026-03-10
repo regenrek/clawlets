@@ -51,6 +51,7 @@ type DeployInitialInstallProps = {
   pendingInfrastructureDraft?: SetupDraftInfrastructure | null
   pendingConnectionDraft?: SetupDraftConnection | null
   pendingBootstrapSecrets?: SetupPendingBootstrapSecrets
+  hasActiveHcloudToken?: boolean
   hasProjectGithubToken?: boolean
   hasProjectGithubTokenAccess?: boolean
   githubTokenAccessMessage?: string
@@ -75,6 +76,7 @@ export function DeployInitialInstall({
     tailscaleAuthKey: "",
     useTailscaleLockdown: true,
   },
+  hasActiveHcloudToken = false,
   hasProjectGithubToken = false,
   hasProjectGithubTokenAccess = false,
   githubTokenAccessMessage = "",
@@ -94,6 +96,7 @@ export function DeployInitialInstall({
         pendingInfrastructureDraft={pendingInfrastructureDraft}
         pendingConnectionDraft={pendingConnectionDraft}
         pendingBootstrapSecrets={pendingBootstrapSecrets}
+        hasActiveHcloudToken={hasActiveHcloudToken}
         hasProjectGithubToken={hasProjectGithubToken}
         hasProjectGithubTokenAccess={hasProjectGithubTokenAccess}
         githubTokenAccessMessage={githubTokenAccessMessage}

@@ -4,6 +4,7 @@ import path from "node:path";
 import { loadFullConfig, type ClawletsConfig } from "@clawlets/core/lib/config/clawlets-config";
 import { getRepoLayout, getHostSecretsDir } from "@clawlets/core/repo-layout";
 import { loadDeployCreds } from "@clawlets/core/lib/infra/deploy-creds";
+import { RUNNER_DEPLOY_CREDS_SUMMARY_SCHEMA_VERSION } from "@clawlets/core/lib/runtime/runner-deploy-creds-contract";
 import { buildFleetSecretsPlan } from "@clawlets/core/lib/secrets/plan";
 import { checkGithubRepoVisibility, tryParseGithubFlakeUri } from "@clawlets/core/lib/vcs/github";
 import { redactKnownSecrets } from "@clawlets/core/lib/runtime/redaction";
@@ -165,6 +166,7 @@ async function toDeployCredsSummary(params: {
     const fleetSshAuthorizedKeys = summarizeSshList(params.fleetSshAuthorizedKeys);
     const fleetSshKnownHosts = summarizeSshList(params.fleetSshKnownHosts);
     return {
+      schemaVersion: RUNNER_DEPLOY_CREDS_SUMMARY_SCHEMA_VERSION,
       updatedAtMs: params.now,
       envFileOrigin,
       envFileStatus,
@@ -185,6 +187,7 @@ async function toDeployCredsSummary(params: {
     };
   } catch (err) {
     return {
+      schemaVersion: RUNNER_DEPLOY_CREDS_SUMMARY_SCHEMA_VERSION,
       updatedAtMs: params.now,
       envFileOrigin: "default",
       envFileStatus: "invalid",

@@ -30,6 +30,7 @@ import type * as controlPlane_runners from "../controlPlane/runners.js";
 import type * as controlPlane_runs from "../controlPlane/runs.js";
 import type * as controlPlane_secretWiring from "../controlPlane/secretWiring.js";
 import type * as controlPlane_setupDrafts from "../controlPlane/setupDrafts.js";
+import type * as controlPlane_setupOperations from "../controlPlane/setupOperations.js";
 import type * as crons from "../crons.js";
 import type * as http from "../http.js";
 import type * as identity_users from "../identity/users.js";
@@ -77,6 +78,7 @@ declare const fullApi: ApiFromModules<{
   "controlPlane/runs": typeof controlPlane_runs;
   "controlPlane/secretWiring": typeof controlPlane_secretWiring;
   "controlPlane/setupDrafts": typeof controlPlane_setupDrafts;
+  "controlPlane/setupOperations": typeof controlPlane_setupOperations;
   crons: typeof crons;
   http: typeof http;
   "identity/users": typeof identity_users;

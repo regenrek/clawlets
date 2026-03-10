@@ -303,31 +303,29 @@ describe("runner command policy", () => {
     }
   });
 
-  it("allows setup_apply kind and resolves structured small result", async () => {
+  it("accepts typed setup_apply payload and rejects legacy cli args", async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "clawlets-policy-setup-apply-"));
     try {
       const payloadValidation = validateRunnerJobPayload({
         kind: "setup_apply",
         payloadMeta: {
-          args: ["setup", "apply", "--from-json", "__RUNNER_INPUT_JSON__", "--json"],
-          updatedKeys: ["hostName", "configOps", "deployCredsDraft", "bootstrapSecretsDraft"],
+          hostName: "alpha",
+          operationId: "op-1",
         },
       });
       expect(payloadValidation.ok).toBe(true);
 
-      const result = await resolveRunnerJobCommand({
+      const legacy = await resolveRunnerJobCommand({
         kind: "setup_apply",
         payloadMeta: {
           args: ["setup", "apply", "--from-json", "__RUNNER_INPUT_JSON__", "--json"],
-          updatedKeys: ["hostName", "configOps", "deployCredsDraft", "bootstrapSecretsDraft"],
+          hostName: "alpha",
+          operationId: "op-1",
         },
         repoRoot: dir,
       });
-      expect(result.ok).toBe(true);
-      if (!result.ok) return;
-      expect(result.exec).toBe("clawlets");
-      expect(result.resultMode).toBe("json_small");
-      expect(result.resultMaxBytes).toBe(512 * 1024);
+      expect(legacy.ok).toBe(false);
+      if (!legacy.ok) expect(legacy.error).toMatch(/forbids payloadMeta\.args/i);
     } finally {
       await fs.rm(dir, { recursive: true, force: true });
     }

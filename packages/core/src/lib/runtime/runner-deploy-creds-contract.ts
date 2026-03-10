@@ -1,0 +1,1 @@
+export const RUNNER_DEPLOY_CREDS_SUMMARY_SCHEMA_VERSION = 2 as const;

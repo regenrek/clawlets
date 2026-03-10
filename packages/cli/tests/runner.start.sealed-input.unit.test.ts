@@ -92,9 +92,17 @@ async function loadRunnerStartWithMocks(params: {
   resolvedResultMaxBytes?: number;
   captureOutput?: string;
   mockNixBin?: string | null;
+  mockSetupApplyExecute?: (input: any, runtime: any) => Promise<any>;
 }) {
   vi.resetModules();
-  const observed: { tempPath?: string; tempJson?: string; env?: Record<string, unknown>; stdin?: unknown } = {};
+  const observed: {
+    tempPath?: string;
+    tempJson?: string;
+    env?: Record<string, unknown>;
+    stdin?: unknown;
+    setupApplyInput?: unknown;
+    setupApplyRuntime?: unknown;
+  } = {};
 
   const inspectTempPath = async (argv: string[]) => {
     for (const token of argv) {
@@ -149,6 +157,15 @@ async function loadRunnerStartWithMocks(params: {
       resultMaxBytes: params.resolvedResultMaxBytes,
     })),
   }));
+  if (params.mockSetupApplyExecute) {
+    vi.doMock("@clawlets/core/lib/setup/engine", () => ({
+      executeSetupApplyPlan: vi.fn(async (input: any, runtime: any) => {
+        observed.setupApplyInput = input;
+        observed.setupApplyRuntime = runtime;
+        return await params.mockSetupApplyExecute!(input, runtime);
+      }),
+    }));
+  }
 
   const mod = await import("../src/commands/runner/start.js");
   return { mod, execCaptureTail, execCaptureStdout, observed };
@@ -467,7 +484,7 @@ describe("runner sealed input execution", () => {
     }
   });
 
-  it("unseals setup_apply nested drafts into final input JSON and returns structured summary", async () => {
+  it("unseals setup_apply nested drafts into final execution input and returns structured summary", async () => {
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "clawlets-runner-start-"));
     try {
       const keypair = await loadOrCreateRunnerSealedInputKeypair({
@@ -479,69 +496,41 @@ describe("runner sealed input execution", () => {
       const jobId = "job-setup-apply";
       const kind = "setup_apply";
 
-      const hostBootstrapCredsDraft = buildEnvelope({
-        publicKeySpkiB64: keypair.publicKeySpkiB64,
-        keyId: keypair.keyId,
-        aad: `${projectId}:${hostName}:setupDraft:hostBootstrapCreds:${targetRunnerId}`,
-        plaintext: JSON.stringify({
-          HCLOUD_TOKEN: "token-123",
-          GITHUB_TOKEN: "gh-123",
-          SOPS_AGE_KEY_FILE: "/tmp/operator.agekey",
-        }),
-      });
-      const hostBootstrapSecretsDraft = buildEnvelope({
-        publicKeySpkiB64: keypair.publicKeySpkiB64,
-        keyId: keypair.keyId,
-        aad: `${projectId}:${hostName}:setupDraft:hostBootstrapSecrets:${targetRunnerId}`,
-        plaintext: JSON.stringify({
-          adminPasswordHash: "$6$hash",
-          discord_token: "token-xyz",
-        }),
-      });
       const outerPayload = {
+        schemaVersion: 1,
         hostName,
-        configOps: [
+        configMutations: [
           {
             path: "hosts.alpha.provisioning.provider",
             value: "hetzner",
             del: false,
           },
         ],
-        hostBootstrapCredsDraft: {
-          alg: RUNNER_SEALED_INPUT_ALG,
-          keyId: keypair.keyId,
-          targetRunnerId,
-          sealedInputB64: hostBootstrapCredsDraft,
-          aad: `${projectId}:${hostName}:setupDraft:hostBootstrapCreds:${targetRunnerId}`,
-          updatedAt: 1,
-          expiresAt: Date.now() + 60_000,
+        deployCreds: {
+          HCLOUD_TOKEN: "token-123",
+          GITHUB_TOKEN: "gh-123",
+          SOPS_AGE_KEY_FILE: "/tmp/operator.agekey",
         },
-        hostBootstrapSecretsDraft: {
-          alg: RUNNER_SEALED_INPUT_ALG,
-          keyId: keypair.keyId,
-          targetRunnerId,
-          sealedInputB64: hostBootstrapSecretsDraft,
-          aad: `${projectId}:${hostName}:setupDraft:hostBootstrapSecrets:${targetRunnerId}`,
-          updatedAt: 1,
-          expiresAt: Date.now() + 60_000,
+        bootstrapSecrets: {
+          adminPasswordHash: "$6$hash",
+          discord_token: "token-xyz",
         },
       };
       const sealedInputB64 = buildEnvelope({
         publicKeySpkiB64: keypair.publicKeySpkiB64,
         keyId: keypair.keyId,
-        aad: `${projectId}:${jobId}:${kind}:${targetRunnerId}`,
+        aad: `${projectId}:op-setup-apply:setupApply:${targetRunnerId}`,
         plaintext: JSON.stringify(outerPayload),
       });
 
-      const { mod, execCaptureTail, execCaptureStdout, observed } = await loadRunnerStartWithMocks({
-        resolvedKind: kind,
-        resolvedArgs: ["setup", "apply", "--from-json", "__RUNNER_INPUT_JSON__", "--json"],
-        resolvedResultMode: "json_small",
-        captureOutput: "{\"ok\":true,\"summary\":\"safe\"}",
-      });
+      const mod = await import("../src/commands/runner/start.js");
+      let observedPlan: unknown;
+      let observedRuntime: unknown;
 
       await expect(
-        mod.__test_executeJob({
+        mod.__test_executeLeasedJobWithRunEvents({
+          client: { appendRunEvents: vi.fn(async () => ({ ok: true })), updateSetupOperation: vi.fn(async () => ({ ok: true })) } as any,
+          projectId,
           job: {
             jobId,
             runId: "run-setup-apply",
@@ -554,23 +543,44 @@ describe("runner sealed input execution", () => {
             sealedInputAlg: RUNNER_SEALED_INPUT_ALG,
             sealedInputKeyId: keypair.keyId,
             payloadMeta: {
-              args: ["setup", "apply", "--from-json", "__RUNNER_INPUT_JSON__", "--json"],
-              updatedKeys: ["hostName", "configOps", "hostBootstrapCredsDraft", "hostBootstrapSecretsDraft"],
+              operationId: "op-setup-apply",
+              hostName,
             },
           },
           repoRoot: "/tmp/repo",
-          projectId,
+          runtimeDir: "/tmp/runtime",
           runnerPrivateKeyPem: keypair.privateKeyPem,
+          maxAttempts: 3,
+          executeJobFn: mod.__test_executeJob,
+          executeSetupApplyPlanFn: vi.fn(async (input: any, runtime: any) => {
+            observedPlan = input;
+            observedRuntime = runtime;
+            return {
+              terminal: "succeeded",
+              steps: [],
+              summary: { ok: true, summary: "safe" },
+            };
+          }) as any,
         }),
       ).resolves.toEqual({
+        terminal: "succeeded",
         commandResultJson: "{\"ok\":true,\"summary\":\"safe\"}",
+        commandResultLargeJson: undefined,
       });
 
-      expect(execCaptureTail).not.toHaveBeenCalled();
-      expect(execCaptureStdout).toHaveBeenCalledTimes(1);
-      const parsed = JSON.parse(String(observed.tempJson || "{}")) as Record<string, unknown>;
-      expect(parsed.hostName).toBe(hostName);
-      expect(parsed).toMatchObject({
+      expect(observedRuntime).toMatchObject({
+        repoRoot: "/tmp/repo",
+        runtimeDir: "/tmp/runtime",
+      });
+      expect(observedPlan).toMatchObject({
+        hostName,
+        configMutations: [
+          {
+            path: "hosts.alpha.provisioning.provider",
+            value: "hetzner",
+            del: false,
+          },
+        ],
         deployCreds: {
           HCLOUD_TOKEN: "token-123",
           GITHUB_TOKEN: "gh-123",
@@ -585,10 +595,30 @@ describe("runner sealed input execution", () => {
     }
   });
 
-  it("does not append command_output events for setup_apply secret-bearing runs", async () => {
+  it("does not append command_output events for setup_apply operation runs", async () => {
     const appendRunEvents = vi.fn(async () => ({ ok: true }));
-    const result = await (await import("../src/commands/runner/start.js")).__test_executeLeasedJobWithRunEvents({
-      client: { appendRunEvents } as any,
+    const keypair = await loadOrCreateRunnerSealedInputKeypair({
+      privateKeyPath: path.join(os.tmpdir(), `clawlets-runner-setup-output-${randomBytes(4).toString("hex")}.pem`),
+    });
+    const sealedInputB64 = buildEnvelope({
+      publicKeySpkiB64: keypair.publicKeySpkiB64,
+      keyId: keypair.keyId,
+      aad: "p1:op-setup-output:setupApply:r1",
+      plaintext: JSON.stringify({
+        schemaVersion: 1,
+        hostName: "host-a",
+        configMutations: [{ path: "hosts.host-a.hetzner.serverType", value: "cx22", del: false }],
+        deployCreds: {
+          HCLOUD_TOKEN: "token-123",
+        },
+        bootstrapSecrets: {
+          adminPasswordHash: "$6$hash",
+        },
+      }),
+    });
+    const mod = await import("../src/commands/runner/start.js");
+    const result = await mod.__test_executeLeasedJobWithRunEvents({
+      client: { appendRunEvents, updateSetupOperation: vi.fn(async () => ({ ok: true })) } as any,
       projectId: "p1",
       job: {
         jobId: "job-setup-output",
@@ -597,11 +627,25 @@ describe("runner sealed input execution", () => {
         leaseExpiresAt: Date.now() + 30_000,
         kind: "setup_apply",
         attempt: 1,
+        targetRunnerId: "r1",
+        sealedInputB64,
+        sealedInputAlg: RUNNER_SEALED_INPUT_ALG,
+        sealedInputKeyId: keypair.keyId,
+        payloadMeta: {
+          operationId: "op-setup-output",
+          hostName: "host-a",
+        },
       },
-      maxAttempts: 3,
-      executeJobFn: vi.fn(async () => ({
-        commandResultJson: "{\"ok\":true}",
-      })),
+          repoRoot: "/tmp/repo",
+          runtimeDir: "/tmp/runtime",
+          runnerPrivateKeyPem: keypair.privateKeyPem,
+          maxAttempts: 3,
+          executeJobFn: mod.__test_executeJob,
+          executeSetupApplyPlanFn: vi.fn(async () => ({
+            terminal: "succeeded",
+            steps: [],
+        summary: { ok: true },
+      })) as any,
     });
 
     expect(result).toEqual({
@@ -613,6 +657,78 @@ describe("runner sealed input execution", () => {
     const messages = runEventMessages(appendRunEvents);
     expect(messages.some((message) => message.includes("structured JSON result stored ephemerally"))).toBe(false);
     expect(messages.some((message) => message.includes("{\"ok\":true}"))).toBe(false);
+  });
+
+  it("fails closed when setup_apply outer envelope AAD does not match operationId", async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "clawlets-runner-start-"));
+    try {
+      const keypair = await loadOrCreateRunnerSealedInputKeypair({
+        privateKeyPath: path.join(tempDir, "runner.pem"),
+      });
+      const projectId = "p1";
+      const targetRunnerId = "r1";
+      const hostName = "alpha";
+      const kind = "setup_apply";
+      const jobId = "job-setup-aad-mismatch";
+
+      const outerPayload = {
+        schemaVersion: 1,
+        hostName,
+        configMutations: [
+          { path: "hosts.alpha.provisioning.provider", value: "hetzner", del: false },
+        ],
+        deployCreds: {
+          GITHUB_TOKEN: "gh-123",
+        },
+        bootstrapSecrets: {
+          adminPasswordHash: "$6$hash",
+        },
+      };
+      const sealedInputB64 = buildEnvelope({
+        publicKeySpkiB64: keypair.publicKeySpkiB64,
+        keyId: keypair.keyId,
+        aad: `${projectId}:op-other:setupApply:${targetRunnerId}`,
+        plaintext: JSON.stringify(outerPayload),
+      });
+
+      const mod = await import("../src/commands/runner/start.js");
+      const executeSetupApplyPlanFn = vi.fn(async () => ({
+        terminal: "succeeded",
+        steps: [],
+        summary: { ok: true },
+      }));
+
+      const result = await mod.__test_executeLeasedJobWithRunEvents({
+        client: { appendRunEvents: vi.fn(async () => ({ ok: true })), updateSetupOperation: vi.fn(async () => ({ ok: true })) } as any,
+        projectId,
+        job: {
+          jobId,
+          runId: "run-setup-aad-mismatch",
+          leaseId: "lease-setup-aad-mismatch",
+          leaseExpiresAt: Date.now() + 30_000,
+          kind,
+          attempt: 1,
+          targetRunnerId,
+          sealedInputB64,
+          sealedInputAlg: RUNNER_SEALED_INPUT_ALG,
+          sealedInputKeyId: keypair.keyId,
+          payloadMeta: {
+            operationId: "op-setup-apply",
+          },
+        },
+        repoRoot: "/tmp/repo",
+        runtimeDir: "/tmp/runtime",
+        runnerPrivateKeyPem: keypair.privateKeyPem,
+        maxAttempts: 3,
+        executeJobFn: mod.__test_executeJob,
+        executeSetupApplyPlanFn,
+      });
+
+      expect(result.terminal).toBe("failed");
+      expect(executeSetupApplyPlanFn).not.toHaveBeenCalled();
+    } finally {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    }
   });
 
   it("returns machine JSON via commandResultJson and redacts run-event output", async () => {

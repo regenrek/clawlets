@@ -6,6 +6,7 @@ export const PROJECT_DELETION_STAGES = [
   "hosts",
   "gateways",
   "secretWiring",
+  "setupOperations",
   "jobs",
   "runnerCommandResultBlobs",
   "runnerCommandResults",

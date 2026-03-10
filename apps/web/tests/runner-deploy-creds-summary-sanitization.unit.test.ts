@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { RUNNER_DEPLOY_CREDS_SUMMARY_SCHEMA_VERSION } from "@clawlets/core/lib/runtime/runner-deploy-creds-contract";
 import { sanitizeDeployCredsSummary } from "../convex/controlPlane/httpParsers";
 
 describe("runner deploy-creds summary sanitization", () => {
@@ -21,6 +22,7 @@ describe("runner deploy-creds summary sanitization", () => {
       },
     });
     expect(out).toEqual({
+      schemaVersion: RUNNER_DEPLOY_CREDS_SUMMARY_SCHEMA_VERSION,
       updatedAtMs: 1234,
       envFileOrigin: "default",
       envFileStatus: "missing",
@@ -52,6 +54,7 @@ describe("runner deploy-creds summary sanitization", () => {
       },
     });
     expect(out).not.toBeNull();
+    expect(out?.schemaVersion).toBe(RUNNER_DEPLOY_CREDS_SUMMARY_SCHEMA_VERSION);
     expect(out?.projectTokenKeyrings).toEqual({
       hcloud: { hasActive: false, itemCount: 0, items: [] },
     });
@@ -59,6 +62,7 @@ describe("runner deploy-creds summary sanitization", () => {
 
   it("accepts valid typed payloads without mutation", () => {
     const input = {
+      schemaVersion: RUNNER_DEPLOY_CREDS_SUMMARY_SCHEMA_VERSION,
       updatedAtMs: 9_999,
       envFileOrigin: "explicit",
       envFileStatus: "ok",

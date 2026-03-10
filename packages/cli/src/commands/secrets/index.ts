@@ -2,7 +2,7 @@ import { defineCommand } from "citty";
 import { secretsInit } from "./init.js";
 import { secretsPath } from "./path.js";
 import { secretsSync } from "./sync.js";
-import { secretsVerify } from "./verify.js";
+import { secretsStatus, secretsVerify } from "./verify.js";
 
 export const secrets = defineCommand({
   meta: {
@@ -11,6 +11,7 @@ export const secrets = defineCommand({
   },
   subCommands: {
     init: secretsInit,
+    status: secretsStatus,
     verify: secretsVerify,
     sync: secretsSync,
     path: secretsPath,

@@ -5,7 +5,6 @@ import { toast } from "sonner"
 import type { Id } from "../../../convex/_generated/dataModel"
 import { api } from "../../../convex/_generated/api"
 import type { MissingSecretConfig } from "@clawlets/core/lib/secrets/secrets-plan"
-import { SECRET_WIRING_STATUSES } from "@clawlets/core/lib/runtime/control-plane-constants"
 import { RunLogTail } from "~/components/run-log-tail"
 import { SecretsInputs, type SecretsPlan, type SecretStatus } from "~/components/fleet/secrets-inputs"
 import { AsyncButton } from "~/components/ui/async-button"
@@ -21,6 +20,7 @@ import { setupFieldHelp } from "~/lib/setup-field-help"
 import { sealForRunner } from "~/lib/security/sealed-input"
 import {
   getSecretsTemplate,
+  getBootstrapSecretStatus,
   secretsInitExecute,
   secretsInitFinalize,
   secretsInitStart,
@@ -47,13 +47,7 @@ type HostSecretsPanelProps = {
 }
 
 const EMPTY_MISSING_SECRET_CONFIG: MissingSecretConfig[] = []
-type SecretWiringStatus = (typeof SECRET_WIRING_STATUSES)[number]
 type SetupSavePhase = "idle" | "saving"
-const SECRET_WIRING_STATUS_SET = new Set<string>(SECRET_WIRING_STATUSES)
-
-function isSecretWiringStatus(value: unknown): value is SecretWiringStatus {
-  return typeof value === "string" && SECRET_WIRING_STATUS_SET.has(value)
-}
 
 export function HostSecretsPanel({
   projectId,
@@ -75,10 +69,6 @@ export function HostSecretsPanel({
   const hasTemplate = Boolean(template.data)
   const runnersQuery = useQuery({
     ...convexQuery(api.controlPlane.runners.listByProject, { projectId }),
-  })
-  const secretWiringQuery = useQuery({
-    ...convexQuery(api.controlPlane.secretWiring.listByProjectHost, { projectId, hostName: host }),
-    enabled: Boolean(host),
   })
   const sealedRunners = useMemo(
     () =>
@@ -342,18 +332,32 @@ export function HostSecretsPanel({
     return out
   }, [secretsPlan, setupDraftSecretsSet, setupMode])
 
-  const secretWiringStatusByName = useMemo<Record<string, SecretWiringStatus>>(() => {
-    const out: Record<string, SecretWiringStatus> = {}
-    for (const row of secretWiringQuery.data ?? []) {
-      if (!row?.secretName) continue
-      if (!isSecretWiringStatus(row.status)) continue
-      out[row.secretName] = row.status
+  const bootstrapSecretStatusQuery = useQuery({
+    queryKey: ["bootstrapSecretStatus", projectId, host],
+    queryFn: async () => {
+      if (!host) throw new Error("missing host")
+      return await getBootstrapSecretStatus({
+        data: {
+          projectId,
+          host,
+        },
+      })
+    },
+    enabled: Boolean(host),
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  })
+  const bootstrapStatusByName = useMemo<Record<string, string>>(() => {
+    const out: Record<string, string> = {}
+    for (const [secret, row] of Object.entries(bootstrapSecretStatusQuery.data?.statusBySecret ?? {})) {
+      out[secret] = row.status
     }
     return out
-  }, [secretWiringQuery.data])
+  }, [bootstrapSecretStatusQuery.data])
 
-  const adminConfigured = setupDraftSecretsSet || secretWiringStatusByName["admin_password_hash"] === "configured"
-  const tailscaleConfigured = setupDraftSecretsSet || secretWiringStatusByName["tailscale_auth_key"] === "configured"
+  const adminConfigured = setupDraftSecretsSet || bootstrapStatusByName["admin_password_hash"] === "ok"
+  const tailscaleConfigured = setupDraftSecretsSet || bootstrapStatusByName["tailscale_auth_key"] === "ok"
   const adminLocked = (adminConfigured || secretStatusByName["admin_password_hash"]?.status === "ok") && !adminUnlocked
   const tailscaleLocked = (tailscaleConfigured || secretStatusByName["tailscale_auth_key"]?.status === "ok") && !tailscaleUnlocked
   const showTailscaleEditorInSetup = !tailscaleLocked || Boolean(tailscaleAuthKey.trim())

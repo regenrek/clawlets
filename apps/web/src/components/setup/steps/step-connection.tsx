@@ -1,9 +1,7 @@
-import { convexQuery } from "@convex-dev/react-query"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import type { Id } from "../../../../convex/_generated/dataModel"
-import { api } from "../../../../convex/_generated/api"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "~/components/ui/accordion"
 import { AdminCidrField } from "~/components/hosts/admin-cidr-field"
 import { Checkbox } from "~/components/ui/checkbox"
@@ -19,6 +17,7 @@ import { maskSshPublicKey } from "~/lib/ssh-redaction"
 import { deriveConnectionLateHydration } from "~/lib/setup/connection-hydration"
 import { setupConfigProbeQueryKey } from "~/lib/setup/repo-probe"
 import { addProjectSshKeys } from "~/sdk/config/hosts"
+import { getBootstrapSecretStatus } from "~/sdk/secrets"
 import type { SetupDraftConnection, SetupDraftView } from "~/sdk/setup"
 import { SetupSaveStateBadge } from "~/components/setup/steps/setup-save-state-badge"
 import type { SetupStepStatus } from "~/lib/setup/setup-model"
@@ -115,19 +114,25 @@ function SetupStepConnectionForm(props: {
 }) {
   const queryClient = useQueryClient()
   const draftConnection = props.setupDraft?.nonSecretDraft?.connection
-  const secretWiringQuery = useQuery({
-    ...convexQuery(
-      api.controlPlane.secretWiring.listByProjectHost,
-      props.host ? { projectId: props.projectId, hostName: props.host } : "skip",
-    ),
+  const bootstrapSecretStatusQuery = useQuery({
+    queryKey: ["bootstrapSecretStatus", props.projectId, props.host],
+    queryFn: async () => {
+      if (!props.host) throw new Error("missing host")
+      return await getBootstrapSecretStatus({
+        data: {
+          projectId: props.projectId,
+          host: props.host,
+        },
+      })
+    },
     enabled: Boolean(props.host),
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   })
   const adminPasswordConfigured = useMemo(
-    () =>
-      (secretWiringQuery.data ?? []).some(
-        (row) => row.secretName === "admin_password_hash" && row.status === "configured",
-      ),
-    [secretWiringQuery.data],
+    () => bootstrapSecretStatusQuery.data?.statusBySecret?.["admin_password_hash"]?.status === "ok",
+    [bootstrapSecretStatusQuery.data],
   )
   const adminPasswordRequired = !adminPasswordConfigured
 
@@ -235,6 +240,9 @@ function SetupStepConnectionForm(props: {
   const saveState = useMemo(() => {
     if (props.setupDraft?.status === "failed") return "error" as const
     if (!draftConnection) return "not_saved" as const
+    if (selectedKeys.length === 0) return "not_saved" as const
+    if (!adminCidr.trim() && !props.adminCidrDetecting) return "not_saved" as const
+    if (adminPasswordRequired && !props.adminPassword.trim()) return "not_saved" as const
     const draftAdmin = String(draftConnection.adminCidr || "").trim()
     const draftMode = String(draftConnection.sshExposureMode || "bootstrap").trim() || "bootstrap"
     const draftKeys = toUniqueKeys(Array.isArray(draftConnection.sshAuthorizedKeys) ? draftConnection.sshAuthorizedKeys : [])
@@ -244,7 +252,16 @@ function SetupStepConnectionForm(props: {
     if (draftKeys.length !== currentKeys.length) return "not_saved" as const
     if (draftKeys.some((key) => !currentKeys.includes(key))) return "not_saved" as const
     return "saved" as const
-  }, [adminCidr, draftConnection, existingMode, props.setupDraft?.status, selectedKeys])
+  }, [
+    adminCidr,
+    adminPasswordRequired,
+    draftConnection,
+    existingMode,
+    props.adminCidrDetecting,
+    props.adminPassword,
+    props.setupDraft?.status,
+    selectedKeys,
+  ])
 
   const toggleSelectedKey = (key: string, checked: boolean) => {
     setSelectedKeys((prev) => {

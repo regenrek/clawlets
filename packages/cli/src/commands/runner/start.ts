@@ -17,6 +17,9 @@ import {
   RUNNER_COMMAND_RESULT_SMALL_MAX_BYTES,
 } from "@clawlets/core/lib/runtime/runner-command-policy-args";
 import { resolveRunnerJobCommand } from "@clawlets/core/lib/runtime/runner-command-policy-resolve";
+import { executeSetupApplyPlan } from "@clawlets/core/lib/setup/engine";
+import { parseSetupApplyPlan } from "@clawlets/core/lib/setup/plan";
+import { buildSetupApplyEnvelopeAad, buildSetupApplyTelemetryMessage, type SetupApplyStepResult } from "@clawlets/core/lib/setup/shared";
 import { coerceTrimmedString } from "@clawlets/shared/lib/strings";
 import { createRunnerLogger, parseLogLevel, resolveRunnerLogFile, safeFileSegment } from "../../lib/logging/logger.js";
 import {
@@ -65,6 +68,44 @@ function toInt(value: unknown, fallback: number, min: number, max: number): numb
 
 function normalizeBaseUrl(value: string): string {
   return coerceTrimmedString(value).replace(/\/+$/, "");
+}
+
+function isLocalhostHostname(hostname: string): boolean {
+  const normalized = String(hostname || "").trim().toLowerCase();
+  return normalized === "localhost" || normalized === "127.0.0.1" || normalized === "::1";
+}
+
+function resolveRunnerMetadataSyncMaxAgeMs(controlPlaneUrl: string): number {
+  const overrideRaw = String(process.env["CLAWLETS_RUNNER_METADATA_SYNC_MAX_AGE_MS"] || "").trim();
+  if (overrideRaw) {
+    const override = Number(overrideRaw);
+    if (Number.isFinite(override) && override > 0) return Math.trunc(override);
+  }
+
+  try {
+    const url = new URL(controlPlaneUrl);
+    if (isLocalhostHostname(url.hostname)) return RUNNER_METADATA_SYNC_MAX_AGE_MS_DEV;
+  } catch {
+    // fall through
+  }
+  return RUNNER_METADATA_SYNC_MAX_AGE_MS_PROD;
+}
+
+function resolveRunnerMaxIdleMs(controlPlaneUrl: string, rawArg: unknown): number {
+  const raw = String(rawArg ?? "auto").trim().toLowerCase();
+  if (!raw || raw === "auto") {
+    try {
+      const url = new URL(controlPlaneUrl);
+      return isLocalhostHostname(url.hostname) ? RUNNER_MAX_IDLE_MS_DEFAULT_DEV : 0;
+    } catch {
+      return 0;
+    }
+  }
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) return 0;
+  const value = Math.trunc(parsed);
+  if (value <= 0) return 0;
+  return Math.min(RUNNER_MAX_IDLE_MS_MAX, value);
 }
 
 function resolveControlPlaneUrl(raw: unknown): string {
@@ -166,11 +207,15 @@ const RUNNER_TEMP_FILE_PREFIXES = ["clawlets-runner-secrets.", "clawlets-runner-
 const RUNNER_EMPTY_LEASE_MAX_STREAK = 8;
 const RUNNER_EMPTY_LEASE_JITTER_MIN = 0.85;
 const RUNNER_EMPTY_LEASE_JITTER_MAX = 1.15;
-const RUNNER_METADATA_SYNC_MAX_AGE_MS = 10 * 60_000;
+const RUNNER_METADATA_SYNC_MAX_AGE_MS_PROD = 10 * 60_000;
+const RUNNER_METADATA_SYNC_MAX_AGE_MS_DEV = 30 * 60_000;
 const RUNNER_METADATA_SYNC_SHUTDOWN_FLUSH_TIMEOUT_MS = 2_000;
-const RUNNER_IDLE_LEASE_WAIT_MS_DEFAULT = 0;
-const RUNNER_IDLE_POLL_MS_DEFAULT = 100;
-const RUNNER_IDLE_POLL_MAX_MS_DEFAULT = 100;
+const RUNNER_IDLE_LEASE_WAIT_MS_DEFAULT = 15_000;
+const RUNNER_IDLE_POLL_MS_DEFAULT = 1_000;
+const RUNNER_IDLE_POLL_MAX_MS_DEFAULT = 5_000;
+const RUNNER_LEASE_ERROR_BACKOFF_MAX_MS = 60_000;
+const RUNNER_MAX_IDLE_MS_DEFAULT_DEV = 90 * 60_000;
+const RUNNER_MAX_IDLE_MS_MAX = 7 * 24 * 60 * 60_000;
 const TOKEN_KEYRING_MUTATE_ARGS = ["env", "token-keyring-mutate", "--from-json", "__RUNNER_INPUT_JSON__", "--json"] as const;
 const TOKEN_KEYRING_MUTATE_ALLOWED_INPUT_KEYS = new Set(["action", "kind", "keyId", "label", "value"]);
 
@@ -216,10 +261,29 @@ function computePostJobIdlePollDelayMs(params: {
   return Math.max(0, Math.trunc(params.pollMs));
 }
 
+function computeLeaseErrorBackoffMs(params: {
+  pollMs: number;
+  pollMaxMs: number;
+  leaseErrorStreak: number;
+  kind: ReturnType<typeof classifyRunnerHttpError>;
+  random?: () => number;
+}): number {
+  const pollMs = Math.max(1, Math.trunc(params.pollMs));
+  const pollMaxMs = Math.max(pollMs, Math.trunc(params.pollMaxMs));
+  const transient = params.kind === "transient" || params.kind === "unknown";
+  const cappedMaxMs = transient
+    ? Math.max(pollMaxMs, RUNNER_LEASE_ERROR_BACKOFF_MAX_MS)
+    : pollMaxMs;
+  const streak = Math.max(0, Math.min(12, Math.trunc(params.leaseErrorStreak)));
+  const baseDelayMs = Math.min(cappedMaxMs, pollMs * 2 ** streak);
+  return Math.min(cappedMaxMs, Math.max(pollMs, jitter(baseDelayMs, params.random ?? Math.random)));
+}
+
 function metadataSnapshotFingerprint(payload: RunnerMetadataSyncPayload): string {
   const normalized = {
     deployCredsSummary: payload.deployCredsSummary
         ? {
+            schemaVersion: payload.deployCredsSummary.schemaVersion,
             envFileOrigin: payload.deployCredsSummary.envFileOrigin,
             envFileStatus: payload.deployCredsSummary.envFileStatus,
             hasGithubToken: payload.deployCredsSummary.hasGithubToken,
@@ -536,175 +600,6 @@ function parseSealedInputStringMap(rawJson: string): Record<string, string> {
   return out;
 }
 
-type SetupApplyConfigOp = {
-  path: string;
-  value?: string;
-  valueJson?: string;
-  del: boolean;
-};
-
-type SetupApplySealedDraftSection = {
-  alg: string;
-  keyId: string;
-  targetRunnerId: string;
-  sealedInputB64: string;
-  aad: string;
-  updatedAt: number;
-  expiresAt: number;
-};
-
-type SetupApplySealedPayload = {
-  hostName: string;
-  configOps: SetupApplyConfigOp[];
-  hostBootstrapCredsDraft: SetupApplySealedDraftSection;
-  hostBootstrapSecretsDraft: SetupApplySealedDraftSection;
-};
-
-function ensureObject(raw: unknown, field: string): Record<string, unknown> {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
-    throw new Error(`${field} must be an object`);
-  }
-  return raw as Record<string, unknown>;
-}
-
-function ensureNoExtraKeys(value: Record<string, unknown>, field: string, keys: string[]): void {
-  const extra = Object.keys(value).filter((k) => !keys.includes(k));
-  if (extra.length > 0) throw new Error(`${field} contains unsupported keys: ${extra.join(",")}`);
-}
-
-function ensureStringField(value: Record<string, unknown>, key: string, field: string): string {
-  const raw = typeof value[key] === "string" ? value[key] : "";
-  const normalized = raw.trim();
-  if (!normalized) throw new Error(`${field}.${key} required`);
-  if (normalized.includes("\0") || normalized.includes("\r") || normalized.includes("\n")) {
-    throw new Error(`${field}.${key} invalid`);
-  }
-  return normalized;
-}
-
-function parseSetupApplyConfigOps(raw: unknown): SetupApplyConfigOp[] {
-  if (!Array.isArray(raw)) throw new Error("setup_apply.configOps must be an array");
-  if (raw.length === 0) throw new Error("setup_apply.configOps must not be empty");
-  if (raw.length > 200) throw new Error("setup_apply.configOps too many entries");
-  const out: SetupApplyConfigOp[] = [];
-  for (let i = 0; i < raw.length; i += 1) {
-    const field = `setup_apply.configOps[${i}]`;
-    const row = ensureObject(raw[i], field);
-    ensureNoExtraKeys(row, field, ["path", "value", "valueJson", "del"]);
-    const path = ensureStringField(row, "path", field);
-    if (path.includes("\0")) throw new Error(`${field}.path invalid`);
-    const del = row.del === true;
-    const hasValue = typeof row.value === "string";
-    const hasValueJson = typeof row.valueJson === "string";
-    if (hasValue && hasValueJson) throw new Error(`${field} ambiguous value`);
-    if (del && (hasValue || hasValueJson)) throw new Error(`${field} delete cannot include value`);
-    if (!del && !hasValue && !hasValueJson) throw new Error(`${field} missing value`);
-    if (hasValue && String(row.value || "").includes("\0")) throw new Error(`${field}.value invalid`);
-    if (hasValueJson) {
-      const valueJson = String(row.valueJson || "");
-      if (valueJson.includes("\0")) throw new Error(`${field}.valueJson invalid`);
-      try {
-        JSON.parse(valueJson);
-      } catch {
-        throw new Error(`${field}.valueJson invalid JSON`);
-      }
-    }
-    out.push({
-      path,
-      value: hasValue ? String(row.value) : undefined,
-      valueJson: hasValueJson ? String(row.valueJson) : undefined,
-      del,
-    });
-  }
-  return out;
-}
-
-function parseSetupApplySealedSection(raw: unknown, field: string): SetupApplySealedDraftSection {
-  const section = ensureObject(raw, field);
-  ensureNoExtraKeys(section, field, ["alg", "keyId", "targetRunnerId", "sealedInputB64", "aad", "updatedAt", "expiresAt"]);
-  const updatedAt = Number(section.updatedAt);
-  const expiresAt = Number(section.expiresAt);
-  if (!Number.isFinite(updatedAt) || !Number.isFinite(expiresAt)) {
-    throw new Error(`${field} timestamp fields invalid`);
-  }
-  return {
-    alg: ensureStringField(section, "alg", field),
-    keyId: ensureStringField(section, "keyId", field),
-    targetRunnerId: ensureStringField(section, "targetRunnerId", field),
-    sealedInputB64: ensureStringField(section, "sealedInputB64", field),
-    aad: ensureStringField(section, "aad", field),
-    updatedAt: Math.trunc(updatedAt),
-    expiresAt: Math.trunc(expiresAt),
-  };
-}
-
-function parseSetupApplySealedPayload(rawJson: string): SetupApplySealedPayload {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(rawJson);
-  } catch {
-    throw new Error("setup_apply payload is not valid JSON");
-  }
-  const root = ensureObject(parsed, "setup_apply");
-  ensureNoExtraKeys(root, "setup_apply", ["hostName", "configOps", "hostBootstrapCredsDraft", "hostBootstrapSecretsDraft"]);
-  return {
-    hostName: ensureStringField(root, "hostName", "setup_apply"),
-    configOps: parseSetupApplyConfigOps(root.configOps),
-    hostBootstrapCredsDraft: parseSetupApplySealedSection(root.hostBootstrapCredsDraft, "setup_apply.hostBootstrapCredsDraft"),
-    hostBootstrapSecretsDraft: parseSetupApplySealedSection(root.hostBootstrapSecretsDraft, "setup_apply.hostBootstrapSecretsDraft"),
-  };
-}
-
-function validateDeployCredsValues(values: Record<string, string>): void {
-  const allowed = new Set<string>(DEPLOY_CREDS_KEYS);
-  for (const key of Object.keys(values)) {
-    if (!allowed.has(key)) throw new Error(`setup_apply deployCreds key not allowlisted: ${key}`);
-  }
-}
-
-function unsealSetupApplyInput(params: {
-  outerPlaintextJson: string;
-  projectId: string;
-  targetRunnerId: string;
-  runnerPrivateKeyPem: string;
-}): {
-  hostName: string;
-  configOps: SetupApplyConfigOp[];
-  deployCreds: Record<string, string>;
-  bootstrapSecrets: Record<string, string>;
-} {
-  const payload = parseSetupApplySealedPayload(params.outerPlaintextJson);
-  const parseSection = (
-    section: SetupApplySealedDraftSection,
-    sectionName: "hostBootstrapCreds" | "hostBootstrapSecrets",
-  ) => {
-    if (section.targetRunnerId !== params.targetRunnerId) {
-      throw new Error(`setup_apply ${sectionName} targetRunnerId mismatch`);
-    }
-    const expectedAad = `${params.projectId}:${payload.hostName}:setupDraft:${sectionName}:${params.targetRunnerId}`;
-    if (section.aad !== expectedAad) {
-      throw new Error(`setup_apply ${sectionName} aad mismatch`);
-    }
-    const sectionPlaintext = unsealRunnerInput({
-      runnerPrivateKeyPem: params.runnerPrivateKeyPem,
-      aad: section.aad,
-      envelopeB64: section.sealedInputB64,
-      expectedAlg: section.alg,
-      expectedKeyId: section.keyId,
-    });
-    return parseSealedInputStringMap(sectionPlaintext);
-  };
-  const deployCreds = parseSection(payload.hostBootstrapCredsDraft, "hostBootstrapCreds");
-  validateDeployCredsValues(deployCreds);
-  const bootstrapSecrets = parseSection(payload.hostBootstrapSecretsDraft, "hostBootstrapSecrets");
-  return {
-    hostName: payload.hostName,
-    configOps: payload.configOps,
-    deployCreds,
-    bootstrapSecrets,
-  };
-}
-
 function payloadMetaArgs(job: RunnerLeaseJob): string[] {
   return Array.isArray(job.payloadMeta?.args)
     ? job.payloadMeta.args.map((row) => (typeof row === "string" ? row.trim() : "")).filter(Boolean)
@@ -963,28 +858,17 @@ async function executeJob(params: {
         expectedAlg: params.job.sealedInputAlg,
         expectedKeyId: params.job.sealedInputKeyId,
       });
-      if (inputPlaceholderIdx >= 0 && params.job.kind === "setup_apply") {
-        const setupApplyInput = unsealSetupApplyInput({
-          outerPlaintextJson: plaintextJson,
-          projectId: params.projectId,
-          targetRunnerId,
-          runnerPrivateKeyPem: params.runnerPrivateKeyPem,
-        });
-        tempSecretsPath = await writeInputJsonTemp(params.job.jobId, setupApplyInput);
-        args[inputPlaceholderIdx] = tempSecretsPath;
-      } else {
-        const secrets = parseSealedInputStringMap(plaintextJson);
-        validateSealedInputKeysForJob({
-          job: params.job,
-          values: secrets,
-          secretsPlaceholder: secretsPlaceholderIdx >= 0,
-          inputPlaceholder: inputPlaceholderIdx >= 0,
-        });
-        tempSecretsPath =
-          secretsPlaceholderIdx >= 0
-            ? await writeSecretsJsonTemp(params.job.jobId, secrets)
-            : await writeInputJsonTemp(params.job.jobId, secrets);
-      }
+      const secrets = parseSealedInputStringMap(plaintextJson);
+      validateSealedInputKeysForJob({
+        job: params.job,
+        values: secrets,
+        secretsPlaceholder: secretsPlaceholderIdx >= 0,
+        inputPlaceholder: inputPlaceholderIdx >= 0,
+      });
+      tempSecretsPath =
+        secretsPlaceholderIdx >= 0
+          ? await writeSecretsJsonTemp(params.job.jobId, secrets)
+          : await writeInputJsonTemp(params.job.jobId, secrets);
       if (secretsPlaceholderIdx >= 0) args[secretsPlaceholderIdx] = tempSecretsPath;
       if (inputPlaceholderIdx >= 0) args[inputPlaceholderIdx] = tempSecretsPath;
     }
@@ -1163,7 +1047,9 @@ export function __test_resolveRunnerRuntimeDir(params: {
 }
 
 type RunnerAppendRunEventsArgs = Parameters<RunnerApiClient["appendRunEvents"]>[0];
-type RunnerAppendEventsClient = Pick<RunnerApiClient, "appendRunEvents">;
+type RunnerSetupOperationUpdateArgs = Parameters<RunnerApiClient["updateSetupOperation"]>[0];
+type RunnerAppendEventsClient = Pick<RunnerApiClient, "appendRunEvents">
+  & Partial<Pick<RunnerApiClient, "updateSetupOperation">>;
 
 async function appendRunEventsBestEffort(params: {
   logger: Logger;
@@ -1185,15 +1071,154 @@ async function appendRunEventsBestEffort(params: {
   }
 }
 
+async function updateSetupOperationBestEffort(params: {
+  logger: Logger;
+  client: RunnerAppendEventsClient;
+  projectId: string;
+  jobId: string;
+  leaseId: string;
+  step: RunnerSetupOperationUpdateArgs["step"];
+}): Promise<void> {
+  if (!params.client.updateSetupOperation) return;
+  try {
+    await params.client.updateSetupOperation({
+      projectId: params.projectId,
+      jobId: params.jobId,
+      leaseId: params.leaseId,
+      step: params.step,
+    });
+  } catch (err) {
+    const message = sanitizeRunnerControlPlaneErrorMessage(err, "setup-operation update failed");
+    params.logger.warn({ jobId: params.jobId, error: message }, "runner setup-operation update failed");
+  }
+}
+
+function setupApplyStepEvent(step: SetupApplyStepResult): RunnerAppendRunEventsArgs["events"][number] {
+  return {
+    ts: Date.now(),
+    level: step.status === "failed" ? "error" : "info",
+    message: buildSetupApplyTelemetryMessage(step),
+  };
+}
+
+async function reportSetupApplyStepBestEffort(params: {
+  logger: Logger;
+  client: RunnerAppendEventsClient;
+  projectId: string;
+  jobId: string;
+  leaseId: string;
+  runId: string;
+  step: SetupApplyStepResult;
+}): Promise<void> {
+  await appendRunEventsBestEffort({
+    logger: params.logger,
+    client: params.client,
+    projectId: params.projectId,
+    runId: params.runId,
+    context: params.step.status === "failed" ? "command_end_error" : "command_output",
+    events: [setupApplyStepEvent(params.step)],
+  });
+  await updateSetupOperationBestEffort({
+    logger: params.logger,
+    client: params.client,
+    projectId: params.projectId,
+    jobId: params.jobId,
+    leaseId: params.leaseId,
+    step: {
+      stepId: params.step.stepId,
+      status: params.step.status,
+      safeMessage: params.step.safeMessage,
+      detailJson: params.step.detail ? JSON.stringify(params.step.detail) : undefined,
+      retryable: params.step.retryable,
+    },
+  });
+}
+
+async function executeSetupApplyJobWithProgress(params: {
+  logger: Logger;
+  client: RunnerAppendEventsClient;
+  projectId: string;
+  job: RunnerLeaseJob;
+  repoRoot: string;
+  runtimeDir: string;
+  runnerPrivateKeyPem: string;
+  executeSetupApplyPlanFn?: typeof executeSetupApplyPlan;
+}): Promise<{ terminal: "succeeded" | "failed"; errorMessage?: string; commandResultJson?: string }> {
+  const executeSetupApplyPlanFn = params.executeSetupApplyPlanFn ?? executeSetupApplyPlan;
+  const targetRunnerId = String(params.job.targetRunnerId || "").trim();
+  if (!targetRunnerId) throw new Error("setup_apply target runner missing");
+  if (!params.job.sealedInputB64) throw new Error("setup_apply sealed input missing");
+  const operationId = String(params.job.payloadMeta?.operationId || "").trim();
+  if (!operationId) throw new Error("setup_apply operationId missing");
+  const aad = buildSetupApplyEnvelopeAad({
+    projectId: params.projectId,
+    operationId,
+    targetRunnerId,
+  });
+  try {
+    const envelopeJson = unsealRunnerInput({
+      runnerPrivateKeyPem: params.runnerPrivateKeyPem,
+      aad,
+      envelopeB64: params.job.sealedInputB64,
+      expectedAlg: params.job.sealedInputAlg,
+      expectedKeyId: params.job.sealedInputKeyId,
+    });
+    const plan = parseSetupApplyPlan(envelopeJson);
+    const cliEntry = process.argv[1] || (params.executeSetupApplyPlanFn ? "__test_cli_entry__" : "");
+    if (!cliEntry) throw new Error("unable to resolve CLI entry path");
+    const result = await executeSetupApplyPlanFn(plan, {
+      cliEntry,
+      repoRoot: params.repoRoot,
+      runtimeDir: params.runtimeDir,
+      operationId: operationId || undefined,
+      attempt: params.job.attempt,
+      onStep: async (step) => {
+        await reportSetupApplyStepBestEffort({
+          logger: params.logger,
+          client: params.client,
+          projectId: params.projectId,
+          jobId: params.job.jobId,
+          leaseId: params.job.leaseId,
+          runId: params.job.runId,
+          step,
+        });
+      },
+    });
+    return {
+      terminal: "succeeded",
+      commandResultJson: JSON.stringify(result.summary),
+    };
+  } catch (error) {
+    const message = sanitizeErrorMessage(error, "setup apply failed");
+    await updateSetupOperationBestEffort({
+      logger: params.logger,
+      client: params.client,
+      projectId: params.projectId,
+      jobId: params.job.jobId,
+      leaseId: params.job.leaseId,
+      step: {
+        stepId: "plan_validated",
+        status: "failed",
+        safeMessage: message,
+        detailJson: undefined,
+        retryable: true,
+      },
+    });
+    throw new Error(message);
+  }
+}
+
 async function executeLeasedJobWithRunEvents(params: {
   logger: Logger;
   client: RunnerAppendEventsClient;
   projectId: string;
   job: RunnerLeaseJob;
   repoRoot: string;
+  runtimeDir: string;
   runnerPrivateKeyPem: string;
   maxAttempts: number;
   executeJobFn?: typeof executeJob;
+  executeSetupApplyPlanFn?: typeof executeSetupApplyPlan;
 }): Promise<{ terminal: "succeeded" | "failed"; errorMessage?: string; commandResultJson?: string; commandResultLargeJson?: string }> {
   const executeJobFn = params.executeJobFn ?? executeJob;
   const startedAt = Date.now();
@@ -1217,6 +1242,36 @@ async function executeLeasedJobWithRunEvents(params: {
         },
       ],
     });
+    if (params.job.kind === "setup_apply") {
+      const result = await executeSetupApplyJobWithProgress({
+        logger: params.logger,
+        client: params.client,
+        projectId: params.projectId,
+        job: params.job,
+        repoRoot: params.repoRoot,
+        runtimeDir: params.runtimeDir,
+        runnerPrivateKeyPem: params.runnerPrivateKeyPem,
+        executeSetupApplyPlanFn: params.executeSetupApplyPlanFn,
+      });
+      await appendRunEventsBestEffort({
+        logger: params.logger,
+        client: params.client,
+        projectId: params.projectId,
+        runId: params.job.runId,
+        context: "command_end",
+        events: [
+          {
+            ts: Date.now(),
+            level: "info",
+            message: `Runner completed job ${params.job.jobId}`,
+            meta: { kind: "phase", phase: "command_end" },
+          },
+        ],
+      });
+      const durationMs = Math.max(0, Date.now() - startedAt);
+      params.logger.info({ terminal: "succeeded", durationMs }, "job completed");
+      return result;
+    }
     const result = await executeJobFn({
       job: params.job,
       repoRoot: params.repoRoot,
@@ -1358,6 +1413,10 @@ export async function __test_executeLeasedJobWithRunEvents(params: {
   job: RunnerLeaseJob;
   maxAttempts: number;
   executeJobFn: typeof executeJob;
+  executeSetupApplyPlanFn?: typeof executeSetupApplyPlan;
+  runnerPrivateKeyPem?: string;
+  repoRoot?: string;
+  runtimeDir?: string;
 }): Promise<{ terminal: "succeeded" | "failed"; errorMessage?: string; commandResultJson?: string; commandResultLargeJson?: string }> {
   const logger = createRunnerLogger({ level: "fatal", logToFile: false });
   return await executeLeasedJobWithRunEvents({
@@ -1365,10 +1424,12 @@ export async function __test_executeLeasedJobWithRunEvents(params: {
     client: params.client,
     projectId: params.projectId,
     job: params.job,
-    repoRoot: process.cwd(),
-    runnerPrivateKeyPem: "test",
+    repoRoot: params.repoRoot || process.cwd(),
+    runtimeDir: params.runtimeDir || process.cwd(),
+    runnerPrivateKeyPem: params.runnerPrivateKeyPem || "test",
     maxAttempts: params.maxAttempts,
     executeJobFn: params.executeJobFn,
+    executeSetupApplyPlanFn: params.executeSetupApplyPlanFn,
   });
 }
 
@@ -1397,6 +1458,11 @@ export const runnerStart = defineCommand({
     leaseTtlMs: { type: "string", description: "Lease TTL ms.", default: "30000" },
     heartbeatMs: { type: "string", description: "Runner heartbeat interval ms.", default: "30000" },
     maxAttempts: { type: "string", description: "Maximum lease attempts before failing a job.", default: "3" },
+    maxIdleMs: {
+      type: "string",
+      description: "Stop runner after idle ms. Use 'auto' for localhost default; 0 disables.",
+      default: "auto",
+    },
     once: { type: "boolean", description: "Process at most one leased job.", default: false },
   },
 	  async run({ args }) {
@@ -1406,6 +1472,7 @@ export const runnerStart = defineCommand({
 	    if (!token) throw new Error("missing --token");
 
 	    const controlPlaneUrl = resolveControlPlaneUrl((args as any).controlPlaneUrl);
+	    const metadataSyncMaxAgeMs = resolveRunnerMetadataSyncMaxAgeMs(controlPlaneUrl);
 	    const runnerName = String((args as any).name || `${envName()}-${os.hostname()}`).trim() || `runner-${os.hostname()}`;
 	    const runOnce = Boolean((args as any).once);
 	    const pollMs = toInt((args as any).pollMs, RUNNER_IDLE_POLL_MS_DEFAULT, 50, 30_000);
@@ -1414,6 +1481,7 @@ export const runnerStart = defineCommand({
 	    const leaseTtlMs = toInt((args as any).leaseTtlMs, 30_000, 5_000, 120_000);
 	    const heartbeatMs = toInt((args as any).heartbeatMs, 30_000, 2_000, 120_000);
 	    const maxAttempts = toInt((args as any).maxAttempts, 3, 1, 25);
+	    const maxIdleMs = resolveRunnerMaxIdleMs(controlPlaneUrl, (args as any).maxIdleMs);
 	    const repoRoot = String((args as any).repoRoot || "").trim() || findRepoRoot(process.cwd());
 	    const runtimeDir = resolveRunnerRuntimeDir({
 	      runtimeDirArg: (args as any).runtimeDir,
@@ -1532,7 +1600,7 @@ export const runnerStart = defineCommand({
             now,
             lastFingerprint: metadataLastFingerprint,
             lastSyncedAt: metadataLastSyncedAt,
-            maxAgeMs: RUNNER_METADATA_SYNC_MAX_AGE_MS,
+            maxAgeMs: metadataSyncMaxAgeMs,
           })
         ) {
           return;
@@ -1602,11 +1670,12 @@ export const runnerStart = defineCommand({
         ...(lastRunId ? { lastRunId } : {}),
         ...(lastRunStatus ? { lastRunStatus } : {}),
       });
-    }, RUNNER_METADATA_SYNC_MAX_AGE_MS);
+    }, metadataSyncMaxAgeMs);
 
     try {
       let leaseErrorStreak = 0;
       let emptyLeaseStreak = 0;
+      let lastActiveAtMs = Date.now();
       while (running) {
         let lease: Awaited<ReturnType<RunnerApiClient["leaseNext"]>>;
         const requestedWaitMs = runOnce ? 0 : leaseWaitMs;
@@ -1626,10 +1695,11 @@ export const runnerStart = defineCommand({
 	            break;
 	          }
           leaseErrorStreak += 1;
-	          const backoffMs = computeIdleLeasePollDelayMs({
+	          const backoffMs = computeLeaseErrorBackoffMs({
 	            pollMs,
 	            pollMaxMs,
-	            emptyLeaseStreak: leaseErrorStreak,
+	            leaseErrorStreak,
+	            kind,
 	          });
 	          logger.warn({ kind, backoffMs, error: message }, "runner lease failed; retrying");
 	          await sleep(backoffMs);
@@ -1649,9 +1719,14 @@ export const runnerStart = defineCommand({
               }),
             );
           }
+          if (maxIdleMs > 0 && Date.now() - lastActiveAtMs >= maxIdleMs) {
+            logger.info({ maxIdleMs }, "runner idle timeout reached; stopping");
+            break;
+          }
           continue;
         }
         emptyLeaseStreak = 0;
+        lastActiveAtMs = Date.now();
 
         const beat = setInterval(() => {
 	          void client
@@ -1668,12 +1743,13 @@ export const runnerStart = defineCommand({
 	        let commandResultLargeJson: string | undefined;
 	        try {
 	          const jobLogger = logger.child({ jobId: job.jobId, runId: job.runId, jobKind: job.kind });
-	          const execution = await executeLeasedJobWithRunEvents({
-	            logger: jobLogger,
-	            client,
-	            projectId,
-	            job,
-	            repoRoot,
+          const execution = await executeLeasedJobWithRunEvents({
+            logger: jobLogger,
+            client,
+            projectId,
+            job,
+            repoRoot,
+            runtimeDir: layout.runtimeDir,
             runnerPrivateKeyPem: sealedKeyPair.privateKeyPem,
             maxAttempts,
           });
@@ -1726,6 +1802,7 @@ export const runnerStart = defineCommand({
         if (postJobIdlePollDelayMs > 0) {
           await sleep(postJobIdlePollDelayMs);
         }
+        lastActiveAtMs = Date.now();
 
         if (stopAfterCompletionError) {
           running = false;

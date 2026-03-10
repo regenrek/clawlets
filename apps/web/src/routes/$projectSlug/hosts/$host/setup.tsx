@@ -880,6 +880,7 @@ function StepContent(props: {
         pendingInfrastructureDraft={pendingInfrastructureDraft}
         pendingConnectionDraft={pendingConnectionDraft}
         pendingBootstrapSecrets={pendingBootstrapSecrets}
+        hasActiveHcloudToken={hasActiveHcloudToken}
         hasProjectGithubToken={hasProjectGithubToken}
         hasProjectGithubTokenAccess={hasProjectGithubTokenAccess}
         githubTokenAccessMessage={githubTokenAccessMessage}

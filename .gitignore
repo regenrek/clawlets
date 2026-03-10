@@ -16,3 +16,4 @@ packages/core/tests/.template/
 .tanstack/
 .wrangler/
 .source/
+tasks

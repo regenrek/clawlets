@@ -930,6 +930,21 @@ export const completeInternal = internalMutation({
           ? sanitizeErrorMessage(errorMessage ?? "job failed", "job failed")
           : undefined,
     });
+    if (job.kind === "setup_apply" && (status === "succeeded" || status === "failed")) {
+      try {
+        await ctx.runMutation(internal.controlPlane.setupOperations.finishAttemptInternal, {
+          jobId: job._id,
+          status: status === "succeeded" ? "succeeded" : "failed",
+          terminalMessage:
+            status === "failed"
+              ? sanitizeErrorMessage(errorMessage ?? "setup apply failed", "setup apply failed")
+              : undefined,
+          summaryJson: status === "succeeded" ? normalizedCommandResultJson : undefined,
+        });
+      } catch (err) {
+        console.error(`jobs.completeInternal setup operation finalize ignored: ${String((err as Error)?.message || err)}`);
+      }
+    }
     const [run, project] = await Promise.all([ctx.db.get(job.runId), ctx.db.get(job.projectId)]);
     const projectStatus =
       run && project
@@ -993,6 +1008,17 @@ export const completeInternal = internalMutation({
 	        }
 	      }
 	    }
+    if (job.kind === "setup_apply") {
+      await ctx.runMutation(internal.controlPlane.setupOperations.finishAttemptInternal, {
+        jobId: job._id,
+        status: status === "succeeded" ? "succeeded" : "failed",
+        terminalMessage:
+          status === "succeeded"
+            ? undefined
+            : sanitizeErrorMessage(errorMessage ?? "setup apply failed", "setup apply failed"),
+        summaryJson: normalizedCommandResultJson,
+      });
+    }
 	    return { ok: true, status };
 	  },
 	});

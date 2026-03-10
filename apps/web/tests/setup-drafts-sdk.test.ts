@@ -30,8 +30,8 @@ function makeRunnerKeyMaterial() {
   }
 }
 
-describe("setup drafts sdk", () => {
-  it("blocks all setup draft APIs without admin access", async () => {
+describe("setup sdk", () => {
+  it("blocks setup draft + operation APIs without admin access", async () => {
     vi.resetModules()
     const mutation = vi.fn(async () => null)
     const query = vi.fn(async () => null)
@@ -43,13 +43,14 @@ describe("setup drafts sdk", () => {
         throw new Error("admin required")
       },
     }))
-    const mod = await import("~/sdk/setup/drafts")
+    const drafts = await import("~/sdk/setup/drafts")
+    const ops = await import("~/sdk/setup/operations")
 
     await expect(runWithStartContext(startContext(), async () =>
-      mod.setupDraftGet({ data: { projectId: "p1" as any, host: "alpha" } }),
+      drafts.setupDraftGet({ data: { projectId: "p1" as any, host: "alpha" } }),
     )).rejects.toThrow(/admin required/i)
     await expect(runWithStartContext(startContext(), async () =>
-      mod.setupDraftSaveNonSecret({
+      drafts.setupDraftSaveNonSecret({
         data: {
           projectId: "p1" as any,
           host: "alpha",
@@ -58,7 +59,7 @@ describe("setup drafts sdk", () => {
       }),
     )).rejects.toThrow(/admin required/i)
     await expect(runWithStartContext(startContext(), async () =>
-      mod.setupDraftSaveSealedSection({
+      drafts.setupDraftSaveSealedSection({
         data: {
           projectId: "p1" as any,
           host: "alpha",
@@ -72,10 +73,17 @@ describe("setup drafts sdk", () => {
       }),
     )).rejects.toThrow(/admin required/i)
     await expect(runWithStartContext(startContext(), async () =>
-      mod.setupDraftDiscard({ data: { projectId: "p1" as any, host: "alpha" } }),
+      drafts.setupDraftDiscard({ data: { projectId: "p1" as any, host: "alpha" } }),
     )).rejects.toThrow(/admin required/i)
     await expect(runWithStartContext(startContext(), async () =>
-      mod.setupDraftCommit({ data: { projectId: "p1" as any, host: "alpha" } }),
+      ops.startSetupApplyOperation({
+        data: {
+          projectId: "p1" as any,
+          host: "alpha",
+          deployCreds: {},
+          bootstrapSecrets: {},
+        },
+      }),
     )).rejects.toThrow(/admin required/i)
 
     expect(mutation).not.toHaveBeenCalled()
@@ -92,10 +100,10 @@ describe("setup drafts sdk", () => {
     vi.doMock("~/sdk/project", () => ({
       requireAdminProjectAccess: async () => ({ role: "admin" }),
     }))
-    const mod = await import("~/sdk/setup/drafts")
+    const drafts = await import("~/sdk/setup/drafts")
 
     await expect(runWithStartContext(startContext(), async () =>
-      mod.setupDraftSaveNonSecret({
+      drafts.setupDraftSaveNonSecret({
         data: {
           projectId: "p1" as any,
           host: "alpha",
@@ -123,10 +131,10 @@ describe("setup drafts sdk", () => {
     vi.doMock("~/sdk/project", () => ({
       requireAdminProjectAccess: async () => ({ role: "admin" }),
     }))
-    const mod = await import("~/sdk/setup/drafts")
+    const drafts = await import("~/sdk/setup/drafts")
 
     await expect(runWithStartContext(startContext(), async () =>
-      mod.setupDraftSaveSealedSection({
+      drafts.setupDraftSaveSealedSection({
         data: {
           projectId: "p1" as any,
           host: "alpha",
@@ -182,10 +190,10 @@ describe("setup drafts sdk", () => {
     vi.doMock("~/sdk/project", () => ({
       requireAdminProjectAccess: async () => ({ role: "admin" }),
     }))
-    const mod = await import("~/sdk/setup/drafts")
+    const drafts = await import("~/sdk/setup/drafts")
 
     await runWithStartContext(startContext(), async () =>
-      mod.setupDraftSaveNonSecret({
+      drafts.setupDraftSaveNonSecret({
         data: {
           projectId: "p1" as any,
           host: "alpha",
@@ -194,7 +202,7 @@ describe("setup drafts sdk", () => {
       }),
     )
     await runWithStartContext(startContext(), async () =>
-      mod.setupDraftSaveSealedSection({
+      drafts.setupDraftSaveSealedSection({
         data: {
           projectId: "p1" as any,
           host: "alpha",
@@ -210,11 +218,11 @@ describe("setup drafts sdk", () => {
 
     const payloads = mutation.mock.calls.map((call) => call[1])
     expect(payloads.some((payload) => payload?.kind === "setup_apply")).toBe(false)
-    expect(payloads.some((payload) => payload?.kind === "custom")).toBe(false)
-    expect(payloads.some((payload) => payload?.jobId && payload?.sealedInputB64 && payload?.kind)).toBe(false)
+    expect(payloads.some((payload) => payload?.args)).toBe(false)
+    expect(payloads.some((payload) => payload?.sealedPlanB64)).toBe(false)
   })
 
-  it("setupDraftCommit reserves/finalizes exactly one setup_apply job", async () => {
+  it("startSetupApplyOperation uses prepareStart/finalizeStart instead of legacy job reserve flow", async () => {
     vi.resetModules()
     const { publicKeySpkiB64, keyId } = makeRunnerKeyMaterial()
     const mutation = vi.fn()
@@ -226,7 +234,12 @@ describe("setup drafts sdk", () => {
         targetRunnerId: "r1",
         nonSecretDraft: {
           infrastructure: { serverType: "cpx22", location: "nbg1", allowTailscaleUdpIngress: true },
-          connection: { adminCidr: "203.0.113.10/32", sshExposureMode: "bootstrap", sshAuthorizedKeys: ["ssh-ed25519 AAAA"], sshKeyCount: 1 },
+          connection: {
+            adminCidr: "203.0.113.10/32",
+            sshExposureMode: "bootstrap",
+            sshAuthorizedKeys: ["ssh-ed25519 AAAA"],
+            sshKeyCount: 1,
+          },
         },
         sealedSecretDrafts: {
           hostBootstrapCreds: {
@@ -250,32 +263,20 @@ describe("setup drafts sdk", () => {
         },
       })
       .mockResolvedValueOnce({
-        runId: "run_setup_1",
-        jobId: "job_setup_1",
-        kind: "setup_apply",
+        operationId: "op_setup_1",
+        attempt: 1,
+        reusedOperation: false,
         targetRunnerId: "r1",
         sealedInputAlg: "rsa-oaep-3072/aes-256-gcm",
         sealedInputKeyId: keyId,
         sealedInputPubSpkiB64: publicKeySpkiB64,
       })
       .mockResolvedValueOnce({
+        operationId: "op_setup_1",
         runId: "run_setup_1",
         jobId: "job_setup_1",
+        attempt: 1,
       })
-      .mockResolvedValueOnce({
-        draftId: "d1",
-        hostName: "alpha",
-        status: "committed",
-        version: 5,
-        nonSecretDraft: {},
-        sealedSecretDrafts: {
-          hostBootstrapCreds: { status: "set" },
-          hostBootstrapSecrets: { status: "set" },
-        },
-        updatedAt: 1,
-        expiresAt: 2,
-      })
-      .mockResolvedValueOnce(null)
     const query = vi.fn(async () => null)
     vi.doMock("~/server/convex", () => ({
       createConvexClient: () => ({ mutation, query }) as any,
@@ -283,39 +284,32 @@ describe("setup drafts sdk", () => {
     vi.doMock("~/sdk/project", () => ({
       requireAdminProjectAccess: async () => ({ role: "admin" }),
     }))
-    vi.doMock("~/sdk/runtime", async (importOriginal) => {
-      const actual = await importOriginal<typeof import("~/sdk/runtime")>()
-      return {
-        ...actual,
-        waitForRunTerminal: async () => ({ status: "succeeded" as const }),
-        listRunMessages: async () => [],
-        lastErrorMessage: () => "setup apply failed",
-        takeRunnerCommandResultObject: async () => ({ ok: true, hostName: "alpha" }),
-      }
-    })
-    const mod = await import("~/sdk/setup/drafts")
+    const ops = await import("~/sdk/setup/operations")
 
     const result = await runWithStartContext(startContext(), async () =>
-      mod.setupDraftCommit({
+      ops.startSetupApplyOperation({
         data: {
           projectId: "p1" as any,
           host: "alpha",
+          deployCreds: {
+            SOPS_AGE_KEY_FILE: "/tmp/key.age",
+          },
+          bootstrapSecrets: {
+            adminPasswordHash: "$y$hash",
+          },
         },
       }),
     )
 
     expect(result.ok).toBe(true)
-    expect(result.jobId).toBe("job_setup_1")
+    expect(result.operationId).toBe("op_setup_1")
     expect(result.runId).toBe("run_setup_1")
-    const reservePayload = mutation.mock.calls
-      .map((call) => call[1])
-      .find((payload) => payload?.kind === "setup_apply" && payload?.payloadMeta && payload?.targetRunnerId)
-    expect(reservePayload).toBeTruthy()
-    expect(reservePayload.payloadMeta.args).toEqual(["setup", "apply", "--from-json", "__RUNNER_INPUT_JSON__", "--json"])
-    const finalizePayload = mutation.mock.calls.map((call) => call[1]).find((payload) => payload?.jobId === "job_setup_1" && payload?.sealedInputB64)
-    expect(typeof finalizePayload?.sealedInputB64).toBe("string")
-    expect(String(finalizePayload?.sealedInputB64 || "").includes("HCLOUD_TOKEN")).toBe(false)
-    expect(mutation.mock.calls.filter((call) => call[1]?.kind === "setup_apply" && call[1]?.payloadMeta && call[1]?.targetRunnerId)).toHaveLength(1)
-    expect(mutation.mock.calls.filter((call) => call[1]?.jobId === "job_setup_1" && call[1]?.sealedInputB64)).toHaveLength(1)
+    expect(result.jobId).toBe("job_setup_1")
+
+    const payloads = mutation.mock.calls.map((call) => call[1])
+    expect(payloads.some((payload) => payload?.targetRunnerId === "r1" && payload?.planSchemaVersion === 1)).toBe(true)
+    expect(payloads.some((payload) => payload?.operationId === "op_setup_1" && payload?.sealedPlanB64)).toBe(true)
+    expect(payloads.some((payload) => payload?.kind === "setup_apply")).toBe(false)
+    expect(payloads.some((payload) => payload?.payloadMeta?.args)).toBe(false)
   })
 })

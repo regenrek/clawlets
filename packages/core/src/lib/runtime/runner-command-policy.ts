@@ -8,6 +8,7 @@ export type RunnerCommandExecutable = "clawlets" | "git";
 
 export type RunnerCommandPayloadMeta = {
   hostName?: string;
+  operationId?: string;
   gatewayId?: string;
   scope?: SecretScope;
   secretNames?: string[];
@@ -49,6 +50,7 @@ const META_MAX = {
   secretName: CONTROL_PLANE_TEXT_LIMITS.secretName,
   gatewayId: CONTROL_PLANE_TEXT_LIMITS.gatewayId,
   hostName: CONTROL_PLANE_TEXT_LIMITS.hostName,
+  operationId: 128,
 } as const;
 
 function hasForbiddenText(value: string): boolean {
@@ -184,6 +186,11 @@ function normalizePayloadMeta(raw: unknown): RunnerCommandPayloadMeta {
     : undefined;
   return {
     hostName: ensureOptionalBoundedText({ value: row.hostName, field: "payloadMeta.hostName", max: META_MAX.hostName }),
+    operationId: ensureOptionalBoundedText({
+      value: row.operationId,
+      field: "payloadMeta.operationId",
+      max: META_MAX.operationId,
+    }),
     gatewayId: ensureOptionalBoundedText({ value: row.gatewayId, field: "payloadMeta.gatewayId", max: META_MAX.gatewayId }),
     scope,
     secretNames: ensureOptionalStringArray({
@@ -222,6 +229,12 @@ function normalizePayloadMeta(raw: unknown): RunnerCommandPayloadMeta {
 }
 
 function validateStructuredPayload(kind: string, payloadMeta: RunnerCommandPayloadMeta): { ok: true } | { ok: false; error: string } {
+  if (kind === "setup_apply") {
+    if (payloadMeta.args?.length) return { ok: false, error: "setup_apply forbids payloadMeta.args" };
+    if (!payloadMeta.hostName) return { ok: false, error: "setup_apply requires payloadMeta.hostName" };
+    if (!payloadMeta.operationId) return { ok: false, error: "setup_apply requires payloadMeta.operationId" };
+    return { ok: true };
+  }
   if (kind === "project_init") {
     if (payloadMeta.args?.length) return { ok: false, error: "project_init forbids payloadMeta.args" };
     return { ok: true };

@@ -18,9 +18,9 @@ import {
 describe("runner job arg mapping", () => {
   it("exposes reduced default idle polling cap", () => {
     const args = (runnerStart as any).args as Record<string, { default?: string }>;
-    expect(args.pollMs?.default).toBe("100");
-    expect(args.pollMaxMs?.default).toBe("100");
-    expect(args.leaseWaitMs?.default).toBe("0");
+    expect(args.pollMs?.default).toBe("1000");
+    expect(args.pollMaxMs?.default).toBe("5000");
+    expect(args.leaseWaitMs?.default).toBe("15000");
   });
 
   it("defaults runner runtime dir outside repo root", () => {

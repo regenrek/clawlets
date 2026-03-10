@@ -27,6 +27,9 @@ import {
   Role,
   SetupDraftNonSecret,
   SetupDraftSealedSections,
+  SetupOperationRunAttempt,
+  SetupOperationStatus,
+  SetupOperationStep,
   SetupDraftStatus,
   RunEventLevel,
   RunEventMeta,
@@ -194,6 +197,7 @@ export const RunnerTokenDoc = v.object({
   _creationTime: v.number(),
   projectId: v.id("projects"),
   runnerId: v.id("runners"),
+  runnerName: v.optional(v.string()),
   tokenHash: v.string(),
   createdByUserId: v.id("users"),
   createdAt: v.number(),
@@ -266,6 +270,30 @@ export const SetupDraftDoc = v.object({
   expiresAt: v.number(),
   committedAt: v.optional(v.number()),
   lastError: v.optional(v.string()),
+});
+
+export const SetupOperationDoc = v.object({
+  _id: v.id("setupOperations"),
+  _creationTime: v.number(),
+  projectId: v.id("projects"),
+  hostName: v.string(),
+  status: SetupOperationStatus,
+  planSchemaVersion: v.number(),
+  planJson: v.string(),
+  targetRunnerId: v.id("runners"),
+  sealedSecretDrafts: SetupDraftSealedSections,
+  currentAttempt: v.number(),
+  preparedExpiresAt: v.optional(v.number()),
+  currentJobId: v.optional(v.id("jobs")),
+  currentRunId: v.optional(v.id("runs")),
+  runHistory: v.array(SetupOperationRunAttempt),
+  steps: v.array(SetupOperationStep),
+  createdByUserId: v.id("users"),
+  createdAt: v.number(),
+  startedAt: v.optional(v.number()),
+  finishedAt: v.optional(v.number()),
+  terminalMessage: v.optional(v.string()),
+  summaryJson: v.optional(v.string()),
 });
 
 export const RunnerCommandResultDoc = v.object({

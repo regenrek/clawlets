@@ -17,6 +17,7 @@ export function SetupStepDeploy(props: {
   pendingInfrastructureDraft: SetupDraftInfrastructure | null
   pendingConnectionDraft: SetupDraftConnection | null
   pendingBootstrapSecrets: SetupPendingBootstrapSecrets
+  hasActiveHcloudToken: boolean
   hasProjectGithubToken: boolean
   hasProjectGithubTokenAccess: boolean
   githubTokenAccessMessage: string
@@ -34,6 +35,7 @@ export function SetupStepDeploy(props: {
       pendingInfrastructureDraft={props.pendingInfrastructureDraft}
       pendingConnectionDraft={props.pendingConnectionDraft}
       pendingBootstrapSecrets={props.pendingBootstrapSecrets}
+      hasActiveHcloudToken={props.hasActiveHcloudToken}
       hasProjectGithubToken={props.hasProjectGithubToken}
       hasProjectGithubTokenAccess={props.hasProjectGithubTokenAccess}
       githubTokenAccessMessage={props.githubTokenAccessMessage}

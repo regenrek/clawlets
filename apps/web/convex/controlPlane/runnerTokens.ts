@@ -6,6 +6,7 @@ import type { MutationCtx } from "../_generated/server";
 import { requireProjectAccessMutation, requireProjectAccessQuery, requireAdmin } from "../shared/auth";
 import {
   ensureBoundedString,
+  ensureOptionalBoundedString,
   randomToken,
   sha256Hex,
   CONTROL_PLANE_LIMITS,
@@ -16,6 +17,7 @@ import { rateLimit } from "../shared/rateLimit";
 const RunnerTokenListItem = v.object({
   tokenId: v.id("runnerTokens"),
   runnerId: v.id("runners"),
+  runnerName: v.optional(v.string()),
   createdAt: v.number(),
   expiresAt: v.optional(v.number()),
   revokedAt: v.optional(v.number()),
@@ -74,6 +76,7 @@ export const create = mutation({
     const tokenId = await ctx.db.insert("runnerTokens", {
       projectId,
       runnerId,
+      runnerName: name,
       tokenHash,
       createdByUserId: access.authed.user._id,
       createdAt: now,
@@ -117,11 +120,50 @@ export const listByProject = query({
       .map((row) => ({
         tokenId: row._id,
         runnerId: row.runnerId,
+        runnerName: row.runnerName,
         createdAt: row.createdAt,
         expiresAt: row.expiresAt,
         revokedAt: row.revokedAt,
         lastUsedAt: row.lastUsedAt,
       }));
+  },
+});
+
+export const backfillRunnerNameSnapshots = mutation({
+  args: {
+    projectId: v.id("projects"),
+    limit: v.optional(v.number()),
+  },
+  returns: v.object({
+    scanned: v.number(),
+    updated: v.number(),
+  }),
+  handler: async (ctx, { projectId, limit }) => {
+    const access = await requireProjectAccessMutation(ctx, projectId);
+    requireAdmin(access.role);
+    const maxRows = Math.max(1, Math.min(10_000, Math.trunc(limit ?? 2_000)));
+    const rows = await ctx.db
+      .query("runnerTokens")
+      .withIndex("by_project", (q) => q.eq("projectId", projectId))
+      .collect();
+
+    let scanned = 0;
+    let updated = 0;
+    for (const row of rows) {
+      if (scanned >= maxRows) break;
+      scanned += 1;
+      const snapshot = ensureOptionalBoundedString(
+        typeof row.runnerName === "string" ? row.runnerName : undefined,
+        "runnerName",
+        CONTROL_PLANE_LIMITS.runnerName,
+      );
+      if (snapshot) continue;
+      const runner = await ctx.db.get(row.runnerId);
+      if (!runner || runner.projectId !== row.projectId) continue;
+      await ctx.db.patch(row._id, { runnerName: runner.runnerName });
+      updated += 1;
+    }
+    return { scanned, updated };
   },
 });
 
@@ -145,14 +187,25 @@ export const resolveAuthContextInternal = internalQuery({
       .withIndex("by_tokenHash", (q) => q.eq("tokenHash", tokenHash))
       .unique();
     if (!tokenRow) return null;
-    const runner = await ctx.db.get(tokenRow.runnerId);
-    if (!runner) return null;
-    const runnerLastStatus: "online" | "offline" = runner.lastStatus === "offline" ? "offline" : "online";
+    let runnerName = ensureOptionalBoundedString(
+      typeof tokenRow.runnerName === "string" ? tokenRow.runnerName : undefined,
+      "runnerName",
+      CONTROL_PLANE_LIMITS.runnerName,
+    );
+    let runnerLastStatus: "online" | "offline" = "online";
+    if (!runnerName) {
+      const runner = await ctx.db.get(tokenRow.runnerId);
+      if (!runner) return null;
+      if (runner.projectId !== tokenRow.projectId) return null;
+      runnerName = runner.runnerName;
+      runnerLastStatus = runner.lastStatus === "offline" ? "offline" : "online";
+    }
+    if (!runnerName) return null;
     return {
       tokenId: tokenRow._id,
       projectId: tokenRow.projectId,
       runnerId: tokenRow.runnerId,
-      runnerName: runner.runnerName,
+      runnerName,
       runnerLastStatus,
       expiresAt: tokenRow.expiresAt,
       revokedAt: tokenRow.revokedAt,
@@ -162,16 +215,31 @@ export const resolveAuthContextInternal = internalQuery({
 });
 
 export const touchLastUsedIfStaleInternal = internalMutation({
-  args: { tokenId: v.id("runnerTokens"), now: v.number(), minIntervalMs: v.number() },
+  args: {
+    tokenId: v.id("runnerTokens"),
+    now: v.number(),
+    minIntervalMs: v.number(),
+    runnerName: v.optional(v.string()),
+  },
   returns: v.null(),
-  handler: async (ctx, { tokenId, now, minIntervalMs }) => {
+  handler: async (ctx, { tokenId, now, minIntervalMs, runnerName }) => {
     const row = await ctx.db.get(tokenId);
     if (!row) return null;
     const minTouchIntervalMs = Math.max(0, Math.trunc(minIntervalMs));
-    if (typeof row.lastUsedAt === "number" && now - row.lastUsedAt < minTouchIntervalMs) {
-      return null;
+    const nextRunnerName = ensureOptionalBoundedString(
+      typeof runnerName === "string" ? runnerName : undefined,
+      "runnerName",
+      CONTROL_PLANE_LIMITS.runnerName,
+    );
+    const patch: Record<string, unknown> = {};
+    if (!(typeof row.lastUsedAt === "number" && now - row.lastUsedAt < minTouchIntervalMs)) {
+      patch.lastUsedAt = now;
     }
-    await ctx.db.patch(tokenId, { lastUsedAt: now });
+    if (nextRunnerName && nextRunnerName !== row.runnerName) {
+      patch.runnerName = nextRunnerName;
+    }
+    if (Object.keys(patch).length === 0) return null;
+    await ctx.db.patch(tokenId, patch as any);
     return null;
   },
 });

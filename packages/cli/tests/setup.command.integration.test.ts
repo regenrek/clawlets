@@ -9,6 +9,8 @@ const writeClawletsConfigMock = vi.hoisted(() => vi.fn());
 const updateDeployCredsEnvFileMock = vi.hoisted(() => vi.fn());
 const runMock = vi.hoisted(() => vi.fn());
 const captureMock = vi.hoisted(() => vi.fn());
+const collectSecretsStatusMock = vi.hoisted(() => vi.fn());
+const summarizeSecretsStatusResultsMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@clawlets/core/lib/project/repo", () => ({
   findRepoRoot: findRepoRootMock,
@@ -33,6 +35,11 @@ vi.mock("@clawlets/core/lib/infra/deploy-creds", async (importOriginal) => {
 vi.mock("@clawlets/core/lib/runtime/run", () => ({
   run: runMock,
   capture: captureMock,
+}));
+
+vi.mock("@clawlets/core/lib/secrets/status", () => ({
+  collectSecretsStatus: collectSecretsStatusMock,
+  summarizeSecretsStatusResults: summarizeSecretsStatusResultsMock,
 }));
 
 describe("setup apply command", () => {
@@ -62,25 +69,27 @@ describe("setup apply command", () => {
       runMock.mockImplementation(async () => {
         order.push("secretsInit");
       });
-      captureMock.mockImplementation(async () => {
+      collectSecretsStatusMock.mockImplementation(async () => {
         order.push("secretsVerify");
-        return JSON.stringify({
-          results: [{ status: "ok" }, { status: "missing" }, { status: "warn" }],
-        });
+        return {
+          host: "alpha",
+          localDir: "/tmp/repo/secrets/alpha",
+          results: [{ status: "ok" }, { status: "warn" }],
+        }
       });
+      summarizeSecretsStatusResultsMock.mockReturnValue({ ok: 1, missing: 0, warn: 1, total: 2 });
 
       fs.writeFileSync(
         inputPath,
         JSON.stringify(
           {
             hostName: "alpha",
-            configOps: [
+            configMutations: [
               { path: "hosts.alpha.provisioning.provider", value: "hetzner", del: false },
             ],
             deployCreds: {
               HCLOUD_TOKEN: "token-123",
               GITHUB_TOKEN: "gh-123",
-              NOPE: "ignored",
             },
             bootstrapSecrets: {
               adminPasswordHash: "$6$hash",
@@ -101,7 +110,7 @@ describe("setup apply command", () => {
       expect(writeClawletsConfigMock).toHaveBeenCalledTimes(1);
       expect(updateDeployCredsEnvFileMock).toHaveBeenCalledTimes(1);
       expect(runMock).toHaveBeenCalledTimes(1);
-      expect(captureMock).toHaveBeenCalledTimes(1);
+      expect(collectSecretsStatusMock).toHaveBeenCalledTimes(1);
       const secretsInitRunOpts = runMock.mock.calls.at(0)?.[2] as Record<string, unknown> | undefined;
       expect(secretsInitRunOpts?.stdout).toBe("ignore");
       const summaryRaw = String(logSpy.mock.calls.at(-1)?.[0] || "");
@@ -112,9 +121,9 @@ describe("setup apply command", () => {
       expect((summary as any).ok).toBe(true);
       expect((summary as any).bootstrapSecrets?.verify).toEqual({
         ok: 1,
-        missing: 1,
+        missing: 0,
         warn: 1,
-        total: 3,
+        total: 2,
       });
     } finally {
       logSpy.mockRestore();
@@ -137,7 +146,7 @@ describe("setup apply command", () => {
         JSON.stringify(
           {
             hostName: "alpha",
-            configOps: [
+            configMutations: [
               { path: "hosts.alpha.provisioning.provider", value: "hetzner", del: false },
             ],
             deployCreds: {
@@ -156,7 +165,7 @@ describe("setup apply command", () => {
       const { setup } = await import("../src/commands/setup/index.js");
       const apply = (setup as any).subCommands?.apply;
       await expect(apply.run({ args: { fromJson: inputPath, json: true } } as any)).rejects.toThrow(
-        /no recognized deploy creds keys/i,
+        /not allowlisted/i,
       );
       expect(updateDeployCredsEnvFileMock).not.toHaveBeenCalled();
       expect(runMock).not.toHaveBeenCalled();
@@ -190,18 +199,19 @@ describe("setup apply command", () => {
         updatedKeys: ["HCLOUD_TOKEN"],
       });
       runMock.mockResolvedValue(undefined);
-      captureMock.mockResolvedValue(
-        JSON.stringify({
-          results: [{ status: "ok" }],
-        }),
-      );
+      collectSecretsStatusMock.mockResolvedValue({
+        host: "alpha",
+        localDir: "/tmp/repo/secrets/alpha",
+        results: [{ status: "ok" }],
+      });
+      summarizeSecretsStatusResultsMock.mockReturnValue({ ok: 1, missing: 0, warn: 0, total: 1 });
 
       fs.writeFileSync(
         inputPath,
         JSON.stringify(
           {
             hostName: "alpha",
-            configOps: [
+            configMutations: [
               { path: "hosts.alpha.hetzner.volumeLinuxDevice", del: true },
               { path: "hosts.alpha.provisioning.provider", value: "hetzner", del: false },
             ],
@@ -223,7 +233,7 @@ describe("setup apply command", () => {
       expect(writeClawletsConfigMock).toHaveBeenCalledTimes(1);
       expect(updateDeployCredsEnvFileMock).toHaveBeenCalledTimes(1);
       expect(runMock).toHaveBeenCalledTimes(1);
-      expect(captureMock).toHaveBeenCalledTimes(1);
+      expect(collectSecretsStatusMock).toHaveBeenCalledTimes(1);
       const secretsInitArgs = runMock.mock.calls.at(0)?.[1] as string[] | undefined;
       expect(Array.isArray(secretsInitArgs)).toBe(true);
       expect(secretsInitArgs).toContain("--allowMissingAdminPasswordHash");
@@ -252,7 +262,6 @@ describe("setup apply command", () => {
       updateDeployCredsEnvFileMock.mockResolvedValue({
         updatedKeys: ["SOPS_AGE_KEY_FILE"],
       });
-      resolveActiveDeployCredsProjectTokenMock.mockReturnValue("tskey-from-keyring");
       runMock.mockImplementation(async (_cmd, args: string[]) => {
         const fromJsonIndex = args.indexOf("--from-json");
         if (fromJsonIndex < 0) return;
@@ -262,18 +271,19 @@ describe("setup apply command", () => {
         expect(ageKeyIndex).toBeGreaterThanOrEqual(0);
         expect(String(args[ageKeyIndex + 1] || "")).toBe("/tmp/runtime/keys/operators/alice.agekey");
       });
-      captureMock.mockResolvedValue(
-        JSON.stringify({
-          results: [{ status: "ok" }],
-        }),
-      );
+      collectSecretsStatusMock.mockResolvedValue({
+        host: "alpha",
+        localDir: "/tmp/repo/secrets/alpha",
+        results: [{ status: "ok" }],
+      });
+      summarizeSecretsStatusResultsMock.mockReturnValue({ ok: 1, missing: 0, warn: 0, total: 1 });
 
       fs.writeFileSync(
         inputPath,
         JSON.stringify(
           {
             hostName: "alpha",
-            configOps: [
+            configMutations: [
               { path: "hosts.alpha.provisioning.provider", value: "hetzner", del: false },
             ],
             deployCreds: {
@@ -301,60 +311,4 @@ describe("setup apply command", () => {
     }
   });
 
-  it("falls back to active tailscale keyring value when bootstrap secrets omit tailscale key", async () => {
-    const repoRoot = fs.mkdtempSync(path.join(tmpdir(), "clawlets-setup-apply-keyring-fallback-"));
-    const configPath = path.join(repoRoot, "clawlets.config.json");
-    const inputPath = path.join(repoRoot, "setup-input.json");
-    let submittedSecretsBody: Record<string, unknown> | null = null;
-    try {
-      findRepoRootMock.mockReturnValue(repoRoot);
-      loadFullConfigMock.mockReturnValue({
-        config: { hosts: { alpha: {} }, fleet: {} },
-        infraConfigPath: configPath,
-      });
-      updateDeployCredsEnvFileMock.mockResolvedValue({
-        updatedKeys: ["SOPS_AGE_KEY_FILE"],
-      });
-      resolveActiveDeployCredsProjectTokenMock.mockReturnValue("tskey-from-keyring");
-      runMock.mockImplementation(async (_cmd, args: string[]) => {
-        const fromJsonIndex = args.indexOf("--from-json");
-        if (fromJsonIndex < 0) return;
-        const secretsPath = String(args[fromJsonIndex + 1] || "");
-        submittedSecretsBody = JSON.parse(fs.readFileSync(secretsPath, "utf8")) as Record<string, unknown>;
-      });
-      captureMock.mockResolvedValue(
-        JSON.stringify({
-          results: [{ status: "ok" }],
-        }),
-      );
-
-      fs.writeFileSync(
-        inputPath,
-        JSON.stringify(
-          {
-            hostName: "alpha",
-            configOps: [
-              { path: "hosts.alpha.provisioning.provider", value: "hetzner", del: false },
-            ],
-            deployCreds: {
-              SOPS_AGE_KEY_FILE: "/tmp/runtime/keys/operators/alice.agekey",
-            },
-            bootstrapSecrets: {
-              adminPasswordHash: "$6$hash",
-            },
-          },
-          null,
-          2,
-        ),
-        "utf8",
-      );
-
-      const { setup } = await import("../src/commands/setup/index.js");
-      const apply = (setup as any).subCommands?.apply;
-      await apply.run({ args: { fromJson: inputPath, json: true } } as any);
-      expect(submittedSecretsBody?.tailscaleAuthKey).toBe("tskey-from-keyring");
-    } finally {
-      fs.rmSync(repoRoot, { recursive: true, force: true });
-    }
-  });
 });

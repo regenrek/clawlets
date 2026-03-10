@@ -1,6 +1,7 @@
 import { HOST_STATUSES } from "@clawlets/core/lib/runtime/control-plane-constants";
 import { RUN_STATUSES } from "@clawlets/core/lib/runtime/run-constants";
 import { RUN_EVENT_LEVELS } from "@clawlets/core/lib/runtime/run-constants";
+import { RUNNER_DEPLOY_CREDS_SUMMARY_SCHEMA_VERSION } from "@clawlets/core/lib/runtime/runner-deploy-creds-contract";
 import { Base64 } from "convex/values";
 import type { Id } from "../_generated/dataModel";
 import {
@@ -172,6 +173,7 @@ export function validateMetadataSyncPayloadSizes(params: {
 }
 
 export function sanitizeDeployCredsSummary(value: unknown): {
+  schemaVersion: number;
   updatedAtMs: number;
   envFileOrigin: "default" | "explicit";
   envFileStatus: "ok" | "missing" | "invalid";
@@ -278,6 +280,7 @@ export function sanitizeDeployCredsSummary(value: unknown): {
   );
 
   return {
+    schemaVersion: RUNNER_DEPLOY_CREDS_SUMMARY_SCHEMA_VERSION,
     updatedAtMs,
     envFileOrigin,
     envFileStatus,

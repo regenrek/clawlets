@@ -47,6 +47,7 @@ async function deleteBatchByProject(params: {
     | "hosts"
     | "gateways"
     | "secretWiring"
+    | "setupOperations"
     | "jobs"
     | "runnerCommandResultBlobs"
     | "runnerCommandResults"
@@ -156,6 +157,8 @@ async function deleteStageBatch(params: {
       return await deleteBatchByProject({ ctx: params.ctx, table: "gateways", projectId: params.projectId });
     case "secretWiring":
       return await deleteBatchByProject({ ctx: params.ctx, table: "secretWiring", projectId: params.projectId });
+    case "setupOperations":
+      return await deleteBatchByProject({ ctx: params.ctx, table: "setupOperations", projectId: params.projectId });
     case "jobs":
       return await deleteBatchByProject({ ctx: params.ctx, table: "jobs", projectId: params.projectId });
     case "runnerCommandResultBlobs":

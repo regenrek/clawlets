@@ -34,6 +34,8 @@ describe("setup deploy two-phase flow", () => {
     expect(source).not.toContain("setupDraftVersion")
     expect(source).toContain("const predeployFingerprintRef = useRef(predeployFingerprint)")
     expect(source).toContain("setPredeployReadyFingerprint(predeployFingerprintNow)")
+    expect(source).toContain("const persistedPredeployReady = effectiveSetupOperation?.status === \"succeeded\"")
+    expect(source).toContain("if (!predeployReady) {")
     expect(source).not.toContain("Deploy checks load when this section is active.")
     expect(setupDeployStep).not.toContain("setupChecksEnabled")
   })

@@ -10,6 +10,7 @@ import { ensureBoundedString, ensureOptionalBoundedString, CONTROL_PLANE_LIMITS 
 import { rateLimit } from "../shared/rateLimit";
 import { RunnerDoc } from "../shared/validators";
 import { RunnerCapabilities, RunnerDeployCredsSummary } from "../schema";
+import { sanitizeDeployCredsSummary } from "./httpParsers";
 
 function literals<const T extends readonly string[]>(values: T) {
   return values.map((value) => v.literal(value));
@@ -20,6 +21,10 @@ const HeartbeatPatch = v.object({
   capabilities: v.optional(RunnerCapabilities),
   status: v.optional(v.union(...literals(RUNNER_STATUSES))),
 });
+
+function isJsonEqual(a: unknown, b: unknown): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
 
 async function upsertHeartbeatInternalDb(params: {
   ctx: MutationCtx;
@@ -54,7 +59,12 @@ async function upsertHeartbeatInternalDb(params: {
     capabilities: params.patch.capabilities,
   };
   if (existing) {
-    await params.ctx.db.patch(existing._id, next);
+    const patch: Record<string, unknown> = { ...next };
+    const normalizedSummary = sanitizeDeployCredsSummary(existing.deployCredsSummary);
+    if (normalizedSummary && !isJsonEqual(existing.deployCredsSummary, normalizedSummary)) {
+      patch.deployCredsSummary = normalizedSummary;
+    }
+    await params.ctx.db.patch(existing._id, patch as any);
     return existing._id;
   }
   return await params.ctx.db.insert("runners", { projectId: params.projectId, runnerName: name, ...next });
@@ -118,11 +128,50 @@ export const patchDeployCredsSummaryInternal = internalMutation({
   handler: async (ctx, { projectId, runnerId, deployCredsSummary }) => {
     const runner = await ctx.db.get(runnerId);
     if (!runner || runner.projectId !== projectId) return null;
-    await ctx.db.patch(runnerId, { deployCredsSummary });
+    const normalized = sanitizeDeployCredsSummary(deployCredsSummary);
+    if (!normalized) return null;
+    await ctx.db.patch(runnerId, { deployCredsSummary: normalized });
     await ctx.runMutation(internal.controlPlane.projectCredentials.syncFromDeployCredsSummaryInternal, {
       projectId,
-      summary: deployCredsSummary,
+      summary: normalized,
     });
     return null;
+  },
+});
+
+export const normalizeDeployCredsSummaries = mutation({
+  args: {
+    projectId: v.id("projects"),
+    limit: v.optional(v.number()),
+  },
+  returns: v.object({
+    scanned: v.number(),
+    updated: v.number(),
+  }),
+  handler: async (ctx, { projectId, limit }) => {
+    const access = await requireProjectAccessMutation(ctx, projectId);
+    requireAdmin(access.role);
+    const maxRows = Math.max(1, Math.min(10_000, Math.trunc(limit ?? 1_000)));
+    const rows = await ctx.db
+      .query("runners")
+      .withIndex("by_project", (q) => q.eq("projectId", projectId))
+      .collect();
+
+    let scanned = 0;
+    let updated = 0;
+    for (const row of rows) {
+      if (scanned >= maxRows) break;
+      scanned += 1;
+      const normalized = sanitizeDeployCredsSummary(row.deployCredsSummary);
+      if (!normalized) continue;
+      if (isJsonEqual(row.deployCredsSummary, normalized)) continue;
+      await ctx.db.patch(row._id, { deployCredsSummary: normalized });
+      await ctx.runMutation(internal.controlPlane.projectCredentials.syncFromDeployCredsSummaryInternal, {
+        projectId,
+        summary: normalized,
+      });
+      updated += 1;
+    }
+    return { scanned, updated };
   },
 });

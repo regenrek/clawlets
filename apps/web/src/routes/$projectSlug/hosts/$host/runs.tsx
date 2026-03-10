@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router"
+import { Outlet, createFileRoute } from "@tanstack/react-router"
 import { RunsList } from "~/components/runs/runs-list"
 import { useProjectBySlug } from "~/lib/project-data"
 import { projectsListQueryOptions } from "~/lib/query-options"
@@ -33,6 +33,7 @@ function HostRunsPage() {
       </p>
 
       <RunsList projectSlug={projectSlug} projectId={projectId} host={host} />
+      <Outlet />
     </div>
   )
 }

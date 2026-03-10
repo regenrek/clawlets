@@ -1,26 +1,74 @@
-import fs from "node:fs";
-import path from "node:path";
 import process from "node:process";
 import { defineCommand } from "citty";
-import YAML from "yaml";
-import { agePublicKeyFromIdentityFile } from "@clawlets/core/lib/security/age-keygen";
-import { sopsDecryptYamlFile } from "@clawlets/core/lib/security/sops";
 import { sanitizeOperatorId } from "@clawlets/shared/lib/identifiers";
-import { buildFleetSecretsPlan } from "@clawlets/core/lib/secrets/plan";
-import { resolveSecretsPlanScope } from "@clawlets/core/lib/secrets/secrets-plan-scopes";
-import { isPlaceholderSecretValue } from "@clawlets/core/lib/secrets/secrets-init";
 import { loadDeployCreds } from "@clawlets/core/lib/infra/deploy-creds";
-import { getHostSecretsDir, getLocalOperatorAgeKeyPath } from "@clawlets/core/repo-layout";
+import { collectSecretsStatus, summarizeSecretsStatusResults } from "@clawlets/core/lib/secrets/status";
+import { getLocalOperatorAgeKeyPath } from "@clawlets/core/repo-layout";
 import { loadHostContextOrExit } from "@clawlets/core/lib/runtime/context";
-import { getHostAgeKeySopsCreationRulePathRegex, getHostSecretsSopsCreationRulePathRegex } from "@clawlets/core/lib/security/sops-rules";
-import { getSopsCreationRuleAgeRecipients } from "@clawlets/core/lib/security/sops-config";
-import { mapWithConcurrency } from "@clawlets/core/lib/runtime/concurrency";
-import { coerceString, formatUnknown } from "@clawlets/shared/lib/strings";
 import { parseSecretsScope } from "./common.js";
 
-function uniqSorted(values: string[]): string[] {
-  return Array.from(new Set(values)).toSorted();
+async function readSecretsStatus(args: any) {
+  const cwd = process.cwd();
+  const ctx = loadHostContextOrExit({ cwd, runtimeDir: args.runtimeDir, hostArg: args.host });
+  if (!ctx) return null;
+  const { layout, config, hostName } = ctx;
+
+  const deployCreds = loadDeployCreds({ cwd, runtimeDir: args.runtimeDir, envFile: args.envFile });
+  if (deployCreds.envFile?.origin === "explicit" && deployCreds.envFile.status !== "ok") {
+    throw new Error(`deploy env file rejected: ${deployCreds.envFile.path} (${deployCreds.envFile.error || deployCreds.envFile.status})`);
+  }
+
+  const operatorId = sanitizeOperatorId(String(args.operator || process.env.USER || "operator"));
+  const operatorKeyPath =
+    (args.ageKeyFile ? String(args.ageKeyFile).trim() : "") ||
+    (deployCreds.values.SOPS_AGE_KEY_FILE ? String(deployCreds.values.SOPS_AGE_KEY_FILE).trim() : "") ||
+    getLocalOperatorAgeKeyPath(layout, operatorId);
+
+  const nix = {
+    nixBin: String(deployCreds.values.NIX_BIN || "nix").trim() || "nix",
+    cwd: layout.repoRoot,
+    dryRun: false,
+  } as const;
+
+  return await collectSecretsStatus({
+    layout,
+    config,
+    hostName,
+    scope: parseSecretsScope(args.scope),
+    operatorKeyPath,
+    nix,
+  });
 }
+
+export const secretsStatus = defineCommand({
+  meta: {
+    name: "status",
+    description: "Return repo-backed secret status without failing the process on missing secrets.",
+  },
+  args: {
+    runtimeDir: { type: "string", description: "Runtime directory (default: ~/.clawlets/workspaces/<repo>-<hash>; or $CLAWLETS_HOME/workspaces/<repo>-<hash>)." },
+    envFile: { type: "string", description: "Env file for deploy creds (default: <runtimeDir>/env)." },
+    host: { type: "string", description: "Host name (defaults to clawlets.json defaultHost / sole host)." },
+    scope: { type: "string", description: "Secrets scope (bootstrap|updates|openclaw|all).", default: "all" },
+    operator: {
+      type: "string",
+      description: "Operator id for age key name (default: $USER). Used if SOPS_AGE_KEY_FILE is not set.",
+    },
+    ageKeyFile: { type: "string", description: "Override SOPS_AGE_KEY_FILE path." },
+    json: { type: "boolean", description: "Output JSON.", default: false },
+  },
+  async run({ args }) {
+    const report = await readSecretsStatus(args as any);
+    if (!report) return;
+    if ((args as any).json) {
+      console.log(JSON.stringify(report, null, 2));
+      return;
+    }
+    for (const row of report.results) {
+      console.log(`${row.status}: ${row.secret}${row.detail ? ` (${row.detail})` : ""}`);
+    }
+  },
+});
 
 export const secretsVerify = defineCommand({
   meta: {
@@ -40,153 +88,16 @@ export const secretsVerify = defineCommand({
     json: { type: "boolean", description: "Output JSON.", default: false },
   },
   async run({ args }) {
-    const cwd = process.cwd();
-    const ctx = loadHostContextOrExit({ cwd, runtimeDir: (args as any).runtimeDir, hostArg: args.host });
-    if (!ctx) return;
-    const { layout, config, hostName } = ctx;
-
-    const deployCreds = loadDeployCreds({ cwd, runtimeDir: (args as any).runtimeDir, envFile: (args as any).envFile });
-    if (deployCreds.envFile?.origin === "explicit" && deployCreds.envFile.status !== "ok") {
-      throw new Error(`deploy env file rejected: ${deployCreds.envFile.path} (${deployCreds.envFile.error || deployCreds.envFile.status})`);
-    }
-
-    const operatorId = sanitizeOperatorId(String(args.operator || process.env.USER || "operator"));
-
-    const operatorKeyPath =
-      (args.ageKeyFile ? String(args.ageKeyFile).trim() : "") ||
-      (deployCreds.values.SOPS_AGE_KEY_FILE ? String(deployCreds.values.SOPS_AGE_KEY_FILE).trim() : "") ||
-      getLocalOperatorAgeKeyPath(layout, operatorId);
-
-    const nix = { nixBin: String(deployCreds.values.NIX_BIN || "nix").trim() || "nix", cwd: layout.repoRoot, dryRun: false } as const;
-
-    const localDir = getHostSecretsDir(layout, hostName);
-    const scope = parseSecretsScope((args as any).scope);
-    const secretsPlan = buildFleetSecretsPlan({ config, hostName, scope });
-    const scopeSummary =
-      scope === "all"
-        ? {
-            requiredNames: uniqSorted((secretsPlan.required || []).map((spec) => spec.name)),
-            optionalNames: uniqSorted((secretsPlan.optional || []).map((spec) => spec.name)),
-          }
-        : resolveSecretsPlanScope({ scopes: secretsPlan.scopes, optional: secretsPlan.optional, scope });
-    const requiredSecretNames = new Set<string>(scopeSummary.requiredNames);
-    const secretNames = Array.from(new Set<string>([
-      ...scopeSummary.requiredNames,
-      ...scopeSummary.optionalNames,
-    ])).toSorted();
-    const optionalSecrets = scope === "openclaw" ? [] : ["root_password_hash"];
-
-    type Result = { secret: string; status: "ok" | "missing" | "warn"; detail?: string };
-    const preflight: Result[] = [];
-
-    if (!fs.existsSync(operatorKeyPath)) {
-      preflight.push({ secret: "SOPS_AGE_KEY_FILE", status: "missing", detail: operatorKeyPath });
-    }
-
-    const formatRecipients = (recipients: string[]) => (recipients.length ? recipients.join(", ") : "(none)");
-    let operatorPublicKey = "";
-    if (fs.existsSync(operatorKeyPath)) {
-      try {
-        operatorPublicKey = await agePublicKeyFromIdentityFile(operatorKeyPath, nix);
-      } catch (e) {
-        preflight.push({
-          secret: "SOPS_AGE_KEY_FILE",
-          status: "missing",
-          detail: `failed to derive operator public key: ${String((e as Error)?.message || e)}`,
-        });
-      }
-    }
-
-    if (operatorPublicKey && fs.existsSync(layout.sopsConfigPath)) {
-      const sopsText = fs.readFileSync(layout.sopsConfigPath, "utf8");
-      const hostSecretsRule = getHostSecretsSopsCreationRulePathRegex(layout, hostName);
-      const hostKeyRule = getHostAgeKeySopsCreationRulePathRegex(layout, hostName);
-      const hostSecretsRecipients = getSopsCreationRuleAgeRecipients({ existingYaml: sopsText, pathRegex: hostSecretsRule });
-      const hostKeyRecipients = getSopsCreationRuleAgeRecipients({ existingYaml: sopsText, pathRegex: hostKeyRule });
-
-      if (hostSecretsRecipients.length > 0 && !hostSecretsRecipients.includes(operatorPublicKey)) {
-        preflight.push({
-          secret: "sops recipients (host secrets)",
-          status: "missing",
-          detail: `operator key ${operatorPublicKey} not in recipients: ${formatRecipients(hostSecretsRecipients)}; run: clawlets secrets init --yes (or set SOPS_AGE_KEY_FILE to the matching key)`,
-        });
-      }
-      if (hostKeyRecipients.length > 0 && !hostKeyRecipients.includes(operatorPublicKey)) {
-        preflight.push({
-          secret: "sops recipients (host age key)",
-          status: "missing",
-          detail: `operator key ${operatorPublicKey} not in recipients: ${formatRecipients(hostKeyRecipients)}; run: clawlets secrets init --yes (or set SOPS_AGE_KEY_FILE to the matching key)`,
-        });
-      }
-    }
-
-    if (preflight.length > 0) {
-      if (args.json) {
-        console.log(JSON.stringify({ host: hostName, localDir, results: preflight }, null, 2));
-      } else {
-        for (const r of preflight) console.log(`${r.status}: ${r.secret}${r.detail ? ` (${r.detail})` : ""}`);
-      }
-      process.exitCode = 1;
-      return;
-    }
-
-    const results: Result[] = [];
-
-    const verifyOne = async (secretName: string, optional: boolean, allowOptionalMarker: boolean): Promise<Result> => {
-      const filePath = path.join(localDir, `${secretName}.yaml`);
-      if (!fs.existsSync(filePath)) {
-        return { secret: secretName, status: optional ? "warn" : "missing", detail: `(missing: ${filePath})` };
-      }
-      try {
-        const decrypted = await sopsDecryptYamlFile({ filePath, ageKeyFile: operatorKeyPath, nix });
-        const parsed = (YAML.parse(decrypted) as Record<string, unknown>) || {};
-        const keys = Object.keys(parsed).filter((k) => k !== "sops");
-        if (keys.length !== 1 || keys[0] !== secretName) {
-          return { secret: secretName, status: "missing", detail: "(invalid: expected exactly 1 key matching filename)" };
-        }
-        const v = parsed[secretName];
-        const value = typeof v === "string" ? v : coerceString(v);
-        if (!allowOptionalMarker && value.trim() === "<OPTIONAL>") {
-          return { secret: secretName, status: "missing", detail: "(placeholder: <OPTIONAL>)" };
-        }
-        if (!optional && isPlaceholderSecretValue(value)) {
-          return { secret: secretName, status: "missing", detail: `(placeholder: ${value.trim()})` };
-        }
-        if (optional && isPlaceholderSecretValue(value)) {
-          return { secret: secretName, status: "missing", detail: `(placeholder: ${value.trim()})` };
-        }
-        if (!optional && !value.trim()) {
-          return { secret: secretName, status: "missing", detail: "(empty)" };
-        }
-        return { secret: secretName, status: "ok" };
-      } catch (e) {
-        return { secret: secretName, status: "missing", detail: formatUnknown(e) };
-      }
-    };
-
-    if (!fs.existsSync(localDir)) {
-      results.push({ secret: "secrets.localDir", status: "missing", detail: localDir });
+    const report = await readSecretsStatus(args as any);
+    if (!report) return;
+    if ((args as any).json) {
+      console.log(JSON.stringify(report, null, 2));
     } else {
-      const checks = [
-        ...secretNames.map((s) => ({ secretName: s, optional: false, allowOptionalMarker: !requiredSecretNames.has(s) })),
-        ...optionalSecrets.map((s) => ({ secretName: s, optional: true, allowOptionalMarker: true })),
-      ];
-
-      const checked = await mapWithConcurrency({
-        items: checks,
-        concurrency: 4,
-        fn: async (c) => await verifyOne(c.secretName, c.optional, c.allowOptionalMarker),
-      });
-
-      results.push(...checked);
+      for (const row of report.results) {
+        console.log(`${row.status}: ${row.secret}${row.detail ? ` (${row.detail})` : ""}`);
+      }
     }
-
-    if (args.json) {
-      console.log(JSON.stringify({ host: hostName, localDir, results }, null, 2));
-    } else {
-      for (const r of results) console.log(`${r.status}: ${r.secret}${r.detail ? ` (${r.detail})` : ""}`);
-    }
-
-    if (results.some((r) => r.status === "missing")) process.exitCode = 1;
+    const summary = summarizeSecretsStatusResults(report.results);
+    if (summary.missing > 0) process.exitCode = 1;
   },
 });

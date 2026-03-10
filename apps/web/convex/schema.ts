@@ -58,6 +58,9 @@ export const ProjectDeletionStage = v.union(...literals(PROJECT_DELETION_STAGES)
 export const AuditAction = v.union(
   v.literal("bootstrap"),
   v.literal("deployCreds.update"),
+  v.literal("setup.apply.start"),
+  v.literal("setup.apply.retry"),
+  v.literal("setup.apply.fail"),
   v.literal("setup.apply.commit"),
   v.literal("setup.draft.discard"),
   v.literal("setup.draft.save_non_secret"),
@@ -173,6 +176,7 @@ export const ProviderConfigSummary = v.object({
 });
 export const JobPayloadMeta = v.object({
   hostName: v.optional(v.string()),
+  operationId: v.optional(v.string()),
   gatewayId: v.optional(v.string()),
   scope: v.optional(JobSecretScope),
   secretNames: v.optional(v.array(v.string())),
@@ -217,6 +221,7 @@ export const RunnerSshListSummary = v.object({
   items: v.array(v.string()),
 });
 export const RunnerDeployCredsSummary = v.object({
+  schemaVersion: v.optional(v.number()),
   updatedAtMs: v.number(),
   envFileOrigin: DeployEnvFileOrigin,
   envFileStatus: DeployEnvFileStatus,
@@ -229,6 +234,7 @@ export const RunnerDeployCredsSummary = v.object({
   gitRemoteOrigin: v.optional(v.string()),
   projectTokenKeyrings: v.object({
     hcloud: RunnerProjectTokenKeyringSummary,
+    tailscale: v.optional(RunnerProjectTokenKeyringSummary),
   }),
   fleetSshAuthorizedKeys: v.optional(RunnerSshListSummary),
   fleetSshKnownHosts: v.optional(RunnerSshListSummary),
@@ -288,6 +294,43 @@ export const SetupDraftSealedSection = v.object({
 export const SetupDraftSealedSections = v.object({
   hostBootstrapCreds: v.optional(SetupDraftSealedSection),
   hostBootstrapSecrets: v.optional(SetupDraftSealedSection),
+});
+export const SetupOperationStatus = v.union(
+  v.literal("queued"),
+  v.literal("running"),
+  v.literal("succeeded"),
+  v.literal("failed"),
+);
+export const SetupOperationStepId = v.union(
+  v.literal("plan_validated"),
+  v.literal("workspace_staged"),
+  v.literal("config_written"),
+  v.literal("deploy_creds_written"),
+  v.literal("bootstrap_secrets_initialized"),
+  v.literal("bootstrap_secrets_verified"),
+  v.literal("persist_committed"),
+);
+export const SetupOperationStepStatus = v.union(
+  v.literal("pending"),
+  v.literal("running"),
+  v.literal("succeeded"),
+  v.literal("failed"),
+);
+export const SetupOperationStep = v.object({
+  stepId: SetupOperationStepId,
+  status: SetupOperationStepStatus,
+  safeMessage: v.string(),
+  detailJson: v.optional(v.string()),
+  retryable: v.boolean(),
+  updatedAt: v.number(),
+});
+export const SetupOperationRunAttempt = v.object({
+  attempt: v.number(),
+  jobId: v.id("jobs"),
+  runId: v.id("runs"),
+  status: SetupOperationStatus,
+  startedAt: v.number(),
+  finishedAt: v.optional(v.number()),
 });
 
 const schema = defineSchema({
@@ -453,6 +496,7 @@ const schema = defineSchema({
   runnerTokens: defineTable({
     projectId: v.id("projects"),
     runnerId: v.id("runners"),
+    runnerName: v.optional(v.string()),
     tokenHash: v.string(),
     createdByUserId: v.id("users"),
     createdAt: v.number(),
@@ -506,6 +550,33 @@ const schema = defineSchema({
   })
     .index("by_project_host", ["projectId", "hostName"])
     .index("by_expiresAt", ["expiresAt"]),
+
+  setupOperations: defineTable({
+    projectId: v.id("projects"),
+    hostName: v.string(),
+    status: SetupOperationStatus,
+    planSchemaVersion: v.number(),
+    planJson: v.string(),
+    targetRunnerId: v.id("runners"),
+    sealedSecretDrafts: SetupDraftSealedSections,
+    currentAttempt: v.number(),
+    preparedExpiresAt: v.optional(v.number()),
+    currentJobId: v.optional(v.id("jobs")),
+    currentRunId: v.optional(v.id("runs")),
+    runHistory: v.array(SetupOperationRunAttempt),
+    steps: v.array(SetupOperationStep),
+    createdByUserId: v.id("users"),
+    createdAt: v.number(),
+    startedAt: v.optional(v.number()),
+    finishedAt: v.optional(v.number()),
+    terminalMessage: v.optional(v.string()),
+    summaryJson: v.optional(v.string()),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_project_host_createdAt", ["projectId", "hostName", "createdAt"])
+    .index("by_project_host_status", ["projectId", "hostName", "status"])
+    .index("by_currentJobId", ["currentJobId"])
+    .index("by_currentRunId", ["currentRunId"]),
 
   runnerCommandResults: defineTable({
     projectId: v.id("projects"),

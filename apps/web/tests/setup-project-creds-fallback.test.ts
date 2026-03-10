@@ -21,7 +21,7 @@ describe("setup project creds fallback", () => {
     expect(setupModelHook).not.toContain("setupDraftDeployCredsSet")
     expect(setupModelHook).not.toContain("getDeployCredsStatus")
     expect(setupModelHook).not.toContain("generateSopsAgeKey")
-    expect(deploySetup).toContain("effectiveDeployCredsReady")
+    expect(deploySetup).toContain("projectCredsReady")
     expect(deploySetup).toContain("generateSopsAgeKey")
     expect(deploySetup).toContain("section: \"hostBootstrapCreds\"")
     expect(deploySetup).toContain("SOPS_AGE_KEY_FILE")

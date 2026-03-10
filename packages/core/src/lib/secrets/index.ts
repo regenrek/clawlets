@@ -16,4 +16,5 @@ export * from "./secrets-init-template.js";
 export * from "./secrets-plan.js";
 export * from "./secrets-plan-scopes.js";
 export * from "./secrets-policy.js";
+export * from "./status.js";
 export * from "./secrets-tar.js";
