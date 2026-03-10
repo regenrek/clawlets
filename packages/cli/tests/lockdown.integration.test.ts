@@ -77,8 +77,8 @@ vi.mock("../src/lib/deploy-gate.js", () => ({
 const hostName = "openclaw-beta-4";
 const baseHost = {
   enable: true,
-  gatewaysOrder: ["maren"],
-  gateways: { maren: {} },
+  gatewaysOrder: [],
+  gateways: {},
   diskDevice: "/dev/sda",
   flakeHost: "",
   targetHost: "admin@100.64.0.10",
@@ -123,7 +123,7 @@ describe("lockdown command", () => {
     });
   });
 
-  it("applies provider lockdown without ssh", async () => {
+  it("applies provider lockdown when openclaw is disabled and no gateways are configured", async () => {
     const tempDir = await fs.promises.mkdtemp(path.join(tmpdir(), "clawlets-lockdown-"));
     const keyPath = path.join(tempDir, "id_ed25519.pub");
     await fs.promises.writeFile(keyPath, "ssh-ed25519 AAAA", "utf8");
@@ -167,6 +167,11 @@ describe("lockdown command", () => {
     });
 
     expect(lockdownMock).toHaveBeenCalled();
+    expect(requireDeployGateMock).toHaveBeenCalledWith(expect.objectContaining({
+      host: hostName,
+      scope: "lockdown",
+      strict: true,
+    }));
     expect(sshCaptureMock).not.toHaveBeenCalled();
     expect(sshRunMock).not.toHaveBeenCalled();
   });
@@ -219,5 +224,18 @@ describe("lockdown command", () => {
     expect(String(spec?.ssh?.publicKeyPath || "")).toContain(
       `${path.sep}keys${path.sep}provisioning${path.sep}${hostName}.pub`,
     );
+  });
+
+  it("fails when lockdown doctor gate reports a blocker", async () => {
+    requireDeployGateMock.mockRejectedValueOnce(new Error("doctor gate failed (lockdown, strict)\nMISSING: infra state"));
+    const { lockdown } = await import("../src/commands/infra/lockdown.ts");
+    await expect(lockdown.run({
+      args: {
+        host: hostName,
+        skipTofu: false,
+        dryRun: true,
+      } as any,
+    })).rejects.toThrow(/doctor gate failed \(lockdown, strict\)/i);
+    expect(lockdownMock).not.toHaveBeenCalled();
   });
 });

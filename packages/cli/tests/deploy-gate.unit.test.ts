@@ -33,4 +33,24 @@ describe("requireDeployGate", () => {
     const { requireDeployGate } = await import("../src/lib/deploy-gate.js");
     await expect(requireDeployGate({ host: "alpha", scope: "repo", strict: true })).rejects.toThrow(/gate failed/);
   });
+
+  it("passes lockdown scope when blockers are all ok", async () => {
+    collectDoctorChecksMock.mockResolvedValue([
+      { status: "ok", scope: "lockdown", label: "host.enable" },
+      { status: "ok", scope: "lockdown", label: "sshExposure" },
+      { status: "ok", scope: "lockdown", label: "tailnet configured" },
+      { status: "ok", scope: "lockdown", label: "targetHost" },
+      { status: "ok", scope: "lockdown", label: "deploy env file" },
+      { status: "ok", scope: "lockdown", label: "provider credentials" },
+      { status: "ok", scope: "lockdown", label: "infra state" },
+    ]);
+    const { requireDeployGate } = await import("../src/lib/deploy-gate.js");
+    await expect(requireDeployGate({ host: "alpha", scope: "lockdown", strict: true })).resolves.toBeUndefined();
+  });
+
+  it("fails lockdown scope on true blocker", async () => {
+    collectDoctorChecksMock.mockResolvedValue([{ status: "missing", scope: "lockdown", label: "infra state" }]);
+    const { requireDeployGate } = await import("../src/lib/deploy-gate.js");
+    await expect(requireDeployGate({ host: "alpha", scope: "lockdown", strict: true })).rejects.toThrow(/gate failed/);
+  });
 });

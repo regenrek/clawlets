@@ -1,0 +1,96 @@
+---
+title: Tailscale auth key
+description: Generate a Tailscale auth key (tskey-auth-...) and set `tailscale_auth_key` per host in Setup.
+---
+
+Clawlets uses a Tailscale **auth key** (preauth key) per host to join that host to your
+tailnet during post-bootstrap hardening.
+
+Do not use a Tailscale API key. API keys are for the Tailscale HTTP API and won’t work
+for `tailscale up --authkey`.
+
+UI route: `/<projectSlug>/hosts/<host>/setup`
+
+<Callout type="warning" title="Auth key vs API key">
+  Auth keys start with <code>tskey-auth-</code>. API keys start with <code>tskey-api-</code>.
+  Clawlets requires an auth key.
+</Callout>
+
+## Prereqs
+
+- Tailscale admin access for your tailnet.
+- Host setup route open for target host.
+- Project runner online (sealed input).
+
+## Create auth key (Tailscale admin)
+
+<Steps>
+  <Step>
+    Open Tailscale admin keys:
+    <br />
+    https://login.tailscale.com/admin/settings/keys
+  </Step>
+  <Step>
+    Under <strong>Auth keys</strong>, generate a new key.
+  </Step>
+  <Step>
+    Recommended settings:
+    <br />
+    - set an expiration
+    <br />
+    - non-reusable per host (recommended)
+    <br />
+    - optional: add tags if your ACLs require them
+  </Step>
+  <Step>
+    Copy the value immediately. It is shown once.
+  </Step>
+</Steps>
+
+## Set key in host Setup
+
+<Steps>
+  <Step>
+    Open <code>/$projectSlug/hosts/$host/setup</code> for the host you are onboarding.
+  </Step>
+  <Step>
+    In <strong>Tailscale lockdown</strong>, enable <code>Use tailscale + lockdown</code>.
+  </Step>
+  <Step>
+    Paste the auth key (<code>tskey-auth-...</code>) for this host and save.
+  </Step>
+  <Step>
+    Run setup deploy/apply. Clawlets persists the host-scoped secret during this flow.
+  </Step>
+</Steps>
+
+## Where this is stored
+
+- The key is stored as encrypted host secret:
+  `secrets/hosts/<host>/tailscale_auth_key.yaml`.
+- Setup/lockdown uses this host-scoped secret when `hosts.<host>.tailnet.mode=tailscale`.
+- Tailscale auth keys are not managed as project-wide deploy credentials.
+
+## Verify
+
+- `secrets/hosts/<host>/tailscale_auth_key.yaml` exists and is encrypted.
+- Host Setup `Tailscale lockdown` shows status `Ready` when enabled.
+
+## Troubleshooting
+
+### Setup says "Tailscale auth key missing"
+
+- Reopen `/$projectSlug/hosts/$host/setup` and save the Tailscale lockdown step again.
+- Confirm `hosts.<host>.tailnet.mode=tailscale` for that host.
+
+### Auth key rejected or join fails
+
+- Confirm the key starts with `tskey-auth-`.
+- If you use tags, confirm your ACL `tagOwners` allows that tag.
+- If device approval is enabled, approve the node in the Tailscale admin console.
+
+### Key expired
+
+- Generate a new auth key and replace `tailscale_auth_key` for the affected host.
+
+Related: [Setup](/dashboard/setup), [Secrets](/security/secrets)

@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getRepoLayout } from "@clawlets/core/repo-layout";
+import { getHostOpenTofuDir, getRepoLayout } from "@clawlets/core/repo-layout";
 
 const hostName = "openclaw-beta-3";
 
@@ -238,7 +238,26 @@ describe("bootstrap command", () => {
   });
 
   it("runs auto-lockdown when --lockdown-after is set", async () => {
-    setConfig({ sshExposure: { mode: "bootstrap" }, tailnet: { mode: "tailscale" } });
+    setConfig({ enable: true, sshExposure: { mode: "bootstrap" }, tailnet: { mode: "tailscale" } });
+    const layout = getRepoLayout(repoRoot);
+    const tfstatePath = path.join(getHostOpenTofuDir(layout, hostName), "providers", "hetzner", "terraform.tfstate");
+    fs.mkdirSync(path.dirname(tfstatePath), { recursive: true });
+    fs.writeFileSync(
+      tfstatePath,
+      JSON.stringify({ outputs: { instance_id: { value: "srv-123" } } }),
+      "utf8",
+    );
+    writeClawletsConfigMock.mockImplementation(async ({ configPath, config }: any) => {
+      loadClawletsConfigMock.mockReturnValue({
+        layout: getRepoLayout(repoRoot),
+        configPath,
+        config,
+      });
+    });
+    sshCaptureMock.mockResolvedValue(
+      "3: tailscale0: <POINTOPOINT,MULTICAST,NOARP,UP,LOWER_UP> mtu 1280\n"
+      + "    inet 100.64.0.10/32 scope global tailscale0\n",
+    );
     const { bootstrap } = await import("../src/commands/infra/bootstrap.ts");
     await bootstrap.run({
       args: {
@@ -249,6 +268,8 @@ describe("bootstrap command", () => {
         force: true,
         dryRun: false,
         lockdownAfter: true,
+        lockdownTimeout: "1s",
+        lockdownPoll: "1s",
       } as any,
     });
 

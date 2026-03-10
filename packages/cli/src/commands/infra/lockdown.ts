@@ -27,6 +27,16 @@ export const lockdown = defineCommand({
     const repoRoot = findRepoRoot(cwd);
     const hostName = resolveHostNameOrExit({ cwd, runtimeDir: (args as any).runtimeDir, hostArg: args.host });
     if (!hostName) return;
+
+    await requireDeployGate({
+      runtimeDir: (args as any).runtimeDir,
+      envFile: (args as any).envFile,
+      host: hostName,
+      scope: "lockdown",
+      strict: true,
+      skipGithubTokenCheck: true,
+    });
+
     const { layout, config: clawletsConfig } = loadClawletsConfig({ repoRoot, runtimeDir: (args as any).runtimeDir });
     if (!clawletsConfig.hosts[hostName]) throw new Error(`missing host in fleet/clawlets.json: ${hostName}`);
     const hostProvisioningConfig = resolveHostProvisioningConfig({
@@ -37,23 +47,8 @@ export const lockdown = defineCommand({
     });
     const opentofuDir = getHostOpenTofuDir(layout, hostName);
     const spec = buildHostProvisionSpec({ repoRoot, hostName, hostCfg: hostProvisioningConfig.hostCfg });
-    const sshExposureMode = spec.sshExposureMode;
-    if (sshExposureMode !== "tailnet") {
-      throw new Error(`sshExposure.mode=${sshExposureMode}; set sshExposure.mode=tailnet before lockdown (clawlets host set --host ${hostName} --ssh-exposure tailnet)`);
-    }
-
-    await requireDeployGate({
-      runtimeDir: (args as any).runtimeDir,
-      envFile: (args as any).envFile,
-      host: hostName,
-      scope: "updates",
-      strict: true,
-      skipGithubTokenCheck: true,
-    });
 
     const deployCreds = loadDeployCreds({ cwd, runtimeDir: (args as any).runtimeDir, envFile: (args as any).envFile });
-    if (deployCreds.envFile?.status === "invalid") throw new Error(`deploy env file rejected: ${deployCreds.envFile.path} (${deployCreds.envFile.error || "invalid"})`);
-    if (deployCreds.envFile?.status === "missing") throw new Error(`missing deploy env file: ${deployCreds.envFile.path}`);
 
     const driver = getProvisionerDriver(spec.provider);
     const runtime = buildProvisionerRuntime({
