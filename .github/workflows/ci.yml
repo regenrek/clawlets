@@ -86,7 +86,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
 
-      - uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4
+      - uses: pnpm/action-setup@078e9d416474b29c0c387560859308974f7e9c53 # v4
         with:
           version: 10.25.0
 
@@ -106,7 +106,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
 
-      - uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4
+      - uses: pnpm/action-setup@078e9d416474b29c0c387560859308974f7e9c53 # v4
         with:
           version: 10.25.0
 
@@ -168,7 +168,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
 
-      - uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4
+      - uses: pnpm/action-setup@078e9d416474b29c0c387560859308974f7e9c53 # v4
         with:
           version: 10.25.0
 
@@ -197,7 +197,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
 
-      - uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4
+      - uses: pnpm/action-setup@078e9d416474b29c0c387560859308974f7e9c53 # v4
         with:
           version: 10.25.0
 
@@ -270,7 +270,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
 
-      - uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4
+      - uses: pnpm/action-setup@078e9d416474b29c0c387560859308974f7e9c53 # v4
         with:
           version: 10.25.0
 
@@ -394,7 +394,7 @@ jobs:
           ref: ${{ steps.openclaw.outputs.rev }}
           path: openclaw-src
 
-      - uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4
+      - uses: pnpm/action-setup@078e9d416474b29c0c387560859308974f7e9c53 # v4
         if: ${{ steps.assets.outputs.changed == 'true' }}
         with:
           version: 10.25.0
