@@ -23,6 +23,8 @@ export type DeployReadiness = {
 export type FirstPushGuidance = {
   remoteName: string
   hasUpstream: boolean
+  repoPath: string
+  repoUrlHint?: string
   commands: string
   note: string
 }
@@ -174,25 +176,63 @@ function parseUpstreamRemote(upstream?: string | null): string | null {
   return remoteName || null
 }
 
+function shellQuote(value: string): string {
+  if (!value) return "''"
+  return `'${value.replace(/'/g, `'"'"'`)}'`
+}
+
+function shellQuotePath(value: string): string {
+  const trimmed = String(value || "").trim()
+  if (!trimmed) return "''"
+  if (trimmed.startsWith("<") && trimmed.endsWith(">")) return trimmed
+  if (trimmed === "~") return "\"$HOME\""
+  if (trimmed.startsWith("~/")) {
+    return `"${"$HOME"}"${shellQuote(trimmed.slice(1))}`
+  }
+  return shellQuote(trimmed)
+}
+
+function resolveRunnerRepoPathHint(value: unknown): string {
+  const trimmed = String(value || "").trim()
+  return trimmed || "<runner-repo-path>"
+}
+
+function resolveRepoUrlHint(value: unknown): string | null {
+  const trimmed = String(value || "").trim()
+  return trimmed || null
+}
+
 export function deriveFirstPushGuidance(params: {
   upstream?: string | null
+  runnerRepoPath?: string | null
+  repoUrlHint?: string | null
 }): FirstPushGuidance {
   const parsedRemote = parseUpstreamRemote(params.upstream)
   const remoteName = parsedRemote || "origin"
   const hasUpstream = Boolean(parsedRemote)
+  const repoPath = resolveRunnerRepoPathHint(params.runnerRepoPath)
+  const repoUrlHint = resolveRepoUrlHint(params.repoUrlHint)
+  const repoUrlValue = repoUrlHint || "<repo-url>"
+  const quotedRepoUrl = repoUrlHint ? shellQuote(repoUrlHint) : repoUrlValue
   const commands = hasUpstream
-    ? "git push"
+    ? [
+      `cd ${shellQuotePath(repoPath)}`,
+      "git push",
+    ].join("\n")
     : [
-      "git remote add origin <repo-url>",
+      `cd ${shellQuotePath(repoPath)}`,
+      `git remote add origin ${quotedRepoUrl}`,
       "# if origin already exists, update it first",
-      "git remote set-url origin <repo-url>",
+      `git remote set-url origin ${quotedRepoUrl}`,
       "git push -u origin HEAD",
     ].join("\n")
   return {
     remoteName,
     hasUpstream,
+    repoPath,
+    ...(repoUrlHint ? { repoUrlHint } : {}),
     commands,
-    note: "Private and org repos are supported. Auth uses your local git credentials (SSH key, token, or GitHub app).",
+    note: "Run on the runner host in this repo path. Auth uses local git credentials (SSH key, token, or GitHub app).",
   }
 }
 
