@@ -1,5 +1,5 @@
 export type DoctorCheck = {
-  scope: "repo" | "bootstrap" | "updates";
+  scope: "repo" | "bootstrap" | "updates" | "lockdown";
   status: "ok" | "warn" | "missing";
   label: string;
   detail?: string;

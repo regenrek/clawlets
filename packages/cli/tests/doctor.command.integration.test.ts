@@ -40,6 +40,13 @@ describe("doctor command", () => {
     await expect(doctor.run({ args: { scope: "nope" } } as any)).rejects.toThrow(/invalid --scope/i);
   });
 
+  it("accepts lockdown scope", async () => {
+    collectDoctorChecksMock.mockResolvedValue([{ status: "ok", scope: "lockdown", label: "ok" }]);
+    const { doctor } = await import("../src/commands/doctor/index.js");
+    await doctor.run({ args: { scope: "lockdown" } } as any);
+    expect(collectDoctorChecksMock).toHaveBeenCalledWith(expect.objectContaining({ scope: "lockdown" }));
+  });
+
   it("prints json output", async () => {
     collectDoctorChecksMock.mockResolvedValue([{ status: "ok", scope: "repo", label: "ok" }]);
     const { doctor } = await import("../src/commands/doctor/index.js");
